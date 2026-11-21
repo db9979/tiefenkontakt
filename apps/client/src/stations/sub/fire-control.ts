@@ -1,4 +1,6 @@
 import {
+  CHOICE_MAX_KN,
+  CLASSES,
   autoSolve,
   bearing,
   distance,
@@ -15,6 +17,7 @@ import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { COL, deg1, deg3, fitCanvas, h, km } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
+import { courseAction, torpedoAction } from '../../widgets/actions.js';
 
 function drawResiduals(c: HTMLCanvasElement, res: { t: number; err: number }[]): void {
   const H = 70;
@@ -39,7 +42,7 @@ function drawResiduals(c: HTMLCanvasElement, res: { t: number; err: number }[]):
 
 export function fireControlStation(): Station {
   const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Feuerleitstand · Lagebild</span><span class="kbd">RAD ZOOM · ZIEHEN VERSCHIEBT</span></div>
+    <div class="panel"><div class="hd"><span>Feuerleitstand · Lagebild</span><span class="kbd">GELBEN KREIS ZIEHEN = TMA · RECHTSKLICK = AKTIONEN</span></div>
       <canvas id="plot"></canvas>
       <div id="list" style="margin-top:6px"></div>
     </div>
@@ -51,7 +54,7 @@ export function fireControlStation(): Station {
         <div class="row"><span class="dim">ZIELFAHRT</span><span id="v-spd"></span></div><input id="s-spd" type="range" min="0" max="30" step="0.5">
         <div class="row"><span class="dim">GÜTE / FEHLER</span><span id="v-q"></span></div>
         <canvas id="res" style="margin-top:4px"></canvas>
-        <div class="dim" style="margin-top:4px">TIPP: KURSWECHSEL DES EIGENEN BOOTES MACHT DIE ENTFERNUNG BESTIMMBAR</div>
+        <div id="steps" style="margin-top:6px"></div>
       </div>
       <div class="panel"><div class="hd"><span>Torpedo</span><span id="tubes"></span></div>
         <div class="row"><span class="dim">LAUFGESCHWINDIGKEIT</span><select id="t-spd"><option>40</option><option>30</option></select></div>
@@ -65,7 +68,16 @@ export function fireControlStation(): Station {
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
-  const plot = new Plot(q<HTMLCanvasElement>('#plot'), { bearingLines: true, showConvoy: false, esmLines: true });
+  const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
+    bearingLines: true, showConvoy: false, esmLines: true,
+    actions: (p) => [
+      ...courseAction(p),
+      ...torpedoAction(p, {
+        speedKn: Number(q<HTMLSelectElement>('#t-spd').value), searchDepth: Number(q<HTMLInputElement>('#t-dep').value) || 15,
+        mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active',
+      }),
+    ],
+  });
 
   /** Edit the selected solution via range (along latest bearing), course and speed. */
   function fromSliders(): void {
@@ -93,7 +105,9 @@ export function fireControlStation(): Station {
   q<HTMLButtonElement>('#auto').onclick = () => {
     const c = store.selectedContact();
     if (!c) return;
-    const sol = autoSolve(c.history, store.ownTrack);
+    // Classified contacts bound the speed search: a freighter can't make 24 kn
+    const maxKn = c.assigned ? CHOICE_MAX_KN[c.assigned] : c.classified ? CLASSES[c.classified].maxSpeedKn : 30;
+    const sol = autoSolve(c.history, store.ownTrack, maxKn);
     if (sol) store.solutions.set(c.label, sol);
   };
   q<HTMLButtonElement>('#clear').onclick = () => store.selected && store.solutions.delete(store.selected);
@@ -131,6 +145,17 @@ export function fireControlStation(): Station {
       const c = store.selectedContact();
       const sol: TmaSolution | undefined = c ? store.solutions.get(c.label) : undefined;
       q('#tgt').textContent = c ? c.label : 'KONTAKT WÄHLEN';
+      q('#auto').style.display = store.realism === 'einsteiger' ? '' : 'none';
+      const legs = c ? c.history.length : 0;
+      const fitQ = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
+      const step = (done: boolean, text: string) => `<div class="${done ? '' : 'amber'}">${done ? '✓' : '▸'} ${text}</div>`;
+      q('#steps').innerHTML = [
+        step(!!c, 'Kontakt wählen (Liste, Karte oder Wasserfall)'),
+        step(legs > 40, 'Peilungen sammeln, dabei einmal den Kurs um 30–60° ändern'),
+        step(!!sol, 'Auto-TMA oder gelben Kreis auf der Karte ziehen'),
+        step(fitQ > 60, 'Güte über 60 % bringen'),
+        step(s.torpedoes.length > 0, 'Lösung übernehmen und Feuer'),
+      ].join('');
       if (c && sol) {
         const fit = evaluateSolution(sol, c.history, store.ownTrack);
         const now = targetPosAt(sol, s.time);
@@ -157,7 +182,7 @@ export function fireControlStation(): Station {
         <span>${deg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join('');
     },
     frame() {
-      plot.draw(440);
+      plot.draw(Math.max(320, window.innerHeight - 300));
     },
   };
 }

@@ -10,6 +10,7 @@ import {
   stepWorld,
   transmit,
   type AlertView,
+  type ClassChoice,
   type ClassId,
   type MatchLobby,
   type MatchSummary,
@@ -20,8 +21,8 @@ import {
 } from '@tk/shared';
 import { applyCommand, type GameCommand } from './input.js';
 import { computeScore, evaluate } from './rules.js';
-import { DEFAULT_SETTINGS, buildScenario, type ScenarioSettings } from './scenario.js';
-import { buildSnapshot, type PlayerExtras } from './snapshot.js';
+import { DEFAULT_SETTINGS, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
+import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
 export interface Conn {
   playerId: string;
@@ -46,6 +47,8 @@ export class Match {
   private conns = new Map<string, Conn>();
   private extras = new Map<string, PlayerExtras>();
   private eventCursor = 0;
+  /** Classification decisions per datalink group, keyed by hidden target id. */
+  private classes = new Map<string, Map<string, ClassChoice>>();
   private tickCount = 0;
   private timer?: ReturnType<typeof setInterval>;
   onChange?: () => void;
@@ -127,6 +130,28 @@ export class Match {
     return applyCommand(this.world, ship, msg);
   }
 
+  /** Record the player's classification of one of their (or their datalink's) contacts. */
+  classify(playerId: string, label: string, choice: ClassChoice): string | undefined {
+    const w = this.world;
+    const ship = this.shipOf(playerId);
+    if (!w || !ship) return 'Keine laufende Partie';
+    let bookOwner: Ship | undefined = ship;
+    let local = label;
+    const m = /^L(\d+)-(.+)$/.exec(label);
+    if (m) {
+      bookOwner = datalinkMates(w, ship)[Number(m[1]) - 1];
+      local = m[2]!;
+    }
+    const tid = bookOwner ? w.books.get(bookOwner.id)?.targetIdOf(local) : undefined;
+    if (!tid) return 'Kontakt nicht gefunden';
+    const key = classGroupKey(ship);
+    let map = this.classes.get(key);
+    if (!map) this.classes.set(key, (map = new Map()));
+    if (choice === 'unknown') map.delete(tid);
+    else map.set(tid, choice);
+    return undefined;
+  }
+
   /** Team radio. Submarines must be at periscope depth with the mast up, and are DF'd. */
   radio(playerId: string, text: string): string | undefined {
     const w = this.world;
@@ -191,8 +216,10 @@ export class Match {
   tick(): void {
     const w = this.world;
     if (!w || this.state !== 'running') return;
-    stepWorld(w);
-    this.processEvents(w);
+    for (let i = 0; i < this.settings.timeScale; i++) {
+      stepWorld(w);
+      this.processEvents(w);
+    }
     for (const s of this.slots) {
       const x = this.extras.get(s.playerId);
       const ship = this.shipOf(s.playerId);
@@ -200,7 +227,7 @@ export class Match {
       if (ship.mastUp) x.mastUpSince ??= w.time;
       else x.mastUpSince = undefined;
     }
-    const limit = this.settings.timeLimitMin * 60;
+    const limit = simTimeLimit(this.settings);
     const result = evaluate(w, limit);
     this.tickCount++;
     if (this.tickCount % SNAP_EVERY === 0 || result) {
@@ -209,7 +236,7 @@ export class Match {
         const ship = this.shipOf(s.playerId);
         const x = this.extras.get(s.playerId);
         const c = this.conns.get(s.playerId);
-        if (ship && x && c) c.send({ t: 'snap', s: buildSnapshot(w, ship, x, score) });
+        if (ship && x && c) c.send({ t: 'snap', s: buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship))) });
       }
     }
     if (result) {

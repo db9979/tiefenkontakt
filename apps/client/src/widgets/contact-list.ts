@@ -1,28 +1,35 @@
-import { CLASS_LABEL, deg1, esc, km } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, deg1, esc, km } from './format.js';
+import { isFriendlyContact } from './friendly.js';
 import { store } from '../store.js';
 
 const SENSOR_LABEL: Record<string, string> = {
   hull: 'RUMPF', towed: 'SCHLEPP', active: 'AKTIV', intercept: 'PING', periscope: 'OPTIK', radar: 'RADAR', esm: 'ESM',
 };
 
-/** Clickable contact table; selection is shared across stations. */
+/** Clickable contact table; selection is shared across stations. Friendly contacts sink to the bottom. */
 export function renderContactList(el: HTMLElement, filter: (via: string) => boolean = () => true): void {
   const s = store.snap;
   if (!s) return;
   const rows = s.contacts
     .filter((c) => filter(c.via))
-    .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }));
+    .map((c) => ({ c, own: isFriendlyContact(c, s) }))
+    .sort((a, b) => Number(a.own) - Number(b.own) || a.c.label.localeCompare(b.c.label, 'de', { numeric: true }));
+  const head = `<div class="row dim ctable"><span>KONTAKT</span><span>PEILUNG</span><span>ENTF.</span><span>SENSOR</span><span>KLASSE</span></div>`;
   el.innerHTML = rows.length
-    ? rows.map((c) => {
+    ? head + rows.map(({ c, own }) => {
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
-      const cls = c.label === store.selected ? 'amber' : age > 10 ? 'dim' : '';
-      return `<div class="row ${cls}" data-c="${esc(c.label)}" style="cursor:pointer">
-        <span style="width:62px">${esc(c.label)}</span>
-        <span style="width:110px">${deg1(c.bearing)}°${c.bearingAlt !== undefined ? ` / ${deg1(c.bearingAlt)}°` : ''}</span>
-        <span style="width:70px">${c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 60 ? km(c.range) : sol ? '≈ LSG' : '—'}</span>
-        <span style="width:60px">${c.sensors.map((x) => SENSOR_LABEL[x]).join('/')}</span>
-        <span style="flex:1;text-align:right">${c.classified ? CLASS_LABEL[c.classified] : age > 10 ? `ALT ${Math.round(age)} S` : `${c.se.toFixed(0)} DB`}</span>
+      const cls = c.label === store.selected ? 'amber selrow' : own || age > 30 ? 'dim' : '';
+      const range = c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 ? km(c.range) : sol ? '≈ LSG' : '—';
+      const name = c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : '';
+      const what = own ? `EIGEN${name ? ' · ' + name : ''}` : name || (age > 30 ? `ALT ${Math.round(age)} S` : `? ${c.se.toFixed(0)} DB`);
+      const color = c.assigned === 'torpedo' ? 'red' : '';
+      return `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
+        <span>${esc(c.label)}</span>
+        <span>${deg1(c.bearing)}°${c.bearingAlt !== undefined ? `/${deg1(c.bearingAlt)}°` : ''}</span>
+        <span>${range}</span>
+        <span>${c.sensors.map((x) => SENSOR_LABEL[x]).join('/')}</span>
+        <span class="${color}">${what}</span>
       </div>`;
     }).join('')
     : '<div class="dim">KEINE KONTAKTE</div>';

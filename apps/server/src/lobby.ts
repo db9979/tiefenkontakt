@@ -98,6 +98,8 @@ export class Lobby {
         return void m.setReady(conn.playerId, msg.ready);
       case 'radio':
         return void err(m.radio(conn.playerId, msg.text));
+      case 'classify':
+        return void err(m.classify(conn.playerId, msg.label, msg.choice));
       default:
         return void err(m.command(conn.playerId, msg));
     }

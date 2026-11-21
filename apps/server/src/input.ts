@@ -36,6 +36,10 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('dc'), depth: z.number().finite().min(20).max(400) }),
   z.object({ t: z.literal('noisemaker') }),
   z.object({ t: z.literal('radio'), text: z.string().trim().min(1).max(200) }),
+  z.object({
+    t: z.literal('classify'), label: z.string().min(1).max(24),
+    choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
+  }),
 ]);
 
 export function parseClientMsg(raw: string): ClientMsg | undefined {

@@ -79,7 +79,7 @@ describe('match lifecycle', () => {
 
   it('a running match ends with a winner', () => {
     const { m, west } = setup();
-    m.world!.time = m.settings.timeLimitMin * 60;
+    m.world!.time = m.settings.timeLimitMin * 60 * m.settings.timeScale;
     m.tick();
     expect(m.state).toBe('ended');
     expect(west.inbox.some((x) => x.t === 'end')).toBe(true);
@@ -104,5 +104,28 @@ describe('lobby cleanup', () => {
     lobby.connect(probe);
     const list = probe.inbox.find((x) => x.t === 'lobby');
     expect(list && list.t === 'lobby' ? list.matches.map((x) => x.id) : []).not.toContain(m.id);
+  });
+});
+
+describe('manual classification', () => {
+  it('sonar contacts arrive unclassified; the player classifies, the enemy never sees it', () => {
+    const { lobby, m, east, west } = setup();
+    for (let i = 0; i < 40; i++) m.tick();
+    const s = lastSnap(east)!;
+    const c = s.contacts.find((x) => x.sensors.includes('hull'))!;
+    expect(c.classified).toBeUndefined();
+    expect(c.evidence).toBeDefined();
+    lobby.handle(east, { t: 'classify', label: c.label, choice: 'merchant' });
+    m.tick();
+    m.tick();
+    expect(lastSnap(east)!.contacts.find((x) => x.label === c.label)?.assigned).toBe('merchant');
+    expect(JSON.stringify(lastSnap(west))).not.toContain('"assigned":"merchant"');
+  });
+
+  it('rejects unknown labels', () => {
+    const { lobby, m, east } = setup();
+    m.tick();
+    lobby.handle(east, { t: 'classify', label: 'S99', choice: 'warship' });
+    expect(east.inbox.some((x) => x.t === 'error' && x.msg === 'Kontakt nicht gefunden')).toBe(true);
   });
 });

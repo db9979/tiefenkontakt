@@ -1,5 +1,6 @@
 import type { ClassId } from './classes.js';
 import type { Detection, SensorKind } from './sensors.js';
+import type { Evidence } from './signatures.js';
 
 export interface BearingSample {
   t: number;
@@ -20,7 +21,11 @@ export interface ContactTrack {
   rangeAt?: number;
   se: number;
   sensors: SensorKind[];
+  /** Visual identification only (periscope). */
   classified?: ClassId;
+  /** Latest passive narrowband/DEMON measurement. */
+  evidence?: Evidence;
+  evidenceAt?: number;
   history: BearingSample[];
 }
 
@@ -55,6 +60,10 @@ export class ContactBook {
     }
     if (!tr.sensors.includes(d.sensor)) tr.sensors.push(d.sensor);
     if (d.classified) tr.classified = d.classified;
+    if (d.evidence) {
+      tr.evidence = d.evidence;
+      tr.evidenceAt = d.time;
+    }
     tr.history.push({ t: d.time, b: d.bearing, alt: d.bearingAlt, r: d.range, sensor: d.sensor });
     if (tr.history.length > HISTORY_MAX) tr.history.shift();
     return tr;
@@ -67,6 +76,11 @@ export class ContactBook {
 
   tracks(): ContactTrack[] {
     return [...this.byTarget.values()];
+  }
+
+  /** Server-only: tracks with their hidden target ids. */
+  entries(): [string, ContactTrack][] {
+    return [...this.byTarget.entries()];
   }
 
   /** Server-only: resolve a label back to the target id (e.g. for weapon targeting). */

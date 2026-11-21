@@ -1,4 +1,6 @@
-import type { OwnFix, Snapshot, TmaSolution } from '@tk/shared';
+import type { Marks, OwnFix, Snapshot, TmaSolution } from '@tk/shared';
+
+export type Realism = 'einsteiger' | 'profi';
 
 /** Client-side game state: latest snapshot plus everything the player derived from it. */
 export const store = {
@@ -6,6 +8,9 @@ export const store = {
   ownTrack: [] as OwnFix[],
   solutions: new Map<string, TmaSolution>(),
   selected: undefined as string | undefined,
+  /** Operator line marks per contact label (LOFAR fundamental, DEMON shaft/blade). */
+  marks: new Map<string, Marks>(),
+  realism: (localStorage.getItem('tk_realism') as Realism | null) ?? 'einsteiger',
   lastError: '',
   ended: undefined as { winner: string; reason: string } | undefined,
 
@@ -23,8 +28,14 @@ export const store = {
     this.snap = undefined;
     this.ownTrack = [];
     this.solutions.clear();
+    this.marks.clear();
     this.selected = undefined;
     this.ended = undefined;
+  },
+
+  setRealism(r: Realism): void {
+    this.realism = r;
+    localStorage.setItem('tk_realism', r);
   },
 
   selectedContact() {

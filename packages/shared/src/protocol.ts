@@ -1,5 +1,6 @@
 import type { ClassId, Team } from './classes.js';
 import type { ContactTrack } from './contacts.js';
+import type { ClassChoice } from './signatures.js';
 import type { SeekerMode } from './weapons.js';
 
 /** Messages client -> server. Validated with zod on the server. */
@@ -17,7 +18,8 @@ export type ClientMsg =
   | { t: 'rocket'; bearing: number; range: number }
   | { t: 'dc'; depth: number }
   | { t: 'noisemaker' }
-  | { t: 'radio'; text: string };
+  | { t: 'radio'; text: string }
+  | { t: 'classify'; label: string; choice: ClassChoice };
 
 export interface PlayerSlot {
   playerId: string;
@@ -37,7 +39,7 @@ export interface MatchSummary {
 
 export interface MatchLobby extends MatchSummary {
   slots: PlayerSlot[];
-  settings: { layerDepth: number; seaState: number; timeLimitMin: number; merchants: number };
+  settings: { timeScale: number; layerDepth: number; seaState: number; timeLimitMin: number; merchants: number };
 }
 
 export interface OwnShipView {
@@ -60,6 +62,7 @@ export interface OwnShipView {
   mastUpSince?: number;
   radarOn: boolean;
   activeSonar: boolean;
+  lastPingAt?: number;
   towedLength: number;
   towedReady: boolean;
   noiseDb: number;
@@ -115,7 +118,12 @@ export interface AlertView {
 export interface Snapshot {
   time: number;
   own: OwnShipView;
-  contacts: (Omit<ContactTrack, 'history'> & { history: ContactTrack['history']; via: 'own' | 'datalink' })[];
+  contacts: (Omit<ContactTrack, 'history'> & {
+    history: ContactTrack['history'];
+    via: 'own' | 'datalink';
+    /** The player's (or datalink group's) own classification decision. */
+    assigned?: ClassChoice;
+  })[];
   friendlies: FriendlyView[];
   torpedoes: TorpedoView[];
   radio: RadioMsg[];

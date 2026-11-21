@@ -18,7 +18,7 @@ export const DT_ACTIVE = 10;
 /** Transition range from spherical to cylindrical spreading. */
 const R0 = 1000;
 const ALPHA_PASSIVE = 0.2; // dB/km broadband
-const ALPHA_ACTIVE = 1.0; // dB/km at active sonar frequencies
+const ALPHA_ACTIVE = 2.5; // dB/km at active sonar frequencies (incl. reverberation losses)
 const CAVITATION_DB = 15;
 const SNORKEL_DB = 28;
 
@@ -94,12 +94,25 @@ export function passiveSignalExcess(
   env: Environment,
   receiverDepth = receiver.depth,
 ): number {
+  return passiveExcessFrom(sourceLevel(target), target.depth, receiver, range, array, env, receiverDepth);
+}
+
+/** Passive signal excess for any noise source with a given level and depth. */
+export function passiveExcessFrom(
+  sl: number,
+  sourceDepth: number,
+  receiver: Ship,
+  range: number,
+  array: 'hull' | 'towed',
+  env: Environment,
+  receiverDepth = receiver.depth,
+): number {
   const spec = CLASSES[receiver.cls];
   const di = array === 'hull' ? spec.hull.di : (spec.towed?.di ?? 0);
   const self = array === 'hull' ? hullSelfNoise(receiver) : towedSelfNoise(receiver);
   const nl = dbSum(ambientNoise(env), self);
-  const tl = transmissionLoss(range, target.depth, receiverDepth, env);
-  return sourceLevel(target) - tl - (nl - di) - DT_PASSIVE;
+  const tl = transmissionLoss(range, sourceDepth, receiverDepth, env);
+  return sl - tl - (nl - di) - DT_PASSIVE;
 }
 
 /** Signal excess of an active sonar echo (monostatic). */

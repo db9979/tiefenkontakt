@@ -41,7 +41,9 @@ export function periscopeStation(): Station {
       <div style="display:flex;gap:6px;margin-top:6px">
         <button id="up">Mast ausfahren</button><button id="zoom">Vergr 6×</button>
         <button id="peri">Auf Sehrohrtiefe</button>
-        <span class="kbd" style="align-self:center">A / D DREHEN · KLICK AUF ZIEL WÄHLT</span>
+        <button id="left" title="Sehrohr nach links drehen">◀</button><button id="right" title="Sehrohr nach rechts drehen">▶</button>
+        <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button>
+        <span class="kbd" style="align-self:center">ZIEHEN DREHT · KLICK WÄHLT</span>
       </div>
     </div>
     <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
@@ -61,7 +63,31 @@ export function periscopeStation(): Station {
     (e.target as HTMLButtonElement).textContent = zoom6 ? 'Vergr 6×' : 'Vergr 1,5×';
   };
   el.querySelector<HTMLButtonElement>('#peri')!.onclick = () => net.send({ t: 'order', depth: PERISCOPE_DEPTH });
+  const train = (d: number) => (periBearing = (periBearing + d + 360) % 360);
+  el.querySelector<HTMLButtonElement>('#left')!.onclick = () => train(zoom6 ? -2 : -8);
+  el.querySelector<HTMLButtonElement>('#right')!.onclick = () => train(zoom6 ? 2 : 8);
+  el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
+    const c = store.selectedContact();
+    if (c) periBearing = c.bearing;
+  };
+  let dragX: number | undefined;
+  let dragged = false;
+  view.style.cursor = 'ew-resize';
+  view.addEventListener('mousedown', (e) => {
+    dragX = e.clientX;
+    dragged = false;
+  });
+  window.addEventListener('mouseup', () => (dragX = undefined));
+  view.addEventListener('mousemove', (e) => {
+    if (dragX === undefined) return;
+    const dx = e.clientX - dragX;
+    if (Math.abs(dx) > 2) dragged = true;
+    dragX = e.clientX;
+    const fov = zoom6 ? 8 : 32;
+    train((-dx / (view.clientWidth * 0.84)) * fov);
+  });
   view.onclick = (e) => {
+    if (dragged) return;
     const s = store.snap;
     if (!s) return;
     const r = view.getBoundingClientRect();

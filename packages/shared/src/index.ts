@@ -12,3 +12,4 @@ export * from './loadout.js';
 export * from './weapons.js';
 export * from './protocol.js';
 export * from './tma.js';
+export * from './signatures.js';

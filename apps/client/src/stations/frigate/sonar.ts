@@ -1,30 +1,39 @@
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
+import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { h } from '../../widgets/format.js';
 import { Waterfall } from '../../widgets/waterfall.js';
+import { pickByBearing } from '../sub/sonar.js';
 
 export function frigateSonarStation(): Station {
   const el = h(`<div class="cols">
-    <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
       <div class="panel"><div class="hd"><span>Rumpfsonar</span><span id="hs" class="dim"></span></div><canvas id="hull"></canvas></div>
-      <div class="panel"><div class="hd"><span>Schleppsonar · Peilung beidseitig mehrdeutig</span><span id="ts" class="dim"></span></div><canvas id="tow"></canvas></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="panel"><div class="hd"><span>Steuerung</span></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button id="ping" class="warn">Aktiv-Ping alle 30 s</button>
+      <div class="panel"><div class="hd"><span>Schleppsonar · links/rechts mehrdeutig</span><span id="ts" class="dim"></span></div><canvas id="tow"></canvas>
+        <div class="steps" style="margin-top:6px">
+          <button id="ping" class="warn" title="Aktiv-Ping alle 30 s: Entfernung, verrät aber die Fregatte">Aktiv-Ping</button>
+          ${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}
         </div>
-        <div class="row" style="margin-top:8px"><span class="dim">SCHLEPPLÄNGE</span><span id="len"></span></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}</div>
-        <div class="dim" style="margin-top:6px">LANGES KABEL = ARRAY UNTER DER SPRUNGSCHICHT. NACH JEDER KURSÄNDERUNG 60 S STABILISIEREN.</div>
       </div>
       <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
     </div>
+    <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
   </div>`);
   const hull = new Waterfall(['hull', 'active', 'intercept']);
   const tow = new Waterfall(['towed']);
+  const hullCv = el.querySelector<HTMLCanvasElement>('#hull')!;
+  const towCv = el.querySelector<HTMLCanvasElement>('#tow')!;
+  const analysis = new AcousticAnalysis(250);
+  el.querySelector('#ana')!.appendChild(analysis.el);
+  for (const [wf, cv] of [[hull, hullCv], [tow, towCv]] as const) {
+    cv.style.cursor = 'pointer';
+    cv.onmousedown = (e) => {
+      const hit = pickByBearing(wf.bearingAt(cv, e.clientX));
+      if (hit) store.selected = hit;
+    };
+  }
   el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => (b.onclick = () => net.send({ t: 'towed', length: Number(b.dataset.len) })));
 
@@ -40,12 +49,15 @@ export function frigateSonarStation(): Station {
       el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
       el.querySelector('#hs')!.textContent = o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV';
       el.querySelector('#ts')!.textContent = o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
-      el.querySelector('#len')!.textContent = `${o.towedLength} M`;
       el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => b.classList.toggle('on', Number(b.dataset.len) === o.towedLength));
+      el.querySelector('#lab')!.textContent = store.selected ?? '';
+      analysis.update();
     },
     frame() {
-      hull.draw(el.querySelector<HTMLCanvasElement>('#hull')!, 220, store.snap, store.selected);
-      tow.draw(el.querySelector<HTMLCanvasElement>('#tow')!, 220, store.snap, store.selected);
+      const hgt = Math.max(150, (window.innerHeight - 330) / 2);
+      hull.draw(hullCv, hgt, store.snap, store.selected);
+      tow.draw(towCv, hgt, store.snap, store.selected);
+      analysis.draw();
     },
   };
 }

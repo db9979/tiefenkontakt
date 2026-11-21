@@ -4,7 +4,7 @@ import { stepConvoy, type ConvoyState } from './convoy-ai.js';
 import type { Ship } from './entities.js';
 import { stepShip } from './kinematics.js';
 import { Rng } from './rng.js';
-import { interceptTransmission, runSensors, type Detection } from './sensors.js';
+import { interceptTransmission, runSensors, type Detection, type Emitter } from './sensors.js';
 import type { WeaponsState } from './weapons.js';
 
 export const SIM_DT = 0.1; // s, 10 Hz
@@ -64,6 +64,14 @@ export function transmit(w: World, sender: Ship, text: string): void {
   ingest(w, dets);
 }
 
+/** Running torpedoes are loud noise sources that every sonar can hear. */
+function torpedoEmitters(w: World): Emitter[] {
+  return (w.weapons?.torpedoes ?? []).map((t) => ({
+    id: t.id, ownerId: t.ownerId, pos: t.pos, depth: t.depth, sig: 'torpedo' as const,
+    speedKn: t.speedKn, sl: 150 + 20 * Math.log10(t.speedKn / 40),
+  }));
+}
+
 export function stepWorld(w: World, dt = SIM_DT): void {
   w.time += dt;
   if (w.convoy) {
@@ -78,7 +86,7 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   w.sensorAccum += dt;
   if (w.sensorAccum >= SENSOR_INTERVAL - 1e-9) {
     w.sensorAccum = 0;
-    w.lastDetections = runSensors({ ships: w.ships, env: w.env, time: w.time, rng: w.rng });
+    w.lastDetections = runSensors({ ships: w.ships, emitters: torpedoEmitters(w), env: w.env, time: w.time, rng: w.rng });
     ingest(w, w.lastDetections);
     for (const b of w.books.values()) b.expire(w.time);
   }

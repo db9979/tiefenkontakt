@@ -6,6 +6,8 @@ import {
   sourceLevel,
   towedArrayReady,
   type AlertView,
+  type ClassChoice,
+  type World as W,
   type FriendlyView,
   type RadioMsg,
   type Ship,
@@ -44,18 +46,34 @@ export function hasDatalink(s: Ship): boolean {
  * Build the per-player view. FOG OF WAR: this is the only place where world
  * state flows to a client. Enemy ships appear exclusively as sensor tracks.
  */
-export function buildSnapshot(w: World, own: Ship, x: PlayerExtras, score: ScoreInfo): Snapshot {
+/** Datalink mates of a surface ship, in a stable order (their index forms the L<n>- label prefix). */
+export function datalinkMates(w: W, own: Ship): Ship[] {
+  return w.ships.filter((s) => s.team === own.team && s.id !== own.id && hasDatalink(s));
+}
+
+/** Classification decisions are shared within a datalink group; a submarine keeps its own. */
+export function classGroupKey(s: Ship): string {
+  return hasDatalink(s) ? `team:${s.team}` : `ship:${s.id}`;
+}
+
+export function buildSnapshot(
+  w: World, own: Ship, x: PlayerExtras, score: ScoreInfo, classes?: ReadonlyMap<string, ClassChoice>,
+): Snapshot {
   const l = w.weapons?.loadouts.get(own.id);
   const contacts: Snapshot['contacts'] = [];
-  for (const tr of w.books.get(own.id)?.tracks() ?? []) contacts.push({ ...tr, history: tr.history.slice(-120), via: 'own' });
+  for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
+    contacts.push({ ...tr, history: tr.history.slice(-120), via: 'own', assigned: classes?.get(tid) });
+  }
 
   const friendlies: FriendlyView[] = [];
   if (hasDatalink(own)) {
     const mates = w.ships.filter((s) => s.team === own.team && s.id !== own.id);
     for (const m of mates) friendlies.push(friendlyOf(m, w.time));
-    mates.filter(hasDatalink).forEach((m, i) => {
-      for (const tr of w.books.get(m.id)?.tracks() ?? []) {
-        contacts.push({ ...tr, label: `L${i + 1}-${tr.label}`, history: tr.history.slice(-30), via: 'datalink' });
+    datalinkMates(w, own).forEach((m, i) => {
+      for (const [tid, tr] of w.books.get(m.id)?.entries() ?? []) {
+        contacts.push({
+          ...tr, label: `L${i + 1}-${tr.label}`, history: tr.history.slice(-30), via: 'datalink', assigned: classes?.get(tid),
+        });
       }
     });
   } else {
@@ -73,7 +91,7 @@ export function buildSnapshot(w: World, own: Ship, x: PlayerExtras, score: Score
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, order: { ...own.order },
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
       snorkel: own.snorkel, mastUp: own.mastUp, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
-      activeSonar: own.activeSonar, towedLength: own.towedLength, towedReady: towedArrayReady(own, w.time),
+      activeSonar: own.activeSonar, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: own.towedLength, towedReady: towedArrayReady(own, w.time),
       noiseDb: sourceLevel(own), cavitationKn: Number.isFinite(cavitationSpeedKn(own)) ? cavitationSpeedKn(own) : 99,
       loadout: {
         tubes: (l?.tubes ?? []).map((t) => ({ loaded: t.loaded, reloadLeft: t.reloadDoneAt ? Math.max(0, t.reloadDoneAt - w.time) : 0 })),

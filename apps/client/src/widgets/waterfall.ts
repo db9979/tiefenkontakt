@@ -66,7 +66,7 @@ export class Waterfall {
     const pl = 36;
     const pt = 18;
     const pw = w - pl - 8;
-    const ph = height - pt - 18;
+    const ph = height - pt - 42;
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, w, height);
     ctx.imageSmoothingEnabled = false;
@@ -93,12 +93,18 @@ export class Waterfall {
     const hx = pl + (s.own.heading / 360) * pw;
     ctx.fillStyle = COL.blue;
     ctx.fillText('▼', hx, pt + 9);
-    for (const c of s.contacts) {
-      if (c.via !== 'own' || s.time - c.lastSeen > 5) continue;
+    const shown = s.contacts
+      .filter((c) => c.via === 'own' && s.time - c.lastSeen <= 5 && c.sensors.some((x) => this.sensors.includes(x)))
+      .sort((a, b) => a.bearing - b.bearing);
+    const rowEnd = [-1e9, -1e9, -1e9];
+    for (const c of shown) {
       const x = pl + (c.bearing / 360) * pw;
       const sel = c.label === selected;
       ctx.fillStyle = sel ? COL.amber : COL.g2;
-      ctx.fillText(c.label, x, pt + ph + 13);
+      let row = rowEnd.findIndex((end) => x - end > 26);
+      if (row < 0) row = 2;
+      rowEnd[row] = x;
+      ctx.fillText(c.label, x, pt + ph + 13 + row * 12);
       if (sel) {
         ctx.strokeStyle = COL.amber;
         ctx.setLineDash([3, 3]);

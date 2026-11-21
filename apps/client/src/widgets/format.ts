@@ -1,4 +1,4 @@
-import type { ClassId } from '@tk/shared';
+import type { ClassChoice, ClassId } from '@tk/shared';
 
 export const deg3 = (d: number) => Math.round(((d % 360) + 360) % 360).toString().padStart(3, '0');
 export const deg1 = (d: number) => (((d % 360) + 360) % 360).toFixed(1).replace('.', ',');
@@ -14,6 +14,10 @@ export function clock(t: number): string {
 
 export const CLASS_LABEL: Record<ClassId, string> = {
   ssn: 'ATOM-U-BOOT', ssk: 'DIESEL-U-BOOT', ffg: 'FREGATTE', merchant: 'HANDELSSCHIFF',
+};
+
+export const CHOICE_LABEL: Record<ClassChoice, string> = {
+  merchant: 'HANDELSSCHIFF', warship: 'KRIEGSSCHIFF', submarine: 'U-BOOT', torpedo: 'TORPEDO', bio: 'BIOLOGISCH', unknown: 'UNBEKANNT',
 };
 
 export const CLASS_NAME: Record<Exclude<ClassId, 'merchant'>, { title: string; info: string }> = {

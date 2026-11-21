@@ -1,14 +1,18 @@
 import {
   activeSignalExcess,
   bearingSigma,
+  isCavitating,
+  passiveExcessFrom,
   passiveSignalExcess,
   pingInterceptExcess,
   type Environment,
 } from './acoustics.js';
+import { isSnorkeling } from './kinematics.js';
+import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth } from './entities.js';
-import { NM, angleDiff, bearing, distance, wrap360 } from './math.js';
+import { KN, NM, angleDiff, bearing, distance, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
 
 export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm';
@@ -24,18 +28,32 @@ export interface Detection {
   bearingAlt?: number;
   range?: number;
   se: number;
+  /** Only set by visual identification (periscope). Sonar never names a contact. */
   classified?: ClassId;
+  /** Narrowband/DEMON measurements for passive sonar looks. */
+  evidence?: Evidence;
+}
+
+/** A non-ship noise source (running torpedo) that passive sonar can hear. */
+export interface Emitter {
+  id: string;
+  ownerId: string;
+  pos: Vec2;
+  depth: number;
+  sl: number;
+  sig: SigKey;
+  speedKn: number;
 }
 
 export const PING_INTERVAL = 30; // s
 const SE_FLUCTUATION = 2; // dB sd per sample
-const CLASSIFY_SE = 8;
 const RADAR_RANGE = 22 * NM;
 const RADAR_MAST_RANGE = 6 * NM;
 const ESM_RANGE = 40 * NM;
 
 export interface SensorContext {
   ships: readonly Ship[];
+  emitters?: readonly Emitter[];
   env: Environment;
   time: number;
   rng: Rng;
@@ -67,8 +85,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
     if (se > 0) {
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'hull', time: ctx.time,
-        bearing: noisyBearing(trueB, se, ctx.rng), se,
-        classified: se > CLASSIFY_SE ? tgt.cls : undefined,
+        bearing: noisyBearing(trueB, se, ctx.rng), se, evidence: shipEvidence(tgt, se, ctx),
       });
     }
   }
@@ -86,10 +103,32 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
       if (ctx.rng.next() < 0.5) [b, alt] = [alt, b];
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'towed', time: ctx.time,
-        bearing: b, bearingAlt: alt, se,
-        classified: se > CLASSIFY_SE ? tgt.cls : undefined,
+        bearing: b, bearingAlt: alt, se, evidence: shipEvidence(tgt, se, ctx),
       });
     }
+  }
+}
+
+function shipEvidence(tgt: Ship, se: number, ctx: SensorContext): Evidence {
+  return measureEvidence(sigKeyOf(tgt.cls), tgt.speed / KN, se, { cavitating: isCavitating(tgt), snorkel: isSnorkeling(tgt) }, ctx.rng);
+}
+
+/** Passive looks at torpedoes and other emitters (hull array only, no towed self-noise model needed). */
+function passiveEmitters(obs: Ship, ctx: SensorContext, out: Detection[]): void {
+  const spec = CLASSES[obs.cls];
+  if (spec.hull.di <= 0) return;
+  for (const e of ctx.emitters ?? []) {
+    if (e.ownerId === obs.id) continue;
+    const range = distance(obs.pos, e.pos);
+    const trueB = bearing(obs.pos, e.pos);
+    if (Math.abs(angleDiff(obs.heading, trueB)) >= 180 - spec.hull.baffleHalfAngle) continue;
+    const se = passiveExcessFrom(e.sl, e.depth, obs, range, 'hull', ctx.env) + ctx.rng.gauss(0, SE_FLUCTUATION);
+    if (se <= 0) continue;
+    out.push({
+      observerId: obs.id, targetId: e.id, sensor: 'hull', time: ctx.time,
+      bearing: noisyBearing(trueB, se, ctx.rng), se,
+      evidence: measureEvidence(e.sig, e.speedKn, se, { cavitating: true }, ctx.rng),
+    });
   }
 }
 
@@ -179,6 +218,7 @@ export function runSensors(ctx: SensorContext): Detection[] {
     for (const tgt of ctx.ships) {
       if (tgt !== obs && tgt.alive) passive(obs, tgt, ctx, out);
     }
+    passiveEmitters(obs, ctx, out);
     if (obs.activeSonar && ctx.time - obs.lastPingAt >= PING_INTERVAL) {
       obs.lastPingAt = ctx.time;
       ping(obs, ctx, out);

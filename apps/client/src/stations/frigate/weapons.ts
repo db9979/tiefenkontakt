@@ -4,6 +4,8 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { deg1, h, km } from '../../widgets/format.js';
+import { Plot } from '../../widgets/plot.js';
+import { courseAction, rocketAction } from '../../widgets/actions.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
 function aim(): { bearing: number; range: number; source: string } | undefined {
@@ -40,7 +42,10 @@ export function weaponsStation(): Station {
         <button id="decoy" class="warn">Täuschkörper-Schleppe</button>
       </div>
     </div>
-    <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="panel"><div class="hd"><span>Zielkarte</span><span class="dim">RECHTSKLICK = RAKETE HIERHER</span></div><canvas id="plot"></canvas></div>
+      <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
+    </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   q<HTMLButtonElement>('#rocket').onclick = () => {
@@ -57,6 +62,10 @@ export function weaponsStation(): Station {
   el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => (b.onclick = () => net.send({ t: 'dc', depth: Number(b.dataset.dc) })));
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
   q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
+  const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...rocketAction(p), ...courseAction(p)],
+  });
+  plot.scale = 30;
 
   return {
     title: 'Waffen',
@@ -78,6 +87,8 @@ export function weaponsStation(): Station {
       q('#decoy').classList.toggle('on', l.towedDecoy);
       renderContactList(q('#list'));
     },
-    frame() {},
+    frame() {
+      plot.draw(Math.max(260, window.innerHeight - 380));
+    },
   };
 }

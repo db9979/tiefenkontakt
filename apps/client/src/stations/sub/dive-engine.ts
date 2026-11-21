@@ -10,7 +10,7 @@ const STEPS = [
 
 export function diveEngineStation(): Station {
   const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Tauchstand · Tiefenprofil</span><span id="dd" class="dim"></span></div>
+    <div class="panel"><div class="hd"><span>Tauchstand · Tiefenprofil (Klick = Tiefe)</span><span id="dd" class="dim"></span></div>
       <canvas id="prof"></canvas>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button data-depth="${PERISCOPE_DEPTH}">Sehrohrtiefe</button><button data-depth="60">60 m</button>
@@ -46,6 +46,17 @@ export function diveEngineStation(): Station {
       net.send({ t: 'order', depth });
     };
   });
+  const prof = q<HTMLCanvasElement>('#prof');
+  prof.style.cursor = 'ns-resize';
+  prof.title = 'Klicken setzt die befohlene Tiefe';
+  prof.onmousedown = (e) => {
+    const s = store.snap;
+    if (!s) return;
+    const r = prof.getBoundingClientRect();
+    const maxD = CLASSES[s.own.cls].maxDepth;
+    const d = ((e.clientY - r.top - 20) / (r.height - 40)) * maxD;
+    net.send({ t: 'order', depth: Math.round(Math.min(maxD, Math.max(0, d)) / 5) * 5 });
+  };
   q<HTMLButtonElement>('#snort').onclick = () => net.send({ t: 'toggle', what: 'snorkel', on: !store.snap?.own.snorkel });
   q<HTMLButtonElement>('#nm').onclick = () => net.send({ t: 'noisemaker' });
 

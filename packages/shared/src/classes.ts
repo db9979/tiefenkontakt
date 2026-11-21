@@ -61,7 +61,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
     slBase: 115, slRefKn: 4, slSlope: 50, cavKn: 7, cavDepthKn: 4,
     targetStrength: 12,
     hull: { di: 15, baffleHalfAngle: 30, selfNoiseBase: 55, selfNoiseRefKn: 4, activeSl: 210 },
-    battery: { capacityKnH: 400 },
+    battery: { capacityKnH: 80 },
     hp: 80,
   },
   ffg: {

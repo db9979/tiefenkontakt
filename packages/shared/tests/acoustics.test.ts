@@ -80,7 +80,7 @@ describe('detection ranges', () => {
   it('hiding below the layer shortens active sonar range', () => {
     const shallow = maxRange((x) => activeSignalExcess(mk('ssk', 4, 60), mk('ffg', 15), x, env));
     const deep = maxRange((x) => activeSignalExcess(mk('ssk', 4, 150), mk('ffg', 15), x, env));
-    expect(shallow).toBeGreaterThan(8000);
+    expect(shallow).toBeGreaterThan(5000);
     expect(deep).toBeLessThan(shallow * 0.6);
   });
 });

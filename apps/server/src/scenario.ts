@@ -9,17 +9,24 @@ import {
 } from '@tk/shared';
 
 export interface ScenarioSettings {
+  /** Sim seconds per real second. Gives room to hunt within a playable real-time match. */
+  timeScale: number;
   layerDepth: number;
   seaState: number;
   timeLimitMin: number;
   merchants: number;
 }
 
-export const DEFAULT_SETTINGS: ScenarioSettings = { layerDepth: 120, seaState: 3, timeLimitMin: 40, merchants: 8 };
+export const DEFAULT_SETTINGS: ScenarioSettings = { timeScale: 3, layerDepth: 120, seaState: 3, timeLimitMin: 40, merchants: 8 };
 
 /** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
 export function routeLength(s: ScenarioSettings): number {
-  return 9 * 0.514444 * s.timeLimitMin * 60 * 0.85;
+  return 9 * 0.514444 * simTimeLimit(s) * 0.85;
+}
+
+/** Match time limit in sim seconds. */
+export function simTimeLimit(s: ScenarioSettings): number {
+  return s.timeLimitMin * 60 * s.timeScale;
 }
 
 /**
@@ -50,8 +57,8 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     }));
   });
   east.forEach((p, i) => {
-    const frac = 0.4 + ((i * 0.37) % 0.3);
-    const x = (i % 2 === 0 ? 1 : -1) * (3000 + i * 1200);
+    const frac = 0.45 + ((i * 0.37) % 0.3);
+    const x = (i % 2 === 0 ? 1 : -1) * (4000 + i * 2500);
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'east', playerId: p.playerId,
       pos: { x, y: route * frac }, heading: 180, speedKn: 4, depth: 80,

@@ -27,6 +27,26 @@ export function radarEsmStation(): Station {
   pc.fillRect(0, 0, 520, 520);
   let sweep = 0;
   let last = performance.now();
+  canvas.style.cursor = 'pointer';
+  canvas.onmousedown = (e) => {
+    const s = store.snap;
+    if (!s) return;
+    const r = canvas.getBoundingClientRect();
+    const size = Math.min(r.width, 520);
+    const k = size / 520;
+    const mx = (e.clientX - r.left - (r.width - size) / 2) / k - 260;
+    const my = 260 - (e.clientY - r.top) / k;
+    let best: string | undefined;
+    let bd = 12;
+    for (const c of s.contacts) {
+      if (!c.sensors.includes('radar') || c.range === undefined) continue;
+      const v = headingVec(c.bearing);
+      const rr = (c.range / RANGE) * 250;
+      const d = Math.hypot(v.x * rr - mx, v.y * rr - my);
+      if (d < bd) [best, bd] = [c.label, d];
+    }
+    if (best) store.selected = best;
+  };
   el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
 
   return {
