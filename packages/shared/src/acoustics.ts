@@ -2,7 +2,7 @@ import { CLASSES } from './classes.js';
 import { sonarPenaltyDb } from './damage.js';
 import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
-import { KN, dbSum } from './math.js';
+import { KN, angleDiff, bearing, dbSum, distance, type Vec2 } from './math.js';
 import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
 import { RAIN_NOISE_DB, type WeatherState } from './weather.js';
 
@@ -53,6 +53,47 @@ export function sourceLevel(s: Ship): number {
   // Ships at anchor still run generators and pumps
   if (s.cls === 'merchant') sl = Math.max(sl, 132);
   return sl;
+}
+
+/**
+ * Radiated-noise pattern relative to beam aspect: the hull shades the propeller from
+ * ahead (up to −4 dB), the screw is heard best from astern (up to +5 dB).
+ */
+const RAD_BOW_DB = 4;
+const RAD_STERN_DB = 5;
+/** Active target strength: a hull broadside reflects far more than bow or stern. */
+const TS_ASPECT_DB = 4;
+
+/** Angle off the ship's bow toward a point, 0 = dead ahead, 180 = dead astern; undefined if co-located. */
+export function aspectOffBow(s: Ship, from: Vec2): number | undefined {
+  if (distance(s.pos, from) < 1) return undefined;
+  return Math.abs(angleDiff(s.heading, bearing(s.pos, from)));
+}
+
+/** Directivity of the radiated noise toward a listener, dB relative to beam aspect. */
+export function radiatedAspectDb(s: Ship, from: Vec2): number {
+  const a = aspectOffBow(s, from);
+  if (a === undefined) return 0;
+  const c = Math.cos((a * Math.PI) / 180);
+  return c >= 0 ? -RAD_BOW_DB * c : RAD_STERN_DB * -c;
+}
+
+/** Broadband source level as heard from a given position (with the radiation pattern). */
+export function sourceLevelToward(s: Ship, from: Vec2): number {
+  return sourceLevel(s) + radiatedAspectDb(s, from);
+}
+
+/** Active target strength seen from a given position: beam +4 dB, bow/stern −4 dB. */
+export function targetStrengthToward(s: Ship, from: Vec2): number {
+  const ts = CLASSES[s.cls].targetStrength;
+  const a = aspectOffBow(s, from);
+  if (a === undefined) return ts;
+  return ts + TS_ASPECT_DB * (2 * Math.abs(Math.sin((a * Math.PI) / 180)) - 1);
+}
+
+/** Radiated noise of a running torpedo (dB re 1 uPa @ 1 m). */
+export function torpedoSourceLevel(speedKn: number): number {
+  return 150 + 20 * Math.log10(Math.max(speedKn, 1) / 40);
 }
 
 /** Whether source and receiver are on opposite sides of the layer. */
@@ -113,7 +154,7 @@ export function passiveSignalExcess(
   receiverDepth = receiver.depth,
   bottom = 3000,
 ): number {
-  return passiveExcessFrom(sourceLevel(target), target.depth, receiver, range, array, env, receiverDepth, bottom);
+  return passiveExcessFrom(sourceLevelToward(target, receiver.pos), target.depth, receiver, range, array, env, receiverDepth, bottom);
 }
 
 /** Passive signal excess for any noise source with a given level and depth. */
@@ -142,7 +183,7 @@ export function activeSignalExcess(target: Ship, pinger: Ship, range: number, en
   if (sl === undefined) return -Infinity;
   const tl = transmissionLoss(range, pinger.depth, target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
   const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
-  const ts = CLASSES[target.cls].targetStrength;
+  const ts = targetStrengthToward(target, pinger.pos);
   return sl - 2 * tl + ts - (nl - spec.hull.di) - DT_ACTIVE;
 }
 

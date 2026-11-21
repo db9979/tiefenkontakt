@@ -129,11 +129,13 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   }
 
   if (range !== undefined && range < 8000 && now - m.lastShot > SHOT_COOLDOWN) {
-    const aim = solved ? interceptHeading(s.pos, 40, solved.sol, now) ?? target.bearing : target.bearing;
+    // Long passive shots run slow: quieter, and the seeker hears more without flow noise
+    const runKn = !duel && range > 4000 ? 30 : 40;
+    const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
     let fired = 0;
     for (let i = 0; i < k.salvo; i++) {
       const spread = k.salvo > 1 ? (i === 0 ? -3 : 3) : 0;
-      const r = fireTorpedo(w, s, { heading: wrap360(aim + spread), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15 });
+      const r = fireTorpedo(w, s, { heading: wrap360(aim + spread), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn });
       if (typeof r !== 'string') fired++;
     }
     if (fired) {

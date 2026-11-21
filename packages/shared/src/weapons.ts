@@ -1,9 +1,11 @@
-import { crossesLayer, sourceLevel } from './acoustics.js';
+import { crossesLayer, passiveExcessFrom, torpedoSourceLevel, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { CLASSES } from './classes.js';
 import type { Ship } from './entities.js';
 import { applyHitDamage, reloadFactor, weaponsBroken } from './damage.js';
 import { createLoadout, stepReload, type Loadout } from './loadout.js';
 import { KN, angleDiff, approach, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
+import { depthAt } from './seabed.js';
+import { towedArrayDepth, towedArrayReady } from './sensors.js';
 import { measureLayer, type World } from './world.js';
 
 export type TorpedoKind = 'heavy' | 'light';
@@ -26,6 +28,11 @@ export interface Torpedo {
   homingOn?: string; // target or decoy id
   launchedAt: number;
   alerted: string[]; // ship ids already warned
+  /** Decoys the seeker has already classified as false targets. */
+  rejected?: string[];
+  /** Snake search: centre course and start time, set when the search (re)starts. */
+  searchCourse?: number;
+  searchSince?: number;
 }
 
 export interface Decoy {
@@ -66,6 +73,22 @@ const ROCKET_MAX_RANGE = 18_000;
 const ROCKET_FLIGHT = 40;
 const DC_SINK_RATE = 4;
 const DC_LETHAL = 60;
+/** ASW lightweights ignore anything shallower (surface ships, towed decoys): no attacks on the own escort. */
+const LIGHT_CEILING = 10;
+/** Torpedoes keep this clearance above the seabed. */
+const BOTTOM_CLEARANCE = 10;
+/** Flow noise deafens the seeker above this speed (dB lost per knot above it). */
+const QUIET_RUN_KN = 25;
+const FLOW_DB_PER_KN_PASSIVE = 0.8;
+const FLOW_DB_PER_KN_ACTIVE = 0.25;
+/** An active seeker sees that a noisemaker gives no hull echo once this close. */
+const ACTIVE_REJECT_RANGE = 150;
+/** Inside this range a running torpedo is heard through any hull, baffles or not. */
+const ALERT_CLOSE = 1000;
+/** Heavyweight snake search: ±25° around the search course, one swing every ~38 s. */
+const SNAKE_DEG = 25;
+const SNAKE_PERIOD_S = 6;
+
 
 export function createWeaponsState(ships: Ship[]): WeaponsState {
   const loadouts = new Map<string, Loadout>();
@@ -127,6 +150,7 @@ export function steerTorpedo(w: World, shooter: Ship, torpId: string, heading: n
   if (!t || !t.wire) return false;
   t.heading = wrap360(heading);
   t.homingOn = undefined;
+  t.searchCourse = undefined;
   if (enableAfter !== undefined) t.enableAfter = Math.max(t.run + 200, enableAfter);
   return true;
 }
@@ -172,19 +196,43 @@ export function setTowedDecoy(w: World, ship: Ship, on: boolean): void {
 interface Candidate {
   id: string;
   pos: Vec2;
+  vel: Vec2;
   depth: number;
   score: number;
+  decoy: boolean;
 }
 
-/** Acquisition range of the seeker against a target (m). */
-function seekerRange(t: Torpedo, sl: number, ts: number): number {
-  return t.mode === 'active' ? 2000 + (ts - 15) * 80 : Math.max(0, (sl - 100) * 40);
+/** Acquisition range of the seeker against a target (m). The faster the run, the deafer the seeker. */
+export function seekerRange(t: Pick<Torpedo, 'mode' | 'speedKn'>, sl: number, ts: number): number {
+  const fast = Math.max(0, t.speedKn - QUIET_RUN_KN);
+  return t.mode === 'active'
+    ? Math.max(0, 2000 + (ts - 15 - fast * FLOW_DB_PER_KN_ACTIVE) * 80)
+    : Math.max(0, (sl - 100 - fast * FLOW_DB_PER_KN_PASSIVE) * 40);
+}
+
+/** Lead pursuit: the heading that meets a target moving with velocity `vel` (m/s); direct if unreachable. */
+export function leadBearing(from: Vec2, speedMs: number, pos: Vec2, vel: Vec2): number {
+  const d = { x: pos.x - from.x, y: pos.y - from.y };
+  const a = vel.x * vel.x + vel.y * vel.y - speedMs * speedMs;
+  const b = 2 * (d.x * vel.x + d.y * vel.y);
+  const c = d.x * d.x + d.y * d.y;
+  const disc = b * b - 4 * a * c;
+  if (a >= 0 || disc < 0) return bearing(from, pos);
+  const tHit = (-b - Math.sqrt(disc)) / (2 * a);
+  if (!(tHit > 0)) return bearing(from, pos);
+  return bearing(from, { x: pos.x + vel.x * tHit, y: pos.y + vel.y * tHit });
+}
+
+function velocityOf(s: Ship): Vec2 {
+  const v = headingVec(s.heading);
+  return { x: v.x * s.speed, y: v.y * s.speed };
 }
 
 function seek(w: World, t: Torpedo): Candidate | undefined {
   const st = ws(w);
   let best: Candidate | undefined;
-  const consider = (id: string, pos: Vec2, depth: number, sl: number, ts: number, bonus: number) => {
+  const consider = (id: string, pos: Vec2, vel: Vec2, depth: number, sl: number, ts: number, bonus: number, decoy: boolean) => {
+    if (t.kind === 'light' && depth < LIGHT_CEILING) return;
     const r = distance(t.pos, pos);
     if (r < 1) return;
     if (Math.abs(angleDiff(t.heading, bearing(t.pos, pos))) > SEEKER_HALF_ANGLE) return;
@@ -192,14 +240,19 @@ function seek(w: World, t: Torpedo): Candidate | undefined {
     if (crossesLayer(t.depth, depth, w.env)) reach *= 0.5;
     if (r > reach) return;
     const score = (reach / r) * bonus;
-    if (!best || score > best.score) best = { id, pos, depth, score };
+    if (!best || score > best.score) best = { id, pos, vel, depth, score, decoy };
   };
   for (const s of w.ships) {
     if (!s.alive) continue;
-    if (s.id === t.ownerId && t.run < 3000) continue;
-    consider(s.id, s.pos, s.depth, sourceLevel(s), CLASSES[s.cls].targetStrength, 1);
+    // Anti-circular-run: a torpedo never homes on the boat that fired it
+    if (s.id === t.ownerId) continue;
+    consider(s.id, s.pos, velocityOf(s), s.depth, sourceLevelToward(s, t.pos), targetStrengthToward(s, t.pos), 1, false);
   }
-  for (const d of st.decoys) consider(d.id, d.pos, d.depth, d.sl, 20, 1.3);
+  for (const d of st.decoys) {
+    if (t.rejected?.includes(d.id)) continue;
+    const tower = d.towedBy ? w.ships.find((s) => s.id === d.towedBy) : undefined;
+    consider(d.id, d.pos, tower ? velocityOf(tower) : { x: 0, y: 0 }, d.depth, d.sl, 20, 1.3, true);
+  }
   return best;
 }
 
@@ -221,28 +274,43 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   }
   if (t.run >= t.enableAfter) {
     const c = seek(w, t);
-    if (c) {
+    const r = c ? distance(t.pos, c.pos) : Infinity;
+    // A decoy is unmasked when the torpedo runs through it, or earlier by an active seeker (no hull echo)
+    if (c?.decoy && (Math.hypot(r, t.depth - c.depth) < HIT_RADIUS || (t.mode === 'active' && r < ACTIVE_REJECT_RANGE))) {
+      // Lightweights (small seeker, 8 km run) are spent on the decoy; heavyweights re-attack
+      if (t.kind === 'light') return false;
+      (t.rejected ??= []).push(c.id);
+      t.homingOn = undefined;
+    } else if (c) {
       t.homingOn = c.id;
-      const want = bearing(t.pos, c.pos);
+      t.searchCourse = undefined;
+      const want = leadBearing(t.pos, t.speedKn * KN, c.pos, c.vel);
       t.heading = wrap360(t.heading + clamp(angleDiff(t.heading, want), -sp.turn * dt, sp.turn * dt));
       t.depth = approach(t.depth, c.depth, 8 * dt);
-      const r3 = Math.hypot(distance(t.pos, c.pos), t.depth - c.depth);
-      if (r3 < HIT_RADIUS) {
+      if (Math.hypot(r, t.depth - c.depth) < HIT_RADIUS) {
         const ship = w.ships.find((s) => s.id === c.id);
         if (ship) damage(w, ship, sp.damage, t.ownerId);
-        else ws(w).decoys = ws(w).decoys.filter((d) => d.id !== c.id || !!d.towedBy);
         return false;
       }
     } else {
       t.homingOn = undefined;
-      // Search pattern: heavyweights snake, lightweights circle
-      const rate = t.kind === 'light' ? 8 : Math.sin((w.time - t.launchedAt) / 6) * 4;
-      t.heading = wrap360(t.heading + rate * dt);
+      // Search pattern: lightweights circle, heavyweights snake ±SNAKE_DEG around the course they had when the search began
+      if (t.kind === 'light') t.heading = wrap360(t.heading + 8 * dt);
+      else {
+        if (t.searchCourse === undefined) {
+          t.searchCourse = t.heading;
+          t.searchSince = w.time;
+        }
+        const want = t.searchCourse + SNAKE_DEG * Math.sin((w.time - (t.searchSince ?? w.time)) / SNAKE_PERIOD_S);
+        t.heading = wrap360(t.heading + clamp(angleDiff(t.heading, want), -sp.turn * dt, sp.turn * dt));
+      }
       t.depth = approach(t.depth, t.searchDepth, 5 * dt);
     }
   } else {
     t.depth = approach(t.depth, t.searchDepth, 5 * dt);
   }
+  // Bottom avoidance: in shallow water the torpedo runs no deeper than the seabed allows
+  t.depth = Math.max(0, Math.min(t.depth, depthAt(w.env.seabed, t.pos.x, t.pos.y) - BOTTOM_CLEARANCE));
   const v = headingVec(t.heading);
   const step = t.speedKn * KN * dt;
   t.pos.x += v.x * step;
@@ -251,12 +319,22 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
 
   for (const s of w.ships) {
     if (!s.alive || t.alerted.includes(s.id) || s.cls === 'merchant') continue;
-    if (distance(s.pos, t.pos) < ALERT_RANGE) {
+    const r = distance(s.pos, t.pos);
+    if (r < ALERT_RANGE && (r < ALERT_CLOSE || hearsTorpedo(w, s, t, r))) {
       t.alerted.push(s.id);
       w.events.push({ kind: 'torpedo_alert', time: w.time, shipId: s.id, bearing: bearing(s.pos, t.pos) });
     }
   }
   return t.run < t.maxRun;
+}
+
+/** Whether a ship's own sonar can hear the torpedo (hull array outside the baffles, or a settled towed array). */
+function hearsTorpedo(w: World, s: Ship, t: Torpedo, r: number): boolean {
+  const sl = torpedoSourceLevel(t.speedKn);
+  const spec = CLASSES[s.cls];
+  const rel = Math.abs(angleDiff(s.heading, bearing(s.pos, t.pos)));
+  if (spec.hull.di > 0 && rel < 180 - spec.hull.baffleHalfAngle && passiveExcessFrom(sl, t.depth, s, r, 'hull', w.env) > 0) return true;
+  return towedArrayReady(s, w.time) && passiveExcessFrom(sl, t.depth, s, r, 'towed', w.env, towedArrayDepth(s)) > 0;
 }
 
 /** A lightweight torpedo entering the water at a point (ASW rocket, helicopter) and searching in circles. */

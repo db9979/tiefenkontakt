@@ -1,4 +1,4 @@
-import { ambientNoise, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevel } from './acoustics.js';
+import { ambientNoise, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { CLASSES } from './classes.js';
 import { dropLightweight } from './weapons.js';
 import { bookFor } from './world.js';
@@ -204,7 +204,7 @@ export function buoySensors(buoys: readonly Buoy[], ctx: SensorContext): Detecti
     for (const tgt of ctx.ships) {
       if (!tgt.alive || tgt.id === b.ownerId) continue;
       const range = distance(b.pos, tgt.pos);
-      const se = sourceLevel(tgt) - transmissionLoss(range, tgt.depth, b.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, b.pos, tgt.pos)) - (nl - BUOY_GAIN) - DT_PASSIVE + ctx.rng.gauss(0, 2);
+      const se = sourceLevelToward(tgt, b.pos) - transmissionLoss(range, tgt.depth, b.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, b.pos, tgt.pos)) - (nl - BUOY_GAIN) - DT_PASSIVE + ctx.rng.gauss(0, 2);
       if (se <= 0) continue;
       out.push({
         observerId: b.ownerId, targetId: tgt.id, sensor: 'buoy', time: ctx.time,
@@ -226,7 +226,7 @@ function dipPing(w: World, s: Sortie, owner: Ship, depth: number): Detection[] {
     const range = distance(s.target, tgt.pos);
     if (range > DIP_RANGE * 2) continue;
     const tl = transmissionLoss(range, depth, tgt.depth, w.env, 2.5, pathDepth(w.env.seabed, s.target, tgt.pos));
-    const se = 212 - 2 * tl + CLASSES[tgt.cls].targetStrength - (nl - 12) - DT_ACTIVE + w.rng.gauss(0, 2);
+    const se = 212 - 2 * tl + targetStrengthToward(tgt, s.target) - (nl - 12) - DT_ACTIVE + w.rng.gauss(0, 2);
     if (se > 0 && range < DIP_RANGE) {
       out.push({
         observerId: owner.id, targetId: tgt.id, sensor: 'active', time: w.time,

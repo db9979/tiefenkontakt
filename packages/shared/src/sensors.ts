@@ -161,12 +161,13 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     if (tgt === pinger || !tgt.alive) continue;
     const range = distance(pinger.pos, tgt.pos);
     const trueB = bearing(pinger.pos, tgt.pos);
+    const inBaffles = Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - CLASSES[pinger.cls].hull.baffleHalfAngle;
     const lfm = pinger.pulse === 'lfm';
     const slow = tgt.speed / KN < SLOW_TARGET_KN;
     const bottom = pathDepth(ctx.env.seabed, pinger.pos, tgt.pos);
     const shallowReverb = !lfm && bottom < SHALLOW_M ? 4 : 0;
     const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom) - (!lfm && slow ? CW_REVERB_PENALTY : 0) - shallowReverb + ctx.rng.gauss(0, 2);
-    if (se > 0) {
+    if (se > 0 && !inBaffles) {
       // Radial speed of the target toward the pinger (positive = closing), measured by CW Doppler
       const los = { x: (pinger.pos.x - tgt.pos.x) / Math.max(range, 1), y: (pinger.pos.y - tgt.pos.y) / Math.max(range, 1) };
       const tv = headingVec(tgt.heading);

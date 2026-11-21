@@ -1,4 +1,4 @@
-import { DEFAULT_ENV, type Environment } from './acoustics.js';
+import { DEFAULT_ENV, torpedoSourceLevel, type Environment } from './acoustics.js';
 import { ContactBook } from './contacts.js';
 import { applyHitDamage, stepDamage } from './damage.js';
 import { CLASSES } from './classes.js';
@@ -116,7 +116,7 @@ export function measureLayer(w: World, s: Ship): void {
 function torpedoEmitters(w: World): Emitter[] {
   return (w.weapons?.torpedoes ?? []).map((t) => ({
     id: t.id, ownerId: t.ownerId, pos: t.pos, depth: t.depth, sig: 'torpedo' as const,
-    speedKn: t.speedKn, sl: 150 + 20 * Math.log10(t.speedKn / 40),
+    speedKn: t.speedKn, sl: torpedoSourceLevel(t.speedKn),
   }));
 }
 

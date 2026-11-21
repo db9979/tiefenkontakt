@@ -39,6 +39,9 @@ export function helpOverlay(submarine: boolean): void {
       <tr><td>Schleppsonar</td><td>Peilt links/rechts mehrdeutig. Seite wählen oder 20° wenden; hört das Rumpfsonar den Kontakt, löst es die Seite auf. Weicht es ab: möglicher Geist.</td></tr>
       <tr><td>Aktivsonar</td><td>CW misst die Annäherung (Doppler, ↓ = kommt näher), LFM misst genau und findet auch langsame Ziele.</td></tr>
       <tr><td>Sprungschicht</td><td>Unbekannt, bis gemessen: die Fregatte wirft einen BT, das U-Boot merkt sie beim Durchtauchen.</td></tr>
+      <tr><td>Torpedo-Fahrt</td><td>30 kn ist leiser und der Suchkopf hört weiter; 40 kn ist schneller, macht den Suchkopf aber tauber. Torpedos führen das Ziel mit Vorhalt.</td></tr>
+      <tr><td>Täuschkörper</td><td>Ein schwerer Torpedo durchläuft ihn, erkennt die Täuschung und sucht neu: abdrehen und Tiefe wechseln. Leichte U-Jagd-Torpedos verbrauchen sich daran.</td></tr>
+      <tr><td>Abstrahlung</td><td>Schiffe sind von achtern am lautesten und von vorn am leisesten; querab gibt das stärkste Aktiv-Echo. Torpedos im toten Winkel achtern hört man erst spät.</td></tr>
       <tr><td>Transienten</td><td>Rohrfluten und Abschuss sind weit hörbar und warnen vor einem Schuss.</td></tr>
       <tr><td>Hubschrauber</td><td>Rechtsklick auf die Karte (Fregatte): Sonarboje flach oder tief abwerfen. Bojen peilen von ihrer Position aus.</td></tr>
       <tr><td>Schäden</td><td>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Klick in der Schadensabwehr legt die Reparatur-Priorität fest.</td></tr>
