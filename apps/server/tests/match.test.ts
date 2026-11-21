@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ServerMsg, Snapshot } from '@tk/shared';
 import { parseClientMsg } from '../src/input.js';
-import { Lobby } from '../src/lobby.js';
+import { ABANDON_MS, Lobby } from '../src/lobby.js';
 import type { Conn } from '../src/match.js';
 
 function fakeConn(id: string): Conn & { inbox: ServerMsg[] } {
@@ -22,7 +22,9 @@ function setup() {
   const west = fakeConn('w1');
   const east = fakeConn('e1');
   lobby.connect(west);
+  lobby.resume(west);
   lobby.connect(east);
+  lobby.resume(east);
   lobby.handle(west, { t: 'create_match', name: 'Test' });
   const m = lobby.matchOf('w1')!;
   lobby.handle(east, { t: 'join', matchId: m.id, team: 'east' });
@@ -96,14 +98,46 @@ describe('input validation', () => {
 });
 
 describe('lobby cleanup', () => {
-  it('removes a running match once every player has left', () => {
-    const { lobby, m } = setup();
-    lobby.disconnect('w1');
-    lobby.disconnect('e1');
-    const probe = fakeConn('p');
-    lobby.connect(probe);
-    const list = probe.inbox.find((x) => x.t === 'lobby');
-    expect(list && list.t === 'lobby' ? list.matches.map((x) => x.id) : []).not.toContain(m.id);
+  it('keeps an abandoned running match paused, then drops it after the grace period', () => {
+    const { lobby, m, west, east } = setup();
+    lobby.disconnect(west);
+    lobby.disconnect(east);
+    const t = m.world!.time;
+    m.tick();
+    expect(m.world!.time).toBe(t);
+    lobby.prune(Date.now());
+    expect(lobby.allMatches()).toContain(m);
+    lobby.prune(Date.now() + ABANDON_MS + 1000);
+    expect(lobby.allMatches()).not.toContain(m);
+  });
+});
+
+describe('reconnect', () => {
+  it('a returning player gets the same ship back and the match continues', () => {
+    const { lobby, m, west } = setup();
+    for (let i = 0; i < 5; i++) m.tick();
+    const shipId = lastSnap(west)!.own.id;
+    lobby.disconnect(west);
+    const back = fakeConn('w1');
+    expect(lobby.connect(back)).toBe(true);
+    lobby.resume(back);
+    expect(back.inbox.some((x) => x.t === 'match' && x.match.state === 'running')).toBe(true);
+    for (let i = 0; i < 3; i++) m.tick();
+    expect(lastSnap(back)!.own.id).toBe(shipId);
+  });
+
+  it('a second window replaces the first', () => {
+    const { lobby, m, west } = setup();
+    let closed = '';
+    west.close = (r) => (closed = r);
+    const tab2 = fakeConn('w1');
+    lobby.connect(tab2);
+    lobby.resume(tab2);
+    expect(closed).toBe('replaced');
+    lobby.disconnect(west); // the old socket closing must not drop the new one
+    m.tick();
+    m.tick();
+    expect(lastSnap(tab2)).toBeDefined();
   });
 });
 
@@ -155,6 +189,7 @@ describe('AI captains', () => {
     const lobby = new Lobby();
     const solo = fakeConn('w1');
     lobby.connect(solo);
+  lobby.resume(solo);
     lobby.handle(solo, { t: 'create_match', name: 'Solo' });
     const m = lobby.matchOf('w1')!;
     lobby.handle(solo, { t: 'ready', ready: true });
@@ -173,7 +208,10 @@ describe('crew on one ship', () => {
     const cap = fakeConn('w1');
     const mate = fakeConn('w2');
     const sub = fakeConn('e1');
-    for (const c of [cap, mate, sub]) lobby.connect(c);
+    for (const c of [cap, mate, sub]) {
+      lobby.connect(c);
+      lobby.resume(c);
+    }
     lobby.handle(cap, { t: 'create_match', name: 'Crew' });
     const m = lobby.matchOf('w1')!;
     lobby.handle(mate, { t: 'join', matchId: m.id, team: 'west' });
@@ -187,5 +225,138 @@ describe('crew on one ship', () => {
     expect(lastSnap(cap)!.own.order.heading).toBe(90);
     expect(lastSnap(mate)!.own.id).toBe(lastSnap(cap)!.own.id);
     expect(lastSnap(mate)!.crew).toEqual(['w1', 'w2']);
+  });
+});
+
+describe('server restart', () => {
+  it('a saved match is restored paused and continues when the player returns', async () => {
+    const { mkdtempSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { MatchStore } = await import('../src/match-store.js');
+    const dir = mkdtempSync(join(tmpdir(), 'tk-'));
+    const { lobby, m, west } = setup();
+    for (let i = 0; i < 20; i++) m.tick();
+    const time = m.world!.time;
+    const shipId = lastSnap(west)!.own.id;
+    new MatchStore(dir).saveAll(lobby);
+    m.stop();
+
+    const lobby2 = new Lobby();
+    expect(new MatchStore(dir).loadAll(lobby2)).toBe(1);
+    const restored = lobby2.allMatches()[0]!;
+    restored.stop();
+    expect(restored.world!.time).toBe(time);
+    const back = fakeConn('w1');
+    expect(lobby2.connect(back)).toBe(true);
+    lobby2.resume(back);
+    restored.tick();
+    restored.tick();
+    expect(lastSnap(back)!.own.id).toBe(shipId);
+    expect(restored.world!.time).toBeGreaterThan(time);
+  });
+});
+
+describe('debrief', () => {
+  it('reveals true tracks and statistics only after the end', () => {
+    const { m, west, east } = setup();
+    for (let i = 0; i < 60; i++) m.tick();
+    expect(west.inbox.some((x) => x.t === 'debrief')).toBe(false);
+    m.world!.time = m.settings.timeLimitMin * 60 * m.settings.timeScale;
+    m.tick();
+    const d = west.inbox.find((x) => x.t === 'debrief');
+    expect(d && d.t === 'debrief' ? d.d.frames.length : 0).toBeGreaterThan(0);
+    if (d?.t !== 'debrief') throw new Error('no debrief');
+    expect(d.d.ships.some((s) => s.cls === 'ssn')).toBe(true);
+    expect(d.d.stats.map((s) => s.callsign).sort()).toEqual(['e1', 'w1']);
+    expect(east.inbox.some((x) => x.t === 'debrief')).toBe(true);
+  });
+});
+
+describe('training', () => {
+  it('starts a private lesson immediately and ends the U-Jagd lesson on success', () => {
+    const lobby = new Lobby();
+    const p = fakeConn('t1');
+    const other = fakeConn('o1');
+    for (const c of [p, other]) {
+      lobby.connect(c);
+      lobby.resume(c);
+    }
+    lobby.handle(p, { t: 'training', lesson: 'ujagd' });
+    const m = lobby.matchOf('t1')!;
+    m.stop();
+    expect(m.state).toBe('running');
+    const lists = other.inbox.filter((x) => x.t === 'lobby');
+    expect(lists.every((x) => x.t === 'lobby' && x.matches.length === 0)).toBe(true);
+    m.tick();
+    expect(lastSnap(p)!.lesson).toBe('ujagd');
+    expect(lastSnap(p)!.own.cls).toBe('ffg');
+    m.world!.ships.find((s) => s.id === 'p_bot-train')!.alive = false;
+    m.tick();
+    expect(p.inbox.some((x) => x.t === 'end' && x.reason.includes('geschafft'))).toBe(true);
+  });
+});
+
+describe('missions and settings', () => {
+  it('lobby settings choose the mission; the snapshot carries depth and light', () => {
+    const lobby = new Lobby();
+    const a = fakeConn('w1');
+    lobby.connect(a);
+    lobby.resume(a);
+    lobby.handle(a, { t: 'create_match', name: 'Nacht' });
+    const m = lobby.matchOf('w1')!;
+    lobby.handle(a, { t: 'settings', mission: 'schelf', timeOfDay: 'nacht', seaState: 5 });
+    expect(m.settings).toMatchObject({ mission: 'schelf', timeOfDay: 'nacht', seaState: 5 });
+    lobby.handle(a, { t: 'ready', ready: true });
+    m.stop();
+    m.tick();
+    const s = lastSnap(a)!;
+    expect(s.env.light).toBeLessThan(0.3);
+    expect(s.env.bottom).toBeLessThan(300);
+    expect(s.env.seabed?.kind).toBe('schelf');
+  });
+});
+
+describe('quick match, stations and spectators', () => {
+  it('quick match fills the smaller team of an open lobby', () => {
+    const lobby = new Lobby();
+    const a = fakeConn('a');
+    const b = fakeConn('b');
+    for (const c of [a, b]) {
+      lobby.connect(c);
+      lobby.resume(c);
+    }
+    lobby.handle(a, { t: 'quick' });
+    lobby.handle(b, { t: 'quick' });
+    const m = lobby.matchOf('a')!;
+    expect(lobby.matchOf('b')).toBe(m);
+    expect(new Set(m.slots.map((s) => s.team)).size).toBe(2);
+  });
+
+  it('stations are shared aboard; spectators see only delayed truth', () => {
+    const { lobby, m, west } = setup();
+    lobby.handle(west, { t: 'station', index: 2 });
+    for (let i = 0; i < 2; i++) m.tick();
+    expect(lastSnap(west)!.stations).toEqual([{ callsign: 'w1', station: 2 }]);
+    const fan = fakeConn('fan');
+    lobby.connect(fan);
+    lobby.resume(fan);
+    for (let i = 0; i < 1200; i++) m.tick();
+    lobby.handle(fan, { t: 'spectate', matchId: m.id });
+    const msg = fan.inbox.find((x) => x.t === 'spectate');
+    if (msg?.t !== 'spectate') throw new Error('no spectate');
+    const newest = msg.d.frames[msg.d.frames.length - 1]?.[0] ?? 0;
+    expect(newest).toBeLessThanOrEqual(m.world!.time - msg.delayS);
+    expect(msg.d.ships.length).toBeGreaterThan(0);
+  });
+});
+
+describe('leaving on purpose', () => {
+  it('drops a running match when the last player leaves explicitly', () => {
+    const { lobby, m, west, east } = setup();
+    lobby.handle(west, { t: 'leave' });
+    expect(lobby.allMatches()).toContain(m);
+    lobby.handle(east, { t: 'leave' });
+    expect(lobby.allMatches()).not.toContain(m);
   });
 });

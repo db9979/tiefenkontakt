@@ -13,6 +13,8 @@ import { radarEsmStation } from '../stations/frigate/radar-esm.js';
 import { CLASS_LABEL, clock, deg3, esc, h } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
+import { mountTutorial } from '../widgets/tutorial.js';
+import { debriefOverlay } from './debrief.js';
 import { helpOverlay } from './help.js';
 import { mountHelm } from './helm.js';
 
@@ -28,6 +30,8 @@ export interface Station {
 
 export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   store.reset();
+  store.loadLocal();
+  const saver = setInterval(() => store.saveLocal(), 2000);
   const el = h(`<div class="game">
     <div class="topbar">
       <div class="tabs" id="tabs"></div>
@@ -37,7 +41,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       <button id="mute" title="Ton an/aus (M)"></button>
       <input id="vol" type="range" min="0" max="1" step="0.05" style="width:70px" title="Lautstärke">
       <button id="realism" title="Realismusstufe: Einsteiger zeigt Linienbeschriftung, Auto-Marken und Auto-TMA"></button>
+      <button id="crt" title="Röhrenbildschirm-Effekt an/aus">Röhre</button>
       <button id="help" title="Hilfe (H)">?</button>
+      <button id="quit" class="warn" title="Partie verlassen">Verlassen</button>
     </div>
     <div class="station" id="station"></div>
     <div class="side">
@@ -67,6 +73,16 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   window.addEventListener('pointerdown', unlock);
   const renderMute = () => (q('#mute').textContent = audio.muted ? 'Ton aus' : 'Ton an');
   renderMute();
+  const applyCrt = () => {
+    const on = localStorage.getItem('tk_crt') !== '0';
+    document.body.classList.toggle('crt', on);
+    q('#crt').classList.toggle('on', on);
+  };
+  applyCrt();
+  q<HTMLButtonElement>('#crt').onclick = () => {
+    localStorage.setItem('tk_crt', document.body.classList.contains('crt') ? '0' : '1');
+    applyCrt();
+  };
   const renderRealism = () => (q('#realism').textContent = store.realism === 'einsteiger' ? 'Einsteiger' : 'Profi');
   renderRealism();
   q<HTMLButtonElement>('#realism').onclick = () => {
@@ -80,13 +96,34 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     audio.setMuted(!audio.muted);
     renderMute();
   };
+  let quitArmed: ReturnType<typeof setTimeout> | undefined;
+  q<HTMLButtonElement>('#quit').onclick = () => {
+    const b = q<HTMLButtonElement>('#quit');
+    if (!quitArmed) {
+      b.textContent = 'Wirklich verlassen?';
+      quitArmed = setTimeout(() => {
+        quitArmed = undefined;
+        b.textContent = 'Verlassen';
+      }, 3000);
+      return;
+    }
+    clearTimeout(quitArmed);
+    store.clearLocal();
+    onExit();
+  };
   q<HTMLButtonElement>('#help').onclick = () => helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true);
   el.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).tagName === 'BUTTON') audio.click();
   });
 
+  let tutorial: ReturnType<typeof mountTutorial> | undefined;
+
   function build(): void {
     const sub = store.snap && CLASSES[store.snap.own.cls].submarine;
+    if (store.snap?.lesson) {
+      tutorial = mountTutorial(store.snap.lesson);
+      q('.side').prepend(tutorial.el);
+    }
     stations = sub
       ? [subSonarStation(), periscopeStation(), fireControlStation(), diveEngineStation()]
       : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation()];
@@ -108,6 +145,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   function show(i: number): void {
     closeMenu();
     current = i;
+    net.send({ t: 'station', index: i });
     stationEl.replaceChildren(stations[i]!.el);
     tabs.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
     stations[i]?.snap?.();
@@ -134,10 +172,15 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       <div class="title ${won ? '' : 'red'}">${won ? 'SIEG' : 'NIEDERLAGE'}</div>
       <div style="margin:10px 0">${esc(store.ended.reason)}</div>
       <div class="dim">VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} % · DAUER ${clock(s.time)}</div>
-      <button id="exit" style="margin-top:16px">Zur Lobby</button></div></div>`);
+      <div class="steps" style="margin-top:16px;justify-content:center"><button id="debrief" class="on">Nachbesprechung</button><button id="exit">Zur Lobby</button></div></div></div>`);
     ov.querySelector<HTMLButtonElement>('#exit')!.onclick = () => {
       ov.remove();
       onExit();
+    };
+    ov.querySelector<HTMLButtonElement>('#debrief')!.onclick = () => {
+      if (!store.debrief) return;
+      ov.remove();
+      debriefOverlay(store.debrief, onExit);
     };
     document.body.appendChild(ov);
   }
@@ -177,6 +220,14 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       if (first) build();
       stations[current]?.snap?.();
       helm.update();
+      tutorial?.update();
+      // Crew: show who mans which station
+      if (m.s.crew.length > 1) {
+        tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
+          const who = (m.s.stations ?? []).filter((x) => x.station === j).map((x) => x.callsign);
+          b.textContent = `${j + 1} · ${stations[j]?.title ?? ''}${who.length ? ` (${who.join(', ')})` : ''}`;
+        });
+      }
       renderDamage(q('#damage'));
       renderSide();
       audio.update(m.s, CLASSES[m.s.own.cls].submarine);
@@ -186,6 +237,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     } else if (m.t === 'end') {
       store.ended = { winner: m.winner, reason: m.reason };
       showEnd();
+    } else if (m.t === 'debrief') {
+      store.debrief = m.d;
     }
   });
 
@@ -212,11 +265,15 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   raf = requestAnimationFrame(loop);
 
   return () => {
+    clearInterval(saver);
+    if (store.ended) store.clearLocal();
+    else store.saveLocal();
     off();
     cancelAnimationFrame(raf);
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('pointerdown', unlock);
     banner.remove();
+    tutorial?.el.remove();
     closeMenu();
     audio.stopAll();
   };

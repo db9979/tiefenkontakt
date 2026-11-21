@@ -3,11 +3,16 @@ import { sonarPenaltyDb } from './damage.js';
 import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, dbSum } from './math.js';
+import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
 
 export interface Environment {
   layerDepth: number; // m, thermocline; 0 = no layer
   layerLoss: number; // dB penalty when crossing the layer one way
   seaState: number; // 0..6
+  /** Seabed; absent = deep open ocean everywhere. */
+  seabed?: SeabedSpec;
+  /** Daylight 0..1 (night reduces visual ranges). */
+  light?: number;
 }
 
 export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaState: 3 };
@@ -57,12 +62,18 @@ export function transmissionLoss(
   depthB: number,
   env: Environment,
   alphaDbPerKm = ALPHA_PASSIVE,
+  bottom = 3000,
 ): number {
   const r = Math.max(range, 1);
   const spread = r <= R0 ? 20 * Math.log10(r) : 20 * Math.log10(R0) + 10 * Math.log10(r / R0);
   const absorb = (alphaDbPerKm * r) / 1000;
-  const layer = crossesLayer(depthA, depthB, env) ? env.layerLoss : 0;
-  return spread + absorb + layer;
+  const shallow = bottom < SHALLOW_M;
+  // Shallow water: bottom bounce fills the shadow zone (weaker layer) but the bottom absorbs energy
+  const layer = crossesLayer(depthA, depthB, env) ? env.layerLoss * (shallow ? 0.5 : 1) : 0;
+  const bottomLoss = shallow && r > 2000 ? 3 + (2 * (SHALLOW_M - bottom)) / SHALLOW_M : 0;
+  // Deep water: the first convergence zone refocuses sound around 55 km
+  const cz = bottom > DEEP_M && r > 50_000 && r < 62_000 ? 12 : 0;
+  return spread + absorb + layer + bottomLoss - cz;
 }
 
 export function ambientNoise(env: Environment): number {
@@ -94,8 +105,9 @@ export function passiveSignalExcess(
   array: 'hull' | 'towed',
   env: Environment,
   receiverDepth = receiver.depth,
+  bottom = 3000,
 ): number {
-  return passiveExcessFrom(sourceLevel(target), target.depth, receiver, range, array, env, receiverDepth);
+  return passiveExcessFrom(sourceLevel(target), target.depth, receiver, range, array, env, receiverDepth, bottom);
 }
 
 /** Passive signal excess for any noise source with a given level and depth. */
@@ -107,21 +119,22 @@ export function passiveExcessFrom(
   array: 'hull' | 'towed',
   env: Environment,
   receiverDepth = receiver.depth,
+  bottom = 3000,
 ): number {
   const spec = CLASSES[receiver.cls];
   const di = array === 'hull' ? spec.hull.di : (spec.towed?.di ?? 0);
   const self = array === 'hull' ? hullSelfNoise(receiver) : towedSelfNoise(receiver);
   const nl = dbSum(ambientNoise(env), self);
-  const tl = transmissionLoss(range, sourceDepth, receiverDepth, env);
+  const tl = transmissionLoss(range, sourceDepth, receiverDepth, env, undefined, bottom);
   return sl - tl - (nl - di) - DT_PASSIVE;
 }
 
 /** Signal excess of an active sonar echo (monostatic). */
-export function activeSignalExcess(target: Ship, pinger: Ship, range: number, env: Environment): number {
+export function activeSignalExcess(target: Ship, pinger: Ship, range: number, env: Environment, bottom = 3000): number {
   const spec = CLASSES[pinger.cls];
   const sl = spec.hull.activeSl;
   if (sl === undefined) return -Infinity;
-  const tl = transmissionLoss(range, pinger.depth, target.depth, env, ALPHA_ACTIVE);
+  const tl = transmissionLoss(range, pinger.depth, target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
   const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
   const ts = CLASSES[target.cls].targetStrength;
   return sl - 2 * tl + ts - (nl - spec.hull.di) - DT_ACTIVE;

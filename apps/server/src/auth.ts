@@ -41,7 +41,7 @@ export async function verifyPassword(pw: string, stored: string): Promise<boolea
 }
 
 export class AuthStore {
-  private db: DatabaseSync;
+  readonly db: DatabaseSync;
 
   constructor(path = process.env.DB_PATH ?? 'tiefenkontakt.db') {
     this.db = new DatabaseSync(path);

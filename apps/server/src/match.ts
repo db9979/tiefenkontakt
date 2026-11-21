@@ -11,6 +11,11 @@ import {
   transmit,
   type AlertView,
   type ClassChoice,
+  type Debrief,
+  type FriendlyView,
+  type SavedWorld,
+  restoreWorld,
+  saveWorld,
   type ClassId,
   type MatchLobby,
   type MatchSummary,
@@ -19,9 +24,11 @@ import {
   type Ship,
   type World,
 } from '@tk/shared';
-import { BotCrew } from './bots.js';
+import { BotCrew, type BotState } from './bots.js';
+import { Recorder, type RecorderState } from './recorder.js';
+import { buildLesson, lessonResult } from './lessons.js';
 import { applyCommand, type GameCommand } from './input.js';
-import { computeScore, evaluate } from './rules.js';
+import { computeScore, evaluate, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
@@ -29,10 +36,15 @@ export interface Conn {
   playerId: string;
   callsign: string;
   send(msg: ServerMsg): void;
+  /** Close the transport (e.g. when the same player connects again elsewhere). */
+  close?(reason: string): void;
 }
 
 export const MAX_PER_TEAM = 6;
-const SNAP_EVERY = 2; // ticks -> 5 Hz
+const SPECTATE_EVERY = 30; // ticks (3 s)
+/** Spectators see the truth this many sim seconds late, so it can't be relayed to a team. */
+export const SPECTATE_DELAY = 240;
+const SNAP_EVERY = 1; // ticks -> 10 Hz (clients also extrapolate between snapshots)
 const EXPLOSION_HEARING = 40_000;
 /** Hearing ranges of transients (U-Jagd: tube flooding ~8 NM, launch ~35 NM). */
 const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000 } as const;
@@ -40,6 +52,22 @@ const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRAN
 
 type Side = 'west' | 'east';
 type PlayableClass = Exclude<ClassId, 'merchant'>;
+
+export interface SavedMatch {
+  v: 1;
+  id: string;
+  name: string;
+  seed: number;
+  slots: PlayerSlot[];
+  settings: ScenarioSettings;
+  world: SavedWorld;
+  eventCursor: number;
+  tickCount: number;
+  bots: BotState[];
+  recorder?: RecorderState;
+  classes: [string, [string, ClassChoice][]][];
+  extras: [string, Omit<PlayerExtras, 'reports'> & { reports: [string, FriendlyView][] }][];
+}
 
 export class Match {
   readonly id: string;
@@ -52,11 +80,44 @@ export class Match {
   private extras = new Map<string, PlayerExtras>();
   private eventCursor = 0;
   private bots = new BotCrew();
+  private recorder = new Recorder();
+  private spectators = new Map<string, Conn>();
+  /** Kept after the end so players reconnecting later still get the debrief. */
+  private finished?: { result: MatchResult; debrief: Debrief };
   /** Classification decisions per datalink group, keyed by hidden target id. */
   private classes = new Map<string, Map<string, ClassChoice>>();
   private tickCount = 0;
   private timer?: ReturnType<typeof setInterval>;
   onChange?: () => void;
+
+  /** Everything needed to continue this match after a server restart. */
+  save(): SavedMatch | undefined {
+    if (!this.world || this.state !== 'running') return undefined;
+    return {
+      v: 1, id: this.id, name: this.name, seed: this.seed, slots: this.slots, settings: this.settings,
+      world: saveWorld(this.world), eventCursor: this.eventCursor, tickCount: this.tickCount, bots: this.bots.toJSON(),
+      recorder: this.recorder.s,
+      classes: [...this.classes].map(([k, m]) => [k, [...m]]),
+      extras: [...this.extras].map(([k, x]) => [k, { ...x, reports: [...x.reports] }]),
+    };
+  }
+
+  static restore(d: SavedMatch): Match {
+    const m = new Match(d.id, d.name, d.seed);
+    m.slots = d.slots;
+    m.settings = d.settings;
+    m.world = restoreWorld(d.world);
+    m.eventCursor = d.eventCursor;
+    m.tickCount = d.tickCount;
+    m.bots.restore(d.bots);
+    if (d.recorder) m.recorder.s = d.recorder;
+    m.classes = new Map(d.classes.map(([k, entries]) => [k, new Map(entries)]));
+    m.extras = new Map(d.extras.map(([k, x]) => [k, { ...x, reports: new Map(x.reports) }]));
+    m.state = 'running';
+    m.emptySince = Date.now();
+    m.timer = setInterval(() => m.tick(), SIM_DT * 1000);
+    return m;
+  }
 
   constructor(id: string, name: string, private seed = Date.now() & 0xffff) {
     this.id = id;
@@ -65,6 +126,28 @@ export class Match {
 
   get connected(): number {
     return this.conns.size;
+  }
+
+  /** Date.now() when the last player disconnected (paused since then). */
+  emptySince = Date.now();
+
+  /** A returning player gets their connection back; the match resumes. */
+  reattach(conn: Conn): void {
+    this.conns.set(conn.playerId, conn);
+    conn.send({ t: 'match', match: this.lobby() });
+    if (this.finished) {
+      conn.send({ t: 'end', ...this.finished.result });
+      conn.send({ t: 'debrief', d: this.finished.debrief });
+    }
+  }
+
+  /** Called once with the debrief when the match ends (statistics, rankings). */
+  onFinish?: (d: Debrief) => void;
+
+  /** Link lost mid-match: keep the slot and ship; pause when nobody is left. */
+  detach(playerId: string): void {
+    this.conns.delete(playerId);
+    if (this.conns.size === 0) this.emptySince = Date.now();
   }
 
   summary(): MatchSummary {
@@ -95,6 +178,49 @@ export class Match {
     }
     this.broadcastLobby();
     if (this.conns.size === 0) this.stop();
+  }
+
+  /** Lobby settings: anyone in the lobby may change them; everyone's ready flag resets. */
+  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'fillBots'>>): string | undefined {
+    if (this.state !== 'lobby' || !this.slots.some((x) => x.playerId === playerId)) return 'Nur in der Lobby möglich';
+    for (const [k, v] of Object.entries(s)) if (v !== undefined) (this.settings as unknown as Record<string, unknown>)[k] = v;
+    for (const x of this.slots) x.ready = false;
+    this.broadcastLobby();
+    return undefined;
+  }
+
+  /** The station a player mans (shown to everyone aboard). */
+  setStation(playerId: string, index: number): void {
+    const slot = this.slots.find((s) => s.playerId === playerId);
+    if (slot) slot.station = index;
+  }
+
+  addSpectator(conn: Conn): string | undefined {
+    if (this.state !== 'running' || !this.world) return 'Zuschauen geht nur bei laufenden Partien';
+    if (this.settings.lesson) return 'Ausbildungen sind privat';
+    this.spectators.set(conn.playerId, conn);
+    this.sendSpectate(conn);
+    return undefined;
+  }
+
+  removeSpectator(playerId: string): void {
+    this.spectators.delete(playerId);
+  }
+
+  private sendSpectate(conn: Conn): void {
+    const w = this.world;
+    if (!w) return;
+    const cutoff = w.time - SPECTATE_DELAY;
+    const full = this.recorder.debrief(w, this.slots, { winner: 'west', reason: 'LIVE' });
+    conn.send({
+      t: 'spectate', delayS: SPECTATE_DELAY,
+      d: {
+        ...full, stats: [], reason: 'Live, verzögert', duration: Math.max(0, Math.round(cutoff)),
+        frames: full.frames.filter((f) => f[0] <= cutoff),
+        torpedoes: full.torpedoes.filter((f) => f[0] <= cutoff),
+        events: full.events.filter((e) => e.t <= cutoff && e.kind !== 'shot'),
+      },
+    });
   }
 
   /** Join a teammate's ship as crew (or leave the crew with null). */
@@ -149,10 +275,16 @@ export class Match {
   }
 
   start(): void {
-    const bots = this.botSlots();
-    this.slots.push(...bots);
-    this.world = buildScenario(this.slots, this.settings, this.seed);
-    for (const b of bots) this.bots.add(`p_${b.playerId}`);
+    if (this.settings.lesson) {
+      const built = buildLesson(this.settings.lesson, this.slots[0]!, this.seed);
+      this.world = built.world;
+      for (const id of built.passiveBots) this.bots.add(id, true);
+    } else {
+      const bots = this.botSlots();
+      this.slots.push(...bots);
+      this.world = buildScenario(this.slots, this.settings, this.seed);
+      for (const b of bots) this.bots.add(`p_${b.playerId}`);
+    }
     for (const s of this.slots) this.extras.set(s.playerId, { alerts: [], radio: [], reports: new Map(), timeScale: this.settings.timeScale });
     this.state = 'running';
     this.broadcastLobby();
@@ -235,7 +367,9 @@ export class Match {
     const fresh = w.events.slice(this.eventCursor);
     this.eventCursor = w.events.length;
     for (const e of fresh) {
-      if (e.kind === 'torpedo_alert') {
+      if (e.kind === 'grounded') {
+        for (const slot of this.aboard(e.shipId)) this.alert(slot.playerId, { time: e.time, kind: 'sunk', text: 'AUF GRUND GELAUFEN · SCHÄDEN' });
+      } else if (e.kind === 'torpedo_alert') {
         for (const slot of this.aboard(e.shipId)) {
           this.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${e.bearing.toFixed(0).padStart(3, '0')}` });
         }
@@ -278,8 +412,11 @@ export class Match {
   tick(): void {
     const w = this.world;
     if (!w || this.state !== 'running') return;
+    // Paused while no human is connected (reload, lost link, server restart)
+    if (this.conns.size === 0) return;
     for (let i = 0; i < this.settings.timeScale; i++) {
       stepWorld(w);
+      this.recorder.step(w);
       this.bots.step(w);
       this.processEvents(w);
     }
@@ -290,8 +427,9 @@ export class Match {
       if (ship.mastUp) x.mastUpSince ??= w.time;
       else x.mastUpSince = undefined;
     }
+    if (this.spectators.size && this.tickCount % SPECTATE_EVERY === 0) for (const c of this.spectators.values()) this.sendSpectate(c);
     const limit = simTimeLimit(this.settings);
-    const result = evaluate(w, limit);
+    const result = this.settings.lesson ? lessonResult(w, this.settings.lesson, limit) : evaluate(w, limit);
     this.tickCount++;
     if (this.tickCount % SNAP_EVERY === 0 || result) {
       const score = { ...computeScore(w), timeLeftS: Math.max(0, limit - w.time) };
@@ -302,6 +440,8 @@ export class Match {
         if (ship && x && c) {
           const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)));
           snap.crew = this.aboard(ship.id).map((a) => a.callsign);
+          snap.lesson = this.settings.lesson;
+          snap.stations = this.aboard(ship.id).filter((a) => a.station !== undefined).map((a) => ({ callsign: a.callsign, station: a.station! }));
           c.send({ t: 'snap', s: snap });
         }
       }
@@ -309,7 +449,12 @@ export class Match {
     if (result) {
       this.state = 'ended';
       this.stop();
-      for (const c of this.conns.values()) c.send({ t: 'end', ...result });
+      this.finished = { result, debrief: this.recorder.debrief(w, this.slots, result) };
+      for (const c of this.conns.values()) {
+        c.send({ t: 'end', ...result });
+        c.send({ t: 'debrief', d: this.finished.debrief });
+      }
+      this.onFinish?.(this.finished.debrief);
       this.onChange?.();
     }
   }

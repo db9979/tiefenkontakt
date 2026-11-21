@@ -19,7 +19,7 @@ import {
  * Simple AI captains for empty teams. Fair play: they act only on their own
  * contact book and on their own team's datalink positions, never on enemy truth.
  */
-interface BotState {
+export interface BotState {
   shipId: string;
   nextThink: number;
   lastShot: number;
@@ -31,6 +31,8 @@ interface BotState {
   /** Periscope look: raise the mast until this time; next look not before peekAgain. */
   peekUntil: number;
   peekAgain: number;
+  /** Training target: moves and evades but never attacks. */
+  passive?: boolean;
 }
 
 const THINK_EVERY = 2; // sim s
@@ -48,12 +50,20 @@ const FFG_ROCKET_COOLDOWN = 90;
 export class BotCrew {
   private bots: BotState[] = [];
 
-  add(shipId: string): void {
-    this.bots.push({ shipId, nextThink: 0, lastShot: -1e9, evadeUntil: 0, alertUntil: 0, legSign: 1, legUntil: 0, eventCursor: 0, peekUntil: 0, peekAgain: 0 });
+  add(shipId: string, passive = false): void {
+    this.bots.push({ shipId, passive, nextThink: 0, lastShot: -1e9, evadeUntil: 0, alertUntil: 0, legSign: 1, legUntil: 0, eventCursor: 0, peekUntil: 0, peekAgain: 0 });
   }
 
   get size(): number {
     return this.bots.length;
+  }
+
+  toJSON(): BotState[] {
+    return this.bots.map((b) => ({ ...b }));
+  }
+
+  restore(states: BotState[]): void {
+    this.bots = states.map((b) => ({ ...b }));
   }
 
   step(w: World): void {
@@ -87,6 +97,15 @@ export class BotCrew {
 
   private thinkSub(w: World, b: BotState, s: Ship): void {
     if (w.time < b.evadeUntil) return;
+    if (b.passive) {
+      // Training target: slow legs at moderate depth, no attacks
+      if (w.time > b.legUntil) {
+        b.legSign = -b.legSign;
+        b.legUntil = w.time + 300;
+        s.order = { heading: wrap360(250 + 35 * b.legSign), speedKn: 5, depth: 60 };
+      }
+      return;
+    }
     if (w.time >= b.evadeUntil && b.evadeUntil > 0) {
       b.evadeUntil = 0;
       s.order.speedKn = 4;

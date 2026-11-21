@@ -129,6 +129,17 @@ export class ContactBook {
     return [...this.byTarget.values()];
   }
 
+  toJSON(): { tracks: [string, ContactTrack][]; counters: Record<string, number> } {
+    return { tracks: this.entries(), counters: { ...this.counters } };
+  }
+
+  static fromJSON(data: { tracks: [string, ContactTrack][]; counters: Record<string, number> }): ContactBook {
+    const b = new ContactBook();
+    for (const [id, tr] of data.tracks) b.byTarget.set(id, tr);
+    b.counters = { ...data.counters };
+    return b;
+  }
+
   /** Server-only: tracks with their hidden target ids. */
   entries(): [string, ContactTrack][] {
     return [...this.byTarget.entries()];

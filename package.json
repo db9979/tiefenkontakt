@@ -8,7 +8,8 @@
     "dev:client": "npm -w @tk/client run dev",
     "typecheck": "tsc -p tsconfig.json --noEmit && npm -w @tk/client run typecheck",
     "build": "npm run typecheck && npm -w @tk/client run build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "serve": "npm run build && NODE_ENV=production npm -w @tk/server run start"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

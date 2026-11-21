@@ -25,7 +25,20 @@ export type ClientMsg =
   | { t: 'bt' }
   | { t: 'buoy'; bearing: number; range: number; deep: boolean }
   | { t: 'repair'; system: ShipSystem }
-  | { t: 'crew'; captainId: string | null };
+  | { t: 'crew'; captainId: string | null }
+  | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' }
+  | { t: 'lesson_done' }
+  | { t: 'station'; index: number }
+  | { t: 'quick' }
+  | { t: 'spectate'; matchId: string }
+  | {
+    t: 'settings';
+    mission?: 'groenland' | 'schelf' | 'fjord';
+    timeOfDay?: 'tag' | 'daemmerung' | 'nacht';
+    seaState?: number;
+    timeLimitMin?: number;
+    fillBots?: boolean;
+  };
 
 export interface PlayerSlot {
   playerId: string;
@@ -37,6 +50,8 @@ export interface PlayerSlot {
   bot?: boolean;
   /** Set when this player serves as crew on the captain's ship. */
   crewOf?: string;
+  /** Station the player mans (index into the ship's station tabs). */
+  station?: number;
 }
 
 export interface MatchSummary {
@@ -49,7 +64,17 @@ export interface MatchSummary {
 
 export interface MatchLobby extends MatchSummary {
   slots: PlayerSlot[];
-  settings: { timeScale: number; layerDepth: number; seaState: number; timeLimitMin: number; merchants: number; fillBots: boolean };
+  settings: {
+    mission: 'groenland' | 'schelf' | 'fjord';
+    timeOfDay: 'tag' | 'daemmerung' | 'nacht';
+    timeScale: number;
+    layerDepth: number;
+    seaState: number;
+    timeLimitMin: number;
+    merchants: number;
+    fillBots: boolean;
+    lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
+  };
 }
 
 export interface OwnShipView {
@@ -135,6 +160,10 @@ export interface Snapshot {
   timeScale: number;
   /** Callsigns of everyone aboard the own ship. */
   crew: string[];
+  /** Who mans which station aboard. */
+  stations?: { callsign: string; station: number }[];
+  /** Training lesson id when this is a lesson. */
+  lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
   own: OwnShipView;
   contacts: (Omit<ContactTrack, 'history'> & {
     history: ContactTrack['history'];
@@ -147,7 +176,15 @@ export interface Snapshot {
   radio: RadioMsg[];
   alerts: AlertView[];
   /** layerDepth is only known after a bathythermograph measurement. */
-  env: { layerDepth?: number; seaState: number };
+  env: {
+    layerDepth?: number;
+    seaState: number;
+    /** 1 = day, 0 = dark night */
+    light?: number;
+    /** Water depth under the own ship (m) and the chart, which is public. */
+    bottom?: number;
+    seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number };
+  };
   score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
@@ -158,10 +195,42 @@ export interface Snapshot {
   };
 }
 
+/** Full truth, released only after the match ended. */
+export interface Debrief {
+  ships: { id: string; name: string; cls: ClassId; team: Team; player: boolean }[];
+  /** Positions every few sim seconds: [t, [id, x, y, heading, alive(0/1)][]] */
+  frames: [number, [string, number, number, number, number][]][];
+  torpedoes: [number, [string, number, number][]][];
+  events: { t: number; kind: 'sunk' | 'shot' | 'arrived'; shipId: string; byId?: string; what?: string }[];
+  stats: PlayerStats[];
+  winner: Exclude<Team, 'neutral'>;
+  reason: string;
+  duration: number;
+}
+
+export interface PlayerStats {
+  playerId: string;
+  callsign: string;
+  team: Exclude<Team, 'neutral'>;
+  cls: ClassId;
+  survived: boolean;
+  shots: number;
+  rockets: number;
+  buoys: number;
+  kills: number;
+  tonnageSunk: number;
+  firstContactS?: number;
+  distanceNm: number;
+  won: boolean;
+}
+
 export type ServerMsg =
-  | { t: 'welcome'; playerId: string; callsign: string }
+  | { t: 'welcome'; playerId: string; callsign: string; resume?: boolean }
   | { t: 'lobby'; matches: MatchSummary[] }
   | { t: 'match'; match: MatchLobby }
   | { t: 'snap'; s: Snapshot }
   | { t: 'end'; winner: Exclude<Team, 'neutral'>; reason: string }
+  | { t: 'debrief'; d: Debrief }
+  /** Spectators get the truth picture, delayed so it can't be used to help a team. */
+  | { t: 'spectate'; d: Debrief; delayS: number }
   | { t: 'error'; msg: string };

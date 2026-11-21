@@ -1,4 +1,4 @@
-import { SYSTEMS, type ShipSystem } from '@tk/shared';
+import { CLASSES, SYSTEMS, type ShipSystem } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 
@@ -14,7 +14,7 @@ export function renderDamage(el: HTMLElement): void {
   if (!s) return;
   const d = s.own.damage;
   const any = SYSTEMS.some((k) => d[k] > 0);
-  el.innerHTML = `<div class="hd"><span>Schadensabwehr</span><span class="${s.own.hp < 50 ? 'red' : 'dim'}">ZUSTAND ${Math.max(0, s.own.hp).toFixed(0)} %</span></div>` +
+  el.innerHTML = `<div class="hd"><span>Schadensabwehr</span><span class="${s.own.hp < CLASSES[s.own.cls].hp / 2 ? 'red' : 'dim'}">ZUSTAND ${Math.max(0, (100 * s.own.hp) / CLASSES[s.own.cls].hp).toFixed(0)} %</span></div>` +
     (any
       ? SYSTEMS.map((k) => {
         const v = d[k];

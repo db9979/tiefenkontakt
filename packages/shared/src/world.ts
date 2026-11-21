@@ -1,6 +1,9 @@
 import { DEFAULT_ENV, type Environment } from './acoustics.js';
 import { ContactBook } from './contacts.js';
-import { stepDamage } from './damage.js';
+import { applyHitDamage, stepDamage } from './damage.js';
+import { CLASSES } from './classes.js';
+import { KN } from './math.js';
+import { depthAt } from './seabed.js';
 import { stepConvoy, type ConvoyState } from './convoy-ai.js';
 import type { Ship } from './entities.js';
 import { stepShip } from './kinematics.js';
@@ -17,7 +20,9 @@ export type GameEvent =
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
-  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' };
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' }
+  | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
+  | { kind: 'grounded'; time: number; shipId: string };
 
 export interface World {
   time: number;
@@ -68,6 +73,31 @@ export function transmit(w: World, sender: Ship, text: string): void {
   ingest(w, dets);
 }
 
+const groundedAt = new WeakMap<Ship, number>();
+
+/** Seabed and shoals: a boat can't dive into the ground; ships run aground in shallows. */
+function checkGround(w: World, s: Ship): void {
+  if (!s.alive || !w.env.seabed) return;
+  const bottom = depthAt(w.env.seabed, s.pos.x, s.pos.y);
+  const sub = CLASSES[s.cls].submarine;
+  const limit = sub ? bottom - 8 : bottom - CLASSES[s.cls].draft - 1;
+  if (sub ? s.depth <= limit : limit > 0) return;
+  if (sub) {
+    s.depth = Math.max(0, limit);
+    if (s.order.depth > s.depth) s.order.depth = s.depth;
+  } else {
+    s.order.speedKn = 0;
+    s.speed = Math.min(s.speed, 0.3);
+  }
+  const last = groundedAt.get(s) ?? -1e9;
+  if (w.time - last > 60 && (s.speed / KN > 2 || !sub)) {
+    groundedAt.set(s, w.time);
+    s.hp -= 8;
+    applyHitDamage(s, 25, w.rng);
+    w.events.push({ kind: 'grounded', time: w.time, shipId: s.id });
+  }
+}
+
 /** A submarine's hull thermometer reveals the layer when the boat crosses it. */
 function learnLayer(w: World, s: Ship): void {
   if (!s.alive || s.depth < 1 || w.env.layerDepth <= 0 || s.cls === 'ffg' || s.cls === 'merchant') return;
@@ -99,6 +129,7 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   }
   for (const s of w.ships) stepShip(s, dt, w.time);
   for (const s of w.ships) {
+    checkGround(w, s);
     learnLayer(w, s);
     stepDamage(s, dt);
     if (s.alive && s.hp <= 0) {

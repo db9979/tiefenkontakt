@@ -1,23 +1,81 @@
 import { randomUUID } from 'node:crypto';
-import type { ClientMsg, ServerMsg } from '@tk/shared';
-import { Match, type Conn } from './match.js';
+import type { ClientMsg, Debrief, ServerMsg } from '@tk/shared';
+import { LESSONS, lessonSlot, type LessonId } from './lessons.js';
+import { MAX_PER_TEAM, Match, type Conn } from './match.js';
 
 const MAX_MATCHES = 50;
+/** A running match with nobody connected stays (paused) this long before it is dropped. */
+export const ABANDON_MS = 15 * 60_000;
 
 /** Registry of matches and which match each player is in. */
 export class Lobby {
   private matches = new Map<string, Match>();
   private playerMatch = new Map<string, string>();
   private conns = new Map<string, Conn>();
+  private watching = new Map<string, string>();
 
-  connect(conn: Conn): void {
+  /** Register a connection. Returns true when the player rejoins a match. Replaces an older tab. */
+  connect(conn: Conn): boolean {
+    const old = this.conns.get(conn.playerId);
+    if (old && old !== conn) {
+      old.send({ t: 'error', msg: 'Du hast das Spiel in einem anderen Fenster geöffnet' });
+      old.close?.('replaced');
+    }
     this.conns.set(conn.playerId, conn);
-    conn.send(this.listMsg());
+    return this.playerMatch.has(conn.playerId);
   }
 
-  disconnect(playerId: string): void {
-    this.leaveCurrent(playerId);
-    this.conns.delete(playerId);
+  /** After the welcome: put a returning player back into their match, others see the list. */
+  resume(conn: Conn): void {
+    const m = this.matchOf(conn.playerId);
+    if (m) m.reattach(conn);
+    else conn.send(this.listMsg());
+  }
+
+  /** A dropped link keeps the player's ship in a running match; in the lobby they leave. */
+  disconnect(conn: Conn): void {
+    if (this.conns.get(conn.playerId) !== conn) return;
+    this.conns.delete(conn.playerId);
+    this.stopWatching(conn.playerId);
+    const m = this.matchOf(conn.playerId);
+    if (!m) return;
+    if (m.state === 'running') m.detach(conn.playerId);
+    else this.leaveCurrent(conn.playerId);
+  }
+
+  private stopWatching(playerId: string): void {
+    const id = this.watching.get(playerId);
+    if (id) this.matches.get(id)?.removeSpectator(playerId);
+    this.watching.delete(playerId);
+  }
+
+  /** Quick match: join the open lobby with room, on the team that needs players; else open one. */
+  private quick(conn: Conn): string | undefined {
+    const open = [...this.matches.values()].filter((m) => m.state === 'lobby' && !m.settings.lesson && m.slots.length < MAX_PER_TEAM * 2);
+    open.sort((a, b) => b.slots.length - a.slots.length);
+    const m = open[0];
+    if (!m) {
+      const created = this.create('Schnelles Spiel');
+      if (typeof created === 'string') return created;
+      this.playerMatch.set(conn.playerId, created.id);
+      return created.join(conn, Math.random() < 0.5 ? 'west' : 'east');
+    }
+    const west = m.slots.filter((s) => s.team === 'west').length;
+    const east = m.slots.filter((s) => s.team === 'east').length;
+    const e = m.join(conn, west <= east ? 'west' : 'east');
+    if (!e) this.playerMatch.set(conn.playerId, m.id);
+    return e;
+  }
+
+  /** Register a match restored from disk. */
+  adopt(m: Match): void {
+    this.hook(m);
+    this.matches.set(m.id, m);
+    for (const s of m.slots) if (!s.bot) this.playerMatch.set(s.playerId, m.id);
+  }
+
+  allMatches(): Match[] {
+    return [...this.matches.values()];
   }
 
   matchOf(playerId: string): Match | undefined {
@@ -26,7 +84,7 @@ export class Lobby {
   }
 
   private listMsg(): ServerMsg {
-    return { t: 'lobby', matches: [...this.matches.values()].map((m) => m.summary()) };
+    return { t: 'lobby', matches: [...this.matches.values()].filter((m) => !m.settings.lesson).map((m) => m.summary()) };
   }
 
   private broadcastList(): void {
@@ -39,29 +97,45 @@ export class Lobby {
     if (!m) return;
     m.leave(playerId);
     this.playerMatch.delete(playerId);
-    if (m.slots.length === 0 || m.state === 'ended' || m.connected === 0) {
-      m.stop();
-      this.matches.delete(m.id);
-    }
+    // Dropped when empty, finished, or when no human player still belongs to it (all left on purpose)
+    const anyoneLeft = [...this.playerMatch.values()].includes(m.id);
+    if (m.slots.length === 0 || m.state === 'ended' || (m.connected === 0 && (m.state !== 'running' || !anyoneLeft))) this.drop(m);
     this.broadcastList();
   }
 
-  create(name: string): Match | string {
+  create(name: string, lesson?: LessonId): Match | string {
     this.prune();
     if (this.matches.size >= MAX_MATCHES) return 'Zu viele Partien';
     const m = new Match(randomUUID().slice(0, 8), name);
-    m.onChange = () => this.broadcastList();
+    if (lesson) Object.assign(m.settings, { lesson, fillBots: false, timeLimitMin: 30 });
+    this.hook(m);
     this.matches.set(m.id, m);
     this.broadcastList();
     return m;
   }
 
-  private prune(): void {
-    for (const [id, m] of this.matches) {
-      if (m.connected === 0) {
-        m.stop();
-        this.matches.delete(id);
-      }
+  onDrop?: (m: Match) => void;
+  /** Statistics hooks (set by the server entry point). */
+  onFinish?: (m: Match, d: Debrief) => void;
+  onLessonDone?: (playerId: string, lesson: string) => void;
+
+  private hook(m: Match): void {
+    m.onChange = () => this.broadcastList();
+    m.onFinish = (d) => this.onFinish?.(m, d);
+  }
+
+  private drop(m: Match): void {
+    m.stop();
+    this.matches.delete(m.id);
+    for (const [pid, mid] of this.playerMatch) if (mid === m.id) this.playerMatch.delete(pid);
+    this.onDrop?.(m);
+  }
+
+  /** Remove empty lobbies, finished matches and running matches abandoned for too long. */
+  prune(now = Date.now()): void {
+    for (const m of [...this.matches.values()]) {
+      if (m.connected > 0) continue;
+      if (m.state !== 'running' || now - m.emptySince > ABANDON_MS) this.drop(m);
     }
   }
 
@@ -83,7 +157,29 @@ export class Lobby {
         if (!e) this.playerMatch.set(conn.playerId, m.id);
         return void err(e);
       }
+      case 'quick':
+        this.leaveCurrent(conn.playerId);
+        return void err(this.quick(conn));
+      case 'spectate': {
+        const target = this.matches.get(msg.matchId);
+        if (!target) return void err('Partie nicht gefunden');
+        this.stopWatching(conn.playerId);
+        const e = target.addSpectator(conn);
+        if (!e) this.watching.set(conn.playerId, target.id);
+        return void err(e);
+      }
+      case 'training': {
+        this.leaveCurrent(conn.playerId);
+        const m = this.create(`Ausbildung: ${LESSONS[msg.lesson].title}`, msg.lesson);
+        if (typeof m === 'string') return void err(m);
+        this.playerMatch.set(conn.playerId, m.id);
+        m.slots.push(lessonSlot(msg.lesson, conn.playerId, conn.callsign));
+        m.reattach(conn);
+        m.start();
+        return;
+      }
       case 'leave':
+        this.stopWatching(conn.playerId);
         this.leaveCurrent(conn.playerId);
         return void conn.send(this.listMsg());
       default:
@@ -98,6 +194,15 @@ export class Lobby {
         return void m.setReady(conn.playerId, msg.ready);
       case 'radio':
         return void err(m.radio(conn.playerId, msg.text));
+      case 'station':
+        return void m.setStation(conn.playerId, msg.index);
+      case 'lesson_done':
+        if (m.settings.lesson === 'klassifizieren' || m.settings.lesson === 'tma') this.onLessonDone?.(conn.playerId, m.settings.lesson);
+        return;
+      case 'settings': {
+        const { t: _t, ...rest } = msg;
+        return void err(m.configure(conn.playerId, rest));
+      }
       case 'crew':
         return void err(m.setCrew(conn.playerId, msg.captainId));
       case 'classify':

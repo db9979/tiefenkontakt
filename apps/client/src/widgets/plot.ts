@@ -1,7 +1,8 @@
-import { KN, NM, bearing, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
+import { KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
+import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
 import { openMenu, type MenuItem } from './menu.js';
 
 export interface PlotOptions {
@@ -62,7 +63,7 @@ export class Plot {
   }
 
   private center(): Vec2 {
-    const o = store.snap?.own ?? { x: 0, y: 0 };
+    const o = store.snap ? ownNow() : { x: 0, y: 0 };
     return { x: o.x + this.pan.x, y: o.y + this.pan.y };
   }
 
@@ -83,7 +84,7 @@ export class Plot {
     const s = store.snap;
     if (!s) return undefined;
     for (const [label, sol] of store.solutions) {
-      const p = this.toScreen(targetPosAt(sol, s.time));
+      const p = this.toScreen(targetPosAt(sol, simNow()));
       const v = headingVec(sol.course);
       const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y - v.y * sol.speedKn * 4 };
       if (Math.hypot(tip.x - m.x, tip.y - m.y) < 8) return { kind: 'vec', label };
@@ -101,7 +102,7 @@ export class Plot {
     for (const c of s.contacts) {
       const pts: Vec2[] = [];
       const sol = store.solutions.get(c.label);
-      if (sol) pts.push(this.toScreen(targetPosAt(sol, s.time)));
+      if (sol) pts.push(this.toScreen(targetPosAt(sol, simNow())));
       if (c.range !== undefined && c.rangeAt !== undefined) {
         const o = ownPosAt(store.ownTrack, c.rangeAt) ?? s.own;
         const v = headingVec(c.bearing);
@@ -165,7 +166,7 @@ export class Plot {
       const back = sol.speedKn * KN * (s.time - sol.t0);
       store.solutions.set(d.label, { ...sol, x0: wp.x - v.x * back, y0: wp.y - v.y * back });
     } else {
-      const now = targetPosAt(sol, s.time);
+      const now = targetPosAt(sol, simNow());
       const px = distance(this.toScreen(now), m);
       const course = bearing(now, wp);
       const speedKn = Math.min(35, px / 4);
@@ -209,6 +210,8 @@ export class Plot {
     if (!s) return;
     const P = (p: Vec2) => this.toScreen(p);
     const c = this.center();
+
+    this.drawDepth(ctx, s, w, height);
 
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
@@ -260,8 +263,9 @@ export class Plot {
       ctx.fillText(`${t.id}${t.homing ? ' ZIEL' : ''}`, p.x + 6, p.y - 6);
     }
 
-    const o = P(s.own);
-    const v = headingVec(s.own.heading);
+    const me = ownNow();
+    const o = P(me);
+    const v = headingVec(me.heading);
     const ov = headingVec(s.own.order.heading);
     ctx.strokeStyle = 'rgba(250,199,117,0.6)';
     ctx.setLineDash([2, 3]);
@@ -284,6 +288,55 @@ export class Plot {
     ctx.fillText(foot, 8, height - 8);
   }
 
+  private depthCache?: { key: string; img: HTMLCanvasElement; at: number };
+
+  /** Chart shading from the (public) seabed: land, shoals, shelf and deep water. */
+  private drawDepth(ctx: CanvasRenderingContext2D, s: Snapshot, w: number, hgt: number): void {
+    const spec = s.env.seabed;
+    if (!spec) return;
+    const c = this.center();
+    const cell = 6;
+    const cols = Math.ceil(w / cell);
+    const rows = Math.ceil(hgt / cell);
+    const key = `${Math.round(c.x / (this.scale * 4))}|${Math.round(c.y / (this.scale * 4))}|${this.scale.toFixed(2)}|${cols}|${rows}`;
+    const now = performance.now();
+    if (!this.depthCache || (this.depthCache.key !== key && now - this.depthCache.at > 120)) {
+      const img = this.depthCache?.img ?? document.createElement('canvas');
+      img.width = cols;
+      img.height = rows;
+      const ic = img.getContext('2d')!;
+      const data = ic.createImageData(cols, rows);
+      for (let j = 0; j < rows; j++) {
+        for (let i = 0; i < cols; i++) {
+          const d = depthAt(spec, c.x + (i * cell - w / 2) * this.scale, c.y - (j * cell - hgt / 2) * this.scale);
+          const [r, g, b] = d < 0 ? [38, 36, 26] : d < 60 ? [52, 64, 50] : d < 300 ? [14, 34, 34] : d < 2000 ? [9, 22, 24] : [6, 14, 16];
+          const k = (j * cols + i) * 4;
+          data.data[k] = r;
+          data.data[k + 1] = g;
+          data.data[k + 2] = b;
+          data.data[k + 3] = 255;
+        }
+      }
+      ic.putImageData(data, 0, 0);
+      this.depthCache = { key, img, at: now };
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.depthCache.img, 0, 0, cols * cell, rows * cell);
+  }
+
+  private lineFilters = new Map<string, { f: BearingRangeFilter; last: number }>();
+
+  /** Display-only smoothing of the current bearing line (raw samples stay in the fan and the TMA). */
+  private smoothedBearing(label: string, lastSeen: number, bearing: number): number | undefined {
+    let e = this.lineFilters.get(label);
+    if (!e) this.lineFilters.set(label, (e = { f: new BearingRangeFilter(0.25, 0.02), last: -1 }));
+    if (e.last !== lastSeen) {
+      e.f.update(lastSeen, bearing);
+      e.last = lastSeen;
+    }
+    return e.f.at(simNow())?.bearing;
+  }
+
   private drawContacts(ctx: CanvasRenderingContext2D, s: Snapshot, P: (p: Vec2) => Vec2, w: number, hgt: number): void {
     const far = Math.hypot(w, hgt) * this.scale;
     for (const c of s.contacts) {
@@ -296,7 +349,22 @@ export class Plot {
       ctx.fillStyle = color;
       const isEsm = c.sensors.includes('esm') && c.sensors.length === 1;
       if ((this.opts.bearingLines && c.via === 'own') || (isEsm && this.opts.esmLines)) {
-        const hist = sel ? c.history.filter((_, i) => i % 6 === 0) : c.history.slice(-1);
+        // Selected: a stable fan, one line per 20 s of sim time (not by index, which reshuffles on every update)
+        let bucket = -1;
+        const fan = sel ? c.history.filter((h) => (Math.floor(h.t / 20) !== bucket ? ((bucket = Math.floor(h.t / 20)), true) : false)) : [];
+        const latest = c.history[c.history.length - 1];
+        const smoothable = latest && latest.alt === undefined && latest.ox === undefined;
+        const cur = smoothable ? this.smoothedBearing(c.label, c.lastSeen, c.bearing) : undefined;
+        if (cur !== undefined) {
+          const me = ownNow();
+          const v = headingVec(cur);
+          const a = P(me);
+          const end = P({ x: me.x + v.x * far, y: me.y + v.y * far });
+          ctx.globalAlpha = stale ? 0.25 : 0.75;
+          ctx.setLineDash(isEsm ? [6, 4] : [4, 3]);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+        }
+        const hist = sel ? fan : smoothable ? [] : c.history.slice(-1);
         for (const hs of hist) {
           const origin = ownPosAt(store.ownTrack, hs.t) ?? s.own;
           const side = store.tasSide.get(c.label);
@@ -306,16 +374,17 @@ export class Plot {
             const v = headingVec(b);
             const a = P(origin2);
             const end = P({ x: origin2.x + v.x * far, y: origin2.y + v.y * far });
-            ctx.globalAlpha = stale ? 0.25 : sel ? 0.5 : 0.7;
+            ctx.globalAlpha = stale ? 0.2 : sel ? 0.35 : 0.7;
             ctx.setLineDash(isEsm ? [6, 4] : [4, 3]);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(end.x, end.y); ctx.stroke();
           }
         }
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
-        if (!hist.length) continue;
-        const lb = headingVec(c.bearing);
-        const lp = P({ x: s.own.x + lb.x * 60 * this.scale, y: s.own.y + lb.y * 60 * this.scale });
+        if (!hist.length && cur === undefined) continue;
+        const lb = headingVec(cur ?? c.bearing);
+        const me = ownNow();
+        const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
         ctx.fillText(c.label, lp.x + 4, lp.y - 4);
       }
       if (c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90) {
@@ -327,7 +396,7 @@ export class Plot {
       }
       const sol = store.solutions.get(c.label);
       if (sol) {
-        const p = P(targetPosAt(sol, s.time));
+        const p = P(targetPosAt(sol, simNow()));
         const v = headingVec(sol.course);
         const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y - v.y * sol.speedKn * 4 };
         ctx.strokeStyle = COL.amber;
@@ -345,7 +414,9 @@ export class Plot {
   private drawFriendlies(ctx: CanvasRenderingContext2D, s: Snapshot, P: (p: Vec2) => Vec2): void {
     for (const f of s.friendlies) {
       if (f.cls === 'merchant' && !this.opts.showConvoy) continue;
-      const p = P(f);
+      // Live datalink positions glide between updates; old radio reports stay where reported
+      const live = f.alive && s.time - f.reportedAt < 3;
+      const p = P(live ? moverNow(f, f.reportedAt) : f);
       ctx.fillStyle = f.alive ? COL.blue : COL.dim;
       ctx.strokeStyle = ctx.fillStyle;
       if (f.cls === 'merchant') {

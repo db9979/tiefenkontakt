@@ -42,15 +42,18 @@ function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: nu
   ctx.fillText('+5°', w - 22, 10);
   const band = (H - 12) / Math.max(1, rows.length);
   rows.forEach((row, ri) => {
-    const recent = row.res.slice(-60);
+    // Fixed time axis (newest at the top, 5 min span): dots scroll smoothly instead of reshuffling
+    const tNew = row.res[row.res.length - 1]?.t ?? 0;
+    const recent = row.res.filter((r) => tNew - r.t <= 300);
     const y0 = 12 + ri * band;
     if (rows.length > 1) {
       ctx.fillStyle = COL.dim;
       ctx.fillText(row.label, 2, y0 + band / 2 + 3);
     }
-    recent.forEach((r, i) => {
+    recent.forEach((r) => {
       const x = w / 2 + (Math.max(-5, Math.min(5, r.err)) / 5) * (w / 2 - 4);
-      const y = rows.length > 1 ? y0 + band / 2 + ((i % 5) - 2) * 2 : H - 4 - (i / Math.max(1, recent.length - 1)) * (H - 14);
+      const age = (tNew - r.t) / 300;
+      const y = rows.length > 1 ? y0 + band / 2 + (Math.floor(r.t / 7) % 5 - 2) * 2 : 12 + age * (H - 16);
       ctx.fillStyle = Math.abs(r.err) < 1 ? COL.g2 : COL.amber;
       ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
     });
@@ -124,6 +127,10 @@ export function fireControlStation(): Station {
   ['#s-rng', '#s-crs', '#s-spd'].forEach((id) => (q<HTMLInputElement>(id).oninput = fromSliders));
 
   let method: Method = 'hyp';
+  let sliderSol: TmaSolution | undefined;
+  let shownQ: number | undefined;
+  let shownRms: number | undefined;
+  let shownLabel: string | undefined;
   const solSeen = new Map<string, { ref: TmaSolution; at: number }>();
   el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => (b.onclick = () => (method = b.dataset.method as Method)));
   q<HTMLButtonElement>('#ekel-take').onclick = () => {
@@ -200,13 +207,21 @@ export function fireControlStation(): Station {
         q('#v-rng').textContent = km(rng);
         q('#v-crs').textContent = `${deg3(sol.course)}°`;
         q('#v-spd').textContent = `${sol.speedKn.toFixed(1)} KN`;
-        q('#v-q').innerHTML = `<span class="${fit.quality > 60 ? '' : 'amber'}">${fit.quality} %</span> / ${fit.rmsDeg.toFixed(2)}°`;
+        // Eased readouts: the fit settles instead of flickering with each noisy bearing
+        shownQ = shownQ === undefined || shownLabel !== c.label ? fit.quality : shownQ + (fit.quality - shownQ) * 0.2;
+        shownRms = shownRms === undefined || shownLabel !== c.label ? fit.rmsDeg : shownRms + (fit.rmsDeg - shownRms) * 0.2;
+        shownLabel = c.label;
+        q('#v-q').innerHTML = `<span class="${shownQ > 60 ? '' : 'amber'}">${Math.round(shownQ)} %</span> / ${shownRms.toFixed(1)}°`;
         const last = c.history[c.history.length - 1];
         const own = last ? ownPosAt(store.ownTrack, last.t) ?? s.own : s.own;
-        const ae = document.activeElement;
-        if (ae !== q('#s-rng')) q<HTMLInputElement>('#s-rng').value = String(distance(own, targetPosAt(sol, last?.t ?? s.time)));
-        if (ae !== q('#s-crs')) q<HTMLInputElement>('#s-crs').value = String(sol.course);
-        if (ae !== q('#s-spd')) q<HTMLInputElement>('#s-spd').value = String(sol.speedKn);
+        // Move the sliders only when the solution itself changed (not on every update)
+        if (sliderSol !== sol) {
+          sliderSol = sol;
+          const ae = document.activeElement;
+          if (ae !== q('#s-rng')) q<HTMLInputElement>('#s-rng').value = String(distance(own, targetPosAt(sol, last?.t ?? s.time)));
+          if (ae !== q('#s-crs')) q<HTMLInputElement>('#s-crs').value = String(sol.course);
+          if (ae !== q('#s-spd')) q<HTMLInputElement>('#s-spd').value = String(sol.speedKn);
+        }
         const tl = c.history[c.history.length - 1]?.t ?? s.time;
         drawResiduals(q<HTMLCanvasElement>('#res'), method === 'dots'
           ? DOT_FACTORS.map((f) => ({ label: `${f.toFixed(1)}×`, res: evaluateSolution(scaleSolutionRange(sol, f, tl, store.ownTrack), c.history, store.ownTrack).residuals }))

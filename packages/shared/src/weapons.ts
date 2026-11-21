@@ -109,6 +109,7 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
   const at = { x: shooter.pos.x, y: shooter.pos.y };
   if (kind === 'heavy') w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'flood' });
   w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'launch' });
+  w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'torpedo' });
   return t;
 }
 
@@ -135,6 +136,7 @@ export function launchAswRocket(w: World, shooter: Ship, aim: Vec2): true | stri
   if (!l || l.rockets <= 0) return 'Keine Raketen';
   if (distance(shooter.pos, aim) > ROCKET_MAX_RANGE) return 'Ziel außer Reichweite';
   l.rockets -= 1;
+  w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'rocket' });
   ws(w).pending.push({ at: w.time + ROCKET_FLIGHT, kind: 'rocket', ownerId: shooter.id, pos: { ...aim }, depth: 0 });
   return true;
 }
@@ -143,6 +145,7 @@ export function dropDepthCharge(w: World, shooter: Ship, depth: number): true | 
   const l = ws(w).loadouts.get(shooter.id);
   if (!l || l.depthCharges <= 0) return 'Keine Wasserbomben';
   l.depthCharges -= 1;
+  w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'dc' });
   const d = clamp(depth, 20, 400);
   ws(w).pending.push({ at: w.time + d / DC_SINK_RATE, kind: 'depthcharge', ownerId: shooter.id, pos: { ...shooter.pos }, depth: d });
   return true;
@@ -163,7 +166,7 @@ export function setTowedDecoy(w: World, ship: Ship, on: boolean): void {
   if (!l || ship.cls !== 'ffg') return;
   l.towedDecoy = on;
   st.decoys = st.decoys.filter((d) => d.towedBy !== ship.id);
-  if (on) st.decoys.push({ id: `D${st.nextId++}`, pos: { ...ship.pos }, depth: 5, sl: 155, expiresAt: Infinity, towedBy: ship.id });
+  if (on) st.decoys.push({ id: `D${st.nextId++}`, pos: { ...ship.pos }, depth: 5, sl: 155, expiresAt: Number.MAX_SAFE_INTEGER, towedBy: ship.id });
 }
 
 interface Candidate {

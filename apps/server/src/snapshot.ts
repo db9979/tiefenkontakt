@@ -3,6 +3,7 @@ import {
   KN,
   batteryEndurance,
   emptyDamage,
+  depthAt,
   heloPosition,
   cavitationSpeedKn,
   sourceLevel,
@@ -128,7 +129,10 @@ export function buildSnapshot(
     torpedoes,
     radio: x.radio.slice(-30),
     alerts: x.alerts.slice(-20),
-    env: { layerDepth: own.btLayer, seaState: w.env.seaState },
+    env: {
+      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light,
+      bottom: w.env.seabed ? Math.round(depthAt(w.env.seabed, own.pos.x, own.pos.y)) : undefined, seabed: w.env.seabed,
+    },
     score,
   };
 }

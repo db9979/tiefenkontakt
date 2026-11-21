@@ -1,4 +1,6 @@
 import { angleDiff, PERISCOPE_DEPTH, type ClassId } from '@tk/shared';
+import { BearingRangeFilter, easeAngle, simNow } from '../../widgets/smooth.js';
+import type { Periscope3D } from '../../widgets/periscope3d.js';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -37,7 +39,7 @@ function silhouette(ctx: CanvasRenderingContext2D, x: number, size: number, cls:
 export function periscopeStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
-      <canvas id="view"></canvas>
+      <div style="position:relative"><canvas id="gl" style="position:absolute;inset:0;width:100%;height:380px"></canvas><canvas id="view" style="position:relative"></canvas></div>
       <div style="display:flex;gap:6px;margin-top:6px">
         <button id="up">Mast ausfahren</button><button id="zoom">Vergr 6×</button>
         <button id="peri">Auf Sehrohrtiefe</button>
@@ -49,7 +51,22 @@ export function periscopeStation(): Station {
     <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
+  const glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
+  let gl: Periscope3D | undefined;
+  // three.js is loaded only when the periscope is first used; falls back to 2D without WebGL2
+  if (localStorage.getItem('tk_3d') !== '0') {
+    import('../../widgets/periscope3d.js')
+      .then((m) => {
+        if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas);
+      })
+      .catch(() => undefined);
+  }
   let periBearing = 0;
+  /** Where the operator trains the scope; the optic follows smoothly. */
+  let periTarget = 0;
+  let lastFrame = performance.now();
+  const filters = new Map<string, BearingRangeFilter>();
+  const filteredAt = new Map<string, number>();
   let zoom6 = true;
   let trained = false;
   const waves: Wave[] = Array.from({ length: 280 }, () => ({
@@ -63,12 +80,12 @@ export function periscopeStation(): Station {
     (e.target as HTMLButtonElement).textContent = zoom6 ? 'Vergr 6×' : 'Vergr 1,5×';
   };
   el.querySelector<HTMLButtonElement>('#peri')!.onclick = () => net.send({ t: 'order', depth: PERISCOPE_DEPTH });
-  const train = (d: number) => (periBearing = (periBearing + d + 360) % 360);
+  const train = (d: number) => (periTarget = (periTarget + d + 360) % 360);
   el.querySelector<HTMLButtonElement>('#left')!.onclick = () => train(zoom6 ? -2 : -8);
   el.querySelector<HTMLButtonElement>('#right')!.onclick = () => train(zoom6 ? 2 : 8);
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
     const c = store.selectedContact();
-    if (c) periBearing = c.bearing;
+    if (c) periTarget = filters.get(c.label)?.at(simNow())?.bearing ?? c.bearing;
   };
   let dragX: number | undefined;
   let dragged = false;
@@ -85,6 +102,7 @@ export function periscopeStation(): Station {
     dragX = e.clientX;
     const fov = zoom6 ? 8 : 32;
     train((-dx / (view.clientWidth * 0.84)) * fov);
+    periBearing = periTarget;
   });
   view.onclick = (e) => {
     if (dragged) return;
@@ -97,10 +115,21 @@ export function periscopeStation(): Station {
     if (hit) store.selected = hit.label;
   };
 
+  /** Periscope contacts with a smoothed bearing/range and a fade for ships dipping out of sight. */
   function visible() {
     const s = store.snap;
     if (!s || !s.own.mastUp) return [];
-    return s.contacts.filter((c) => c.sensors.includes('periscope') && s.time - c.lastSeen < 2.5);
+    const now = simNow();
+    const out: { label: string; cls: ClassId; bearing: number; range: number; alpha: number }[] = [];
+    for (const c of s.contacts) {
+      if (!c.sensors.includes('periscope')) continue;
+      const age = now - c.lastSeen;
+      if (age > 6) continue;
+      const est = filters.get(c.label)?.at(now);
+      if (!est) continue;
+      out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)) });
+    }
+    return out;
   }
 
   return {
@@ -108,16 +137,24 @@ export function periscopeStation(): Station {
     el,
     key(e) {
       const step = zoom6 ? 0.5 : 2;
-      if (e.key === 'a' || e.key === 'A') periBearing = (periBearing - step + 360) % 360;
-      else if (e.key === 'd' || e.key === 'D') periBearing = (periBearing + step) % 360;
+      if (e.key === 'a' || e.key === 'A') train(-step);
+      else if (e.key === 'd' || e.key === 'D') train(step);
       else return false;
       return true;
     },
     snap() {
       const s = store.snap!;
       if (!trained) {
-        periBearing = s.own.heading;
+        periBearing = periTarget = s.own.heading;
         trained = true;
+      }
+      // Feed the display filters with each new periscope measurement
+      for (const c of s.contacts) {
+        if (!c.sensors.includes('periscope') || filteredAt.get(c.label) === c.lastSeen) continue;
+        filteredAt.set(c.label, c.lastSeen);
+        let f = filters.get(c.label);
+        if (!f) filters.set(c.label, (f = new BearingRangeFilter(0.2, 0.02)));
+        f.update(c.lastSeen, c.bearing, c.range);
       }
       const o = s.own;
       const atDepth = o.depth <= PERISCOPE_DEPTH + 0.5;
@@ -147,21 +184,50 @@ export function periscopeStation(): Station {
       const H = 380;
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;
-      const t = (performance.now() - t0) / 1000;
-      ctx.fillStyle = '#030504';
-      ctx.fillRect(0, 0, w, H);
+      const nowMs = performance.now();
+      const t = (nowMs - t0) / 1000;
+      periBearing = easeAngle(periBearing, periTarget, (nowMs - lastFrame) / 1000, 0.15);
+      lastFrame = nowMs;
       const cx = w / 2;
       const cy = H / 2;
       const R = Math.min(w * 0.42, H * 0.47);
+      const use3d = !!gl && !!s?.own.mastUp;
+      glCanvas.style.visibility = use3d ? 'visible' : 'hidden';
+      if (use3d && s) {
+        const fov = zoom6 ? 8 : 32;
+        const sols = store.solutions;
+        gl!.render({
+          bearing: periBearing, fovDeg: (fov * w) / (2 * R), t, sea: s.env.seaState, light: s.env.light ?? 1,
+          targets: visible().map((c) => ({ ...c, course: sols.get(c.label)?.course })),
+        });
+        // Overlay: black mask outside the optic, reticle drawn below
+        ctx.clearRect(0, 0, w, H);
+        ctx.fillStyle = '#030504';
+        ctx.beginPath();
+        ctx.rect(0, 0, w, H);
+        ctx.moveTo(cx + R, cy);
+        ctx.arc(cx, cy, R, 0, Math.PI * 2, true);
+        ctx.fill('evenodd');
+        if (s.env.seaState >= 4 && Math.sin(t * 0.37) > 0.92) {
+          ctx.fillStyle = 'rgba(200,220,225,0.5)';
+          ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+        }
+      } else {
+        ctx.fillStyle = '#030504';
+        ctx.fillRect(0, 0, w, H);
+      }
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, 7);
       ctx.clip();
-      if (s?.own.mastUp) {
+      if (use3d) {
+        // 3D scene already rendered underneath
+      } else if (s?.own.mastUp) {
         const sea = s.env.seaState;
-        const hy = cy + Math.sin(t * 0.9) * (2 + sea * 1.5) + Math.sin(t * 2.3) * sea * 0.4;
+        // Slow, swell-like pitch and roll (no fast jitter)
+        const hy = cy + Math.sin(t * 0.55) * (1.5 + sea * 1.1) + Math.sin(t * 0.23 + 1.3) * sea * 0.6;
         ctx.translate(cx, hy);
-        ctx.rotate(Math.sin(t * 0.7) * 0.01 * (1 + sea));
+        ctx.rotate(Math.sin(t * 0.4) * 0.004 * (1 + sea * 0.6));
         ctx.fillStyle = '#24343b'; ctx.fillRect(-w, -H, 2 * w, H);
         ctx.fillStyle = '#2f4048'; ctx.fillRect(-w, -30, 2 * w, 30);
         ctx.fillStyle = '#3a4b52'; ctx.fillRect(-w, -7, 2 * w, 7);
@@ -171,9 +237,10 @@ export function periscopeStation(): Station {
         for (const c of visible()) {
           const dx = angleDiff(periBearing, c.bearing) * pxPerDeg;
           if (Math.abs(dx) > R + 200) continue;
-          const range = c.range ?? 8000;
-          const size = Math.min(400, ((zoom6 ? 6 : 1.5) * 9000) / range * 6);
-          silhouette(ctx, dx, size, c.classified ?? 'merchant', 0.9);
+          const size = Math.min(400, ((zoom6 ? 6 : 1.5) * 9000) / Math.max(300, c.range) * 6);
+          ctx.globalAlpha = c.alpha;
+          silhouette(ctx, dx, size, c.cls, 0.9);
+          ctx.globalAlpha = 1;
           if (c.label === store.selected) {
             ctx.strokeStyle = COL.amber;
             ctx.strokeRect(dx - size * 0.6, -size * 0.8, size * 1.2, size * 0.9);

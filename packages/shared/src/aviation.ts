@@ -5,6 +5,7 @@ import type { Detection, SensorContext } from './sensors.js';
 import { measureEvidence, sigKeyOf } from './signatures.js';
 import { isCavitating } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
+import { depthAt, pathDepth } from './seabed.js';
 import type { World } from './world.js';
 
 /** Frigate helicopter dropping passive DIFAR sonobuoys. */
@@ -64,6 +65,7 @@ export function sendBuoy(w: World, ship: Ship, target: Vec2, deep: boolean): tru
   const d = distance(ship.pos, target);
   if (d > HELO_RANGE) return 'Außer Reichweite des Hubschraubers (30 km)';
   air.stock.set(ship.id, left - 1);
+  w.events.push({ kind: 'weapon', time: w.time, sourceId: ship.id, what: 'buoy' });
   const flight = d / HELO_SPEED;
   air.sorties.push({
     shipId: ship.id, from: { ...ship.pos }, target: { ...target }, launchAt: w.time,
@@ -83,12 +85,13 @@ export function heloPosition(s: Sortie, now: number, ship: Ship): Vec2 | undefin
   return { x: s.target.x + (ship.pos.x - s.target.x) * f, y: s.target.y + (ship.pos.y - s.target.y) * f };
 }
 
-function airSystem(w: World): void {
+export function airSystem(w: World): void {
   const air = w.air!;
   for (const s of air.sorties) {
     if (!s.dropped && w.time >= s.dropAt) {
       s.dropped = true;
-      const depth = s.deep ? (w.env.layerDepth > 0 ? w.env.layerDepth + 40 : 150) : BUOY_SHALLOW;
+      const bottom = depthAt(w.env.seabed, s.target.x, s.target.y);
+      const depth = Math.max(10, Math.min(s.deep ? (w.env.layerDepth > 0 ? w.env.layerDepth + 40 : 150) : BUOY_SHALLOW, bottom - 10));
       air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: s.target, depth, expiresAt: w.time + BUOY_LIFE });
     }
   }
@@ -104,7 +107,7 @@ export function buoySensors(buoys: readonly Buoy[], ctx: SensorContext): Detecti
     for (const tgt of ctx.ships) {
       if (!tgt.alive || tgt.id === b.ownerId) continue;
       const range = distance(b.pos, tgt.pos);
-      const se = sourceLevel(tgt) - transmissionLoss(range, tgt.depth, b.depth, ctx.env) - (nl - BUOY_GAIN) - DT_PASSIVE + ctx.rng.gauss(0, 2);
+      const se = sourceLevel(tgt) - transmissionLoss(range, tgt.depth, b.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, b.pos, tgt.pos)) - (nl - BUOY_GAIN) - DT_PASSIVE + ctx.rng.gauss(0, 2);
       if (se <= 0) continue;
       out.push({
         observerId: b.ownerId, targetId: tgt.id, sensor: 'buoy', time: ctx.time,

@@ -9,6 +9,7 @@ import {
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
+import { SHALLOW_M, pathDepth } from './seabed.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth } from './entities.js';
@@ -97,11 +98,12 @@ export function towedArrayReady(s: Ship, now: number): boolean {
 function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): void {
   const spec = CLASSES[obs.cls];
   const range = distance(obs.pos, tgt.pos);
+  const bottom = pathDepth(ctx.env.seabed, obs.pos, tgt.pos);
   const trueB = bearing(obs.pos, tgt.pos);
   const rel = angleDiff(obs.heading, trueB);
 
   if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle) {
-    const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
+    const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, obs.depth, bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION);
     if (se > 0) {
       out.push({
@@ -114,7 +116,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   if (towedArrayReady(obs, ctx.time)) {
     const endfire = Math.abs(rel) < 20 || Math.abs(rel) > 160 ? 10 : 0;
     const se =
-      passiveSignalExcess(tgt, obs, range, 'towed', ctx.env, towedArrayDepth(obs)) -
+      passiveSignalExcess(tgt, obs, range, 'towed', ctx.env, Math.min(towedArrayDepth(obs), bottom - 10), bottom) -
       endfire +
       fading(`${obs.id}|${tgt.id}|t`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION);
@@ -161,7 +163,9 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const trueB = bearing(pinger.pos, tgt.pos);
     const lfm = pinger.pulse === 'lfm';
     const slow = tgt.speed / KN < SLOW_TARGET_KN;
-    const se = activeSignalExcess(tgt, pinger, range, ctx.env) - (!lfm && slow ? CW_REVERB_PENALTY : 0) + ctx.rng.gauss(0, 2);
+    const bottom = pathDepth(ctx.env.seabed, pinger.pos, tgt.pos);
+    const shallowReverb = !lfm && bottom < SHALLOW_M ? 4 : 0;
+    const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom) - (!lfm && slow ? CW_REVERB_PENALTY : 0) - shallowReverb + ctx.rng.gauss(0, 2);
     if (se > 0) {
       // Radial speed of the target toward the pinger (positive = closing), measured by CW Doppler
       const los = { x: (pinger.pos.x - tgt.pos.x) / Math.max(range, 1), y: (pinger.pos.y - tgt.pos.y) / Math.max(range, 1) };
@@ -192,7 +196,9 @@ export function horizonRange(eyeHeight: number, targetHeight: number): number {
 }
 
 function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
-  const vis = 1 - ctx.env.seaState * 0.08;
+  // Night cuts visual range sharply (darkened ships, no moon assumed)
+  const light = ctx.env.light ?? 1;
+  const vis = (1 - ctx.env.seaState * 0.08) * (0.3 + 0.7 * light);
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive || CLASSES[tgt.cls].submarine) continue;
     const range = distance(obs.pos, tgt.pos);

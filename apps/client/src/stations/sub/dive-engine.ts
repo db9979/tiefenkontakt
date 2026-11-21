@@ -91,7 +91,7 @@ export function diveEngineStation(): Station {
         <div class="row"><span class="dim">RESTZEIT BEI FAHRT</span><span>${o.batteryEnduranceS !== undefined ? clock(o.batteryEnduranceS) : '—'}</span></div>` : ''}
         <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN) · ${o.depth > s.env.layerDepth ? 'DARUNTER' : 'DARÜBER'}` : '<span class="amber">UNBEKANNT · DURCHTAUCHEN MISST SIE</span>'}</span></div>
         <div class="row"><span class="dim">TÄUSCHKÖRPER</span><span>${o.loadout.noisemakers}</span></div>
-        <div class="row"><span class="dim">ZUSTAND</span><span class="${o.hp < 50 ? 'red' : ''}">${o.hp.toFixed(0)} %</span></div>`;
+        <div class="row"><span class="dim">ZUSTAND</span><span class="${o.hp < spec.hp / 2 ? 'red' : ''}">${Math.max(0, (100 * o.hp) / spec.hp).toFixed(0)} %</span></div>`;
     },
     frame() {
       const s = store.snap;
@@ -120,6 +120,13 @@ export function diveEngineStation(): Station {
       } else {
         ctx.fillStyle = COL.dim;
         ctx.fillText('SPRUNGSCHICHT UNBEKANNT', w - 190, 40);
+      }
+      const bottom = s.env.bottom;
+      if (bottom !== undefined && bottom < maxD) {
+        ctx.fillStyle = 'rgba(120, 96, 60, 0.35)';
+        ctx.fillRect(40, Y(bottom), w - 40, H - Y(bottom));
+        ctx.fillStyle = COL.amber;
+        ctx.fillText(`MEERESGRUND ${bottom} M`, w - 170, Y(bottom) + 14);
       }
       ctx.strokeStyle = COL.blue;
       ctx.setLineDash([3, 3]);

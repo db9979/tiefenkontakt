@@ -30,6 +30,8 @@ export function opsCenterStation(): Station {
       el.querySelector('#group')!.innerHTML = `
         <div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>
         <div class="row"><span class="dim">DATALINK-TEILNEHMER</span><span>${escorts.length}</span></div>
+        <div class="row"><span class="dim">WASSERTIEFE</span><span class="${(s.env.bottom ?? 999) < 30 ? 'red' : ''}">${s.env.bottom !== undefined ? s.env.bottom + ' M' : '—'}</span></div>
+        <div class="row"><span class="dim">TAGESZEIT</span><span>${(s.env.light ?? 1) > 0.8 ? 'TAG' : (s.env.light ?? 1) > 0.3 ? 'DÄMMERUNG' : 'NACHT · SICHT STARK EINGESCHRÄNKT'}</span></div>
         <div class="row"><span class="dim">HUBSCHRAUBER</span><span>${!s.air ? '—' : s.air.heloReadyInS > 0 ? `<span class="amber">UNTERWEGS · BEREIT IN ${Math.ceil(s.air.heloReadyInS / 60)} MIN</span>` : 'AN DECK · BEREIT'}</span></div>
         <div class="row"><span class="dim">SONARBOJEN</span><span>${s.air ? `${s.air.stock} AN BORD · ${s.air.buoys.length} IM WASSER` : '—'}</span></div>
         <div class="dim" style="margin-top:4px">RECHTSKLICK AUF DIE KARTE: SONARBOJE ABWERFEN</div>

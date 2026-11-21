@@ -6,6 +6,15 @@ export class Rng {
     this.s = seed >>> 0;
   }
 
+  /** Internal state, for saving and restoring a simulation exactly. */
+  get state(): number {
+    return this.s;
+  }
+
+  set state(v: number) {
+    this.s = v >>> 0;
+  }
+
   next(): number {
     this.s = (this.s + 0x6d2b79f5) >>> 0;
     let t = this.s;

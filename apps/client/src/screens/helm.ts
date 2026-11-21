@@ -3,6 +3,7 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { COL, deg3, fitCanvas, kn } from '../widgets/format.js';
 import { isFriendlyContact } from '../widgets/friendly.js';
+import { easeAngle, ownNow } from '../widgets/smooth.js';
 
 const SPEEDS = [
   { label: 'Stopp', kn: 0 }, { label: 'Schleich', kn: 3 }, { label: 'Langsam', kn: 6 },
@@ -64,8 +65,15 @@ export function mountHelm(el: HTMLElement) {
     if (l !== undefined) order({ depth: l + 30 });
   };
 
+  let shownHeading: number | undefined;
+  let lastDraw = performance.now();
+
   function drawCompass(): void {
     const s = store.snap;
+    const nowMs = performance.now();
+    const target = s ? ownNow().heading : 0;
+    shownHeading = shownHeading === undefined ? target : easeAngle(shownHeading, target, (nowMs - lastDraw) / 1000, 0.2);
+    lastDraw = nowMs;
     const ctx = fitCanvas(compass, SIZE);
     const w = compass.clientWidth;
     const cx = w / 2;
@@ -98,7 +106,7 @@ export function mountHelm(el: HTMLElement) {
     ctx.fillStyle = 'rgba(95,122,114,0.15)';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    const a0 = (s.own.heading + 180 - half - 90) * (Math.PI / 180);
+    const a0 = ((shownHeading ?? s.own.heading) + 180 - half - 90) * (Math.PI / 180);
     ctx.arc(cx, cy, R - 16, a0, a0 + (2 * half * Math.PI) / 180);
     ctx.fill();
     const ov = headingVec(s.own.order.heading);
@@ -106,14 +114,14 @@ export function mountHelm(el: HTMLElement) {
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + ov.x * (R - 6), cy - ov.y * (R - 6)); ctx.stroke();
     ctx.setLineDash([]);
-    const hv = headingVec(s.own.heading);
+    const hv = headingVec(shownHeading ?? s.own.heading);
     ctx.strokeStyle = COL.blue;
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + hv.x * (R - 10), cy - hv.y * (R - 10)); ctx.stroke();
     ctx.lineWidth = 1;
     ctx.fillStyle = COL.g2;
     ctx.font = '13px ui-monospace, monospace';
-    ctx.fillText(deg3(s.own.heading), cx, cy + 26);
+    ctx.fillText(deg3(shownHeading ?? s.own.heading), cx, cy + 26);
   }
 
   return {
@@ -134,6 +142,8 @@ export function mountHelm(el: HTMLElement) {
       q('#depth-box').style.display = spec.submarine ? '' : 'none';
       if (spec.submarine) {
         q('#h-dep').innerHTML = `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>`;
+        const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
+        q('#h-dep').innerHTML += s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const dp = q<HTMLInputElement>('#h-depth');
         dp.max = String(spec.maxDepth);
