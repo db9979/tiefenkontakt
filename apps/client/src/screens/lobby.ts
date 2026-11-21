@@ -5,6 +5,9 @@ import { accountPanel } from './account.js';
 import { adminPanel } from './admin.js';
 import { careerPanels } from './career.js';
 import { CLASS_NAME, esc, h } from '../widgets/format.js';
+import { missionCards, paintMissionCharts } from '../widgets/mission-cards.js';
+
+const rankShort = (r: string) => ({ 'Kapitän zur See': 'KptzS', Fregattenkapitän: 'FKpt', Korvettenkapitän: 'KKpt', Kapitänleutnant: 'KptLt', 'Oberleutnant zur See': 'OLzS', 'Leutnant zur See': 'LzS' })[r] ?? r;
 
 /** Match browser plus the lobby of the joined match. */
 export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign: string }): () => void {
@@ -59,9 +62,12 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       });
       return;
     }
+    // Keep a half-typed chat line and the focus across re-renders
+    const draft = el.querySelector<HTMLInputElement>('#lc-text')?.value ?? '';
+    const typing = document.activeElement?.id === 'lc-text';
     const mine = match.slots.find((s) => s.playerId === me.playerId);
     const team = (t: 'west' | 'east') => match!.slots.filter((s) => s.team === t).map((s) => `
-      <div class="slot"><span>${esc(s.callsign)}${s.playerId === me.playerId ? ' <span class="dim">(DU)</span>' : ''}${s.bot ? ' <span class="dim">(KI)</span>' : ''}</span>
+      <div class="slot"><span>${s.rank ? `<span class="rank" title="${esc(s.rank)}">${esc(rankShort(s.rank))}</span> ` : ''}${esc(s.callsign)}${s.playerId === me.playerId ? ' <span class="dim">(DU)</span>' : ''}${s.bot ? ' <span class="dim">(KI)</span>' : ''}</span>
       <span>${s.crewOf ? `<span class="dim">BESATZUNG BEI ${esc(match!.slots.find((c) => c.playerId === s.crewOf)?.callsign ?? '?')}</span>` : CLASS_NAME[s.cls].title}
       ${mine && s.team === mine.team && !s.bot && !s.crewOf && s.playerId !== me.playerId && mine.crewOf !== s.playerId ? `<button data-crew="${s.playerId}" title="Als Besatzung auf diesem Schiff mitfahren">Mitfahren</button>` : ''}
       · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
@@ -81,9 +87,11 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
               <div>${CLASS_NAME[c].title}</div><div class="dim">${CLASS_NAME[c].info}</div></button>`).join('')}
           </div></div>
         <div class="panel"><div class="hd"><span>Einstellungen</span></div>
-          <div class="row"><span class="dim">MISSION</span><select id="s-mission">
+          <div class="dim" style="margin:2px 0 4px">MISSION</div>
+          ${missionCards(match.settings.mission)}
+          <select id="s-mission" style="display:none">
             <option value="groenland">Grönland-Lücke · tief</option><option value="schelf">Schelfmeer · flach</option><option value="fjord">Fjordausfahrt · Kanal</option>
-            <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="eigene">Eigene Mission</option></select></div>
+            <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="eigene">Eigene Mission</option></select>
           <div id="custom" style="display:none">
             <div class="row"><span class="dim">FRACHTER</span><select id="c-n">${[4, 6, 8, 10, 12].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
             <div class="row"><span class="dim">KONVOIFAHRT</span><select id="c-kn">${[7, 9, 11, 13].map((v) => `<option value="${v}">${v} KN</option>`).join('')}</select></div>
@@ -105,7 +113,30 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="dim" style="margin-top:6px">Die Partie startet, sobald alle bereit sind.</div>
         </div>
       </div>
+      <div class="panel" style="margin-top:8px"><div class="hd"><span>Lobby-Funk</span><span class="dim">VOR DEM START</span></div>
+        <div class="lchat" id="lchat">${(match.chat ?? []).map((l) => `<div><span class="amber">${esc(l.from)}:</span> ${esc(l.text)}</div>`).join('') || '<div class="dim">Noch keine Nachrichten. Taktik absprechen?</div>'}</div>
+        <div style="display:flex;gap:4px;margin-top:6px"><input id="lc-text" maxlength="200" placeholder="Ich nehme die Nordflanke" style="flex:1;min-width:0"><button id="lc-send">Senden</button></div>
+      </div>
       <div class="err">${esc(error)}</div>`;
+    paintMissionCharts(el, match.settings.custom?.seabed);
+    const lcInput = el.querySelector<HTMLInputElement>('#lc-text')!;
+    lcInput.value = draft;
+    if (typing) lcInput.focus();
+    const lc = el.querySelector<HTMLElement>('#lchat')!;
+    lc.scrollTop = lc.scrollHeight;
+    const sendChat = () => {
+      const inp = el.querySelector<HTMLInputElement>('#lc-text')!;
+      if (inp.value.trim()) net.send({ t: 'lobby_chat', text: inp.value.trim() });
+      inp.value = '';
+    };
+    el.querySelector<HTMLButtonElement>('#lc-send')!.onclick = sendChat;
+    el.querySelector<HTMLInputElement>('#lc-text')!.onkeydown = (e) => e.key === 'Enter' && sendChat();
+    el.querySelectorAll<HTMLButtonElement>('[data-mission]').forEach((b) => {
+      b.onclick = () => {
+        el.querySelector<HTMLSelectElement>('#s-mission')!.value = b.dataset.mission!;
+        el.querySelector<HTMLSelectElement>('#s-mission')!.dispatchEvent(new Event('change'));
+      };
+    });
     el.querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) => {
       b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'ssn' | 'ssk' });
     });

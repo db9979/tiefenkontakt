@@ -36,6 +36,14 @@ export interface PlayerSummary {
   tonnage: number;
 }
 
+/** Naval rank by service points. */
+export const RANKS: [number, string][] = [
+  [3000, 'Kapitän zur See'], [1500, 'Fregattenkapitän'], [700, 'Korvettenkapitän'], [300, 'Kapitänleutnant'], [100, 'Oberleutnant zur See'], [0, 'Leutnant zur See'],
+];
+export function rankFor(points: number): string {
+  return RANKS.find(([p]) => points >= p)![1];
+}
+
 /** Points: a win counts most; sinkings and survival add, a loss costs a little. */
 export function pointsFor(s: PlayerStats): number {
   return (s.won ? 25 : -5) + Math.round(s.tonnageSunk / 2000) + (s.survived ? 5 : 0);

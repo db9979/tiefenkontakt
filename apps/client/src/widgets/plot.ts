@@ -6,6 +6,8 @@ import { lastFix } from './contact-pos.js';
 import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
 import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
+import { drawEllipse, drawSymbol, drawWake, type Affiliation } from './symbols.js';
+import { evaluateSolution } from '@tk/shared';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -311,10 +313,15 @@ export class Plot {
       img.height = rows;
       const ic = img.getContext('2d')!;
       const data = ic.createImageData(cols, rows);
+      // Depth bands for isobaths (0, 50, 100, 200, 500, 1000, 2000 m)
+      const band = (d: number) => [0, 50, 100, 200, 500, 1000, 2000].filter((z) => d >= z).length;
+      const depths = new Float32Array(cols * rows);
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) depths[j * cols + i] = depthAt(spec, c.x + (i * cell - w / 2) * this.scale, c.y - (j * cell - hgt / 2) * this.scale);
       for (let j = 0; j < rows; j++) {
         for (let i = 0; i < cols; i++) {
-          const d = depthAt(spec, c.x + (i * cell - w / 2) * this.scale, c.y - (j * cell - hgt / 2) * this.scale);
-          const [r, g, b] = d < 0 ? [38, 36, 26] : d < 60 ? [52, 64, 50] : d < 300 ? [14, 34, 34] : d < 2000 ? [9, 22, 24] : [6, 14, 16];
+          const d = depths[j * cols + i]!;
+          const edge = (i + 1 < cols && band(depths[j * cols + i + 1]!) !== band(d)) || (j + 1 < rows && band(depths[(j + 1) * cols + i]!) !== band(d));
+          const [r, g, b] = edge && d >= 0 ? [30, 66, 62] : d < 0 ? [38, 36, 26] : d < 60 ? [52, 64, 50] : d < 300 ? [14, 34, 34] : d < 2000 ? [9, 22, 24] : [6, 14, 16];
           const k = (j * cols + i) * 4;
           data.data[k] = r;
           data.data[k + 1] = g;
@@ -395,8 +402,9 @@ export class Plot {
       const fix = lastFix(c, s);
       if (fix) {
         const p = P(fix.pos);
-        ctx.strokeRect(p.x - 4, p.y - 4, 8, 8);
-        ctx.fillText(c.label, p.x + 7, p.y - 6);
+        const aff: Affiliation = friendly ? 'friend' : c.assigned && c.assigned !== 'unknown' && c.assigned !== 'bio' ? 'hostile' : 'unknown';
+        drawSymbol(ctx, p.x, p.y, aff, c.assigned === 'submarine' || c.assigned === 'torpedo' ? 'subsurface' : 'surface', 6, sel);
+        ctx.fillText(c.label, p.x + 9, p.y - 6);
       }
       const sol = store.solutions.get(c.label);
       if (sol) {
@@ -405,6 +413,11 @@ export class Plot {
         const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y - v.y * sol.speedKn * 4 };
         ctx.strokeStyle = COL.amber;
         ctx.fillStyle = COL.amber;
+        // Uncertainty: poor solutions are long along the line of sight (range unknown), narrow across it
+        const q = this.solQuality(c.label, s.time);
+        const solPos = targetPosAt(sol, simNow());
+        const r = distance(ownNow(), solPos);
+        drawEllipse(ctx, p.x, p.y, bearing(ownNow(), solPos), (r * (0.05 + 0.45 * (1 - q / 100))) / this.scale, (r * 0.035) / this.scale);
         ctx.lineWidth = sel ? 2 : 1;
         ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, 7); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
@@ -415,6 +428,18 @@ export class Plot {
     }
   }
 
+  private qCache = new Map<string, { t: number; q: number }>();
+  /** TMA quality per contact, recomputed at most once per snapshot. */
+  private solQuality(label: string, t: number): number {
+    const hit = this.qCache.get(label);
+    if (hit && hit.t === t) return hit.q;
+    const c = store.snap?.contacts.find((x) => x.label === label);
+    const sol = store.solutions.get(label);
+    const q = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
+    this.qCache.set(label, { t, q });
+    return q;
+  }
+
   private drawFriendlies(ctx: CanvasRenderingContext2D, s: Snapshot, P: (p: Vec2) => Vec2): void {
     for (const f of s.friendlies) {
       if (f.cls === 'merchant' && !this.opts.showConvoy) continue;
@@ -423,6 +448,7 @@ export class Plot {
       const p = P(live ? moverNow(f, f.reportedAt) : f);
       ctx.fillStyle = f.alive ? COL.blue : COL.dim;
       ctx.strokeStyle = ctx.fillStyle;
+      if (live) drawWake(ctx, p.x, p.y, f.heading, f.speedKn);
       if (f.cls === 'merchant') {
         ctx.save();
         ctx.translate(p.x, p.y);
@@ -430,7 +456,9 @@ export class Plot {
         ctx.fillRect(-2, -5, 4, 10);
         ctx.restore();
       } else {
-        ctx.beginPath(); ctx.moveTo(p.x, p.y - 6); ctx.lineTo(p.x + 5, p.y + 4); ctx.lineTo(p.x - 5, p.y + 4); ctx.closePath(); ctx.stroke();
+        drawSymbol(ctx, p.x, p.y, 'friend', f.cls === 'ssk' || f.cls === 'ssn' ? 'subsurface' : 'surface', 6);
+        const hv = headingVec(f.heading);
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y - hv.y * 14); ctx.stroke();
         const age = s.time - f.reportedAt;
         ctx.fillText(age > 5 ? `${f.name} (−${Math.round(age / 60)} MIN)` : f.name, p.x + 8, p.y + 4);
       }

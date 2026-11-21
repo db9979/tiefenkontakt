@@ -19,6 +19,7 @@ export const store = {
   tasSide: new Map<string, 'stb' | 'port'>(),
   realism: (localStorage.getItem('tk_realism') as Realism | null) ?? 'einsteiger',
   lastError: '',
+  briefing: undefined as import('@tk/shared').Briefing | undefined,
   ended: undefined as { winner: string; reason: string } | undefined,
 
   /** Accumulated bearing histories per contact (the server sends only new samples). */

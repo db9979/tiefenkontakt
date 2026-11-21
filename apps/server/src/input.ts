@@ -41,6 +41,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('dc'), depth: z.number().finite().min(20).max(400) }),
   z.object({ t: z.literal('noisemaker') }),
   z.object({ t: z.literal('radio'), text: z.string().trim().min(1).max(200) }),
+  z.object({ t: z.literal('lobby_chat'), text: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('report'), from: z.string().trim().min(1).max(40), reason: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('pulse'), pulse: z.enum(['cw', 'lfm']) }),
   z.object({ t: z.literal('bt') }),

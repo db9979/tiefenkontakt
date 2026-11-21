@@ -20,6 +20,8 @@ import {
 } from '@tk/shared';
 
 export interface PlayerExtras {
+  /** Briefing already delivered on this connection. */
+  briefed?: boolean;
   alerts: AlertView[];
   radio: RadioMsg[];
   /** Last radio-reported positions of teammates (subs have no datalink). */

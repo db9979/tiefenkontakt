@@ -1,6 +1,7 @@
 import { EN_HELP, EN_PHRASES } from './en-help.js';
 import { EN_CANVAS, EN_MORE, EN_MORE_PHRASES } from './en-more.js';
 import { EN_UI } from './en-ui.js';
+import { EN_UX, EN_UX_PHRASES } from './en-ux.js';
 
 /**
  * Language switch. The UI is written in German; for English, rendered text nodes and
@@ -12,9 +13,9 @@ import { EN_UI } from './en-ui.js';
 export type Lang = 'de' | 'en';
 export const lang: Lang = (localStorage.getItem('tk_lang') as Lang | null) ?? (navigator.language.startsWith('de') ? 'de' : 'en');
 
-const dict = new Map<string, string>([...EN_UI, ...EN_HELP, ...EN_MORE]);
+const dict = new Map<string, string>([...EN_UI, ...EN_HELP, ...EN_MORE, ...EN_UX]);
 const canvasDict = new Map<string, string>(EN_CANVAS);
-const PHRASES = [...EN_PHRASES, ...EN_MORE_PHRASES];
+const PHRASES = [...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
 const memo = new Map<string, string>();
 
 /** Translate one string for the current language (German passes through). */
@@ -38,7 +39,7 @@ function translate(de: string): string {
   if (hit !== undefined) return hit;
   // Bullets and markers in front of a known sentence: "▸ Güte über 60 % bringen"
   const lead = /^([▸·✓•–\s]+)(.+)$/.exec(de);
-  if (lead && dict.has(lead[2]!)) return lead[1]! + dict.get(lead[2]!)!;
+  if (lead) return lead[1]! + translate(lead[2]!);
   // Composite labels like "1 · OPZ" or "Westbund · Geleitschutz": translate each part
   let out = de.includes(' · ') ? de.split(' · ').map((p) => dict.get(p) ?? p).join(' · ') : de;
   for (const [re, rep] of PHRASES) out = out.replace(re, rep);

@@ -137,6 +137,24 @@ class Audio {
     o.stop(t + 2.5);
   }
 
+  /** Short console chime before a crew report: 'info' rising, 'warn' falling. */
+  chime(kind: 'info' | 'warn' = 'info'): void {
+    if (!this.ctx || !this.master) return;
+    const c = this.ctx;
+    const t = c.currentTime;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(kind === 'info' ? 880 : 1175, t);
+    o.frequency.setValueAtTime(kind === 'info' ? 1175 : 880, t + 0.09);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    o.connect(g).connect(this.out(0));
+    o.start(t);
+    o.stop(t + 0.3);
+  }
+
   /** Two-tone klaxon for an incoming torpedo. */
   torpedoAlarm(pan = 0): void {
     if (!this.ctx || !this.master) return;

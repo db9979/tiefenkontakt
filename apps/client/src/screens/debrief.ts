@@ -1,6 +1,7 @@
 import { CLASSES, NM, headingVec, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
+import { debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
 
 const SPEEDS = [30, 120, 480];
 
@@ -24,11 +25,13 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
         <input id="db-slider" type="range" min="0" max="${d.duration}" step="1" value="0" style="flex:3">
         <button id="db-mine" class="on" title="Eigener Kurs und eigene TMA-Lösungen einblenden">Meine Lösungen</button>
       </div>
+      ${timelineMarkers(d)}
       <div class="dim">ZIEHEN VERSCHIEBT · RAD ZOOMT · BLAU WESTBUND · ROT OSTPAKT · GELB EIGENE TMA-LÖSUNG</div>
     </div>
     <div style="min-width:0;overflow:auto">
       ${live ? '<div class="hd"><span>Zuschauer</span><span class="amber">LIVE · VERZÖGERT</span></div><div class="dim">DU SIEHST DIE WAHRE LAGE MIT EINIGEN MINUTEN VERZÖGERUNG, DAMIT NIEMAND SEINEM TEAM HELFEN KANN.</div>'
         : `<div class="hd"><span>Ergebnis</span><span class="${d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
+      ${live ? '' : debriefTips(d.stats.find((s) => s.playerId === store.playerId))}
       <div id="db-stats"></div>
       <div class="hd" style="margin-top:10px"><span>Ereignisse</span><span class="dim">KLICK SPRINGT HIN</span></div>
       <div id="db-events"></div>
@@ -72,6 +75,10 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
   };
   q<HTMLButtonElement>('#db-speed').onclick = () => (speedIdx = (speedIdx + 1) % SPEEDS.length);
   q<HTMLButtonElement>('#db-mine').onclick = () => (showMine = !showMine);
+  el.querySelector('.tl')!.addEventListener('click', (e) => {
+    const m = (e.target as HTMLElement).closest<HTMLElement>('[data-ev]');
+    if (m) t = Math.max(0, d.events[Number(m.dataset.ev)]!.t - 30);
+  });
   q('#db-events').addEventListener('mousedown', (e) => {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[data-ev]');
     if (row) t = Math.max(0, d.events[Number(row.dataset.ev)]!.t - 30);

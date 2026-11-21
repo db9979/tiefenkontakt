@@ -96,6 +96,13 @@ export class Waterfall {
     const shown = s.contacts
       .filter((c) => c.via === 'own' && s.time - c.lastSeen <= 5 && c.sensors.some((x) => this.sensors.includes(x)))
       .sort((a, b) => a.bearing - b.bearing);
+    if (!shown.length) {
+      // Empty state: say what to do instead of a black screen
+      ctx.fillStyle = COL.dim;
+      ctx.textAlign = 'center';
+      ctx.fillText('NOCH KEIN KONTAKT – LANGSAM FAHREN UND HORCHEN', pl + pw / 2, pt + ph / 2 - 8);
+      ctx.fillText('SCHIFFE ERSCHEINEN ALS HELLE SENKRECHTE SPUREN', pl + pw / 2, pt + ph / 2 + 8);
+    }
     const rowEnd = [-1e9, -1e9, -1e9];
     for (const c of shown) {
       const x = pl + (c.bearing / 360) * pw;

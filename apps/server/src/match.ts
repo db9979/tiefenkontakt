@@ -28,6 +28,7 @@ import { applyCommand, type GameCommand } from './input.js';
 import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
+import { buildBriefing } from './briefing.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
 export interface Conn {
@@ -38,6 +39,8 @@ export interface Conn {
   close?(reason: string, code?: number): void;
   /** Client address, for bans. */
   ip?: string;
+  /** Naval rank of an account (shown in the lobby). */
+  rank?: string;
 }
 
 export const MAX_PER_TEAM = 6;
@@ -158,6 +161,7 @@ export class Match {
       x.evSent = undefined;
       x.alertsSent = undefined;
       x.radioSent = undefined;
+      x.briefed = undefined;
     }
     conn.send({ t: 'match', match: this.lobby() });
     if (this.finished) {
@@ -180,7 +184,18 @@ export class Match {
   }
 
   lobby(): MatchLobby {
-    return { ...this.summary(), slots: this.slots.map((s) => ({ ...s })), settings: { ...this.settings } };
+    return { ...this.summary(), slots: this.slots.map((s) => ({ ...s })), settings: { ...this.settings }, chat: [...this.chat] };
+  }
+
+  private chat: { from: string; text: string; at: number }[] = [];
+  /** Lobby chat for everyone in the match before it starts. */
+  lobbyChat(playerId: string, text: string): string | undefined {
+    const slot = this.slots.find((s) => s.playerId === playerId);
+    if (!slot || this.state !== 'lobby') return 'Nur in der Lobby möglich';
+    this.chat.push({ from: slot.callsign, text, at: Date.now() });
+    if (this.chat.length > 30) this.chat.shift();
+    this.broadcastLobby();
+    return undefined;
   }
 
   join(conn: Conn, team: Side): string | undefined {
@@ -189,7 +204,7 @@ export class Match {
     if (!existing && this.slots.filter((s) => s.team === team).length >= MAX_PER_TEAM) return 'Team ist voll';
     const cls: PlayableClass = allowedClasses(this.settings.mission, team)[0]!;
     if (existing) Object.assign(existing, { team, cls, ready: false, crewOf: undefined });
-    else this.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team, cls, ready: false });
+    else this.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team, cls, ready: false, rank: conn.rank });
     this.conns.set(conn.playerId, conn);
     this.broadcastLobby();
     return undefined;
@@ -441,6 +456,10 @@ export class Match {
           snap.full = full;
           snap.crew = this.aboard(ship.id).map((a) => a.callsign);
           snap.lesson = this.settings.lesson;
+          if (!x.briefed && !this.settings.lesson) {
+            snap.briefing = buildBriefing(w, ship, this.settings, Math.random);
+            x.briefed = true;
+          }
           snap.stations = this.aboard(ship.id).filter((a) => a.station !== undefined).map((a) => ({ callsign: a.callsign, station: a.station! }));
           c.send({ t: 'snap', s: snap });
         }

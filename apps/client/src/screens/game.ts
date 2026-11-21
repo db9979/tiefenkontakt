@@ -19,6 +19,10 @@ import { helpOverlay } from './help.js';
 import { radioLog } from '../widgets/radio-log.js';
 import { isKey, stationKey } from '../widgets/keys.js';
 import { mountHelm } from './helm.js';
+import { mountAssistant } from '../widgets/assistant.js';
+import { showBriefing } from '../widgets/briefing.js';
+import { callouts } from '../widgets/callouts.js';
+import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
 
 export interface Station {
   title: string;
@@ -37,21 +41,21 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const el = h(`<div class="game">
     <div class="topbar">
       <div class="tabs" id="tabs"></div>
-      <span class="spacer"></span>
-      <span id="score" class="dim"></span>
-      <span id="clock"></span>
-      <button id="mute" title="Ton an/aus (M)"></button>
-      <input id="vol" type="range" min="0" max="1" step="0.05" style="width:70px" title="Lautstärke">
-      <button id="realism" title="Realismusstufe: Einsteiger zeigt Linienbeschriftung, Auto-Marken und Auto-TMA"></button>
-      <button id="crt" title="Röhrenbildschirm-Effekt an/aus">Röhre</button>
-      <button id="help" title="Hilfe (H)">?</button>
+      <div class="status">
+        <span id="ship" class="st-ship"></span>
+        <span class="st-prog" title="Versenkte und angekommene Konvoi-Tonnage"><span class="pbar"><i id="pb-sunk"></i><i id="pb-arr"></i></span><span id="pb-txt" class="dim"></span></span>
+        <span id="clock" class="st-clock"></span>
+      </div>
+      <button id="mute" class="icon" title="Ton an/aus (M)"></button>
+      <span id="gear-slot"></span>
+      <button id="help" class="icon" title="Hilfe (H)">?</button>
       <button id="quit" class="warn" title="Partie verlassen">Verlassen</button>
     </div>
-    <div class="station" id="station"></div>
+    <div class="station-wrap"><div class="station" id="station"></div></div>
     <div class="side">
       <div class="panel helm" id="helm"></div>
       <div class="panel" id="damage"></div>
-      <div class="panel alerts"><div class="hd"><span>Meldungen</span></div><div id="alerts"></div></div>
+      <div class="panel alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alerts"></div></div>
       <div class="panel"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
         <div style="display:flex;gap:4px;margin-top:6px"><input id="rtext" maxlength="200" placeholder="Konvoi Peilung 052" style="flex:1;min-width:0"><button id="rsend">Senden</button></div>
@@ -68,37 +72,33 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const stationEl = q('#station');
   const tabs = q('#tabs');
   const helm = mountHelm(q('#helm'));
+  const assistant = mountAssistant(q('.station-wrap'), (i) => i < stations.length && show(i));
   const banner = document.createElement('div');
   banner.className = 'banner blink';
   let endShown = false;
 
   const unlock = () => audio.unlock();
   window.addEventListener('pointerdown', unlock);
-  const renderMute = () => (q('#mute').textContent = audio.muted ? 'Ton aus' : 'Ton an');
+  const menu = settingsMenu({
+    onRealism: () => stations[current]?.snap?.(),
+    onBriefing: () => store.briefing && showBriefing(store.briefing, true),
+    onKeys: () => helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true),
+  });
+  q('#gear-slot').replaceWith(menu.button);
+  const renderMute = () => {
+    q('#mute').textContent = audio.muted ? '🔇' : '🔊';
+    menu.sync();
+  };
   renderMute();
-  const applyCrt = () => {
-    const on = localStorage.getItem('tk_crt') !== '0';
-    document.body.classList.toggle('crt', on);
-    q('#crt').classList.toggle('on', on);
-  };
-  applyCrt();
-  q<HTMLButtonElement>('#crt').onclick = () => {
-    localStorage.setItem('tk_crt', document.body.classList.contains('crt') ? '0' : '1');
-    applyCrt();
-  };
-  const renderRealism = () => (q('#realism').textContent = store.realism === 'einsteiger' ? 'Einsteiger' : 'Profi');
-  renderRealism();
-  q<HTMLButtonElement>('#realism').onclick = () => {
-    store.setRealism(store.realism === 'einsteiger' ? 'profi' : 'einsteiger');
-    renderRealism();
-    stations[current]?.snap?.();
-  };
-  q<HTMLInputElement>('#vol').value = String(audio.volume);
-  q<HTMLInputElement>('#vol').oninput = (e) => audio.setVolume(Number((e.target as HTMLInputElement).value));
+  applyDisplayPrefs();
   q<HTMLButtonElement>('#mute').onclick = () => {
     audio.setMuted(!audio.muted);
     renderMute();
   };
+  // Phones: the helm becomes a drawer opened from a floating button
+  const helmToggle = h<HTMLButtonElement>(`<button class="helm-toggle" title="Ruderstand">⎈ Ruder</button>`);
+  helmToggle.onclick = () => document.body.classList.toggle('helm-open');
+  el.appendChild(helmToggle);
   let quitArmed: ReturnType<typeof setTimeout> | undefined;
   q<HTMLButtonElement>('#quit').onclick = () => {
     const b = q<HTMLButtonElement>('#quit');
@@ -120,6 +120,15 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   });
 
   let tutorial: ReturnType<typeof mountTutorial> | undefined;
+  callouts.reset();
+  // Event log: a click selects the contact and/or opens the station the report belongs to
+  q('#alerts').addEventListener('click', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-log]');
+    const entry = row ? callouts.log[Number(row.dataset.log)] : undefined;
+    if (!entry) return;
+    if (entry.label) store.selected = entry.label;
+    if (entry.station !== undefined && entry.station < stations.length) show(entry.station);
+  });
 
   function build(): void {
     const sub = store.snap && CLASSES[store.snap.own.cls].submarine;
@@ -192,16 +201,22 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const s = store.snap!;
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
     const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}`;
-    q('#clock').textContent = `${hh}${wx} · REST ${clock(s.score.timeLeftS)}`;
+    q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${clock(s.score.timeLeftS)}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
-    q('#score').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''} · VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} %`;
-    q('#alerts').innerHTML = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
-      [...s.alerts].reverse().map((a) => {
-        const fresh = s.time - a.time < 30;
-        const color = a.kind === 'torpedo' || a.kind === 'sunk' ? 'red' : a.kind === 'esm' || a.kind === 'ping' || a.kind === 'transient' ? 'amber' : '';
-        const text = a.kind === 'torpedo' && store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}` : a.text;
-        return `<div class="${color} ${fresh && a.kind === 'torpedo' ? 'blink' : ''}">${clock(a.time)} ${esc(text)}</div>`;
+    q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
+    q('#pb-sunk').style.width = `${pct(s.score.sunkTons)}%`;
+    q('#pb-arr').style.width = `${pct(s.score.arrivedTons)}%`;
+    const prog = s.score.totalTons > 0 ? `VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} %` : '';
+    q('#pb-txt').textContent = prog;
+    q('.st-prog').title = prog;
+    const logHtml = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
+      (callouts.log.length ? '' : '<div class="dim">KEINE MELDUNGEN · RUHIGE SEE</div>') + [...callouts.log].reverse().map((e, i) => {
+        const fresh = s.time - e.time < 30;
+        const color = e.level === 'alarm' ? 'red' : e.level === 'warn' ? 'amber' : '';
+        const go = e.label !== undefined || e.station !== undefined;
+        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${callouts.log.length - 1 - i}">${clock(e.time)} ${esc(e.text)}</div>`;
       }).join('');
+    if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
     showRadio(s.radio, s.own.name);
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (s.own.mastUp ? '<span class="amber">MAST OBEN · PEILBAR</span>' : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
@@ -221,11 +236,24 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const off = net.on((m: ServerMsg) => {
     if (m.t === 'snap') {
       const first = !store.snap;
+      const hpBefore = store.snap?.own.hp;
       store.ingest(m.s);
       if (first) build();
+      if (hpBefore !== undefined && m.s.own.hp < hpBefore - 0.5) {
+        document.body.classList.remove('hit');
+        void document.body.offsetWidth;
+        document.body.classList.add('hit');
+        setTimeout(() => document.body.classList.remove('hit'), 800);
+      }
+      callouts.update(m.s);
       stations[current]?.snap?.();
       helm.update();
       tutorial?.update();
+      assistant.update();
+      if (m.s.briefing) {
+        store.briefing = m.s.briefing;
+        showBriefing(m.s.briefing);
+      }
       // Crew: show who mans which station
       if (m.s.crew.length > 1) {
         tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
@@ -278,6 +306,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('pointerdown', unlock);
     banner.remove();
+    helmToggle.remove();
+    document.body.classList.remove('helm-open');
     tutorial?.el.remove();
     closeMenu();
     audio.stopAll();

@@ -11,7 +11,7 @@ import { MatchStore } from './match-store.js';
 import { createMailer } from './mailer.js';
 import { handleAdmin } from './admin.js';
 import { ModerationStore } from './moderation.js';
-import { StatsStore, userIdOf } from './stats.js';
+import { StatsStore, rankFor, userIdOf } from './stats.js';
 import type { Conn } from './match.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -274,6 +274,7 @@ wss.on('connection', (ws: WebSocket, req) => {
       if (ws.readyState === ws.OPEN) ws.close(code, reason);
     },
     ip: clientIp(req),
+    rank: user ? rankFor(stats.summary(user.id)?.points ?? 0) : undefined,
   };
   const ban = mod.bannedFor(conn.playerId, conn.ip);
   if (ban) {

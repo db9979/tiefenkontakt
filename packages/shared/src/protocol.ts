@@ -27,6 +27,7 @@ export type ClientMsg =
   | { t: 'dc'; depth: number }
   | { t: 'noisemaker' }
   | { t: 'radio'; text: string }
+  | { t: 'lobby_chat'; text: string }
   /** Report the sender of a radio message (ship name as shown) to the moderators. */
   | { t: 'report'; from: string; reason: string }
   | { t: 'classify'; label: string; choice: ClassChoice }
@@ -68,6 +69,14 @@ export interface PlayerSlot {
   crewOf?: string;
   /** Station the player mans (index into the ship's station tabs). */
   station?: number;
+  /** Naval rank from the service record (accounts only). */
+  rank?: string;
+}
+
+export interface LobbyChatLine {
+  from: string;
+  text: string;
+  at: number;
 }
 
 export interface MatchSummary {
@@ -80,6 +89,8 @@ export interface MatchSummary {
 
 export interface MatchLobby extends MatchSummary {
   slots: PlayerSlot[];
+  /** Chat among the players while the match is being set up. */
+  chat?: LobbyChatLine[];
   settings: {
     mission: MissionKey;
     timeOfDay: 'tag' | 'daemmerung' | 'nacht';
@@ -174,6 +185,18 @@ export interface AlertView {
   text: string;
 }
 
+/** Mission briefing, sent with complete snapshots (start and reconnect). */
+export interface Briefing {
+  title: string;
+  info: string;
+  goal: string;
+  intel: string[];
+  steps: string[];
+  timeLimitMin: number;
+  timeOfDay: string;
+  ship: string;
+}
+
 export interface Snapshot {
   time: number;
   /** Sim seconds per real second (for echo travel times and clocks). */
@@ -187,6 +210,7 @@ export interface Snapshot {
   stations?: { callsign: string; station: number }[];
   /** Training lesson id when this is a lesson. */
   lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
+  briefing?: Briefing;
   own: OwnShipView;
   contacts: (Omit<ContactTrack, 'history'> & {
     /** Delta: only samples newer than the previous snapshot (all of them when `full`). */

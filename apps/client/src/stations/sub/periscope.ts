@@ -1,6 +1,6 @@
 import { angleDiff, PERISCOPE_DEPTH, type ClassId } from '@tk/shared';
 import { BearingRangeFilter, easeAngle, simNow } from '../../widgets/smooth.js';
-import type { Periscope3D } from '../../widgets/periscope3d.js';
+import type { Periscope3D, PeriscopeEffect } from '../../widgets/periscope3d.js';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -198,9 +198,11 @@ export function periscopeStation(): Station {
       if (use3d && s) {
         const fov = zoom6 ? 8 : 32;
         const sols = store.solutions;
+        const vis = visible();
         gl!.render({
           bearing: periBearing, fovDeg: (fov * w) / (2 * R), t, sea: s.env.seaState, light: s.env.light ?? 1,
-          targets: visible().map((c) => ({ ...c, course: sols.get(c.label)?.course })),
+          targets: vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })),
+          rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs),
         });
         // Overlay: black mask outside the optic, reticle drawn below
         ctx.clearRect(0, 0, w, H);
@@ -214,6 +216,7 @@ export function periscopeStation(): Station {
           ctx.fillStyle = 'rgba(200,220,225,0.5)';
           ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
         }
+        if (s.env.rain) lensDrops(ctx, cx, cy, R, t);
       } else {
         ctx.fillStyle = '#030504';
         ctx.fillRect(0, 0, w, H);
@@ -259,8 +262,7 @@ export function periscopeStation(): Station {
           ctx.fillRect(-w, -H, 2 * w, 2 * H);
         }
       } else {
-        ctx.fillStyle = '#060a09';
-        ctx.fillRect(0, 0, w, H);
+        underwater(ctx, cx, cy, R, t, s?.env.light ?? 1);
       }
       ctx.restore();
       ctx.strokeStyle = 'rgba(159,225,203,0.85)';
@@ -283,11 +285,73 @@ export function periscopeStation(): Station {
       ctx.fillStyle = COL.g2;
       ctx.textAlign = 'center';
       ctx.fillText(deg3(periBearing), cx, cy + R + 16 > H ? H - 4 : cy + R + 16);
-      if (!s?.own.mastUp) ctx.fillText('MAST EINGEFAHREN', cx, cy - 20);
+      if (!s?.own.mastUp) {
+        ctx.fillText('MAST EINGEFAHREN', cx, cy - 20);
+        ctx.fillStyle = COL.dim;
+        ctx.fillText(s && s.own.depth > 19 ? 'AUF SEHROHRTIEFE GEHEN, DANN MAST AUSFAHREN' : 'MAST AUSFAHREN ZUM BEOBACHTEN', cx, cy + 34);
+      }
       ctx.textAlign = 'left';
       ctx.fillText('BB', 10, cy + 4);
       ctx.textAlign = 'right';
       ctx.fillText('STB', w - 10, cy + 4);
     },
   };
+}
+
+/** Raindrops on the top lens: fixed beads that refract the light, slowly running down. */
+function lensDrops(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, t: number): void {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+  for (let i = 0; i < 34; i++) {
+    const a = (i * 2.399) % (Math.PI * 2);
+    const rr = R * Math.sqrt(((i * 0.618) % 1));
+    const x = cx + Math.cos(a) * rr;
+    const y = cy + Math.sin(a) * rr + ((t * (4 + (i % 5)) + i * 37) % (R * 0.5));
+    const size = 2 + (i % 4) * 1.6;
+    const g = ctx.createRadialGradient(x - size * 0.3, y - size * 0.3, 0, x, y, size);
+    g.addColorStop(0, 'rgba(235,245,248,0.55)');
+    g.addColorStop(0.6, 'rgba(120,140,150,0.18)');
+    g.addColorStop(1, 'rgba(20,30,35,0.35)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, size, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Mast down: the optic looks into the water: blue-green murk, drifting particles, light from above by day. */
+function underwater(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, t: number, light: number): void {
+  const g = ctx.createLinearGradient(0, cy - R, 0, cy + R);
+  g.addColorStop(0, `rgba(${Math.round(20 + 30 * light)},${Math.round(55 + 50 * light)},${Math.round(60 + 45 * light)},1)`);
+  g.addColorStop(1, '#020807');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+  if (light > 0.3) {
+    ctx.globalAlpha = 0.07 * light;
+    ctx.fillStyle = '#cfe';
+    for (let i = 0; i < 5; i++) {
+      const x = cx - R + ((i * 97 + t * 6) % (2 * R));
+      ctx.beginPath(); ctx.moveTo(x, cy - R); ctx.lineTo(x + 30, cy - R); ctx.lineTo(x + 80, cy + R); ctx.lineTo(x + 40, cy + R); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = 'rgba(190,220,210,0.35)';
+  for (let i = 0; i < 60; i++) {
+    const x = cx - R + ((i * 53.3 + Math.sin(t * 0.3 + i) * 8) % (2 * R));
+    const y = cy + R - ((i * 31.7 + t * (2 + (i % 3))) % (2 * R));
+    ctx.fillRect(x, y, 1.5, 1.5);
+  }
+}
+
+const blastSeen = new Map<string, number>();
+/** Hits reported as explosions within the last two minutes, placed at the nearest seen ship on that bearing. */
+function blasts(s: import('@tk/shared').Snapshot, vis: { bearing: number; range: number }[], nowMs: number): PeriscopeEffect[] {
+  const out: PeriscopeEffect[] = [];
+  for (const a of s.alerts) {
+    if (a.kind !== 'hit' || a.bearing === undefined || s.time - a.time > 120) continue;
+    const id = `${a.time}|${a.bearing}`;
+    if (!blastSeen.has(id)) blastSeen.set(id, nowMs);
+    const near = vis.filter((c) => Math.abs(angleDiff(c.bearing, a.bearing!)) < 5).sort((x, y) => Math.abs(angleDiff(x.bearing, a.bearing!)) - Math.abs(angleDiff(y.bearing, a.bearing!)))[0];
+    out.push({ id, bearing: a.bearing, range: near?.range ?? 6000, age: (nowMs - blastSeen.get(id)!) / 1000 });
+  }
+  return out;
 }

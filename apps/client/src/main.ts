@@ -1,5 +1,6 @@
 import './style.css';
 import { initI18n } from './i18n/index.js';
+import { applyDisplayPrefs } from './widgets/settings-menu.js';
 import type { ServerMsg } from '@tk/shared';
 import { net, type LinkState } from './net.js';
 import { handleMailLink, toast } from './screens/account.js';
@@ -10,6 +11,7 @@ import { lobbyScreen } from './screens/lobby.js';
 import { store } from './store.js';
 
 initI18n();
+applyDisplayPrefs();
 const root = document.getElementById('app')!;
 let cleanup: (() => void) | undefined;
 let screen: 'auth' | 'lobby' | 'game' = 'auth';

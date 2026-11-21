@@ -231,6 +231,8 @@ export class Lobby {
         return void m.setReady(conn.playerId, msg.ready);
       case 'radio':
         return void err(m.radio(conn.playerId, msg.text));
+      case 'lobby_chat':
+        return void err(m.lobbyChat(conn.playerId, msg.text));
       case 'report': {
         const e = this.onReport?.(conn, m, msg.from, msg.reason);
         return void conn.send({ t: 'error', msg: e ?? 'Meldung an die Moderation gesendet' });
