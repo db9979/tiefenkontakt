@@ -4,11 +4,12 @@ import {
   batteryEndurance,
   emptyDamage,
   depthAt,
-  heloPosition,
+  aircraftPosition,
   cavitationSpeedKn,
   sourceLevel,
   towedArrayReady,
   type AlertView,
+  type ContactTrack,
   type ClassChoice,
   type World as W,
   type FriendlyView,
@@ -25,6 +26,39 @@ export interface PlayerExtras {
   reports: Map<string, FriendlyView>;
   mastUpSince?: number;
   timeScale?: number;
+  /** Bearing history already sent to this player, per contact label (delta encoding). */
+  histSent?: Record<string, number>;
+  /** Evidence time already sent per label, and counts of alerts/radio already sent. */
+  evSent?: Record<string, number>;
+  alertsSent?: number;
+  radioSent?: number;
+  /** Entries dropped from the front of the capped lists (to keep absolute counts). */
+  alertsDropped?: number;
+  radioDropped?: number;
+}
+
+/** Append-only list delta: entries after the absolute count already sent. */
+function newEntries<T>(list: T[], dropped: number | undefined, sent: number | undefined, firstCap: number): { items: T[]; total: number } {
+  const total = (dropped ?? 0) + list.length;
+  const items = sent === undefined ? list.slice(-firstCap) : list.slice(Math.max(0, sent - (dropped ?? 0)));
+  return { items, total };
+}
+
+/** Evidence only when it changed since the last snapshot to this player. */
+function newEvidence(x: PlayerExtras, label: string, tr: ContactTrack): ContactTrack['evidence'] {
+  const sent = (x.evSent ??= {})[label];
+  if (tr.evidenceAt === undefined || tr.evidenceAt === sent) return undefined;
+  x.evSent[label] = tr.evidenceAt;
+  return tr.evidence;
+}
+
+/** Only the bearing samples this player hasn't received yet (all of them after a reset). */
+function newSamples(x: PlayerExtras, label: string, hist: ContactTrack['history'], cap: number): ContactTrack['history'] {
+  const sent = (x.histSent ??= {})[label];
+  const fresh = sent === undefined ? hist.slice(-cap) : hist.filter((h) => h.t > sent);
+  const last = hist[hist.length - 1];
+  if (last) x.histSent[label] = last.t;
+  return fresh;
 }
 
 export interface ScoreInfo {
@@ -65,8 +99,11 @@ export function buildSnapshot(
 ): Snapshot {
   const l = w.weapons?.loadouts.get(own.id);
   const contacts: Snapshot['contacts'] = [];
+  // Track correlation: each target appears once (own contact first, then the first mate's)
+  const seen = new Set<string>();
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
-    contacts.push({ ...tr, history: tr.history.slice(-120), via: 'own', assigned: classes?.get(tid) });
+    seen.add(tid);
+    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid) });
   }
 
   const friendlies: FriendlyView[] = [];
@@ -75,8 +112,10 @@ export function buildSnapshot(
     for (const m of mates) friendlies.push(friendlyOf(m, w.time));
     datalinkMates(w, own).forEach((m, i) => {
       for (const [tid, tr] of w.books.get(m.id)?.entries() ?? []) {
+        if (seen.has(tid)) continue;
+        seen.add(tid);
         contacts.push({
-          ...tr, label: `L${i + 1}-${tr.label}`, history: tr.history.slice(-30), via: 'datalink', assigned: classes?.get(tid),
+          ...tr, label: `L${i + 1}-${tr.label}`, evidence: newEvidence(x, `L${i + 1}-${tr.label}`, tr), history: newSamples(x, `L${i + 1}-${tr.label}`, tr.history, 30), via: 'datalink', assigned: classes?.get(tid),
         });
       }
     });
@@ -91,18 +130,22 @@ export function buildSnapshot(
   let air: Snapshot['air'];
   if (hasDatalink(own) && w.air) {
     const team = new Set(w.ships.filter((s) => s.team === own.team).map((s) => s.id));
-    const helos = w.air.sorties
-      .map((s) => {
-        const ship = w.ships.find((x) => x.id === s.shipId);
-        return team.has(s.shipId) && ship ? heloPosition(s, w.time, ship) : undefined;
-      })
-      .filter((p): p is { x: number; y: number } => !!p);
-    const mine = w.air.sorties.filter((s) => s.shipId === own.id).map((s) => s.readyAt);
+    const helos: NonNullable<Snapshot['air']>['helos'] = [];
+    for (const s of w.air.sorties) {
+      const ship = w.ships.find((x) => x.id === s.shipId);
+      const p = team.has(s.shipId) && ship ? aircraftPosition(s, w.time, ship) : undefined;
+      if (p) helos.push({ ...p, kind: s.kind ?? 'buoy', hovering: s.hoverUntil !== undefined && w.time >= s.dropAt && w.time <= s.hoverUntil });
+    }
+    const mine = w.air.sorties.filter((s) => s.shipId === own.id && s.kind !== 'mpa').map((s) => s.readyAt);
+    const mpa = w.air.mpa?.[own.team];
     air = {
       buoys: w.air.buoys.filter((b) => team.has(b.ownerId)).map((b) => ({ id: b.id, x: b.pos.x, y: b.pos.y, depth: b.depth, leftS: b.expiresAt - w.time })),
       helos,
       stock: w.air.stock.get(own.id) ?? 0,
       heloReadyInS: Math.max(0, ...mine.map((t) => t - w.time)),
+      heloTorps: w.air.heloTorps?.get(own.id) ?? 0,
+      mpaReadyInS: mpa ? Math.max(0, mpa.readyAt - w.time) : 0,
+      mpaBuoys: mpa?.buoys ?? 0,
     };
   }
   return {
@@ -127,10 +170,19 @@ export function buildSnapshot(
     contacts,
     friendlies,
     torpedoes,
-    radio: x.radio.slice(-30),
-    alerts: x.alerts.slice(-20),
+    // Delta: only entries this player hasn't received yet
+    radio: (() => {
+      const d = newEntries(x.radio, x.radioDropped, x.radioSent, 30);
+      x.radioSent = d.total;
+      return d.items;
+    })(),
+    alerts: (() => {
+      const d = newEntries(x.alerts, x.alertsDropped, x.alertsSent, 20);
+      x.alertsSent = d.total;
+      return d.items;
+    })(),
     env: {
-      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light,
+      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light, rain: w.env.rain, clock: w.env.weather?.clock,
       bottom: w.env.seabed ? Math.round(depthAt(w.env.seabed, own.pos.x, own.pos.y)) : undefined, seabed: w.env.seabed,
     },
     score,

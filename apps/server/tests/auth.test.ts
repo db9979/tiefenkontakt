@@ -49,3 +49,36 @@ describe('rate limiter', () => {
     expect(rl.allow('other')).toBe(true);
   });
 });
+
+describe('account lifecycle', () => {
+  it('reset tokens are single-use, expire and change the password; sessions end', async () => {
+    const a = new AuthStore(':memory:');
+    const r = await a.register(valid);
+    if (!('user' in r)) throw new Error('register');
+    const t = a.createToken(r.user.id, 'reset', 60_000);
+    expect(a.consumeToken('falsch', 'reset')).toBeUndefined();
+    expect(a.consumeToken(t, 'verify')).toBeUndefined();
+    const uid = a.consumeToken(t, 'reset')!;
+    expect(uid).toBe(r.user.id);
+    expect(a.consumeToken(t, 'reset')).toBeUndefined();
+    expect(await a.setPassword(uid, 'kurz')).toBeDefined();
+    expect(await a.setPassword(uid, 'neuesPasswort1')).toBeUndefined();
+    expect(a.userForToken(r.token)).toBeUndefined();
+    expect(await a.login({ email: valid.email, password: 'neuesPasswort1' })).toHaveProperty('token');
+    const old = a.createToken(uid, 'verify', -1);
+    expect(a.consumeToken(old, 'verify')).toBeUndefined();
+  });
+
+  it('verification and deletion', async () => {
+    const a = new AuthStore(':memory:');
+    const r = await a.register(valid);
+    if (!('user' in r)) throw new Error('register');
+    expect(a.isVerified(r.user.id)).toBe(false);
+    a.markVerified(r.user.id);
+    expect(a.isVerified(r.user.id)).toBe(true);
+    expect(await a.checkPassword(r.user.id, 'geheim123')).toBe(true);
+    a.deleteUser(r.user.id);
+    expect(a.findByEmail(valid.email)).toBeUndefined();
+    expect(await a.login({ email: valid.email, password: 'geheim123' })).toHaveProperty('error');
+  });
+});

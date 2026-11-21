@@ -20,7 +20,7 @@ export interface SavedWorld {
   events: World['events'];
   sensorAccum: number;
   weapons?: Omit<WeaponsState, 'loadouts'> & { loadouts: [string, Loadout][] };
-  air?: Omit<AirState, 'stock'> & { stock: [string, number][] };
+  air?: Omit<AirState, 'stock' | 'heloTorps'> & { stock: [string, number][]; heloTorps?: [string, number][] };
 }
 
 export function saveWorld(w: World): SavedWorld {
@@ -35,7 +35,7 @@ export function saveWorld(w: World): SavedWorld {
     events: w.events,
     sensorAccum: w.sensorAccum,
     weapons: w.weapons && { ...w.weapons, loadouts: [...w.weapons.loadouts] },
-    air: w.air && { ...w.air, stock: [...w.air.stock] },
+    air: w.air && { ...w.air, stock: [...w.air.stock], heloTorps: w.air.heloTorps && [...w.air.heloTorps] },
   });
 }
 
@@ -59,7 +59,7 @@ export function restoreWorld(d: SavedWorld): World {
     w.systems.push(weaponsSystem);
   }
   if (d.air) {
-    w.air = { ...d.air, stock: new Map(d.air.stock) };
+    w.air = { ...d.air, stock: new Map(d.air.stock), heloTorps: d.air.heloTorps ? new Map(d.air.heloTorps) : undefined };
     w.systems.push(airSystem);
   }
   return w;

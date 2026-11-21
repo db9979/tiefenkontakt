@@ -8,6 +8,9 @@ import { AuthStore, RateLimiter, parseCookies, type User } from './auth.js';
 import { parseClientMsg } from './input.js';
 import { Lobby } from './lobby.js';
 import { MatchStore } from './match-store.js';
+import { createMailer } from './mailer.js';
+import { handleAdmin } from './admin.js';
+import { ModerationStore } from './moderation.js';
 import { StatsStore, userIdOf } from './stats.js';
 import type { Conn } from './match.js';
 
@@ -20,6 +23,16 @@ const auth = new AuthStore();
 export const lobby = new Lobby();
 const store = new MatchStore();
 const stats = new StatsStore(auth.db);
+const mod = new ModerationStore(auth.db);
+lobby.onReport = (conn, m, from, reason) => {
+  const s = m.senderOf(from);
+  if (!s) return 'Absender nicht gefunden';
+  if (s.playerId === conn.playerId) return 'Du kannst dich nicht selbst melden';
+  const reported = m.slots.find((x) => x.playerId === s.playerId)?.callsign ?? from;
+  const fresh = mod.report({ reporter: conn.callsign, reported, reportedId: s.playerId, matchId: m.id, reason, evidence: s.evidence });
+  console.log(`[Meldung] ${conn.callsign} meldet ${reported}: ${reason}`);
+  return fresh ? undefined : 'Bereits gemeldet';
+};
 const LESSON_STEP: Record<string, string> = { klassifizieren: 'l1', tma: 'l2', angriff: 'l3', ujagd: 'l4' };
 lobby.onFinish = (m, d) => {
   if (m.settings.lesson) {
@@ -50,6 +63,17 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 const authLimiter = new RateLimiter(10, 60_000);
+const mailer = createMailer();
+const PUBLIC_URL = process.env.PUBLIC_URL ?? 'http://localhost:5173';
+const HOUR = 3_600_000;
+
+async function sendVerify(userId: number, email: string): Promise<void> {
+  const t = auth.createToken(userId, 'verify', 48 * HOUR);
+  await mailer.send({
+    to: email, subject: 'Tiefenkontakt: E-Mail bestätigen / verify your email',
+    text: `Willkommen an Bord. Bitte bestätige deine Adresse (der Link gilt 48 Stunden).\nWelcome aboard. Please verify your address (the link is valid for 48 hours).\n\n${PUBLIC_URL}/#verify=${t}\n`,
+  });
+}
 
 function json(res: ServerResponse, status: number, body: unknown, cookie?: string): void {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
@@ -82,9 +106,22 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
   if (req.url === '/api/health') return json(res, 200, { ok: true });
   if (req.url === '/api/me' && req.method === 'GET') {
     const u = auth.userForToken(token);
-    return u ? json(res, 200, publicUser(u)) : json(res, 401, { error: 'Nicht angemeldet' });
+    return u ? json(res, 200, { ...publicUser(u), email: u.email, verified: auth.isVerified(u.id), admin: mod.isAdmin(u.callsign) }) : json(res, 401, { error: 'Nicht angemeldet' });
+  }
+  if (req.url?.startsWith('/api/admin/')) {
+    if (!mod.isAdmin(auth.userForToken(token)?.callsign)) return json(res, 403, { error: 'Nur für Moderatoren' });
+    let body: unknown = {};
+    if (req.method === 'POST') {
+      try {
+        body = await readBody(req);
+      } catch {
+        return json(res, 400, { error: 'Ungültige Anfrage' });
+      }
+    }
+    return handleAdmin(req, body, (status, b) => json(res, status, b), lobby, mod);
   }
   if (req.url === '/api/leaderboard' && req.method === 'GET') return json(res, 200, stats.leaderboard());
+  if (req.url === '/api/balance' && req.method === 'GET') return json(res, 200, stats.balance());
   if (req.url === '/api/stats' && req.method === 'GET') {
     const u = auth.userForToken(token);
     if (!u) return json(res, 401, { error: 'Nur mit Konto' });
@@ -95,17 +132,71 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     auth.logout(token);
     return json(res, 200, { ok: true }, sessionCookie('', 0));
   }
-  if (req.url !== '/api/register' && req.url !== '/api/login') return json(res, 404, { error: 'Nicht gefunden' });
+  const ACCOUNT = ['/api/register', '/api/login', '/api/password/forgot', '/api/password/reset', '/api/password/change', '/api/verify', '/api/verify/resend', '/api/account/delete'];
+  if (!ACCOUNT.includes(req.url ?? '')) return json(res, 404, { error: 'Nicht gefunden' });
   if (!authLimiter.allow(ip)) return json(res, 429, { error: 'Zu viele Versuche, warte eine Minute' });
-  let body: unknown;
+  let body: Record<string, unknown>;
   try {
-    body = await readBody(req);
+    body = (await readBody(req)) as Record<string, unknown>;
   } catch {
     return json(res, 400, { error: 'Ungültige Anfrage' });
   }
-  const r = req.url === '/api/register' ? await auth.register(body) : await auth.login(body);
-  if ('error' in r) return json(res, 400, r);
-  return json(res, 200, publicUser(r.user), sessionCookie(r.token, 30 * 86_400));
+  const me = auth.userForToken(token);
+  switch (req.url) {
+    case '/api/register':
+    case '/api/login': {
+      const r = req.url === '/api/register' ? await auth.register(body) : await auth.login(body);
+      if ('error' in r) return json(res, 400, r);
+      if (req.url === '/api/register') await sendVerify(r.user.id, r.user.email).catch((e) => console.warn('Mail:', (e as Error).message));
+      return json(res, 200, publicUser(r.user), sessionCookie(r.token, 30 * 86_400));
+    }
+    case '/api/password/forgot': {
+      // Same answer whether or not the address exists (no account enumeration)
+      const u = auth.findByEmail(body.email);
+      if (u) {
+        const t = auth.createToken(u.id, 'reset', HOUR);
+        await mailer.send({
+          to: u.email, subject: 'Tiefenkontakt: Passwort zurücksetzen / reset your password',
+          text: `Neues Passwort setzen (der Link gilt eine Stunde):\nSet a new password (the link is valid for one hour):\n\n${PUBLIC_URL}/#reset=${t}\n\nWenn du das nicht angefordert hast, ignoriere diese Mail.\nIf you did not ask for this, ignore this email.\n`,
+        })
+          .catch((e) => console.warn('Mail:', (e as Error).message));
+      }
+      return json(res, 200, { ok: true });
+    }
+    case '/api/password/reset': {
+      const uid = auth.consumeToken(body.token, 'reset');
+      if (uid === undefined) return json(res, 400, { error: 'Link ungültig oder abgelaufen' });
+      const e = await auth.setPassword(uid, body.password);
+      if (e) return json(res, 400, { error: e });
+      auth.markVerified(uid); // the link proved the address
+      return json(res, 200, { ok: true }, sessionCookie(auth.newSession(uid), 30 * 86_400));
+    }
+    case '/api/password/change': {
+      if (!me) return json(res, 401, { error: 'Nicht angemeldet' });
+      if (!(await auth.checkPassword(me.id, body.old))) return json(res, 400, { error: 'Altes Passwort falsch' });
+      const e = await auth.setPassword(me.id, body.password);
+      if (e) return json(res, 400, { error: e });
+      return json(res, 200, { ok: true }, sessionCookie(auth.newSession(me.id), 30 * 86_400));
+    }
+    case '/api/verify': {
+      const uid = auth.consumeToken(body.token, 'verify');
+      if (uid === undefined) return json(res, 400, { error: 'Link ungültig oder abgelaufen' });
+      auth.markVerified(uid);
+      return json(res, 200, { ok: true });
+    }
+    case '/api/verify/resend': {
+      if (!me) return json(res, 401, { error: 'Nicht angemeldet' });
+      if (!auth.isVerified(me.id)) await sendVerify(me.id, me.email).catch((e) => console.warn('Mail:', (e as Error).message));
+      return json(res, 200, { ok: true });
+    }
+    case '/api/account/delete': {
+      if (!me) return json(res, 401, { error: 'Nicht angemeldet' });
+      if (!(await auth.checkPassword(me.id, body.password))) return json(res, 400, { error: 'Passwort falsch' });
+      auth.deleteUser(me.id);
+      return json(res, 200, { ok: true }, sessionCookie('', 0));
+    }
+  }
+  return json(res, 404, { error: 'Nicht gefunden' });
 }
 
 /** Real client address: the first X-Forwarded-For entry when TRUST_PROXY=1 (behind your reverse proxy). */
@@ -144,11 +235,20 @@ const server = createServer((req, res) => {
   res.writeHead(404).end();
 });
 
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: MAX_MSG_BYTES });
+// permessage-deflate: snapshots are repetitive JSON and shrink several-fold on the wire
+const wss = new WebSocketServer({
+  server, path: '/ws', maxPayload: MAX_MSG_BYTES,
+  perMessageDeflate: { threshold: 512, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false },
+});
 // The WebSocket server re-emits listen errors; the retry above handles them
 wss.on('error', () => undefined);
 
 const GUEST_TOKEN = /^[a-f0-9]{32}$/;
+
+/** Wire format: two decimals are plenty (cm, 0.01°) and halve the payload. */
+function roundNumbers(_k: string, v: unknown): unknown {
+  return typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 100) / 100 : v;
+}
 
 /**
  * Stable identity so a reload or a dropped link rejoins the same ship.
@@ -168,12 +268,18 @@ wss.on('connection', (ws: WebSocket, req) => {
   const conn: Conn = {
     ...identity(user, url.searchParams.get('guest'), url.searchParams.get('gid')),
     send: (msg: ServerMsg) => {
-      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg, roundNumbers));
     },
-    close: (reason: string) => {
-      if (ws.readyState === ws.OPEN) ws.close(4000, reason);
+    close: (reason: string, code = 4000) => {
+      if (ws.readyState === ws.OPEN) ws.close(code, reason);
     },
+    ip: clientIp(req),
   };
+  const ban = mod.bannedFor(conn.playerId, conn.ip);
+  if (ban) {
+    conn.send({ t: 'removed', msg: `Gesperrt bis ${new Date(ban.until).toLocaleString('de-DE')}: ${ban.reason}` });
+    return conn.close!('banned', 4001);
+  }
   const resumed = lobby.connect(conn);
   conn.send({ t: 'welcome', playerId: conn.playerId, callsign: conn.callsign, resume: resumed });
   lobby.resume(conn);

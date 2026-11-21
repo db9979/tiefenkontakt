@@ -1,4 +1,5 @@
 import { h } from '../widgets/format.js';
+import { keysEditor } from '../widgets/keys.js';
 
 /** Controls and a short how-to; mouse first, keyboard as shortcut. */
 export function helpOverlay(submarine: boolean): void {
@@ -45,14 +46,8 @@ export function helpOverlay(submarine: boolean): void {
       <tr><td>KI</td><td>Ein Team ohne Spieler wird von der KI übernommen; du kannst also allein spielen.</td></tr>
     </table>
     <h3>TASTATUR</h3>
-    <table>
-      <tr><td>1 – 4</td><td>Station wechseln</td></tr>
-      <tr><td>← → (⇧ fein)</td><td>Kurs ±5° (±1°)</td></tr>
-      <tr><td>↑ ↓</td><td>Fahrt ±1 kn</td></tr>
-      <tr><td>Bild ↑ ↓</td><td>Tiefe ±10 m</td></tr>
-      <tr><td>A / D</td><td>Sehrohr drehen</td></tr>
-      <tr><td>M · H</td><td>Ton an/aus · diese Hilfe</td></tr>
-    </table>
+    <div class="dim">Aktion anklicken, dann die neue Taste drücken. ⇧ beim Kurs = 1° statt 5°.</div>
+    <div id="keys"></div>
     <h3>${submarine ? 'ABLAUF U-BOOT' : 'ABLAUF FREGATTE'}</h3>
     <table>${howto}</table>
     <div class="dim" style="margin-top:10px">Die Simulation läuft mit 3-facher Zeitraffung. Alle Uhren zeigen Simulationszeit.</div>
@@ -62,6 +57,7 @@ export function helpOverlay(submarine: boolean): void {
     window.removeEventListener('keydown', esc);
   };
   const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
+  ov.querySelector('#keys')!.replaceWith(keysEditor());
   ov.querySelector<HTMLButtonElement>('#close')!.onclick = close;
   ov.addEventListener('mousedown', (e) => e.target === ov && close());
   window.addEventListener('keydown', esc);

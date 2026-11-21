@@ -105,3 +105,37 @@ body.crt .panel::after {
   mix-blend-mode: multiply;
 }
 body.crt .hd, body.crt .title { text-shadow: 0 0 4px rgba(93, 202, 165, 0.45); }
+button.danger { border-color: #7a2a22; color: #e0705f; }
+button.link { background: none; border: none; color: var(--dim, #6f8a78); text-transform: none; padding: 0; cursor: pointer; text-decoration: underline; }
+.rline .racts { display: none; margin-left: 6px; }
+.rline:hover .racts { display: inline; }
+.rline .racts button { font-size: 10px; padding: 0 4px; margin-left: 2px; }
+.authgrid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start; }
+
+/* Tablet: helm and radio below the station */
+@media (max-width: 900px) {
+  .game { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; height: auto; min-height: 100vh; }
+  .topbar { grid-column: 1; flex-wrap: wrap; }
+  .topbar .tabs { overflow-x: auto; max-width: 100%; }
+  .station { overflow: visible; }
+  .side { overflow: visible; display: grid; grid-template-columns: 1fr 1fr; }
+  .alerts { max-height: 200px; }
+  .cols { grid-template-columns: minmax(0, 1fr); }
+}
+/* Phone: one column, larger touch targets */
+@media (max-width: 600px) {
+  .authgrid, .grid2, .side { grid-template-columns: minmax(0, 1fr); }
+  .center { padding: 10px; }
+  button { min-height: 34px; }
+  .steps button { min-height: 30px; }
+  .topbar .tabs button { white-space: nowrap; }
+  #vol, #crt { display: none; }
+  .overlay .panel { max-width: 96vw; max-height: 92vh; }
+  .ctxmenu button { padding: 10px 12px; }
+}
+@media (pointer: coarse) {
+  input[type=range] { height: 28px; }
+  .rline .racts { display: inline; }
+}
+.langbtn { position: fixed; left: 8px; bottom: 8px; z-index: 80; font-size: 10px; padding: 2px 6px; opacity: 0.7; }
+.langbtn:hover { opacity: 1; }

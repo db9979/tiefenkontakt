@@ -80,9 +80,10 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
     e.preventDefault();
     scale = Math.min(400, Math.max(5, scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
   }, { passive: false });
-  cv.addEventListener('mousedown', (e) => (drag = { x: e.clientX, y: e.clientY, px: pan?.x ?? 0, py: pan?.y ?? 0 }));
-  window.addEventListener('mouseup', () => (drag = undefined));
-  cv.addEventListener('mousemove', (e) => {
+  cv.style.touchAction = 'none';
+  cv.addEventListener('pointerdown', (e) => (drag = { x: e.clientX, y: e.clientY, px: pan?.x ?? 0, py: pan?.y ?? 0 }));
+  window.addEventListener('pointerup', () => (drag = undefined));
+  cv.addEventListener('pointermove', (e) => {
     if (!drag || !pan) return;
     pan = { x: drag.px - (e.clientX - drag.x) * scale, y: drag.py + (e.clientY - drag.y) * scale };
   });

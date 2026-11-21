@@ -4,6 +4,7 @@ import type { Periscope3D } from '../../widgets/periscope3d.js';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
+import { isKey } from '../../widgets/keys.js';
 import { CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km } from '../../widgets/format.js';
 
 const MAST_HEIGHT: Record<ClassId, number> = { merchant: 28, ffg: 32, ssn: 8, ssk: 7 };
@@ -90,12 +91,13 @@ export function periscopeStation(): Station {
   let dragX: number | undefined;
   let dragged = false;
   view.style.cursor = 'ew-resize';
-  view.addEventListener('mousedown', (e) => {
+  view.style.touchAction = 'none';
+  view.addEventListener('pointerdown', (e) => {
     dragX = e.clientX;
     dragged = false;
   });
-  window.addEventListener('mouseup', () => (dragX = undefined));
-  view.addEventListener('mousemove', (e) => {
+  window.addEventListener('pointerup', () => (dragX = undefined));
+  view.addEventListener('pointermove', (e) => {
     if (dragX === undefined) return;
     const dx = e.clientX - dragX;
     if (Math.abs(dx) > 2) dragged = true;
@@ -137,8 +139,8 @@ export function periscopeStation(): Station {
     el,
     key(e) {
       const step = zoom6 ? 0.5 : 2;
-      if (e.key === 'a' || e.key === 'A') train(-step);
-      else if (e.key === 'd' || e.key === 'D') train(step);
+      if (isKey(e, 'scopeLeft')) train(-step);
+      else if (isKey(e, 'scopeRight')) train(step);
       else return false;
       return true;
     },

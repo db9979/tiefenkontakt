@@ -33,13 +33,13 @@ export function openMenu(x: number, y: number, items: MenuItem[], title?: string
   });
   document.body.appendChild(el);
   open = el;
-  setTimeout(() => window.addEventListener('mousedown', outside), 0);
+  setTimeout(() => window.addEventListener('pointerdown', outside), 0);
 }
 
 function outside(e: MouseEvent): void {
   if (open && !open.contains(e.target as Node)) {
     closeMenu();
-    window.removeEventListener('mousedown', outside);
+    window.removeEventListener('pointerdown', outside);
   }
 }
 

@@ -2,6 +2,13 @@ import type { ClassId, Team } from './classes.js';
 import type { ContactTrack } from './contacts.js';
 import type { DamageState, ShipSystem } from './damage.js';
 import type { ClassChoice } from './signatures.js';
+
+export type MissionKey = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene';
+export interface CustomMissionSettings {
+  convoyKn: number;
+  seabed: 'tief' | 'schelf' | 'fjord';
+  subFrac: number;
+}
 import type { SeekerMode } from './weapons.js';
 
 /** Messages client -> server. Validated with zod on the server. */
@@ -20,10 +27,15 @@ export type ClientMsg =
   | { t: 'dc'; depth: number }
   | { t: 'noisemaker' }
   | { t: 'radio'; text: string }
+  /** Report the sender of a radio message (ship name as shown) to the moderators. */
+  | { t: 'report'; from: string; reason: string }
   | { t: 'classify'; label: string; choice: ClassChoice }
   | { t: 'pulse'; pulse: 'cw' | 'lfm' }
   | { t: 'bt' }
   | { t: 'buoy'; bearing: number; range: number; deep: boolean }
+  | { t: 'dip'; bearing: number; range: number; deep: boolean }
+  | { t: 'helotorp'; bearing: number; range: number }
+  | { t: 'mpa'; bearing: number; range: number }
   | { t: 'repair'; system: ShipSystem }
   | { t: 'crew'; captainId: string | null }
   | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' }
@@ -33,11 +45,15 @@ export type ClientMsg =
   | { t: 'spectate'; matchId: string }
   | {
     t: 'settings';
-    mission?: 'groenland' | 'schelf' | 'fjord';
+    mission?: MissionKey;
     timeOfDay?: 'tag' | 'daemmerung' | 'nacht';
     seaState?: number;
     timeLimitMin?: number;
     fillBots?: boolean;
+    botSkill?: 'leicht' | 'normal' | 'schwer';
+    weather?: 'wechselhaft' | 'stabil';
+    custom?: CustomMissionSettings;
+    merchants?: number;
   };
 
 export interface PlayerSlot {
@@ -65,7 +81,7 @@ export interface MatchSummary {
 export interface MatchLobby extends MatchSummary {
   slots: PlayerSlot[];
   settings: {
-    mission: 'groenland' | 'schelf' | 'fjord';
+    mission: MissionKey;
     timeOfDay: 'tag' | 'daemmerung' | 'nacht';
     timeScale: number;
     layerDepth: number;
@@ -73,6 +89,10 @@ export interface MatchLobby extends MatchSummary {
     timeLimitMin: number;
     merchants: number;
     fillBots: boolean;
+    botSkill: 'leicht' | 'normal' | 'schwer';
+    weather: 'wechselhaft' | 'stabil';
+    custom?: CustomMissionSettings;
+    merchantsCount?: number;
     lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
   };
 }
@@ -158,6 +178,9 @@ export interface Snapshot {
   time: number;
   /** Sim seconds per real second (for echo travel times and clocks). */
   timeScale: number;
+  /** True when the snapshot is complete (first after (re)connect). Otherwise contact
+   * histories, evidence, alerts and radio are deltas the client accumulates. */
+  full?: boolean;
   /** Callsigns of everyone aboard the own ship. */
   crew: string[];
   /** Who mans which station aboard. */
@@ -166,6 +189,7 @@ export interface Snapshot {
   lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
   own: OwnShipView;
   contacts: (Omit<ContactTrack, 'history'> & {
+    /** Delta: only samples newer than the previous snapshot (all of them when `full`). */
     history: ContactTrack['history'];
     via: 'own' | 'datalink';
     /** The player's (or datalink group's) own classification decision. */
@@ -184,14 +208,20 @@ export interface Snapshot {
     /** Water depth under the own ship (m) and the chart, which is public. */
     bottom?: number;
     seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number };
+    rain?: boolean;
+    /** Ship's clock, hour of day. */
+    clock?: number;
   };
   score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
     buoys: { id: string; x: number; y: number; depth: number; leftS: number }[];
-    helos: { x: number; y: number }[];
+    helos: { x: number; y: number; kind: 'buoy' | 'dip' | 'torpedo' | 'mpa'; hovering: boolean }[];
     stock: number;
     heloReadyInS: number;
+    heloTorps: number;
+    mpaReadyInS: number;
+    mpaBuoys: number;
   };
 }
 
@@ -233,4 +263,6 @@ export type ServerMsg =
   | { t: 'debrief'; d: Debrief }
   /** Spectators get the truth picture, delayed so it can't be used to help a team. */
   | { t: 'spectate'; d: Debrief; delayS: number }
-  | { t: 'error'; msg: string };
+  | { t: 'error'; msg: string }
+  /** Removed from the match by a moderator (kick or match ended). */
+  | { t: 'removed'; msg: string };

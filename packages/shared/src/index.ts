@@ -18,3 +18,4 @@ export * from './damage.js';
 export * from './filters.js';
 export * from './persist.js';
 export * from './seabed.js';
+export * from './weather.js';

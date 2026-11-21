@@ -4,6 +4,7 @@ import { applyHitDamage, stepDamage } from './damage.js';
 import { CLASSES } from './classes.js';
 import { KN } from './math.js';
 import { depthAt } from './seabed.js';
+import { stepWeather } from './weather.js';
 import { stepConvoy, type ConvoyState } from './convoy-ai.js';
 import type { Ship } from './entities.js';
 import { stepShip } from './kinematics.js';
@@ -127,6 +128,7 @@ export function stepWorld(w: World, dt = SIM_DT): void {
     stepConvoy(w.convoy, merchants, dt, w.time);
     for (const id of w.convoy.arrived.slice(before)) w.events.push({ kind: 'arrived', time: w.time, shipId: id });
   }
+  stepWeather(w.env, w.time, dt, w.rng);
   for (const s of w.ships) stepShip(s, dt, w.time);
   for (const s of w.ships) {
     checkGround(w, s);

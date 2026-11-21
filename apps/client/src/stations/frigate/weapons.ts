@@ -4,17 +4,17 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { deg1, h, km } from '../../widgets/format.js';
+import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
-import { buoyAction, courseAction, rocketAction } from '../../widgets/actions.js';
+import { buoyAction, courseAction, mpaAction, rocketAction } from '../../widgets/actions.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
 function aim(): { bearing: number; range: number; source: string } | undefined {
   const s = store.snap;
   const c = store.selectedContact();
   if (!s || !c) return undefined;
-  if (c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 45) {
-    return { bearing: c.bearing, range: c.range, source: 'ORTUNG' };
-  }
+  const fix = lastFix(c, s, 45);
+  if (fix) return { bearing: bearing(s.own, fix.pos), range: distance(s.own, fix.pos), source: 'ORTUNG' };
   const sol = store.solutions.get(c.label);
   if (sol) {
     const p = targetPosAt(sol, s.time + 40);
@@ -63,7 +63,7 @@ export function weaponsStation(): Station {
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
   q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
   const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...rocketAction(p), ...buoyAction(p), ...courseAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
   });
   plot.scale = 30;
 

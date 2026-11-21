@@ -21,7 +21,41 @@ export const store = {
   lastError: '',
   ended: undefined as { winner: string; reason: string } | undefined,
 
+  /** Accumulated bearing histories per contact (the server sends only new samples). */
+  histories: new Map<string, Snapshot['contacts'][number]['history']>(),
+
+  alerts: [] as Snapshot['alerts'],
+  radio: [] as Snapshot['radio'],
+  evidence: new Map<string, { ev: NonNullable<Snapshot['contacts'][number]['evidence']>; at?: number }>(),
+
   ingest(s: Snapshot): void {
+    if (s.full) {
+      this.histories.clear();
+      this.evidence.clear();
+      this.alerts = [];
+      this.radio = [];
+    }
+    // Alerts and radio arrive as deltas; keep the recent ones
+    this.alerts = this.alerts.concat(s.alerts).slice(-40);
+    this.radio = this.radio.concat(s.radio).slice(-40);
+    s.alerts = this.alerts;
+    s.radio = this.radio;
+    for (const c of s.contacts) {
+      if (c.evidence) this.evidence.set(c.label, { ev: c.evidence, at: c.evidenceAt });
+      else {
+        const prev = this.evidence.get(c.label);
+        if (prev) c.evidence = prev.ev;
+      }
+    }
+    for (const c of s.contacts) {
+      const prev = this.histories.get(c.label) ?? [];
+      const lastT = prev[prev.length - 1]?.t ?? -Infinity;
+      const merged = prev.concat(c.history.filter((h) => h.t > lastT));
+      if (merged.length > 240) merged.splice(0, merged.length - 240);
+      this.histories.set(c.label, merged);
+      c.history = merged;
+    }
+    for (const label of this.histories.keys()) if (!s.contacts.some((c) => c.label === label)) this.histories.delete(label);
     this.snap = s;
     this.snapAt = performance.now();
     const last = this.ownTrack[this.ownTrack.length - 1];
@@ -34,6 +68,10 @@ export const store = {
 
   reset(): void {
     this.snap = undefined;
+    this.histories.clear();
+    this.evidence.clear();
+    this.alerts = [];
+    this.radio = [];
     this.ownTrack = [];
     this.solutions.clear();
     this.marks.clear();

@@ -17,6 +17,16 @@ export const CAMPAIGN: CampaignStep[] = [
   { id: 'm3', kind: 'mission', mission: 'fjord', timeOfDay: 'nacht', title: 'Einsatz 3: Fjordausfahrt bei Nacht gewinnen' },
 ];
 
+export interface BalanceRow {
+  key: string;
+  games: number;
+  westWins: number;
+  eastWins: number;
+  /** For classes: matches won by the side that fielded the class. */
+  wins: number;
+  avgMin: number;
+}
+
 export interface PlayerSummary {
   callsign: string;
   points: number;
@@ -49,6 +59,17 @@ export class StatsStore {
         survived INTEGER NOT NULL,
         points INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS matches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ended_at INTEGER NOT NULL,
+        mission TEXT NOT NULL,
+        time_of_day TEXT NOT NULL,
+        winner TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        humans_west INTEGER NOT NULL,
+        humans_east INTEGER NOT NULL,
+        classes TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS campaign (
         user_id INTEGER NOT NULL REFERENCES users(id),
         step TEXT NOT NULL,
@@ -57,8 +78,12 @@ export class StatsStore {
       );`);
   }
 
-  /** Record a finished (non-lesson) match for every account player; advances campaign missions. */
+  /** Record a finished (non-lesson) match: balance data for all, results for account players. */
   record(d: Debrief, mission: string, timeOfDay: string, now = Date.now()): void {
+    const humans = (team: string) => d.stats.filter((s) => s.team === team && !s.playerId.startsWith('bot-')).length;
+    const classes = d.ships.filter((s) => s.player).map((s) => `${s.team}:${s.cls}`);
+    this.db.prepare('INSERT INTO matches (ended_at, mission, time_of_day, winner, duration, humans_west, humans_east, classes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(now, mission, timeOfDay, d.winner, d.duration, humans('west'), humans('east'), JSON.stringify(classes));
     const ins = this.db.prepare(`INSERT INTO results (user_id, ended_at, mission, time_of_day, team, cls, won, kills, tonnage, shots, survived, points)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const s of d.stats) {
@@ -90,10 +115,38 @@ export class StatsStore {
     return r ? { ...r } : undefined;
   }
 
+  /** Win rates per mission and per ship class, over all recorded matches. */
+  balance(): { missions: BalanceRow[]; classes: BalanceRow[]; total: number } {
+    const rows = this.db.prepare('SELECT mission, time_of_day, winner, duration, classes FROM matches').all() as {
+      mission: string; time_of_day: string; winner: string; duration: number; classes: string;
+    }[];
+    const missions = new Map<string, BalanceRow>();
+    const classes = new Map<string, BalanceRow>();
+    const add = (map: Map<string, BalanceRow>, key: string, westWon: boolean, won: boolean | undefined, dur: number) => {
+      const r = map.get(key) ?? { key, games: 0, westWins: 0, eastWins: 0, wins: 0, avgMin: 0 };
+      r.avgMin = (r.avgMin * r.games + dur / 60) / (r.games + 1);
+      r.games++;
+      if (westWon) r.westWins++;
+      else r.eastWins++;
+      if (won) r.wins++;
+      map.set(key, r);
+    };
+    for (const m of rows) {
+      const westWon = m.winner === 'west';
+      add(missions, `${m.mission}/${m.time_of_day}`, westWon, undefined, m.duration);
+      for (const c of new Set(JSON.parse(m.classes) as string[])) {
+        const [team, cls] = c.split(':');
+        add(classes, cls!, westWon, (team === 'west') === westWon, m.duration);
+      }
+    }
+    const round = (r: BalanceRow) => ({ ...r, avgMin: Math.round(r.avgMin) });
+    return { missions: [...missions.values()].map(round), classes: [...classes.values()].map(round), total: rows.length };
+  }
+
   leaderboard(limit = 20): PlayerSummary[] {
     return (this.db.prepare(`SELECT u.callsign AS callsign, SUM(r.points) AS points, COUNT(r.id) AS matches, SUM(r.won) AS wins,
       SUM(r.kills) AS kills, SUM(r.tonnage) AS tonnage FROM results r JOIN users u ON u.id = r.user_id
-      GROUP BY u.id ORDER BY points DESC, wins DESC LIMIT ?`).all(limit) as unknown as PlayerSummary[]).map((r) => ({ ...r }));
+      WHERE u.verified = 1 GROUP BY u.id ORDER BY points DESC, wins DESC LIMIT ?`).all(limit) as unknown as PlayerSummary[]).map((r) => ({ ...r }));
   }
 }
 

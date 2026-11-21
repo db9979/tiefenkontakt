@@ -4,6 +4,9 @@ import {
   dropDepthCharge,
   dropXbt,
   sendBuoy,
+  sendDip,
+  sendHeloTorpedo,
+  callMpa,
   fireTorpedo,
   headingVec,
   isAtPeriscopeDepth,
@@ -38,6 +41,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('dc'), depth: z.number().finite().min(20).max(400) }),
   z.object({ t: z.literal('noisemaker') }),
   z.object({ t: z.literal('radio'), text: z.string().trim().min(1).max(200) }),
+  z.object({ t: z.literal('report'), from: z.string().trim().min(1).max(40), reason: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('pulse'), pulse: z.enum(['cw', 'lfm']) }),
   z.object({ t: z.literal('bt') }),
   z.object({ t: z.literal('lesson_done') }),
@@ -46,16 +50,23 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('spectate'), matchId: z.string().max(40) }),
   z.object({
     t: z.literal('settings'),
-    mission: z.enum(['groenland', 'schelf', 'fjord']).optional(),
+    mission: z.enum(['groenland', 'schelf', 'fjord', 'duell', 'hafen', 'eigene']).optional(),
+    custom: z.object({ convoyKn: z.number().min(5).max(14), seabed: z.enum(['tief', 'schelf', 'fjord']), subFrac: z.number().min(0.2).max(0.9) }).optional(),
+    merchants: z.number().int().min(2).max(12).optional(),
     timeOfDay: z.enum(['tag', 'daemmerung', 'nacht']).optional(),
     seaState: z.number().int().min(0).max(6).optional(),
     timeLimitMin: z.number().int().min(10).max(90).optional(),
     fillBots: z.boolean().optional(),
+    botSkill: z.enum(['leicht', 'normal', 'schwer']).optional(),
+    weather: z.enum(['wechselhaft', 'stabil']).optional(),
   }),
   z.object({ t: z.literal('training'), lesson: z.enum(['klassifizieren', 'tma', 'angriff', 'ujagd']) }),
   z.object({ t: z.literal('crew'), captainId: z.string().max(64).nullable() }),
   z.object({ t: z.literal('repair'), system: z.enum(['antrieb', 'sonar', 'waffen', 'leck']) }),
   z.object({ t: z.literal('buoy'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
+  z.object({ t: z.literal('dip'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
+  z.object({ t: z.literal('helotorp'), bearing: deg, range: z.number().finite().min(500).max(30_000) }),
+  z.object({ t: z.literal('mpa'), bearing: deg, range: z.number().finite().min(0).max(80_000) }),
   z.object({
     t: z.literal('classify'), label: z.string().min(1).max(24),
     choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
@@ -73,7 +84,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -139,6 +150,14 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'repair':
       s.repair = m.system;
       return;
+    case 'dip':
+    case 'helotorp':
+    case 'mpa': {
+      const v = headingVec(m.bearing);
+      const p = { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range };
+      const r = m.t === 'dip' ? sendDip(w, s, p, m.deep) : m.t === 'helotorp' ? sendHeloTorpedo(w, s, p) : callMpa(w, s, p, m.bearing);
+      return r === true ? undefined : r;
+    }
     case 'buoy': {
       const v = headingVec(m.bearing);
       const r = sendBuoy(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range }, m.deep);

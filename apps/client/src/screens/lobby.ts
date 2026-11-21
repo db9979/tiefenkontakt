@@ -1,5 +1,8 @@
-import type { MatchLobby, MatchSummary, ServerMsg } from '@tk/shared';
+import type { MatchLobby, MatchSummary, MissionKey, ServerMsg } from '@tk/shared';
 import { net } from '../net.js';
+import { t } from '../i18n/index.js';
+import { accountPanel } from './account.js';
+import { adminPanel } from './admin.js';
 import { careerPanels } from './career.js';
 import { CLASS_NAME, esc, h } from '../widgets/format.js';
 
@@ -40,11 +43,13 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           </div>
         </div>`;
       el.appendChild(careerPanels());
+      el.appendChild(accountPanel());
+      el.appendChild(adminPanel());
       el.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => {
         b.onclick = () => net.send({ t: 'training', lesson: b.dataset.lesson as 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' });
       });
       el.querySelector<HTMLButtonElement>('#create')!.onclick = () => {
-        const name = el.querySelector<HTMLInputElement>('#mname')!.value.trim() || 'Grönland-Lücke';
+        const name = el.querySelector<HTMLInputElement>('#mname')!.value.trim() || t('Grönland-Lücke');
         net.send({ t: 'create_match', name });
       };
       el.querySelector<HTMLButtonElement>('#quick')!.onclick = () => net.send({ t: 'quick' });
@@ -61,7 +66,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       ${mine && s.team === mine.team && !s.bot && !s.crewOf && s.playerId !== me.playerId && mine.crewOf !== s.playerId ? `<button data-crew="${s.playerId}" title="Als Besatzung auf diesem Schiff mitfahren">Mitfahren</button>` : ''}
       · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
       '<div class="slot dim">Freier Platz</div>';
-    const classes = mine?.team === 'west' ? (['ffg'] as const) : (['ssk', 'ssn'] as const);
+    const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn'] as const) : (['ffg'] as const);
     el.innerHTML = `
       <div class="hd" style="font-size:14px"><span>PARTIE „${esc(match.name)}“</span><span>${match.slots.length} SPIELER · KONVOI ${match.settings.merchants} FRACHTER</span></div>
       <div class="grid2" style="margin-bottom:8px">
@@ -77,11 +82,20 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           </div></div>
         <div class="panel"><div class="hd"><span>Einstellungen</span></div>
           <div class="row"><span class="dim">MISSION</span><select id="s-mission">
-            <option value="groenland">Grönland-Lücke · tief</option><option value="schelf">Schelfmeer · flach</option><option value="fjord">Fjordausfahrt · Kanal</option></select></div>
+            <option value="groenland">Grönland-Lücke · tief</option><option value="schelf">Schelfmeer · flach</option><option value="fjord">Fjordausfahrt · Kanal</option>
+            <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="eigene">Eigene Mission</option></select></div>
+          <div id="custom" style="display:none">
+            <div class="row"><span class="dim">FRACHTER</span><select id="c-n">${[4, 6, 8, 10, 12].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
+            <div class="row"><span class="dim">KONVOIFAHRT</span><select id="c-kn">${[7, 9, 11, 13].map((v) => `<option value="${v}">${v} KN</option>`).join('')}</select></div>
+            <div class="row"><span class="dim">MEERESBODEN</span><select id="c-bed"><option value="tief">TIEF</option><option value="schelf">SCHELF</option><option value="fjord">FJORD</option></select></div>
+            <div class="row"><span class="dim">U-BOOTE WARTEN BEI</span><select id="c-sub">${[0.3, 0.5, 0.7].map((v) => `<option value="${v}">${Math.round(v * 100)} % DER ROUTE</option>`).join('')}</select></div>
+          </div>
           <div class="row"><span class="dim">TAGESZEIT</span><select id="s-tod"><option value="tag">Tag</option><option value="daemmerung">Dämmerung</option><option value="nacht">Nacht</option></select></div>
+          <div class="row"><span class="dim">WETTER</span><select id="s-wx"><option value="wechselhaft">WECHSELHAFT</option><option value="stabil">STABIL</option></select></div>
           <div class="row"><span class="dim">SEEGANG</span><select id="s-sea">${[1, 2, 3, 4, 5, 6].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
           <div class="row"><span class="dim">ZEITLIMIT</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>
+          <div class="row"><span class="dim">KI-STÄRKE</span><select id="s-skill"><option value="leicht">LEICHT</option><option value="normal">NORMAL</option><option value="schwer">SCHWER</option></select></div>
           <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${match.settings.layerDepth > 0 ? match.settings.layerDepth + ' M' : 'UNBEKANNT · MESSEN'}</span></div>
 
           <div style="display:flex;gap:6px;margin-top:10px">
@@ -100,15 +114,27 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     });
     const sel = (id: string) => el.querySelector<HTMLSelectElement>(id)!;
     sel('#s-mission').value = match.settings.mission;
+    el.querySelector<HTMLElement>('#custom')!.style.display = match.settings.mission === 'eigene' ? '' : 'none';
+    const cu = match.settings.custom ?? { convoyKn: 9, seabed: 'tief', subFrac: 0.5 };
+    sel('#c-n').value = String(match.settings.merchants);
+    sel('#c-kn').value = String(cu.convoyKn);
+    sel('#c-bed').value = cu.seabed;
+    sel('#c-sub').value = String(cu.subFrac);
     sel('#s-tod').value = match.settings.timeOfDay;
     sel('#s-sea').value = String(match.settings.seaState);
     sel('#s-time').value = String(match.settings.timeLimitMin);
     sel('#s-bots').value = match.settings.fillBots ? '1' : '0';
+    sel('#s-skill').value = match.settings.botSkill ?? 'normal';
+    sel('#s-wx').value = match.settings.weather ?? 'wechselhaft';
     const send = () => net.send({
-      t: 'settings', mission: sel('#s-mission').value as 'groenland' | 'schelf' | 'fjord', timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht',
+      t: 'settings', mission: sel('#s-mission').value as MissionKey, timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht',
       seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), fillBots: sel('#s-bots').value === '1',
+      botSkill: sel('#s-skill').value as 'leicht' | 'normal' | 'schwer',
+      weather: sel('#s-wx').value as 'wechselhaft' | 'stabil',
+      merchants: Number(sel('#c-n').value),
+      custom: { convoyKn: Number(sel('#c-kn').value), seabed: sel('#c-bed').value as 'tief' | 'schelf' | 'fjord', subFrac: Number(sel('#c-sub').value) },
     });
-    for (const id of ['#s-mission', '#s-tod', '#s-sea', '#s-time', '#s-bots']) sel(id).onchange = send;
+    for (const id of ['#s-mission', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#c-n', '#c-kn', '#c-bed', '#c-sub']) sel(id).onchange = send;
     el.querySelectorAll<HTMLButtonElement>('[data-crew]').forEach((b) => (b.onclick = () => net.send({ t: 'crew', captainId: b.dataset.crew! })));
     el.querySelector<HTMLButtonElement>('#own-ship')?.addEventListener('click', () => net.send({ t: 'crew', captainId: null }));
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });

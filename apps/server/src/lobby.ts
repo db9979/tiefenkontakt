@@ -118,6 +118,43 @@ export class Lobby {
   /** Statistics hooks (set by the server entry point). */
   onFinish?: (m: Match, d: Debrief) => void;
   onLessonDone?: (playerId: string, lesson: string) => void;
+  /** Moderation hook: a player reports a radio sender. Returns an error text. */
+  onReport?: (conn: Conn, m: Match, from: string, reason: string) => string | undefined;
+
+  /** Moderator view of all matches with their human players. */
+  adminView() {
+    return [...this.matches.values()].map((m) => ({
+      id: m.id, name: m.name, state: m.state, mission: m.settings.mission, lesson: m.settings.lesson ?? null,
+      players: m.slots.filter((s) => !s.bot).map((s) => ({ playerId: s.playerId, callsign: s.callsign, team: s.team, online: m.online(s.playerId) })),
+    }));
+  }
+
+  /** Moderator: end a match for everyone. */
+  endMatch(id: string): boolean {
+    const m = this.matches.get(id);
+    if (!m) return false;
+    const players = [...this.playerMatch].filter(([, mid]) => mid === id).map(([pid]) => pid);
+    m.abort('Partie von der Moderation beendet');
+    this.drop(m);
+    for (const pid of players) this.conns.get(pid)?.send(this.listMsg());
+    this.broadcastList();
+    return true;
+  }
+
+  /** Moderator: remove a player from their match; with `ban` also cut the connection. */
+  kick(playerId: string, ban = false): { callsign: string; ip?: string } | undefined {
+    const conn = this.conns.get(playerId);
+    const m = this.matchOf(playerId);
+    const slot = m?.slots.find((s) => s.playerId === playerId);
+    if (!conn && !slot) return undefined;
+    this.leaveCurrent(playerId);
+    if (conn) {
+      conn.send({ t: 'removed', msg: ban ? 'Du wurdest gesperrt' : 'Du wurdest von der Moderation aus der Partie entfernt' });
+      if (ban) conn.close?.('banned', 4001);
+      else conn.send(this.listMsg());
+    }
+    return { callsign: conn?.callsign ?? slot!.callsign, ip: conn?.ip };
+  }
 
   private hook(m: Match): void {
     m.onChange = () => this.broadcastList();
@@ -194,6 +231,10 @@ export class Lobby {
         return void m.setReady(conn.playerId, msg.ready);
       case 'radio':
         return void err(m.radio(conn.playerId, msg.text));
+      case 'report': {
+        const e = this.onReport?.(conn, m, msg.from, msg.reason);
+        return void conn.send({ t: 'error', msg: e ?? 'Meldung an die Moderation gesendet' });
+      }
       case 'station':
         return void m.setStation(conn.playerId, msg.index);
       case 'lesson_done':

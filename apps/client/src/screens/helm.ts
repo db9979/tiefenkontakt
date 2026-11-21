@@ -3,6 +3,8 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { COL, deg3, fitCanvas, kn } from '../widgets/format.js';
 import { isFriendlyContact } from '../widgets/friendly.js';
+import { isKey } from '../widgets/keys.js';
+import { touchable } from '../widgets/touch.js';
 import { easeAngle, ownNow } from '../widgets/smooth.js';
 
 const SPEEDS = [
@@ -40,12 +42,13 @@ export function mountHelm(el: HTMLElement) {
     const dy = e.clientY - (r.top + SIZE / 2);
     order({ heading: Math.round(wrap360((Math.atan2(dx, -dy) * 180) / Math.PI)) });
   };
-  compass.addEventListener('mousedown', (e) => {
+  touchable(compass);
+  compass.addEventListener('pointerdown', (e) => {
     dragging = true;
     courseFromMouse(e);
   });
-  window.addEventListener('mouseup', () => (dragging = false));
-  compass.addEventListener('mousemove', (e) => dragging && courseFromMouse(e));
+  window.addEventListener('pointerup', () => (dragging = false));
+  compass.addEventListener('pointermove', (e) => dragging && courseFromMouse(e));
 
   el.querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) => {
     b.onclick = () => {
@@ -156,12 +159,12 @@ export function mountHelm(el: HTMLElement) {
       if (!s) return;
       const o = s.own.order;
       const stepH = e.shiftKey ? 1 : 5;
-      if (e.key === 'ArrowLeft') order({ heading: (o.heading - stepH + 360) % 360 });
-      else if (e.key === 'ArrowRight') order({ heading: (o.heading + stepH) % 360 });
-      else if (e.key === 'ArrowUp') order({ speedKn: Math.min(o.speedKn + 1, CLASSES[s.own.cls].maxSpeedKn) });
-      else if (e.key === 'ArrowDown') order({ speedKn: Math.max(o.speedKn - 1, 0) });
-      else if (e.key === 'PageUp') order({ depth: Math.max(o.depth - 10, 0) });
-      else if (e.key === 'PageDown') order({ depth: o.depth + 10 });
+      if (isKey(e, 'left')) order({ heading: (o.heading - stepH + 360) % 360 });
+      else if (isKey(e, 'right')) order({ heading: (o.heading + stepH) % 360 });
+      else if (isKey(e, 'faster')) order({ speedKn: Math.min(o.speedKn + 1, CLASSES[s.own.cls].maxSpeedKn) });
+      else if (isKey(e, 'slower')) order({ speedKn: Math.max(o.speedKn - 1, 0) });
+      else if (isKey(e, 'up')) order({ depth: Math.max(o.depth - 10, 0) });
+      else if (isKey(e, 'down')) order({ depth: o.depth + 10 });
       else return;
       e.preventDefault();
     },

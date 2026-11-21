@@ -85,21 +85,33 @@ function subsample<T>(xs: readonly T[], n: number): T[] {
  * Brute-force search for the best-fitting straight-line track. Anchored at the
  * latest bearing: range along that bearing, course and speed are searched.
  */
-export function autoSolve(hist: readonly BearingSample[], track: readonly OwnFix[], maxSpeedKn = 30): TmaSolution | undefined {
+export interface SolveOptions {
+  courseStep?: number;
+  speedStep?: number;
+  rangeFactor?: number;
+  samples?: number;
+}
+
+export function autoSolve(
+  hist: readonly BearingSample[], track: readonly OwnFix[], maxSpeedKn = 30, opts: SolveOptions = {},
+): TmaSolution | undefined {
+  const courseStep = opts.courseStep ?? 5;
+  const speedStep = opts.speedStep ?? 1;
+  const rangeFactor = opts.rangeFactor ?? 1.15;
   const last = hist[hist.length - 1];
   if (!last || hist.length < 5) return undefined;
   const own = last.ox !== undefined && last.oy !== undefined ? { x: last.ox, y: last.oy } : ownPosAt(track, last.t);
   if (!own) return undefined;
-  const sample = subsample(hist, 24);
+  const sample = subsample(hist, opts.samples ?? 24);
   const bearings = last.alt !== undefined ? [last.b, last.alt] : [last.b];
   let best: { sol: TmaSolution; rms: number } | undefined;
   for (const b0 of bearings) {
     const dir = headingVec(b0);
-    for (let r = 500; r <= 60_000; r *= 1.15) {
+    for (let r = 500; r <= 60_000; r *= rangeFactor) {
       const x0 = own.x + dir.x * r;
       const y0 = own.y + dir.y * r;
-      for (let c = 0; c < 360; c += 5) {
-        for (let v = 0; v <= maxSpeedKn; v += 1) {
+      for (let c = 0; c < 360; c += courseStep) {
+        for (let v = 0; v <= maxSpeedKn; v += speedStep) {
           const sol = { t0: last.t, x0, y0, course: c, speedKn: v };
           const rms = evaluateSolution(sol, sample, track).rmsDeg;
           if (!best || rms < best.rms) best = { sol, rms };

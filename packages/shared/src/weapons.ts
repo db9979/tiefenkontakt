@@ -259,16 +259,18 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   return t.run < t.maxRun;
 }
 
-function resolvePending(w: World, e: DelayedEffect): void {
+/** A lightweight torpedo entering the water at a point (ASW rocket, helicopter) and searching in circles. */
+export function dropLightweight(w: World, ownerId: string, pos: Vec2): void {
   const st = ws(w);
-  if (e.kind === 'rocket') {
-    st.torpedoes.push({
-      id: `T${st.nextId++}`, kind: 'light', ownerId: e.ownerId, pos: { ...e.pos }, depth: 10,
-      heading: w.rng.range(0, 360), speedKn: SPEC.light.speedKn, searchDepth: 120, enableAfter: 0,
-      mode: 'active', run: 0, maxRun: SPEC.light.maxRun, wire: false, launchedAt: w.time, alerted: [e.ownerId],
-    });
-    return;
-  }
+  st.torpedoes.push({
+    id: `T${st.nextId++}`, kind: 'light', ownerId, pos: { ...pos }, depth: 10,
+    heading: w.rng.range(0, 360), speedKn: SPEC.light.speedKn, searchDepth: 120, enableAfter: 0,
+    mode: 'active', run: 0, maxRun: SPEC.light.maxRun, wire: false, launchedAt: w.time, alerted: [ownerId],
+  });
+}
+
+function resolvePending(w: World, e: DelayedEffect): void {
+  if (e.kind === 'rocket') return dropLightweight(w, e.ownerId, e.pos);
   for (const s of w.ships) {
     if (!s.alive) continue;
     const r3 = Math.hypot(distance(s.pos, e.pos), s.depth - e.depth);

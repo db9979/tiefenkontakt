@@ -79,7 +79,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
     slBase: 160, slRefKn: 10, slSlope: 40,
     targetStrength: 30,
     hull: { di: 0, baffleHalfAngle: 180, selfNoiseBase: 90, selfNoiseRefKn: 10 },
-    hp: 60,
+    hp: 110,
   },
 };
 

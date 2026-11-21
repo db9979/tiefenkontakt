@@ -1,7 +1,7 @@
 import type { ClientMsg, ServerMsg } from '@tk/shared';
 
 type Handler = (m: ServerMsg) => void;
-export type LinkState = 'connecting' | 'online' | 'reconnecting' | 'replaced';
+export type LinkState = 'connecting' | 'online' | 'reconnecting' | 'replaced' | 'banned';
 
 /** Per-tab guest identity: survives reloads, differs between tabs (so two tabs are two players). */
 function guestToken(): string {
@@ -53,6 +53,7 @@ export class Net {
     ws.onclose = (e) => {
       if (this.ws !== ws) return;
       if (e.code === 4000) return this.setState('replaced');
+      if (e.code === 4001) return this.setState('banned');
       this.setState('reconnecting');
       const delay = Math.min(10_000, 500 * 2 ** this.retries++);
       clearTimeout(this.timer);

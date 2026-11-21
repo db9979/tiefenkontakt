@@ -2,10 +2,7 @@ import {
   CLASSES,
   KN,
   SIM_DT,
-  bearing,
-  distance,
   isAtPeriscopeDepth,
-  scatterConvoy,
   shipById,
   stepWorld,
   transmit,
@@ -24,20 +21,23 @@ import {
   type Ship,
   type World,
 } from '@tk/shared';
-import { BotCrew, type BotState } from './bots.js';
+import { BotCrew, type BotState, type SavedCrew } from './bots/index.js';
 import { Recorder, type RecorderState } from './recorder.js';
 import { buildLesson, lessonResult } from './lessons.js';
 import { applyCommand, type GameCommand } from './input.js';
+import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
-import { DEFAULT_SETTINGS, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
+import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
 export interface Conn {
   playerId: string;
   callsign: string;
   send(msg: ServerMsg): void;
-  /** Close the transport (e.g. when the same player connects again elsewhere). */
-  close?(reason: string): void;
+  /** Close the transport (e.g. when the same player connects again elsewhere; 4001 = banned). */
+  close?(reason: string, code?: number): void;
+  /** Client address, for bans. */
+  ip?: string;
 }
 
 export const MAX_PER_TEAM = 6;
@@ -45,10 +45,6 @@ const SPECTATE_EVERY = 30; // ticks (3 s)
 /** Spectators see the truth this many sim seconds late, so it can't be relayed to a team. */
 export const SPECTATE_DELAY = 240;
 const SNAP_EVERY = 1; // ticks -> 10 Hz (clients also extrapolate between snapshots)
-const EXPLOSION_HEARING = 40_000;
-/** Hearing ranges of transients (U-Jagd: tube flooding ~8 NM, launch ~35 NM). */
-const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000 } as const;
-const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM' } as const;
 
 type Side = 'west' | 'east';
 type PlayableClass = Exclude<ClassId, 'merchant'>;
@@ -63,7 +59,7 @@ export interface SavedMatch {
   world: SavedWorld;
   eventCursor: number;
   tickCount: number;
-  bots: BotState[];
+  bots: SavedCrew | BotState[];
   recorder?: RecorderState;
   classes: [string, [string, ClassChoice][]][];
   extras: [string, Omit<PlayerExtras, 'reports'> & { reports: [string, FriendlyView][] }][];
@@ -77,6 +73,7 @@ export class Match {
   settings: ScenarioSettings = { ...DEFAULT_SETTINGS };
   world?: World;
   private conns = new Map<string, Conn>();
+  private radioLog: { from: string; playerId: string; text: string }[] = [];
   private extras = new Map<string, PlayerExtras>();
   private eventCursor = 0;
   private bots = new BotCrew();
@@ -128,12 +125,40 @@ export class Match {
     return this.conns.size;
   }
 
+  online(playerId: string): boolean {
+    return this.conns.has(playerId);
+  }
+
+  /** Who sent radio under this ship name most recently, with their last lines as evidence. */
+  senderOf(shipName: string): { playerId: string; evidence: string } | undefined {
+    const last = [...this.radioLog].reverse().find((r) => r.from === shipName);
+    if (!last) return undefined;
+    const lines = this.radioLog.filter((r) => r.playerId === last.playerId).slice(-10).map((r) => `${r.from}: ${r.text}`);
+    return { playerId: last.playerId, evidence: lines.join('\n') };
+  }
+
+  /** Moderator ends the match: everyone is told and returns to the lobby. */
+  abort(msg: string): void {
+    this.state = 'ended';
+    this.stop();
+    for (const c of this.conns.values()) c.send({ t: 'removed', msg });
+    this.conns.clear();
+  }
+
   /** Date.now() when the last player disconnected (paused since then). */
   emptySince = Date.now();
 
   /** A returning player gets their connection back; the match resumes. */
   reattach(conn: Conn): void {
     this.conns.set(conn.playerId, conn);
+    const x = this.extras.get(conn.playerId);
+    if (x) {
+      // Next snapshot is complete: full histories, evidence, recent alerts and radio
+      x.histSent = undefined;
+      x.evSent = undefined;
+      x.alertsSent = undefined;
+      x.radioSent = undefined;
+    }
     conn.send({ t: 'match', match: this.lobby() });
     if (this.finished) {
       conn.send({ t: 'end', ...this.finished.result });
@@ -162,7 +187,7 @@ export class Match {
     if (this.state !== 'lobby') return 'Partie läuft bereits';
     const existing = this.slots.find((s) => s.playerId === conn.playerId);
     if (!existing && this.slots.filter((s) => s.team === team).length >= MAX_PER_TEAM) return 'Team ist voll';
-    const cls: PlayableClass = team === 'west' ? 'ffg' : 'ssk';
+    const cls: PlayableClass = allowedClasses(this.settings.mission, team)[0]!;
     if (existing) Object.assign(existing, { team, cls, ready: false, crewOf: undefined });
     else this.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team, cls, ready: false });
     this.conns.set(conn.playerId, conn);
@@ -181,10 +206,14 @@ export class Match {
   }
 
   /** Lobby settings: anyone in the lobby may change them; everyone's ready flag resets. */
-  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'fillBots'>>): string | undefined {
+  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'fillBots' | 'botSkill' | 'weather' | 'custom' | 'merchants'>>): string | undefined {
     if (this.state !== 'lobby' || !this.slots.some((x) => x.playerId === playerId)) return 'Nur in der Lobby möglich';
     for (const [k, v] of Object.entries(s)) if (v !== undefined) (this.settings as unknown as Record<string, unknown>)[k] = v;
-    for (const x of this.slots) x.ready = false;
+    for (const x of this.slots) {
+      x.ready = false;
+      const allowed = allowedClasses(this.settings.mission, x.team);
+      if (!allowed.includes(x.cls)) x.cls = allowed[0]!;
+    }
     this.broadcastLobby();
     return undefined;
   }
@@ -244,8 +273,7 @@ export class Match {
   pickClass(playerId: string, cls: PlayableClass): string | undefined {
     const slot = this.slots.find((s) => s.playerId === playerId);
     if (!slot || this.state !== 'lobby') return 'Nicht in der Lobby';
-    const side = CLASSES[cls].team;
-    if (side !== slot.team) return 'Klasse passt nicht zum Team';
+    if (!allowedClasses(this.settings.mission, slot.team).includes(cls)) return 'Klasse passt nicht zum Team';
     slot.cls = cls;
     for (const s of this.slots) if (s.crewOf === playerId) s.cls = cls;
     this.broadcastLobby();
@@ -269,12 +297,13 @@ export class Match {
       out.push({ playerId: 'bot-e2', callsign: 'KI-Wolf-2', team: 'east', cls: 'ssn', ready: true, bot: true });
     }
     if (!this.slots.some((s) => s.team === 'west')) {
-      out.push({ playerId: 'bot-w1', callsign: 'KI-Geleit-1', team: 'west', cls: 'ffg', ready: true, bot: true });
+      out.push({ playerId: 'bot-w1', callsign: 'KI-Geleit-1', team: 'west', cls: this.settings.mission === 'duell' ? 'ssn' : 'ffg', ready: true, bot: true });
     }
     return out;
   }
 
   start(): void {
+    this.bots.setSkill(this.settings.botSkill ?? 'normal');
     if (this.settings.lesson) {
       const built = buildLesson(this.settings.lesson, this.slots[0]!, this.seed);
       this.world = built.world;
@@ -341,10 +370,16 @@ export class Match {
     if (!w || !ship?.alive) return 'Kein Funk möglich';
     if (CLASSES[ship.cls].submarine && !(ship.mastUp && isAtPeriscopeDepth(ship))) return 'Funkmast muss ausgefahren sein';
     transmit(w, ship, text);
+    this.radioLog.push({ from: ship.name, playerId, text });
+    if (this.radioLog.length > 200) this.radioLog.shift();
     for (const mate of this.slots.filter((s) => s.team === ship.team)) {
       const x = this.extras.get(mate.playerId);
       if (!x) continue;
       x.radio.push({ time: w.time, from: ship.name, text });
+      if (x.radio.length > 60) {
+        x.radio.shift();
+        x.radioDropped = (x.radioDropped ?? 0) + 1;
+      }
       if (this.shipOf(mate.playerId)?.id !== ship.id) {
         x.reports.set(ship.id, {
           id: ship.id, name: ship.name, cls: ship.cls, x: ship.pos.x, y: ship.pos.y, heading: ship.heading,
@@ -359,54 +394,17 @@ export class Match {
     const x = this.extras.get(playerId);
     if (x) {
       x.alerts.push(a);
-      if (x.alerts.length > 40) x.alerts.shift();
+      if (x.alerts.length > 40) {
+        x.alerts.shift();
+        x.alertsDropped = (x.alertsDropped ?? 0) + 1;
+      }
     }
   }
 
   private processEvents(w: World): void {
     const fresh = w.events.slice(this.eventCursor);
     this.eventCursor = w.events.length;
-    for (const e of fresh) {
-      if (e.kind === 'grounded') {
-        for (const slot of this.aboard(e.shipId)) this.alert(slot.playerId, { time: e.time, kind: 'sunk', text: 'AUF GRUND GELAUFEN · SCHÄDEN' });
-      } else if (e.kind === 'torpedo_alert') {
-        for (const slot of this.aboard(e.shipId)) {
-          this.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${e.bearing.toFixed(0).padStart(3, '0')}` });
-        }
-      } else if (e.kind === 'sunk') {
-        const victim = shipById(w, e.shipId);
-        if (!victim) continue;
-        if (victim.cls === 'merchant' && w.convoy) scatterConvoy(w.convoy, victim.pos, w.time);
-        for (const s of this.slots) {
-          const own = this.shipOf(s.playerId);
-          if (!own) continue;
-          if (own.id === victim.id) this.alert(s.playerId, { time: e.time, kind: 'sunk', text: 'SCHIFF SINKT' });
-          else if (distance(own.pos, victim.pos) < EXPLOSION_HEARING) {
-            const b = bearing(own.pos, victim.pos);
-            this.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, text: `EXPLOSION / SINKGERÄUSCHE PEILUNG ${b.toFixed(0).padStart(3, '0')}` });
-          }
-        }
-      }
-    }
-    for (const e of fresh) {
-      if (e.kind !== 'transient') continue;
-      for (const s of this.slots) {
-        const own = this.shipOf(s.playerId);
-        if (!own?.alive || own.id === e.sourceId) continue;
-        const reach = TRANSIENT_RANGE[e.what] * (1 - 0.05 * w.env.seaState) * (own.speed / KN > 15 ? 0.5 : 1);
-        if (distance(own.pos, e) > reach) continue;
-        const b = (bearing(own.pos, e) + w.rng.gauss(0, 2) + 360) % 360;
-        this.alert(s.playerId, { time: e.time, kind: 'transient', bearing: b, text: `${TRANSIENT_TEXT[e.what]} · PEILUNG ${b.toFixed(0).padStart(3, '0')}` });
-      }
-    }
-    for (const d of w.lastDetections) {
-      if (d.time !== w.time || (d.sensor !== 'intercept' && d.sensor !== 'esm')) continue;
-      const kind = d.sensor === 'intercept' ? 'ping' : 'esm';
-      const b = d.bearing.toFixed(0).padStart(3, '0');
-      for (const slot of this.aboard(d.observerId)) {
-        this.alert(slot.playerId, { time: d.time, kind, bearing: d.bearing, text: kind === 'ping' ? `AKTIVSONAR PEILUNG ${b}` : `ESM PEILUNG ${b}` });
-      }
-    }
+    alertsFor(w, fresh, { slots: this.slots, shipOf: (id) => this.shipOf(id), aboard: (id) => this.aboard(id), alert: (id, a) => this.alert(id, a) });
   }
 
   tick(): void {
@@ -429,7 +427,7 @@ export class Match {
     }
     if (this.spectators.size && this.tickCount % SPECTATE_EVERY === 0) for (const c of this.spectators.values()) this.sendSpectate(c);
     const limit = simTimeLimit(this.settings);
-    const result = this.settings.lesson ? lessonResult(w, this.settings.lesson, limit) : evaluate(w, limit);
+    const result = this.settings.lesson ? lessonResult(w, this.settings.lesson, limit) : evaluate(w, limit, this.settings.mission);
     this.tickCount++;
     if (this.tickCount % SNAP_EVERY === 0 || result) {
       const score = { ...computeScore(w), timeLeftS: Math.max(0, limit - w.time) };
@@ -438,7 +436,9 @@ export class Match {
         const x = this.extras.get(s.playerId);
         const c = this.conns.get(s.playerId);
         if (ship && x && c) {
+          const full = !x.histSent;
           const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)));
+          snap.full = full;
           snap.crew = this.aboard(ship.id).map((a) => a.callsign);
           snap.lesson = this.settings.lesson;
           snap.stations = this.aboard(ship.id).filter((a) => a.station !== undefined).map((a) => ({ callsign: a.callsign, station: a.station! }));

@@ -15,7 +15,21 @@ interface Summary { callsign: string; points: number; matches: number; wins: num
 
 /** Service record, campaign and leaderboard below the lobby. Accounts only for record and campaign. */
 export function careerPanels(): HTMLElement {
-  const el = h(`<div class="grid2" style="margin-top:10px"><div class="panel" id="c-me"></div><div class="panel" id="c-board"></div></div>`);
+  const el = h(`<div class="grid2" style="margin-top:10px"><div class="panel" id="c-me"></div><div style="display:flex;flex-direction:column;gap:10px"><div class="panel" id="c-board"></div><div class="panel" id="c-balance"></div></div></div>`);
+  const balance = el.querySelector<HTMLElement>('#c-balance')!;
+  const MISSION: Record<string, string> = { groenland: 'Grönland', schelf: 'Schelf', fjord: 'Fjord' };
+  const CLS: Record<string, string> = { ffg: 'Fregatte', ssk: 'Diesel-U-Boot', ssn: 'Atom-U-Boot' };
+  fetch('/api/balance').then(async (r) => {
+    const b = (await r.json()) as { total: number; missions: { key: string; games: number; westWins: number; eastWins: number; avgMin: number }[]; classes: { key: string; games: number; wins: number }[] };
+    const pct = (a: number, n: number) => (n ? Math.round((100 * a) / n) : 0);
+    balance.innerHTML = `<div class="hd"><span>Balance</span><span class="dim">${b.total} PARTIEN · ALLE SPIELER UND KI</span></div>` +
+      (b.total
+        ? b.missions.map((m) => {
+          const [mi, tod] = m.key.split('/');
+          return `<div class="row"><span>${esc(MISSION[mi!] ?? mi!)} · ${esc(tod ?? '')}</span><span>WEST ${pct(m.westWins, m.games)} % · OST ${pct(m.eastWins, m.games)} % · Ø ${m.avgMin} MIN</span></div>`;
+        }).join('') + b.classes.map((c) => `<div class="row dim"><span>${esc(CLS[c.key] ?? c.key)}</span><span>${c.games} PARTIEN · ${pct(c.wins, c.games)} % SIEGE</span></div>`).join('')
+        : '<div class="dim">NOCH KEINE PARTIEN</div>');
+  }).catch(() => undefined);
   const me = el.querySelector<HTMLElement>('#c-me')!;
   const board = el.querySelector<HTMLElement>('#c-board')!;
 

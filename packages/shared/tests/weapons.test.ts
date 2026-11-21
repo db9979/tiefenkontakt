@@ -21,10 +21,14 @@ function duel(merchantAt = { x: 0, y: 5000 }) {
 }
 
 describe('torpedoes', () => {
-  it('a heavyweight fired at a merchant homes in and sinks it', () => {
+  it('one heavyweight cripples a merchant, a second one sinks it', () => {
     const { w, sub, m } = duel();
     const t = fireTorpedo(w, sub, { heading: bearing(sub.pos, m.pos) + 5, enableAfter: 2500, searchDepth: 10 });
     expect(typeof t).not.toBe('string');
+    for (let i = 0; i < 6000 && m.hp >= 110; i++) stepWorld(w);
+    expect(m.hp).toBeLessThan(40);
+    expect(m.damage!.leck).toBeGreaterThan(0);
+    fireTorpedo(w, sub, { heading: bearing(sub.pos, m.pos), enableAfter: 1500, searchDepth: 10 });
     for (let i = 0; i < 6000 && m.alive; i++) stepWorld(w);
     expect(m.alive).toBe(false);
     expect(w.events.some((e) => e.kind === 'sunk' && e.shipId === 'm1' && e.byId === 'u1')).toBe(true);

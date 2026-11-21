@@ -17,6 +17,11 @@ function lastSnap(c: { inbox: ServerMsg[] }): Snapshot | undefined {
   return undefined;
 }
 
+/** Alerts and radio are deltas: collect them over all snapshots, like the client does. */
+function allOf(c: { inbox: ServerMsg[] }, key: 'alerts' | 'radio') {
+  return c.inbox.flatMap((m) => (m.t === 'snap' ? (m.s[key] as unknown[]) : [])) as Snapshot['alerts'] & Snapshot['radio'];
+}
+
 function setup() {
   const lobby = new Lobby();
   const west = fakeConn('w1');
@@ -76,7 +81,7 @@ describe('match lifecycle', () => {
     lobby.handle(east, { t: 'radio', text: 'Konvoi in Sicht' });
     for (let i = 0; i < 4; i++) m.tick();
     expect(lastSnap(west)!.contacts.some((c) => c.label.startsWith('E'))).toBe(true);
-    expect(lastSnap(east)!.radio.at(-1)?.text).toBe('Konvoi in Sicht');
+    expect((allOf(east, 'radio') as Snapshot['radio']).at(-1)?.text).toBe('Konvoi in Sicht');
   });
 
   it('a running match ends with a winner', () => {
@@ -176,7 +181,7 @@ describe('transient alerts and hidden layer', () => {
     lobby.handle(east, { t: 'fire', heading: 270, enableAfter: 3000, mode: 'passive', searchDepth: 20, speedKn: 40 });
     m.tick();
     m.tick();
-    expect(lastSnap(west)!.alerts.some((a) => a.kind === 'transient')).toBe(true);
+    expect((allOf(west, 'alerts') as Snapshot['alerts']).some((a) => a.kind === 'transient')).toBe(true);
     lobby.handle(west, { t: 'bt' });
     m.tick();
     m.tick();
@@ -358,5 +363,48 @@ describe('leaving on purpose', () => {
     expect(lobby.allMatches()).toContain(m);
     lobby.handle(east, { t: 'leave' });
     expect(lobby.allMatches()).not.toContain(m);
+  });
+});
+
+describe('new missions', () => {
+  it('duel: submarines on both sides, no convoy, ends when one side is gone', async () => {
+    const { buildScenario, DEFAULT_SETTINGS } = await import('../src/scenario.js');
+    const { evaluate } = await import('../src/rules.js');
+    const slots = [
+      { playerId: 'a', callsign: 'A', team: 'west' as const, cls: 'ssn' as const, ready: true },
+      { playerId: 'b', callsign: 'B', team: 'east' as const, cls: 'ssk' as const, ready: true },
+    ];
+    const w = buildScenario(slots, { ...DEFAULT_SETTINGS, mission: 'duell' }, 3);
+    expect(w.ships.some((s) => s.cls === 'merchant')).toBe(false);
+    expect(w.convoy).toBeUndefined();
+    expect(evaluate(w, 1e9, 'duell')).toBeUndefined();
+    w.ships.find((s) => s.id === 'p_b')!.alive = false;
+    expect(evaluate(w, 1e9, 'duell')?.winner).toBe('west');
+  });
+
+  it('harbor: merchants at anchor; custom mission uses its own convoy speed and seabed', async () => {
+    const { buildScenario, DEFAULT_SETTINGS } = await import('../src/scenario.js');
+    const slots = [{ playerId: 'a', callsign: 'A', team: 'west' as const, cls: 'ffg' as const, ready: true }];
+    const harbor = buildScenario(slots, { ...DEFAULT_SETTINGS, mission: 'hafen' }, 3);
+    expect(harbor.ships.filter((s) => s.cls === 'merchant').every((s) => s.order.speedKn === 0)).toBe(true);
+    const own = buildScenario(slots, { ...DEFAULT_SETTINGS, mission: 'eigene', merchants: 4, custom: { convoyKn: 12, seabed: 'schelf', subFrac: 0.3 } }, 3);
+    expect(own.ships.filter((s) => s.cls === 'merchant')).toHaveLength(4);
+    expect(own.convoy?.baseSpeedKn).toBe(12);
+    expect(own.env.seabed?.kind).toBe('schelf');
+  });
+
+  it('in the duel the west side may pick submarines, otherwise not', () => {
+    const lobby = new Lobby();
+    const a = fakeConn('w1');
+    lobby.connect(a);
+    lobby.resume(a);
+    lobby.handle(a, { t: 'create_match', name: 'Duell' });
+    const m = lobby.matchOf('w1')!;
+    lobby.handle(a, { t: 'pick_class', cls: 'ssn' });
+    expect(m.slots[0]!.cls).toBe('ffg');
+    lobby.handle(a, { t: 'settings', mission: 'duell' });
+    expect(m.slots[0]!.cls).toBe('ssn');
+    lobby.handle(a, { t: 'pick_class', cls: 'ssk' });
+    expect(m.slots[0]!.cls).toBe('ssk');
   });
 });

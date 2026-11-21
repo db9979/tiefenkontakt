@@ -17,4 +17,7 @@ ENV NODE_ENV=production \
 VOLUME /data
 EXPOSE 8787
 WORKDIR /app/apps/server
-CMD ["npx", "tsx", "src/index.ts"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s \
+  CMD node -e "fetch('http://localhost:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Node itself is PID 1 so SIGTERM (docker stop) reaches the server, which saves running matches
+CMD ["node", "--import", "tsx", "src/index.ts"]

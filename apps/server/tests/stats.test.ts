@@ -22,6 +22,8 @@ describe('statistics and campaign', () => {
     const b = await auth.register({ callsign: 'Bravo', email: 'b@x.de', password: 'passwort1', faction: 'west' });
     if (!('user' in a) || !('user' in b)) throw new Error('register');
     const st = new StatsStore(auth.db);
+    auth.markVerified(a.user.id);
+    auth.markVerified(b.user.id);
     st.record(debrief(`u-${a.user.id}`, `u-${b.user.id}`), 'groenland', 'tag');
     const board = st.leaderboard();
     expect(board.map((r) => r.callsign)).toEqual(['Alpha', 'Bravo']);
@@ -32,5 +34,26 @@ describe('statistics and campaign', () => {
     expect(camp.find((s) => s.id === 'l1')?.unlocked).toBe(true);
     expect(camp.find((s) => s.id === 'm2')?.unlocked).toBe(true);
     expect(camp.find((s) => s.id === 'm3')?.unlocked).toBe(false);
+  });
+});
+
+describe('balance statistics', () => {
+  it('aggregates win rates per mission and class over all matches (guests and bots too)', () => {
+    const auth = new AuthStore(':memory:');
+    const st = new StatsStore(auth.db);
+    const d = (winner: 'west' | 'east'): Debrief => ({
+      ships: [{ id: 'p_a', name: 'A', cls: 'ffg', team: 'west', player: true }, { id: 'p_b', name: 'B', cls: 'ssk', team: 'east', player: true }],
+      frames: [], torpedoes: [], events: [], winner, reason: 'x', duration: 3600,
+      stats: [{ playerId: 'g-1', callsign: 'A', team: 'west', cls: 'ffg', survived: true, shots: 0, rockets: 0, buoys: 0, kills: 0, tonnageSunk: 0, distanceNm: 1, won: winner === 'west' },
+        { playerId: 'bot-e1', callsign: 'B', team: 'east', cls: 'ssk', survived: true, shots: 0, rockets: 0, buoys: 0, kills: 0, tonnageSunk: 0, distanceNm: 1, won: winner === 'east' }],
+    });
+    st.record(d('west'), 'groenland', 'tag');
+    st.record(d('east'), 'groenland', 'tag');
+    st.record(d('east'), 'fjord', 'nacht');
+    const b = st.balance();
+    expect(b.total).toBe(3);
+    expect(b.missions.find((m) => m.key === 'groenland/tag')).toMatchObject({ games: 2, westWins: 1, eastWins: 1, avgMin: 60 });
+    expect(b.classes.find((c) => c.key === 'ssk')).toMatchObject({ games: 3, wins: 2 });
+    expect(st.leaderboard()).toEqual([]);
   });
 });

@@ -1,10 +1,11 @@
-import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 
 const scryptAsync = promisify(scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 const SESSION_DAYS = 30;
+const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
 export const registerSchema = z.object({
   callsign: z.string().regex(/^[A-Za-z0-9_-]{3,16}$/, '3–16 Zeichen, nur Buchstaben, Ziffern, - und _'),
@@ -45,6 +46,8 @@ export class AuthStore {
 
   constructor(path = process.env.DB_PATH ?? 'tiefenkontakt.db') {
     this.db = new DatabaseSync(path);
+    // A restarting server may still hold the file for a moment
+    this.db.exec('PRAGMA busy_timeout = 3000');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,11 +57,84 @@ export class AuthStore {
         faction TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS tokens (
+        hash TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        kind TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS sessions (
         token TEXT PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id),
         expires_at INTEGER NOT NULL
       );`);
+    this.migrate();
+  }
+
+  private migrate(): void {
+    const cols = (this.db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
+    if (!cols.includes('verified')) this.db.exec('ALTER TABLE users ADD COLUMN verified INTEGER NOT NULL DEFAULT 0');
+  }
+
+  /** One-time token (password reset, e-mail verification); only its hash is stored. */
+  createToken(userId: number, kind: 'reset' | 'verify', ttlMs: number): string {
+    const raw = randomBytes(32).toString('base64url');
+    this.db.prepare('DELETE FROM tokens WHERE user_id = ? AND kind = ?').run(userId, kind);
+    this.db.prepare('INSERT INTO tokens (hash, user_id, kind, expires_at) VALUES (?, ?, ?, ?)').run(sha(raw), userId, kind, Date.now() + ttlMs);
+    return raw;
+  }
+
+  consumeToken(raw: unknown, kind: 'reset' | 'verify'): number | undefined {
+    if (typeof raw !== 'string' || raw.length > 100) return undefined;
+    const row = this.db.prepare('SELECT user_id FROM tokens WHERE hash = ? AND kind = ? AND expires_at > ?').get(sha(raw), kind, Date.now()) as { user_id: number } | undefined;
+    if (!row) return undefined;
+    this.db.prepare('DELETE FROM tokens WHERE hash = ?').run(sha(raw));
+    return row.user_id;
+  }
+
+  findByEmail(email: unknown): User | undefined {
+    if (typeof email !== 'string') return undefined;
+    const row = this.db.prepare('SELECT id, callsign, email, faction FROM users WHERE email = ?').get(email.trim().toLowerCase()) as User | undefined;
+    return row ? { ...row } : undefined;
+  }
+
+  isVerified(userId: number): boolean {
+    return !!(this.db.prepare('SELECT verified FROM users WHERE id = ?').get(userId) as { verified: number } | undefined)?.verified;
+  }
+
+  markVerified(userId: number): void {
+    this.db.prepare('UPDATE users SET verified = 1 WHERE id = ?').run(userId);
+  }
+
+  /** New password; all sessions end (the reset link may have been the only way in). */
+  async setPassword(userId: number, password: unknown): Promise<string | undefined> {
+    const r = registerSchema.shape.password.safeParse(password);
+    if (!r.success) return r.error.issues[0]?.message ?? 'Ungültiges Passwort';
+    this.db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(await hashPassword(r.data), userId);
+    this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+    return undefined;
+  }
+
+  async checkPassword(userId: number, password: unknown): Promise<boolean> {
+    if (typeof password !== 'string') return false;
+    const row = this.db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId) as { password_hash: string } | undefined;
+    return !!row && (await verifyPassword(password, row.password_hash));
+  }
+
+  /** Delete an account with everything that belongs to it. */
+  deleteUser(userId: number): void {
+    for (const table of ['sessions', 'tokens', 'results', 'campaign']) {
+      try {
+        this.db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(userId);
+      } catch {
+        /* table may not exist (stats not initialised) */
+      }
+    }
+    this.db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  }
+
+  newSession(userId: number): string {
+    return this.createSession(userId);
   }
 
   async register(input: unknown): Promise<{ user: User; token: string } | { error: string }> {

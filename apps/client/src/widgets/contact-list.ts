@@ -1,5 +1,6 @@
 import { CHOICE_LABEL, CLASS_LABEL, deg1, esc, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
+import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
 
 const SENSOR_LABEL: Record<string, string> = {
@@ -20,7 +21,8 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
       const cls = c.label === store.selected ? 'amber selrow' : own || age > 30 ? 'dim' : '';
-      let range = c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 ? km(c.range) : sol ? '≈ LSG' : '—';
+      const fr = fixRange(c, s);
+      let range = fr !== undefined ? km(fr) : sol ? '≈ LSG' : '—';
       if (c.dopplerKn !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 && Math.abs(c.dopplerKn) >= 1) {
         range += c.dopplerKn > 0 ? ` ↓${c.dopplerKn.toFixed(0)}` : ` ↑${(-c.dopplerKn).toFixed(0)}`;
       }

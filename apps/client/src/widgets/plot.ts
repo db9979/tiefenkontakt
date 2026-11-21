@@ -2,7 +2,9 @@ import { KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, 
 import { store } from '../store.js';
 import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
+import { lastFix } from './contact-pos.js';
 import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
+import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 
 export interface PlotOptions {
@@ -45,14 +47,15 @@ export class Plot {
     this.el.appendChild(tools);
 
     canvas.style.cursor = 'crosshair';
+    touchable(canvas);
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       this.scale = Math.min(600, Math.max(5, this.scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
     }, { passive: false });
-    canvas.addEventListener('mousedown', (e) => this.down(e));
-    window.addEventListener('mouseup', (e) => this.up(e));
-    canvas.addEventListener('mousemove', (e) => this.move(e));
-    canvas.addEventListener('mouseleave', () => (this.mouse = undefined));
+    canvas.addEventListener('pointerdown', (e) => this.down(e));
+    window.addEventListener('pointerup', (e) => this.up(e));
+    canvas.addEventListener('pointermove', (e) => this.move(e));
+    canvas.addEventListener('pointerleave', () => (this.mouse = undefined));
     canvas.addEventListener('contextmenu', (e) => this.context(e));
     canvas.addEventListener('dblclick', () => (this.pan = { x: 0, y: 0 }));
   }
@@ -103,11 +106,8 @@ export class Plot {
       const pts: Vec2[] = [];
       const sol = store.solutions.get(c.label);
       if (sol) pts.push(this.toScreen(targetPosAt(sol, simNow())));
-      if (c.range !== undefined && c.rangeAt !== undefined) {
-        const o = ownPosAt(store.ownTrack, c.rangeAt) ?? s.own;
-        const v = headingVec(c.bearing);
-        pts.push(this.toScreen({ x: o.x + v.x * c.range, y: o.y + v.y * c.range }));
-      }
+      const fix = lastFix(c, s);
+      if (fix) pts.push(this.toScreen(fix.pos));
       for (const p of pts) {
         const d = Math.hypot(p.x - m.x, p.y - m.y);
         if (d < bd) [best, bd] = [c.label, d];
@@ -247,8 +247,13 @@ export class Plot {
       const p = P(hp);
       ctx.strokeStyle = COL.blue;
       ctx.beginPath(); ctx.moveTo(p.x - 6, p.y); ctx.lineTo(p.x + 6, p.y); ctx.moveTo(p.x, p.y - 6); ctx.lineTo(p.x, p.y + 6); ctx.stroke();
+      if (hp.hovering) {
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 12_000 / this.scale, 0, 7); ctx.stroke();
+        ctx.setLineDash([]);
+      }
       ctx.fillStyle = COL.blue;
-      ctx.fillText('HUBSCHR.', p.x + 8, p.y - 4);
+      ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y - 4);
     }
     this.drawContacts(ctx, s, P, w, height);
     this.drawFriendlies(ctx, s, P);
@@ -387,10 +392,9 @@ export class Plot {
         const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
         ctx.fillText(c.label, lp.x + 4, lp.y - 4);
       }
-      if (c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90) {
-        const origin = ownPosAt(store.ownTrack, c.rangeAt) ?? s.own;
-        const v = headingVec(c.bearing);
-        const p = P({ x: origin.x + v.x * c.range, y: origin.y + v.y * c.range });
+      const fix = lastFix(c, s);
+      if (fix) {
+        const p = P(fix.pos);
         ctx.strokeRect(p.x - 4, p.y - 4, 8, 8);
         ctx.fillText(c.label, p.x + 7, p.y - 6);
       }

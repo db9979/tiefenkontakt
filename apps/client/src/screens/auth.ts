@@ -1,17 +1,13 @@
 import { esc, h } from '../widgets/format.js';
+import { post, toast } from './account.js';
 
 type Mode = 'register' | 'login' | 'guest';
-
-async function post(url: string, body: unknown): Promise<{ ok: boolean; data: { error?: string; callsign?: string } }> {
-  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  return { ok: r.ok, data: await r.json().catch(() => ({ error: 'Serverfehler' })) };
-}
 
 /** Registration / login / guest entry. Calls `onEnter` with a guest callsign or '' for an account. */
 export function authScreen(root: HTMLElement, onEnter: (guestCallsign: string) => void): void {
   let mode: Mode = 'register';
   let faction: 'west' | 'east' = 'west';
-  const el = h(`<div class="center" style="display:grid;grid-template-columns:1fr 1.2fr;gap:24px;align-items:start"></div>`);
+  const el = h(`<div class="center authgrid"></div>`);
   root.replaceChildren(el);
 
   fetch('/api/me').then((r) => (r.ok ? r.json() : undefined)).then((me) => {
@@ -48,8 +44,16 @@ export function authScreen(root: HTMLElement, onEnter: (guestCallsign: string) =
           <button data-f="east" class="${faction === 'east' ? 'on' : ''}" style="text-align:left;text-transform:none"><div class="team-e">OSTPAKT</div><div class="dim">U-Boote, Wolfsrudel</div></button>
         </div><div class="dim" style="margin-top:4px">Du kannst vor jeder Partie wechseln.</div></div>` : ''}
         <button id="go" class="on" style="width:100%;margin-top:6px">${mode === 'register' ? 'Konto erstellen' : mode === 'login' ? 'Anmelden' : 'Als Gast spielen'}</button>
+        ${mode === 'login' ? '<button id="forgot" class="link" style="margin-top:6px">Passwort vergessen?</button>' : ''}
         <div class="err">${esc(error)}</div>
       </div>`;
+    const forgot = el.querySelector<HTMLButtonElement>('#forgot');
+    if (forgot) forgot.onclick = async () => {
+      const em = val('em');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return fieldErr('em', 'E-Mail eingeben, dann „Passwort vergessen?“');
+      await post('/api/password/forgot', { email: em });
+      toast('WENN DAS KONTO EXISTIERT, KOMMT GLEICH EINE MAIL MIT LINK');
+    };
     el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => (b.onclick = () => { mode = b.dataset.mode as Mode; render(); }));
     el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) => (b.onclick = () => {
       faction = b.dataset.f as 'west' | 'east';
@@ -86,6 +90,7 @@ export function authScreen(root: HTMLElement, onEnter: (guestCallsign: string) =
       ? await post('/api/register', { callsign: cs, email: em, password: pw, faction })
       : await post('/api/login', { email: em, password: pw });
     if (!r.ok) return render(r.data.error ?? 'Fehler');
+    if (mode === 'register') toast('BESTÄTIGUNGSLINK AN DEINE E-MAIL GESENDET');
     onEnter('');
   }
 

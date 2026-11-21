@@ -4,6 +4,7 @@ import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, dbSum } from './math.js';
 import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
+import { RAIN_NOISE_DB, type WeatherState } from './weather.js';
 
 export interface Environment {
   layerDepth: number; // m, thermocline; 0 = no layer
@@ -13,6 +14,9 @@ export interface Environment {
   seabed?: SeabedSpec;
   /** Daylight 0..1 (night reduces visual ranges). */
   light?: number;
+  /** Rain squall: louder ambient noise, poorer visibility. */
+  rain?: boolean;
+  weather?: WeatherState;
 }
 
 export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaState: 3 };
@@ -46,6 +50,8 @@ export function sourceLevel(s: Ship): number {
   let sl = spec.slBase + spec.slSlope * Math.log10(kn / spec.slRefKn);
   if (isCavitating(s)) sl += CAVITATION_DB;
   if (isSnorkeling(s)) sl += SNORKEL_DB;
+  // Ships at anchor still run generators and pumps
+  if (s.cls === 'merchant') sl = Math.max(sl, 132);
   return sl;
 }
 
@@ -77,7 +83,7 @@ export function transmissionLoss(
 }
 
 export function ambientNoise(env: Environment): number {
-  return 60 + 3 * env.seaState;
+  return 60 + 3 * env.seaState + (env.rain ? RAIN_NOISE_DB : 0);
 }
 
 /** Self noise of the hull array of a receiver at its current speed. */

@@ -16,6 +16,8 @@ import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
 import { debriefOverlay } from './debrief.js';
 import { helpOverlay } from './help.js';
+import { radioLog } from '../widgets/radio-log.js';
+import { isKey, stationKey } from '../widgets/keys.js';
 import { mountHelm } from './helm.js';
 
 export interface Station {
@@ -59,6 +61,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   </div>`);
   root.replaceChildren(el);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
+  const showRadio = radioLog(q('#radio'));
 
   let stations: Station[] = [];
   let current = 0;
@@ -187,7 +190,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
 
   function renderSide(): void {
     const s = store.snap!;
-    q('#clock').textContent = `${clock(s.time)} · REST ${clock(s.score.timeLeftS)}`;
+    const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
+    const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}`;
+    q('#clock').textContent = `${hh}${wx} · REST ${clock(s.score.timeLeftS)}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#score').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''} · VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} %`;
     q('#alerts').innerHTML = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
@@ -197,7 +202,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         const text = a.kind === 'torpedo' && store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}` : a.text;
         return `<div class="${color} ${fresh && a.kind === 'torpedo' ? 'blink' : ''}">${clock(a.time)} ${esc(text)}</div>`;
       }).join('');
-    q('#radio').innerHTML = s.radio.map((r) => `<div><span class="dim">${clock(r.time)}</span> ${esc(r.from)}: ${esc(r.text)}</div>`).join('');
+    showRadio(s.radio, s.own.name);
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (s.own.mastUp ? '<span class="amber">MAST OBEN · PEILBAR</span>' : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();
@@ -244,10 +249,10 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
 
   const onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
-    const n = Number(e.key);
-    if (n >= 1 && n <= stations.length) return show(n - 1);
-    if (e.key === 'h' || e.key === 'H' || e.key === '?') return helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true);
-    if (e.key === 'm' || e.key === 'M') {
+    const n = stationKey(e);
+    if (n >= 0 && n < stations.length) return show(n);
+    if (isKey(e, 'help') || e.key === '?') return helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true);
+    if (isKey(e, 'mute')) {
       audio.setMuted(!audio.muted);
       return renderMute();
     }

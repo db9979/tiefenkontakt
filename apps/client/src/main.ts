@@ -1,16 +1,20 @@
 import './style.css';
+import { initI18n } from './i18n/index.js';
 import type { ServerMsg } from '@tk/shared';
 import { net, type LinkState } from './net.js';
+import { handleMailLink, toast } from './screens/account.js';
 import { authScreen } from './screens/auth.js';
 import { debriefOverlay } from './screens/debrief.js';
 import { gameScreen } from './screens/game.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { store } from './store.js';
 
+initI18n();
 const root = document.getElementById('app')!;
 let cleanup: (() => void) | undefined;
 let screen: 'auth' | 'lobby' | 'game' = 'auth';
 let me: { playerId: string; callsign: string } | undefined;
+let removedMsg = '';
 let watching: { update(d: import('@tk/shared').Debrief): void } | undefined;
 
 function go(name: typeof screen, open: () => (() => void) | void): void {
@@ -42,6 +46,10 @@ net.on((m: ServerMsg) => {
         net.send({ t: 'leave' });
       }, true);
     } else watching.update(m.d);
+  } else if (m.t === 'removed') {
+    removedMsg = m.msg;
+    toast(m.msg.toUpperCase());
+    if (screen === 'game') toLobby();
   } else if (m.t === 'debrief' && screen !== 'game') {
     // Reconnected after the end: go straight to the debrief
     debriefOverlay(m.d, () => {
@@ -55,7 +63,9 @@ const banner = document.createElement('div');
 banner.className = 'linkbanner';
 net.onState = (s: LinkState) => {
   if (s === 'online') return banner.remove();
-  banner.textContent = s === 'replaced'
+  banner.textContent = s === 'banned'
+    ? `GESPERRT · ${removedMsg}`
+    : s === 'replaced'
     ? 'SPIEL IN EINEM ANDEREN FENSTER GEÖFFNET'
     : 'VERBINDUNG UNTERBROCHEN · VERBINDE NEU … DEIN SCHIFF WARTET (PARTIE PAUSIERT, WENN NIEMAND VERBUNDEN IST)';
   if (!banner.isConnected) document.body.appendChild(banner);
@@ -63,5 +73,9 @@ net.onState = (s: LinkState) => {
 
 // A reloaded tab of a guest reconnects directly with its stored callsign
 const savedGuest = sessionStorage.getItem('tk_guest');
-if (savedGuest) net.connect(savedGuest);
-else go('auth', () => authScreen(root, (callsign) => net.connect(callsign)));
+const toAuth = () => go('auth', () => authScreen(root, (callsign) => net.connect(callsign)));
+// A mail link opened in an already open tab only changes the hash
+window.addEventListener('hashchange', () => /^#(verify|reset)=/.test(location.hash) && location.reload());
+if (handleMailLink(root, () => net.connect(''))) screen = 'auth';
+else if (savedGuest) net.connect(savedGuest);
+else toAuth();

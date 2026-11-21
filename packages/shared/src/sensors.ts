@@ -198,7 +198,7 @@ export function horizonRange(eyeHeight: number, targetHeight: number): number {
 function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   // Night cuts visual range sharply (darkened ships, no moon assumed)
   const light = ctx.env.light ?? 1;
-  const vis = (1 - ctx.env.seaState * 0.08) * (0.3 + 0.7 * light);
+  const vis = (1 - ctx.env.seaState * 0.08) * (0.3 + 0.7 * light) * (ctx.env.rain ? 0.5 : 1);
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive || CLASSES[tgt.cls].submarine) continue;
     const range = distance(obs.pos, tgt.pos);
