@@ -1,0 +1,13 @@
+{
+  "name": "@tk/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": { "@tk/shared": "*" },
+  "devDependencies": { "vite": "^6.0.0" }
+}

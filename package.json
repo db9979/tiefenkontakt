@@ -1,0 +1,19 @@
+{
+  "name": "tiefenkontakt",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:server": "npm -w @tk/server run dev",
+    "dev:client": "npm -w @tk/client run dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit && npm -w @tk/client run typecheck",
+    "build": "npm run typecheck && npm -w @tk/client run build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

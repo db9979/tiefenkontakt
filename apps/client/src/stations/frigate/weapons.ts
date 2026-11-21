@@ -1,0 +1,83 @@
+import { bearing, distance, targetPosAt } from '@tk/shared';
+import { net } from '../../net.js';
+import { store } from '../../store.js';
+import type { Station } from '../../screens/game.js';
+import { renderContactList } from '../../widgets/contact-list.js';
+import { deg1, h, km } from '../../widgets/format.js';
+
+/** Best current aim point for the selected contact: fresh range, else TMA solution. */
+function aim(): { bearing: number; range: number; source: string } | undefined {
+  const s = store.snap;
+  const c = store.selectedContact();
+  if (!s || !c) return undefined;
+  if (c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 45) {
+    return { bearing: c.bearing, range: c.range, source: 'ORTUNG' };
+  }
+  const sol = store.solutions.get(c.label);
+  if (sol) {
+    const p = targetPosAt(sol, s.time + 40);
+    return { bearing: bearing(s.own, p), range: distance(s.own, p), source: 'TMA-LÖSUNG' };
+  }
+  return undefined;
+}
+
+export function weaponsStation(): Station {
+  const el = h(`<div class="cols">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="panel"><div class="hd"><span>Waffenleitstand · Ziel</span><span id="src" class="dim"></span></div><div id="target"></div></div>
+      <div class="panel"><div class="hd"><span>U-Jagd-Rakete</span><span id="rk"></span></div>
+        <div class="dim">TRÄGT EINEN LEICHTGEWICHTSTORPEDO BIS 18 KM, FLUGZEIT CA. 40 S. DER TORPEDO SUCHT AKTIV IM KREIS.</div>
+        <div style="display:flex;gap:4px;margin-top:6px"><button id="rocket" class="fire" style="flex:1">Rakete auf Ziel</button></div>
+      </div>
+      <div class="panel"><div class="hd"><span>Torpedorohre</span><span id="tb"></span></div>
+        <div class="row"><span class="dim">SUCHTIEFE</span><span><input id="tdep" type="number" value="100" step="10" style="width:80px"> M</span></div>
+        <button id="tube" class="fire" style="width:100%;margin-top:6px">Torpedo auf Zielpeilung</button>
+      </div>
+      <div class="panel"><div class="hd"><span>Wasserbomben</span><span id="dcn"></span></div>
+        <div style="display:flex;gap:4px">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}">${d} m</button>`).join('')}</div>
+      </div>
+      <div class="panel"><div class="hd"><span>Torpedoabwehr</span></div>
+        <button id="decoy" class="warn">Täuschkörper-Schleppe</button>
+      </div>
+    </div>
+    <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
+  </div>`);
+  const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
+  q<HTMLButtonElement>('#rocket').onclick = () => {
+    const a = aim();
+    if (a) net.send({ t: 'rocket', bearing: a.bearing, range: Math.min(20_000, Math.max(1000, a.range)) });
+  };
+  q<HTMLButtonElement>('#tube').onclick = () => {
+    const a = aim();
+    const c = store.selectedContact();
+    const b = a?.bearing ?? c?.bearing;
+    if (b === undefined) return;
+    net.send({ t: 'fire', heading: b, enableAfter: 500, mode: 'active', searchDepth: Number(q<HTMLInputElement>('#tdep').value) || 100, speedKn: 45 });
+  };
+  el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => (b.onclick = () => net.send({ t: 'dc', depth: Number(b.dataset.dc) })));
+  q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
+  q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
+
+  return {
+    title: 'Waffen',
+    el,
+    snap() {
+      const s = store.snap!;
+      const l = s.own.loadout;
+      const c = store.selectedContact();
+      const a = aim();
+      q('#src').textContent = a ? a.source : c ? 'NUR PEILUNG' : '';
+      q('#target').innerHTML = c
+        ? `<div class="row"><span class="dim">KONTAKT</span><span class="amber">${c.label}</span></div>
+           <div class="row"><span class="dim">PEILUNG</span><span>${deg1(a?.bearing ?? c.bearing)}°</span></div>
+           <div class="row"><span class="dim">ENTFERNUNG</span><span>${a ? km(a.range) : 'UNBEKANNT · PINGEN ODER TMA'}</span></div>`
+        : '<div class="dim">KONTAKT IN DER LISTE WÄHLEN</div>';
+      q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
+      q('#tb').textContent = l.tubes.map((t, i) => `R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}`).join(' ') + ` · VORRAT ${l.light}`;
+      q('#dcn').textContent = `${l.depthCharges} VERFÜGBAR`;
+      q('#decoy').classList.toggle('on', l.towedDecoy);
+      renderContactList(q('#list'));
+    },
+    frame() {},
+  };
+}
