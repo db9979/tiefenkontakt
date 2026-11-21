@@ -10,6 +10,8 @@ export const store = {
   selected: undefined as string | undefined,
   /** Operator line marks per contact label (LOFAR fundamental, DEMON shaft/blade). */
   marks: new Map<string, Marks>(),
+  /** Player's choice of towed-array side for unresolved contacts. */
+  tasSide: new Map<string, 'stb' | 'port'>(),
   realism: (localStorage.getItem('tk_realism') as Realism | null) ?? 'einsteiger',
   lastError: '',
   ended: undefined as { winner: string; reason: string } | undefined,
@@ -29,6 +31,7 @@ export const store = {
     this.ownTrack = [];
     this.solutions.clear();
     this.marks.clear();
+    this.tasSide.clear();
     this.selected = undefined;
     this.ended = undefined;
   },

@@ -32,6 +32,18 @@ export function helpOverlay(submarine: boolean): void {
       <tr><td>Torpedo</td><td>Laut, keine Töne, sehr hohe Drehzahl, schnell wandernde Peilung.</td></tr>
       <tr><td>Stufe</td><td>„Einsteiger“ (oben rechts) beschriftet Linien und bietet Auto-Marken und Auto-TMA. „Profi“ nicht.</td></tr>
     </table>
+    <h3>WEITERE WERKZEUGE</h3>
+    <table>
+      <tr><td>TMA-Methoden</td><td>Hypothese (Residuen), Ekelund (Entfernung aus zwei Schlägen mit mind. 30° Kurswechsel) und Dot-Stack (Residuen bei 0,6/1,0/1,6-facher Entfernung: die ruhige Zeile stimmt). Lösungen veralten nach 120 s.</td></tr>
+      <tr><td>Schleppsonar</td><td>Peilt links/rechts mehrdeutig. Seite wählen oder 20° wenden; hört das Rumpfsonar den Kontakt, löst es die Seite auf. Weicht es ab: möglicher Geist.</td></tr>
+      <tr><td>Aktivsonar</td><td>CW misst die Annäherung (Doppler, ↓ = kommt näher), LFM misst genau und findet auch langsame Ziele.</td></tr>
+      <tr><td>Sprungschicht</td><td>Unbekannt, bis gemessen: die Fregatte wirft einen BT, das U-Boot merkt sie beim Durchtauchen.</td></tr>
+      <tr><td>Transienten</td><td>Rohrfluten und Abschuss sind weit hörbar und warnen vor einem Schuss.</td></tr>
+      <tr><td>Hubschrauber</td><td>Rechtsklick auf die Karte (Fregatte): Sonarboje flach oder tief abwerfen. Bojen peilen von ihrer Position aus.</td></tr>
+      <tr><td>Schäden</td><td>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Klick in der Schadensabwehr legt die Reparatur-Priorität fest.</td></tr>
+      <tr><td>Besatzung</td><td>In der Lobby bei einem Teamkameraden „Mitfahren“: ihr bedient gemeinsam ein Schiff.</td></tr>
+      <tr><td>KI</td><td>Ein Team ohne Spieler wird von der KI übernommen; du kannst also allein spielen.</td></tr>
+    </table>
     <h3>TASTATUR</h3>
     <table>
       <tr><td>1 – 4</td><td>Station wechseln</td></tr>

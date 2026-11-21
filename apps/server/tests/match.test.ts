@@ -129,3 +129,63 @@ describe('manual classification', () => {
     expect(east.inbox.some((x) => x.t === 'error' && x.msg === 'Kontakt nicht gefunden')).toBe(true);
   });
 });
+
+describe('transient alerts and hidden layer', () => {
+  it('the escort hears a launch transient; the layer stays unknown until measured', () => {
+    const { lobby, m, west, east } = setup();
+    m.tick();
+    m.tick();
+    expect(lastSnap(west)!.env.layerDepth).toBeUndefined();
+    const sub = m.shipOf('e1')!;
+    const ffg = m.shipOf('w1')!;
+    sub.pos = { x: ffg.pos.x + 8000, y: ffg.pos.y };
+    lobby.handle(east, { t: 'fire', heading: 270, enableAfter: 3000, mode: 'passive', searchDepth: 20, speedKn: 40 });
+    m.tick();
+    m.tick();
+    expect(lastSnap(west)!.alerts.some((a) => a.kind === 'transient')).toBe(true);
+    lobby.handle(west, { t: 'bt' });
+    m.tick();
+    m.tick();
+    expect(lastSnap(west)!.env.layerDepth).toBeGreaterThan(50);
+  });
+});
+
+describe('AI captains', () => {
+  it('fill an empty team and go on the attack', () => {
+    const lobby = new Lobby();
+    const solo = fakeConn('w1');
+    lobby.connect(solo);
+    lobby.handle(solo, { t: 'create_match', name: 'Solo' });
+    const m = lobby.matchOf('w1')!;
+    lobby.handle(solo, { t: 'ready', ready: true });
+    m.stop();
+    expect(m.slots.filter((s) => s.bot).map((s) => s.cls).sort()).toEqual(['ssk', 'ssn']);
+    for (let i = 0; i < 6000 && !m.world!.events.some((e) => e.kind === 'transient'); i++) m.tick();
+    expect(m.world!.events.some((e) => e.kind === 'transient' && e.sourceId.startsWith('p_bot'))).toBe(true);
+    const text = solo.inbox.filter((x) => x.t === 'snap').map((x) => JSON.stringify(x)).join('');
+    expect(text).not.toContain('p_bot');
+  });
+});
+
+describe('crew on one ship', () => {
+  it('a crew member shares the captain ship, sees the same picture and can steer it', () => {
+    const lobby = new Lobby();
+    const cap = fakeConn('w1');
+    const mate = fakeConn('w2');
+    const sub = fakeConn('e1');
+    for (const c of [cap, mate, sub]) lobby.connect(c);
+    lobby.handle(cap, { t: 'create_match', name: 'Crew' });
+    const m = lobby.matchOf('w1')!;
+    lobby.handle(mate, { t: 'join', matchId: m.id, team: 'west' });
+    lobby.handle(sub, { t: 'join', matchId: m.id, team: 'east' });
+    lobby.handle(mate, { t: 'crew', captainId: 'w1' });
+    for (const c of [cap, mate, sub]) lobby.handle(c, { t: 'ready', ready: true });
+    m.stop();
+    expect(m.world!.ships.filter((s) => s.cls === 'ffg')).toHaveLength(1);
+    lobby.handle(mate, { t: 'order', heading: 90 });
+    for (let i = 0; i < 4; i++) m.tick();
+    expect(lastSnap(cap)!.own.order.heading).toBe(90);
+    expect(lastSnap(mate)!.own.id).toBe(lastSnap(cap)!.own.id);
+    expect(lastSnap(mate)!.crew).toEqual(['w1', 'w2']);
+  });
+});

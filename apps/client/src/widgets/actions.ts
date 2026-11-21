@@ -35,3 +35,16 @@ export function rocketAction(p: Vec2): MenuItem[] {
     run: () => net.send({ t: 'rocket', bearing: bearing(s.own, p), range: d }),
   }];
 }
+
+export function buoyAction(p: Vec2): MenuItem[] {
+  const s = store.snap;
+  if (!s?.air || s.air.stock <= 0) return [];
+  const d = distance(s.own, p);
+  if (d < 500 || d > 30_000) return [{ label: 'Sonarboje: 0,5–30 km Reichweite', run: () => undefined }];
+  if (s.air.heloReadyInS > 0) return [{ label: `Hubschrauber bereit in ${Math.ceil(s.air.heloReadyInS / 60)} min`, run: () => undefined }];
+  const b = bearing(s.own, p);
+  return [
+    { label: `Sonarboje flach hierher (${km(d)})`, run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: false }) },
+    { label: 'Sonarboje tief (unter Schicht) hierher', run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: true }) },
+  ];
+}

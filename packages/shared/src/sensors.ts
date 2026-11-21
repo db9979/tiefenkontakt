@@ -12,10 +12,10 @@ import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatu
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth } from './entities.js';
-import { KN, NM, angleDiff, bearing, distance, wrap360, type Vec2 } from './math.js';
+import { KN, NM, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
 
-export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm';
+export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy';
 
 /** A single sensor measurement. targetId never leaves the server. */
 export interface Detection {
@@ -32,6 +32,11 @@ export interface Detection {
   classified?: ClassId;
   /** Narrowband/DEMON measurements for passive sonar looks. */
   evidence?: Evidence;
+  /** CW active echo: target closing speed in kn (positive = approaching). */
+  dopplerKn?: number;
+  /** Where the measurement was taken if not at the observer (sonobuoy position). */
+  originX?: number;
+  originY?: number;
 }
 
 /** A non-ship noise source (running torpedo) that passive sonar can hear. */
@@ -46,7 +51,22 @@ export interface Emitter {
 }
 
 export const PING_INTERVAL = 30; // s
-const SE_FLUCTUATION = 2; // dB sd per sample
+const SE_FLUCTUATION = 1; // dB sd per sample (fast part)
+const FADE_DB = 3; // slow fading amplitude
+const SLOW_TARGET_KN = 2; // CW can't separate slower targets from reverberation
+const CW_REVERB_PENALTY = 6;
+
+function hash01(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
+/** Slow, per contact and array different signal fading (±3 dB over 40-70 s). */
+export function fading(key: string, t: number): number {
+  const period = 40 + 30 * hash01(key);
+  return FADE_DB * Math.sin((2 * Math.PI * t) / period + 2 * Math.PI * hash01(key + '#'));
+}
 const RADAR_RANGE = 22 * NM;
 const RADAR_MAST_RANGE = 6 * NM;
 const ESM_RANGE = 40 * NM;
@@ -81,7 +101,8 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   const rel = angleDiff(obs.heading, trueB);
 
   if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle) {
-    const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env) + ctx.rng.gauss(0, SE_FLUCTUATION);
+    const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
+      ctx.rng.gauss(0, SE_FLUCTUATION);
     if (se > 0) {
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'hull', time: ctx.time,
@@ -95,12 +116,13 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
     const se =
       passiveSignalExcess(tgt, obs, range, 'towed', ctx.env, towedArrayDepth(obs)) -
       endfire +
+      fading(`${obs.id}|${tgt.id}|t`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION);
     if (se > 0) {
-      const measuredRel = rel + ctx.rng.gauss(0, bearingSigma(se));
-      let b = wrap360(obs.heading + measuredRel);
-      let alt = wrap360(obs.heading - measuredRel);
-      if (ctx.rng.next() < 0.5) [b, alt] = [alt, b];
+      // A line array measures only the angle to its axis: report starboard side first, port as mirror
+      const measuredRel = Math.abs(rel + ctx.rng.gauss(0, bearingSigma(se)));
+      const b = wrap360(obs.heading + measuredRel);
+      const alt = wrap360(obs.heading - measuredRel);
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'towed', time: ctx.time,
         bearing: b, bearingAlt: alt, se, evidence: shipEvidence(tgt, se, ctx),
@@ -137,12 +159,19 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     if (tgt === pinger || !tgt.alive) continue;
     const range = distance(pinger.pos, tgt.pos);
     const trueB = bearing(pinger.pos, tgt.pos);
-    const se = activeSignalExcess(tgt, pinger, range, ctx.env) + ctx.rng.gauss(0, SE_FLUCTUATION);
+    const lfm = pinger.pulse === 'lfm';
+    const slow = tgt.speed / KN < SLOW_TARGET_KN;
+    const se = activeSignalExcess(tgt, pinger, range, ctx.env) - (!lfm && slow ? CW_REVERB_PENALTY : 0) + ctx.rng.gauss(0, 2);
     if (se > 0) {
+      // Radial speed of the target toward the pinger (positive = closing), measured by CW Doppler
+      const los = { x: (pinger.pos.x - tgt.pos.x) / Math.max(range, 1), y: (pinger.pos.y - tgt.pos.y) / Math.max(range, 1) };
+      const tv = headingVec(tgt.heading);
+      const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
       out.push({
         observerId: pinger.id, targetId: tgt.id, sensor: 'active', time: ctx.time,
         bearing: noisyBearing(trueB, se + 10, ctx.rng),
-        range: range * (1 + ctx.rng.gauss(0, 0.01)), se,
+        range: Math.max(10, range + ctx.rng.gauss(0, lfm ? 5 : 250)), se,
+        dopplerKn: lfm ? undefined : Math.round((closing + ctx.rng.gauss(0, 0.5)) * 10) / 10,
       });
     }
     if (CLASSES[tgt.cls].hull.di > 0) {

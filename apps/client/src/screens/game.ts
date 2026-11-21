@@ -12,6 +12,7 @@ import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
 import { CLASS_LABEL, clock, deg3, esc, h } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
+import { renderDamage } from '../widgets/damage-panel.js';
 import { helpOverlay } from './help.js';
 import { mountHelm } from './helm.js';
 
@@ -41,6 +42,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     <div class="station" id="station"></div>
     <div class="side">
       <div class="panel helm" id="helm"></div>
+      <div class="panel" id="damage"></div>
       <div class="panel alerts"><div class="hd"><span>Meldungen</span></div><div id="alerts"></div></div>
       <div class="panel"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
@@ -144,19 +146,22 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const s = store.snap!;
     q('#clock').textContent = `${clock(s.time)} · REST ${clock(s.score.timeLeftS)}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
-    q('#score').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name} · VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} %`;
+    q('#score').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''} · VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} %`;
     q('#alerts').innerHTML = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
       [...s.alerts].reverse().map((a) => {
         const fresh = s.time - a.time < 30;
-        const color = a.kind === 'torpedo' || a.kind === 'sunk' ? 'red' : a.kind === 'esm' || a.kind === 'ping' ? 'amber' : '';
-        return `<div class="${color} ${fresh && a.kind === 'torpedo' ? 'blink' : ''}">${clock(a.time)} ${esc(a.text)}</div>`;
+        const color = a.kind === 'torpedo' || a.kind === 'sunk' ? 'red' : a.kind === 'esm' || a.kind === 'ping' || a.kind === 'transient' ? 'amber' : '';
+        const text = a.kind === 'torpedo' && store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}` : a.text;
+        return `<div class="${color} ${fresh && a.kind === 'torpedo' ? 'blink' : ''}">${clock(a.time)} ${esc(text)}</div>`;
       }).join('');
     q('#radio').innerHTML = s.radio.map((r) => `<div><span class="dim">${clock(r.time)}</span> ${esc(r.from)}: ${esc(r.text)}</div>`).join('');
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (s.own.mastUp ? '<span class="amber">MAST OBEN · PEILBAR</span>' : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();
     if (torp && s.own.alive) {
-      banner.textContent = `TORPEDO! PEILUNG ${deg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
+      banner.textContent = store.realism === 'profi'
+        ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${deg3(torp.bearing ?? 0)}`
+        : `TORPEDO! PEILUNG ${deg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
       if (!banner.isConnected) document.body.appendChild(banner);
     } else banner.remove();
     if (!s.own.alive && !banner.isConnected) {
@@ -172,6 +177,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       if (first) build();
       stations[current]?.snap?.();
       helm.update();
+      renderDamage(q('#damage'));
       renderSide();
       audio.update(m.s, CLASSES[m.s.own.cls].submarine);
     } else if (m.t === 'error') {

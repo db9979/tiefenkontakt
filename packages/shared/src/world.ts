@@ -1,11 +1,13 @@
 import { DEFAULT_ENV, type Environment } from './acoustics.js';
 import { ContactBook } from './contacts.js';
+import { stepDamage } from './damage.js';
 import { stepConvoy, type ConvoyState } from './convoy-ai.js';
 import type { Ship } from './entities.js';
 import { stepShip } from './kinematics.js';
 import { Rng } from './rng.js';
 import { interceptTransmission, runSensors, type Detection, type Emitter } from './sensors.js';
 import type { WeaponsState } from './weapons.js';
+import { buoySensors, type AirState } from './aviation.js';
 
 export const SIM_DT = 0.1; // s, 10 Hz
 export const SENSOR_INTERVAL = 1; // s
@@ -14,7 +16,8 @@ export type GameEvent =
   | { kind: 'transmission'; time: number; senderId: string; text: string }
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
-  | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number };
+  | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' };
 
 export interface World {
   time: number;
@@ -23,6 +26,7 @@ export interface World {
   rng: Rng;
   convoy?: ConvoyState;
   weapons?: WeaponsState;
+  air?: AirState;
   books: Map<string, ContactBook>;
   /** Detections of the latest sensor cycle (server-side truth, filter before sending). */
   lastDetections: Detection[];
@@ -64,6 +68,19 @@ export function transmit(w: World, sender: Ship, text: string): void {
   ingest(w, dets);
 }
 
+/** A submarine's hull thermometer reveals the layer when the boat crosses it. */
+function learnLayer(w: World, s: Ship): void {
+  if (!s.alive || s.depth < 1 || w.env.layerDepth <= 0 || s.cls === 'ffg' || s.cls === 'merchant') return;
+  const side = s.depth > w.env.layerDepth ? 'below' : 'above';
+  if (s.layerSide && s.layerSide !== side) s.btLayer = Math.round(w.env.layerDepth + w.rng.gauss(0, 3));
+  s.layerSide = side;
+}
+
+/** Bathythermograph: an expendable probe (frigate) measures the layer depth. */
+export function measureLayer(w: World, s: Ship): void {
+  s.btLayer = w.env.layerDepth > 0 ? Math.round(w.env.layerDepth + w.rng.gauss(0, 4)) : 0;
+}
+
 /** Running torpedoes are loud noise sources that every sonar can hear. */
 function torpedoEmitters(w: World): Emitter[] {
   return (w.weapons?.torpedoes ?? []).map((t) => ({
@@ -81,12 +98,23 @@ export function stepWorld(w: World, dt = SIM_DT): void {
     for (const id of w.convoy.arrived.slice(before)) w.events.push({ kind: 'arrived', time: w.time, shipId: id });
   }
   for (const s of w.ships) stepShip(s, dt, w.time);
+  for (const s of w.ships) {
+    learnLayer(w, s);
+    stepDamage(s, dt);
+    if (s.alive && s.hp <= 0) {
+      s.alive = false;
+      s.order.speedKn = 0;
+      w.events.push({ kind: 'sunk', time: w.time, shipId: s.id });
+    }
+  }
   for (const sys of w.systems) sys(w, dt);
 
   w.sensorAccum += dt;
   if (w.sensorAccum >= SENSOR_INTERVAL - 1e-9) {
     w.sensorAccum = 0;
-    w.lastDetections = runSensors({ ships: w.ships, emitters: torpedoEmitters(w), env: w.env, time: w.time, rng: w.rng });
+    const ctx = { ships: w.ships, emitters: torpedoEmitters(w), env: w.env, time: w.time, rng: w.rng };
+    w.lastDetections = runSensors(ctx);
+    if (w.air) w.lastDetections.push(...buoySensors(w.air.buoys, ctx));
     ingest(w, w.lastDetections);
     for (const b of w.books.values()) b.expire(w.time);
   }

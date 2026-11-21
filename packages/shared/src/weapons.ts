@@ -1,9 +1,10 @@
 import { crossesLayer, sourceLevel } from './acoustics.js';
 import { CLASSES } from './classes.js';
 import type { Ship } from './entities.js';
+import { applyHitDamage, reloadFactor, weaponsBroken } from './damage.js';
 import { createLoadout, stepReload, type Loadout } from './loadout.js';
 import { KN, angleDiff, approach, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
-import type { World } from './world.js';
+import { measureLayer, type World } from './world.js';
 
 export type TorpedoKind = 'heavy' | 'light';
 export type SeekerMode = 'passive' | 'active';
@@ -90,6 +91,7 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
   const st = ws(w);
   const l = st.loadouts.get(shooter.id);
   if (!shooter.alive || !l) return 'Schiff kann nicht feuern';
+  if (weaponsBroken(shooter)) return 'Waffenanlage ausgefallen';
   const tube = l.tubes.find((t) => t.loaded);
   if (!tube) return 'Kein Rohr geladen';
   tube.loaded = false;
@@ -104,7 +106,18 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
     run: 0, maxRun: sp.maxRun, wire: kind === 'heavy', launchedAt: w.time, alerted: [shooter.id],
   };
   st.torpedoes.push(t);
+  const at = { x: shooter.pos.x, y: shooter.pos.y };
+  if (kind === 'heavy') w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'flood' });
+  w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'launch' });
   return t;
+}
+
+export function dropXbt(w: World, ship: Ship): true | string {
+  const l = ws(w).loadouts.get(ship.id);
+  if (!l || l.xbt <= 0) return 'Keine Bathythermographen';
+  l.xbt -= 1;
+  measureLayer(w, ship);
+  return true;
 }
 
 /** Wire-guided course correction. */
@@ -189,6 +202,7 @@ function seek(w: World, t: Torpedo): Candidate | undefined {
 
 function damage(w: World, target: Ship, amount: number, byId: string): void {
   target.hp -= amount;
+  if (target.hp > 0) applyHitDamage(target, amount, w.rng);
   if (target.hp <= 0 && target.alive) {
     target.alive = false;
     target.order.speedKn = 0;
@@ -277,7 +291,7 @@ export function weaponsSystem(w: World, dt: number): void {
   st.decoys = st.decoys.filter((d) => d.expiresAt > w.time);
   for (const s of w.ships) {
     const l = st.loadouts.get(s.id);
-    if (l && s.alive) stepReload(l, s.cls, w.time);
+    if (l && s.alive) stepReload(l, s.cls, w.time, reloadFactor(s));
   }
 }
 

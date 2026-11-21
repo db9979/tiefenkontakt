@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   KN,
+  ekelundRange,
+  ownLegChange,
+  scaleSolutionRange,
   autoSolve,
   bearing,
   distance,
@@ -51,5 +54,30 @@ describe('TMA', () => {
     const h = interceptHeading({ x: 0, y: 0 }, 40, sol, 0)!;
     expect(h).toBeGreaterThan(5);
     expect(h).toBeLessThan(40);
+  });
+});
+
+describe('TMA operator tools', () => {
+  it('knows when range is observable', () => {
+    const { track, hist } = scenario();
+    expect(ownLegChange(hist, track)).toBeGreaterThan(60);
+    const firstLeg = hist.filter((h) => h.t < 400);
+    expect(ownLegChange(firstLeg, track)).toBeLessThan(6);
+  });
+
+  it('Ekelund ranging recovers the range at the turn', () => {
+    const { truth, track, hist } = scenario();
+    const r = ekelundRange(hist, track)!;
+    const own = track.find((f) => f.t === 450)!;
+    const trueRange = distance(own, targetPosAt(truth, 450));
+    expect(r).toBeDefined();
+    expect(Math.abs(r.range - trueRange) / trueRange).toBeLessThan(0.25);
+  });
+
+  it('dot-stack: only the true range fits flat', () => {
+    const { truth, track, hist } = scenario();
+    const rms = (f: number) => evaluateSolution(scaleSolutionRange(truth, f, 900, track), hist, track).rmsDeg;
+    expect(rms(1)).toBeLessThan(rms(0.6));
+    expect(rms(1)).toBeLessThan(rms(1.6));
   });
 });

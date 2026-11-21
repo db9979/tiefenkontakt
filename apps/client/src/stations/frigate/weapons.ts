@@ -5,7 +5,7 @@ import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { deg1, h, km } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
-import { courseAction, rocketAction } from '../../widgets/actions.js';
+import { buoyAction, courseAction, rocketAction } from '../../widgets/actions.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
 function aim(): { bearing: number; range: number; source: string } | undefined {
@@ -63,7 +63,7 @@ export function weaponsStation(): Station {
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
   q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
   const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...rocketAction(p), ...courseAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...rocketAction(p), ...buoyAction(p), ...courseAction(p)],
   });
   plot.scale = 30;
 

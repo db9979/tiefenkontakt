@@ -85,3 +85,7 @@ button[disabled] { opacity: 0.4; cursor: default; }
 .spacer { flex: 1; }
 .analysis canvas { margin: 4px 0; }
 .filters summary { cursor: pointer; color: var(--dim); padding: 4px 0; }
+@media (max-width: 1150px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .game { grid-template-columns: minmax(0, 1fr) 250px; }
+}

@@ -3,6 +3,10 @@ import {
   CLASSES,
   autoSolve,
   bearing,
+  ekelundRange,
+  ownLegChange,
+  scaleSolutionRange,
+  solutionAtRange,
   distance,
   evaluateSolution,
   headingVec,
@@ -19,8 +23,13 @@ import { COL, deg1, deg3, fitCanvas, h, km } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 
-function drawResiduals(c: HTMLCanvasElement, res: { t: number; err: number }[]): void {
-  const H = 70;
+type Method = 'hyp' | 'ekelund' | 'dots';
+const DOT_FACTORS = [0.6, 1, 1.6];
+const FIX_MAX_AGE = 120; // s sim time
+
+/** Residual plot: one row per hypothesis (dot-stack) or a single scatter (hypothesis). */
+function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: number; err: number }[] }[]): void {
+  const H = rows.length > 1 ? 96 : 70;
   const ctx = fitCanvas(c, H);
   const w = c.clientWidth;
   ctx.fillStyle = COL.bg;
@@ -31,12 +40,20 @@ function drawResiduals(c: HTMLCanvasElement, res: { t: number; err: number }[]):
   ctx.font = '10px ui-monospace, monospace';
   ctx.fillText('−5°', 2, 10);
   ctx.fillText('+5°', w - 22, 10);
-  const recent = res.slice(-60);
-  recent.forEach((r, i) => {
-    const x = w / 2 + (Math.max(-5, Math.min(5, r.err)) / 5) * (w / 2 - 4);
-    const y = H - 4 - (i / Math.max(1, recent.length - 1)) * (H - 14);
-    ctx.fillStyle = Math.abs(r.err) < 1 ? COL.g2 : COL.amber;
-    ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+  const band = (H - 12) / Math.max(1, rows.length);
+  rows.forEach((row, ri) => {
+    const recent = row.res.slice(-60);
+    const y0 = 12 + ri * band;
+    if (rows.length > 1) {
+      ctx.fillStyle = COL.dim;
+      ctx.fillText(row.label, 2, y0 + band / 2 + 3);
+    }
+    recent.forEach((r, i) => {
+      const x = w / 2 + (Math.max(-5, Math.min(5, r.err)) / 5) * (w / 2 - 4);
+      const y = rows.length > 1 ? y0 + band / 2 + ((i % 5) - 2) * 2 : H - 4 - (i / Math.max(1, recent.length - 1)) * (H - 14);
+      ctx.fillStyle = Math.abs(r.err) < 1 ? COL.g2 : COL.amber;
+      ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+    });
   });
 }
 
@@ -48,11 +65,15 @@ export function fireControlStation(): Station {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Zielbewegungsanalyse</span><span id="tgt" class="amber"></span></div>
-        <div style="display:flex;gap:4px;margin-bottom:6px"><button id="auto">Auto-TMA</button><button id="clear">Verwerfen</button></div>
+        <div class="steps"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></div>
+        <div style="display:flex;gap:4px;margin-bottom:6px"><button id="auto">Auto-TMA</button><button id="clear">Verwerfen</button><button id="ekel-take" style="display:none">Ekelund-Entfernung übernehmen</button></div>
+        <div class="row"><span class="dim">BEOBACHTBARKEIT</span><span id="v-obs"></span></div>
+        <div class="row" id="ekel-row" style="display:none"><span class="dim">EKELUND</span><span id="v-ekel"></span></div>
         <div class="row"><span class="dim">ENTFERNUNG</span><span id="v-rng"></span></div><input id="s-rng" type="range" min="500" max="40000" step="100">
         <div class="row"><span class="dim">ZIELKURS</span><span id="v-crs"></span></div><input id="s-crs" type="range" min="0" max="359" step="1">
         <div class="row"><span class="dim">ZIELFAHRT</span><span id="v-spd"></span></div><input id="s-spd" type="range" min="0" max="30" step="0.5">
         <div class="row"><span class="dim">GÜTE / FEHLER</span><span id="v-q"></span></div>
+        <div class="row"><span class="dim">LÖSUNG ALTER</span><span id="v-age"></span></div>
         <canvas id="res" style="margin-top:4px"></canvas>
         <div id="steps" style="margin-top:6px"></div>
       </div>
@@ -102,6 +123,17 @@ export function fireControlStation(): Station {
   }
   ['#s-rng', '#s-crs', '#s-spd'].forEach((id) => (q<HTMLInputElement>(id).oninput = fromSliders));
 
+  let method: Method = 'hyp';
+  const solSeen = new Map<string, { ref: TmaSolution; at: number }>();
+  el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => (b.onclick = () => (method = b.dataset.method as Method)));
+  q<HTMLButtonElement>('#ekel-take').onclick = () => {
+    const c = store.selectedContact();
+    if (!c) return;
+    const r = ekelundRange(c.history, store.ownTrack);
+    const old = store.solutions.get(c.label);
+    const sol = r && solutionAtRange(c.history, store.ownTrack, r.range, old?.course ?? 0, old?.speedKn ?? 0);
+    if (sol) store.solutions.set(c.label, sol);
+  };
   q<HTMLButtonElement>('#auto').onclick = () => {
     const c = store.selectedContact();
     if (!c) return;
@@ -115,6 +147,11 @@ export function fireControlStation(): Station {
     const s = store.snap;
     const sol = store.selected ? store.solutions.get(store.selected) : undefined;
     if (!s || !sol) return;
+    const c = store.selectedContact();
+    if (store.realism === 'profi' && c && ownLegChange(c.history, store.ownTrack) < 6) {
+      store.lastError = 'Entfernung nicht beobachtbar: erst einen eigenen Kurswechsel fahren';
+      return;
+    }
     const hdg = interceptHeading(s.own, Number(q<HTMLSelectElement>('#t-spd').value), sol, s.time);
     if (hdg !== undefined) q<HTMLInputElement>('#t-hdg').value = String(Math.round(hdg));
     const rng = distance(s.own, targetPosAt(sol, s.time));
@@ -170,11 +207,25 @@ export function fireControlStation(): Station {
         if (ae !== q('#s-rng')) q<HTMLInputElement>('#s-rng').value = String(distance(own, targetPosAt(sol, last?.t ?? s.time)));
         if (ae !== q('#s-crs')) q<HTMLInputElement>('#s-crs').value = String(sol.course);
         if (ae !== q('#s-spd')) q<HTMLInputElement>('#s-spd').value = String(sol.speedKn);
-        drawResiduals(q<HTMLCanvasElement>('#res'), fit.residuals);
+        const tl = c.history[c.history.length - 1]?.t ?? s.time;
+        drawResiduals(q<HTMLCanvasElement>('#res'), method === 'dots'
+          ? DOT_FACTORS.map((f) => ({ label: `${f.toFixed(1)}×`, res: evaluateSolution(scaleSolutionRange(sol, f, tl, store.ownTrack), c.history, store.ownTrack).residuals }))
+          : [{ label: '', res: fit.residuals }]);
+        const seen = solSeen.get(c.label);
+        if (!seen || seen.ref !== sol) solSeen.set(c.label, { ref: sol, at: s.time });
+        const age = s.time - (solSeen.get(c.label)?.at ?? s.time);
+        q('#v-age').innerHTML = age > FIX_MAX_AGE ? `<span class="amber">${Math.round(age)} S · VERALTET, NEU ANPASSEN</span>` : `${Math.round(age)} S`;
       } else {
-        for (const id of ['#v-rng', '#v-crs', '#v-spd', '#v-q']) q(id).textContent = '—';
-        drawResiduals(q<HTMLCanvasElement>('#res'), []);
+        for (const id of ['#v-rng', '#v-crs', '#v-spd', '#v-q', '#v-age']) q(id).textContent = '—';
+        drawResiduals(q<HTMLCanvasElement>('#res'), [{ label: '', res: [] }]);
       }
+      el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => b.classList.toggle('on', b.dataset.method === method));
+      const leg = c ? ownLegChange(c.history, store.ownTrack) : 0;
+      q('#v-obs').innerHTML = !c ? '—' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="red">NEIN · EIGENEN KURS ÄNDERN</span>';
+      const ek = method === 'ekelund' && c ? ekelundRange(c.history, store.ownTrack) : undefined;
+      q('#ekel-row').style.display = method === 'ekelund' ? '' : 'none';
+      q('#ekel-take').style.display = method === 'ekelund' && ek ? '' : 'none';
+      q('#v-ekel').innerHTML = ek ? `${km(ek.range)} BEIM SCHLAGWECHSEL (${ek.courseChange.toFixed(0)}°)` : '<span class="amber">ZWEI SCHLÄGE JE 90 S, MIND. 30° KURSWECHSEL</span>';
       const tubes = s.own.loadout.tubes;
       q('#tubes').innerHTML = tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`;
       q('#wires').innerHTML = s.torpedoes.map((t) => `

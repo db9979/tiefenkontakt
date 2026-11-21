@@ -2,6 +2,8 @@ import {
   CLASSES,
   PERISCOPE_DEPTH,
   dropDepthCharge,
+  dropXbt,
+  sendBuoy,
   fireTorpedo,
   headingVec,
   isAtPeriscopeDepth,
@@ -36,6 +38,11 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('dc'), depth: z.number().finite().min(20).max(400) }),
   z.object({ t: z.literal('noisemaker') }),
   z.object({ t: z.literal('radio'), text: z.string().trim().min(1).max(200) }),
+  z.object({ t: z.literal('pulse'), pulse: z.enum(['cw', 'lfm']) }),
+  z.object({ t: z.literal('bt') }),
+  z.object({ t: z.literal('crew'), captainId: z.string().max(64).nullable() }),
+  z.object({ t: z.literal('repair'), system: z.enum(['antrieb', 'sonar', 'waffen', 'leck']) }),
+  z.object({ t: z.literal('buoy'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
   z.object({
     t: z.literal('classify'), label: z.string().min(1).max(24),
     choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
@@ -53,7 +60,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -105,6 +112,23 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     }
     case 'dc': {
       const r = dropDepthCharge(w, s, m.depth);
+      return r === true ? undefined : r;
+    }
+    case 'pulse':
+      if (spec.hull.activeSl === undefined) return 'Kein Aktivsonar';
+      s.pulse = m.pulse;
+      return;
+    case 'bt': {
+      if (spec.submarine) return 'Das Boot misst die Schicht beim Durchtauchen';
+      const r = dropXbt(w, s);
+      return r === true ? undefined : r;
+    }
+    case 'repair':
+      s.repair = m.system;
+      return;
+    case 'buoy': {
+      const v = headingVec(m.bearing);
+      const r = sendBuoy(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range }, m.deep);
       return r === true ? undefined : r;
     }
     case 'noisemaker': {

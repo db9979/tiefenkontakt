@@ -1,4 +1,5 @@
 import { CLASSES } from './classes.js';
+import { speedFactor } from './damage.js';
 import type { Ship } from './entities.js';
 import { PERISCOPE_DEPTH, isAtPeriscopeDepth } from './entities.js';
 import { KN, angleDiff, approach, clamp, headingVec, wrap360 } from './math.js';
@@ -15,7 +16,7 @@ export function stepShip(s: Ship, dt: number, now: number): void {
   const spec = CLASSES[s.cls];
 
   // Battery limits (SSK submerged)
-  let maxKn = spec.maxSpeedKn;
+  let maxKn = spec.maxSpeedKn * speedFactor(s);
   if (spec.battery && s.battery !== undefined && s.battery <= 0 && s.depth > 0.5 && !isSnorkeling(s)) {
     maxKn = 0;
   }

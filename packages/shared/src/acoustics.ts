@@ -1,4 +1,5 @@
 import { CLASSES } from './classes.js';
+import { sonarPenaltyDb } from './damage.js';
 import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, dbSum } from './math.js';
@@ -72,7 +73,7 @@ export function ambientNoise(env: Environment): number {
 export function hullSelfNoise(s: Ship): number {
   const h = CLASSES[s.cls].hull;
   const kn = Math.max(s.speed / KN, 1);
-  let n = h.selfNoiseBase + 40 * Math.log10(kn / h.selfNoiseRefKn);
+  let n = h.selfNoiseBase + 40 * Math.log10(kn / h.selfNoiseRefKn) + sonarPenaltyDb(s);
   if (isSnorkeling(s)) n += 15;
   return n;
 }

@@ -232,6 +232,21 @@ export class Plot {
     });
     ctx.stroke();
 
+    for (const b of s.air?.buoys ?? []) {
+      const p = P(b);
+      ctx.strokeStyle = COL.blue;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - 4); ctx.lineTo(p.x, p.y + 4); ctx.stroke();
+      ctx.fillStyle = COL.blue;
+      ctx.fillText(`${b.id}${b.depth > 60 ? ' T' : ''}`, p.x + 6, p.y + 4);
+    }
+    for (const hp of s.air?.helos ?? []) {
+      const p = P(hp);
+      ctx.strokeStyle = COL.blue;
+      ctx.beginPath(); ctx.moveTo(p.x - 6, p.y); ctx.lineTo(p.x + 6, p.y); ctx.moveTo(p.x, p.y - 6); ctx.lineTo(p.x, p.y + 6); ctx.stroke();
+      ctx.fillStyle = COL.blue;
+      ctx.fillText('HUBSCHR.', p.x + 8, p.y - 4);
+    }
     this.drawContacts(ctx, s, P, w, height);
     this.drawFriendlies(ctx, s, P);
 
@@ -284,10 +299,13 @@ export class Plot {
         const hist = sel ? c.history.filter((_, i) => i % 6 === 0) : c.history.slice(-1);
         for (const hs of hist) {
           const origin = ownPosAt(store.ownTrack, hs.t) ?? s.own;
-          for (const b of hs.alt !== undefined ? [hs.b, hs.alt] : [hs.b]) {
+          const side = store.tasSide.get(c.label);
+          const origin2 = hs.ox !== undefined && hs.oy !== undefined ? { x: hs.ox, y: hs.oy } : origin;
+          const bs = hs.alt === undefined ? [hs.b] : side === 'stb' ? [hs.b] : side === 'port' ? [hs.alt] : [hs.b, hs.alt];
+          for (const b of bs) {
             const v = headingVec(b);
-            const a = P(origin);
-            const end = P({ x: origin.x + v.x * far, y: origin.y + v.y * far });
+            const a = P(origin2);
+            const end = P({ x: origin2.x + v.x * far, y: origin2.y + v.y * far });
             ctx.globalAlpha = stale ? 0.25 : sel ? 0.5 : 0.7;
             ctx.setLineDash(isEsm ? [6, 4] : [4, 3]);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(end.x, end.y); ctx.stroke();

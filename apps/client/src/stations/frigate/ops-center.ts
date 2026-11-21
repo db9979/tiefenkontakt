@@ -3,7 +3,7 @@ import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { h } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
-import { courseAction, rocketAction } from '../../widgets/actions.js';
+import { buoyAction, courseAction, rocketAction } from '../../widgets/actions.js';
 
 export function opsCenterStation(): Station {
   const el = h(`<div class="cols">
@@ -16,7 +16,7 @@ export function opsCenterStation(): Station {
     </div>
   </div>`);
   const plot = new Plot(el.querySelector<HTMLCanvasElement>('#plot')!, {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...courseAction(p), ...rocketAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...courseAction(p), ...rocketAction(p), ...buoyAction(p)],
   });
   plot.scale = 80;
   return {
@@ -30,6 +30,9 @@ export function opsCenterStation(): Station {
       el.querySelector('#group')!.innerHTML = `
         <div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>
         <div class="row"><span class="dim">DATALINK-TEILNEHMER</span><span>${escorts.length}</span></div>
+        <div class="row"><span class="dim">HUBSCHRAUBER</span><span>${!s.air ? '—' : s.air.heloReadyInS > 0 ? `<span class="amber">UNTERWEGS · BEREIT IN ${Math.ceil(s.air.heloReadyInS / 60)} MIN</span>` : 'AN DECK · BEREIT'}</span></div>
+        <div class="row"><span class="dim">SONARBOJEN</span><span>${s.air ? `${s.air.stock} AN BORD · ${s.air.buoys.length} IM WASSER` : '—'}</span></div>
+        <div class="dim" style="margin-top:4px">RECHTSKLICK AUF DIE KARTE: SONARBOJE ABWERFEN</div>
         ${escorts.map((e) => `<div class="row"><span>${e.name}</span><span class="${e.alive ? '' : 'red'}">${e.alive ? `${e.speedKn.toFixed(0)} KN` : 'GESUNKEN'}</span></div>`).join('')}`;
     },
     frame() {

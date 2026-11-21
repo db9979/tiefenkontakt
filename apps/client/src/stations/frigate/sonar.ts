@@ -14,8 +14,14 @@ export function frigateSonarStation(): Station {
       <div class="panel"><div class="hd"><span>Schleppsonar · links/rechts mehrdeutig</span><span id="ts" class="dim"></span></div><canvas id="tow"></canvas>
         <div class="steps" style="margin-top:6px">
           <button id="ping" class="warn" title="Aktiv-Ping alle 30 s: Entfernung, verrät aber die Fregatte">Aktiv-Ping</button>
+          <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
+          <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
+          <button id="xbt" title="Bathythermograph werfen: misst die Sprungschicht">BT messen</button>
           ${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}
         </div>
+      </div>
+      <div class="panel"><div class="hd"><span>Schleppsonar-Seite</span><span id="tas-hint" class="dim"></span></div>
+        <div class="steps"><button data-side="stb">Steuerbord</button><button data-side="port">Backbord</button><button data-side="both">Beide zeigen</button></div>
       </div>
       <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
     </div>
@@ -35,6 +41,16 @@ export function frigateSonarStation(): Station {
     };
   }
   el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
+  el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
+  el.querySelector<HTMLButtonElement>('#xbt')!.onclick = () => net.send({ t: 'bt' });
+  el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => {
+    b.onclick = () => {
+      const l = store.selected;
+      if (!l) return;
+      if (b.dataset.side === 'both') store.tasSide.delete(l);
+      else store.tasSide.set(l, b.dataset.side as 'stb' | 'port');
+    };
+  });
   el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => (b.onclick = () => net.send({ t: 'towed', length: Number(b.dataset.len) })));
 
   return {
@@ -51,6 +67,13 @@ export function frigateSonarStation(): Station {
       el.querySelector('#ts')!.textContent = o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
       el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => b.classList.toggle('on', Number(b.dataset.len) === o.towedLength));
       el.querySelector('#lab')!.textContent = store.selected ?? '';
+      el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => b.classList.toggle('on', b.dataset.pulse === o.pulse));
+      el.querySelector('#xbt')!.textContent = `BT messen (${o.loadout.xbt})`;
+      const c = store.selectedContact();
+      const side = c ? store.tasSide.get(c.label) : undefined;
+      el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));
+      el.querySelector('#tas-hint')!.innerHTML = !c ? 'KONTAKT WÄHLEN' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
+        : c.tas?.resolved ? 'DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">MEHRDEUTIG · 20° WENDEN UND SPUREN VERGLEICHEN</span>' : 'EINDEUTIG';
       analysis.update();
     },
     frame() {

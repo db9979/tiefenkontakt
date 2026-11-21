@@ -1,5 +1,6 @@
 import type { ClassId, Team } from './classes.js';
 import type { ContactTrack } from './contacts.js';
+import type { DamageState, ShipSystem } from './damage.js';
 import type { ClassChoice } from './signatures.js';
 import type { SeekerMode } from './weapons.js';
 
@@ -19,7 +20,12 @@ export type ClientMsg =
   | { t: 'dc'; depth: number }
   | { t: 'noisemaker' }
   | { t: 'radio'; text: string }
-  | { t: 'classify'; label: string; choice: ClassChoice };
+  | { t: 'classify'; label: string; choice: ClassChoice }
+  | { t: 'pulse'; pulse: 'cw' | 'lfm' }
+  | { t: 'bt' }
+  | { t: 'buoy'; bearing: number; range: number; deep: boolean }
+  | { t: 'repair'; system: ShipSystem }
+  | { t: 'crew'; captainId: string | null };
 
 export interface PlayerSlot {
   playerId: string;
@@ -27,6 +33,10 @@ export interface PlayerSlot {
   team: Exclude<Team, 'neutral'>;
   cls: Exclude<ClassId, 'merchant'>;
   ready: boolean;
+  /** AI captain filling an empty team. */
+  bot?: boolean;
+  /** Set when this player serves as crew on the captain's ship. */
+  crewOf?: string;
 }
 
 export interface MatchSummary {
@@ -39,7 +49,7 @@ export interface MatchSummary {
 
 export interface MatchLobby extends MatchSummary {
   slots: PlayerSlot[];
-  settings: { timeScale: number; layerDepth: number; seaState: number; timeLimitMin: number; merchants: number };
+  settings: { timeScale: number; layerDepth: number; seaState: number; timeLimitMin: number; merchants: number; fillBots: boolean };
 }
 
 export interface OwnShipView {
@@ -62,11 +72,14 @@ export interface OwnShipView {
   mastUpSince?: number;
   radarOn: boolean;
   activeSonar: boolean;
+  pulse: 'cw' | 'lfm';
   lastPingAt?: number;
   towedLength: number;
   towedReady: boolean;
   noiseDb: number;
   cavitationKn: number;
+  damage: DamageState;
+  repair?: ShipSystem;
   loadout: {
     tubes: { loaded: boolean; reloadLeft: number }[];
     heavy: number;
@@ -75,6 +88,7 @@ export interface OwnShipView {
     depthCharges: number;
     noisemakers: number;
     towedDecoy: boolean;
+    xbt: number;
   };
 }
 
@@ -110,13 +124,17 @@ export interface RadioMsg {
 
 export interface AlertView {
   time: number;
-  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit';
+  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient';
   bearing?: number;
   text: string;
 }
 
 export interface Snapshot {
   time: number;
+  /** Sim seconds per real second (for echo travel times and clocks). */
+  timeScale: number;
+  /** Callsigns of everyone aboard the own ship. */
+  crew: string[];
   own: OwnShipView;
   contacts: (Omit<ContactTrack, 'history'> & {
     history: ContactTrack['history'];
@@ -128,8 +146,16 @@ export interface Snapshot {
   torpedoes: TorpedoView[];
   radio: RadioMsg[];
   alerts: AlertView[];
-  env: { layerDepth: number; seaState: number };
+  /** layerDepth is only known after a bathythermograph measurement. */
+  env: { layerDepth?: number; seaState: number };
   score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
+  /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
+  air?: {
+    buoys: { id: string; x: number; y: number; depth: number; leftS: number }[];
+    helos: { x: number; y: number }[];
+    stock: number;
+    heloReadyInS: number;
+  };
 }
 
 export type ServerMsg =

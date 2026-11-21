@@ -2,6 +2,7 @@ import {
   createConvoy,
   createShip,
   createWorld,
+  installAir,
   installWeapons,
   type PlayerSlot,
   type Ship,
@@ -15,9 +16,12 @@ export interface ScenarioSettings {
   seaState: number;
   timeLimitMin: number;
   merchants: number;
+  /** Fill a team without players with AI captains. */
+  fillBots: boolean;
 }
 
-export const DEFAULT_SETTINGS: ScenarioSettings = { timeScale: 3, layerDepth: 120, seaState: 3, timeLimitMin: 40, merchants: 8 };
+/** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */
+export const DEFAULT_SETTINGS: ScenarioSettings = { timeScale: 3, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true };
 
 /** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
 export function routeLength(s: ScenarioSettings): number {
@@ -46,8 +50,8 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     ships.push(m);
   }
 
-  const west = slots.filter((s) => s.team === 'west');
-  const east = slots.filter((s) => s.team === 'east');
+  const west = slots.filter((s) => s.team === 'west' && !s.crewOf);
+  const east = slots.filter((s) => s.team === 'east' && !s.crewOf);
   west.forEach((p, i) => {
     const side = i % 2 === 0 ? 1 : -1;
     const x = side * (2500 + Math.floor(i / 2) * 1500);
@@ -65,8 +69,10 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     }));
   });
 
-  const w = createWorld(ships, seed, { layerDepth: settings.layerDepth, layerLoss: 12, seaState: settings.seaState });
+  const layer = settings.layerDepth > 0 ? settings.layerDepth : 80 + ((seed * 7919) % 91);
+  const w = createWorld(ships, seed, { layerDepth: layer, layerLoss: 12, seaState: settings.seaState });
   w.convoy = createConvoy(merchants, [{ x: 0, y: route * 0.5 }, { x: 0, y: route }], 9);
   installWeapons(w);
+  installAir(w);
   return w;
 }

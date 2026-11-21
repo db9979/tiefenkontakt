@@ -42,7 +42,11 @@ export function diveEngineStation(): Station {
       if (!s) return;
       const v = b.dataset.depth!;
       const layer = s.env.layerDepth;
-      const depth = v === 'layer-' ? Math.max(30, layer - 40) : v === 'layer+' ? layer + 30 : v === 'max' ? CLASSES[s.own.cls].maxDepth * 0.9 : Number(v);
+      if ((v === 'layer-' || v === 'layer+') && layer === undefined) {
+        store.lastError = 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
+        return;
+      }
+      const depth = v === 'layer-' ? Math.max(30, layer! - 40) : v === 'layer+' ? layer! + 30 : v === 'max' ? CLASSES[s.own.cls].maxDepth * 0.9 : Number(v);
       net.send({ t: 'order', depth });
     };
   });
@@ -85,7 +89,7 @@ export function diveEngineStation(): Station {
         <div class="row"><span class="dim">KAVITATION AB</span><span class="${cav ? 'red' : ''}">${o.cavitationKn.toFixed(1)} KN${cav ? ' · KAVITIERT' : ''}</span></div>
         ${pct !== undefined ? `<div class="row"><span class="dim">BATTERIE</span><span class="${pct < 25 ? 'red' : pct < 50 ? 'amber' : ''}">${pct.toFixed(0)} %</span></div>
         <div class="row"><span class="dim">RESTZEIT BEI FAHRT</span><span>${o.batteryEnduranceS !== undefined ? clock(o.batteryEnduranceS) : '—'}</span></div>` : ''}
-        <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${s.env.layerDepth} M · ${o.depth > s.env.layerDepth ? 'DARUNTER' : 'DARÜBER'}</span></div>
+        <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN) · ${o.depth > s.env.layerDepth ? 'DARUNTER' : 'DARÜBER'}` : '<span class="amber">UNBEKANNT · DURCHTAUCHEN MISST SIE</span>'}</span></div>
         <div class="row"><span class="dim">TÄUSCHKÖRPER</span><span>${o.loadout.noisemakers}</span></div>
         <div class="row"><span class="dim">ZUSTAND</span><span class="${o.hp < 50 ? 'red' : ''}">${o.hp.toFixed(0)} %</span></div>`;
     },
@@ -107,10 +111,16 @@ export function diveEngineStation(): Station {
         ctx.beginPath(); ctx.moveTo(40, Y(d)); ctx.lineTo(w, Y(d)); ctx.stroke();
         ctx.fillText(`${d}`, 4, Y(d) + 4);
       }
-      ctx.fillStyle = 'rgba(250,199,117,0.18)';
-      ctx.fillRect(40, Y(s.env.layerDepth) - 4, w - 40, 8);
-      ctx.fillStyle = COL.amber;
-      ctx.fillText(`SPRUNGSCHICHT ${s.env.layerDepth} M`, w - 170, Y(s.env.layerDepth) - 8);
+      const layer = s.env.layerDepth;
+      if (layer !== undefined) {
+        ctx.fillStyle = 'rgba(250,199,117,0.18)';
+        ctx.fillRect(40, Y(layer) - 4, w - 40, 8);
+        ctx.fillStyle = COL.amber;
+        ctx.fillText(`SPRUNGSCHICHT ${layer} M`, w - 170, Y(layer) - 8);
+      } else {
+        ctx.fillStyle = COL.dim;
+        ctx.fillText('SPRUNGSCHICHT UNBEKANNT', w - 190, 40);
+      }
       ctx.strokeStyle = COL.blue;
       ctx.setLineDash([3, 3]);
       ctx.beginPath(); ctx.moveTo(40, Y(PERISCOPE_DEPTH)); ctx.lineTo(w, Y(PERISCOPE_DEPTH)); ctx.stroke();

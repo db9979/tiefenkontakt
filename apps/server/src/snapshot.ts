@@ -2,6 +2,8 @@ import {
   CLASSES,
   KN,
   batteryEndurance,
+  emptyDamage,
+  heloPosition,
   cavitationSpeedKn,
   sourceLevel,
   towedArrayReady,
@@ -21,6 +23,7 @@ export interface PlayerExtras {
   /** Last radio-reported positions of teammates (subs have no datalink). */
   reports: Map<string, FriendlyView>;
   mastUpSince?: number;
+  timeScale?: number;
 }
 
 export interface ScoreInfo {
@@ -84,19 +87,40 @@ export function buildSnapshot(
     .filter((t) => t.ownerId === own.id && t.wire)
     .map((t) => ({ id: t.id, x: t.pos.x, y: t.pos.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run }));
 
+  let air: Snapshot['air'];
+  if (hasDatalink(own) && w.air) {
+    const team = new Set(w.ships.filter((s) => s.team === own.team).map((s) => s.id));
+    const helos = w.air.sorties
+      .map((s) => {
+        const ship = w.ships.find((x) => x.id === s.shipId);
+        return team.has(s.shipId) && ship ? heloPosition(s, w.time, ship) : undefined;
+      })
+      .filter((p): p is { x: number; y: number } => !!p);
+    const mine = w.air.sorties.filter((s) => s.shipId === own.id).map((s) => s.readyAt);
+    air = {
+      buoys: w.air.buoys.filter((b) => team.has(b.ownerId)).map((b) => ({ id: b.id, x: b.pos.x, y: b.pos.y, depth: b.depth, leftS: b.expiresAt - w.time })),
+      helos,
+      stock: w.air.stock.get(own.id) ?? 0,
+      heloReadyInS: Math.max(0, ...mine.map((t) => t - w.time)),
+    };
+  }
   return {
+    air,
     time: w.time,
+    timeScale: x.timeScale ?? 1,
+    crew: [own.name],
     own: {
       id: own.id, cls: own.cls, team: own.team, name: own.name, x: own.pos.x, y: own.pos.y,
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, order: { ...own.order },
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
       snorkel: own.snorkel, mastUp: own.mastUp, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
-      activeSonar: own.activeSonar, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: own.towedLength, towedReady: towedArrayReady(own, w.time),
+      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: own.towedLength, towedReady: towedArrayReady(own, w.time),
+      damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
       noiseDb: sourceLevel(own), cavitationKn: Number.isFinite(cavitationSpeedKn(own)) ? cavitationSpeedKn(own) : 99,
       loadout: {
         tubes: (l?.tubes ?? []).map((t) => ({ loaded: t.loaded, reloadLeft: t.reloadDoneAt ? Math.max(0, t.reloadDoneAt - w.time) : 0 })),
         heavy: l?.heavy ?? 0, light: l?.light ?? 0, rockets: l?.rockets ?? 0,
-        depthCharges: l?.depthCharges ?? 0, noisemakers: l?.noisemakers ?? 0, towedDecoy: l?.towedDecoy ?? false,
+        depthCharges: l?.depthCharges ?? 0, noisemakers: l?.noisemakers ?? 0, towedDecoy: l?.towedDecoy ?? false, xbt: l?.xbt ?? 0,
       },
     },
     contacts,
@@ -104,7 +128,7 @@ export function buildSnapshot(
     torpedoes,
     radio: x.radio.slice(-30),
     alerts: x.alerts.slice(-20),
-    env: { layerDepth: w.env.layerDepth, seaState: w.env.seaState },
+    env: { layerDepth: own.btLayer, seaState: w.env.seaState },
     score,
   };
 }

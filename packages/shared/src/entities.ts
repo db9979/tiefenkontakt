@@ -1,4 +1,5 @@
 import type { ClassId, Team } from './classes.js';
+import type { DamageState, ShipSystem } from './damage.js';
 import { CLASSES } from './classes.js';
 import type { Vec2 } from './math.js';
 
@@ -31,6 +32,15 @@ export interface Ship {
   towedLength: number; // m deployed, 0 = stowed
   activeSonar: boolean; // pings periodically when true
   lastPingAt: number;
+  /** Active pulse: CW (coarse range, Doppler) or LFM (precise range, beats reverberation). */
+  pulse: 'cw' | 'lfm';
+  /** Layer depth as measured by this ship (bathythermograph); undefined until measured. */
+  btLayer?: number;
+  /** Side of the layer last time we looked (subs learn the layer by crossing it). */
+  layerSide?: 'above' | 'below';
+  /** System damage 0..1 and the crew's repair priority. */
+  damage?: DamageState;
+  repair?: ShipSystem;
 }
 
 export const PERISCOPE_DEPTH = 18;
@@ -72,6 +82,7 @@ export function createShip(init: ShipInit): Ship {
     towedLength: 0,
     activeSonar: false,
     lastPingAt: -1e9,
+    pulse: 'cw',
   };
 }
 

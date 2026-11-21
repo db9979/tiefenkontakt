@@ -8,6 +8,9 @@ export interface BearingSample {
   alt?: number;
   r?: number;
   sensor: SensorKind;
+  /** Measurement origin when not the own ship (sonobuoy). */
+  ox?: number;
+  oy?: number;
 }
 
 /** A contact as known to one observer. Contains no ground truth. */
@@ -26,12 +29,39 @@ export interface ContactTrack {
   /** Latest passive narrowband/DEMON measurement. */
   evidence?: Evidence;
   evidenceAt?: number;
+  /** Towed-array side state: both mirror bearings, resolution by hull sonar, ghost flag. */
+  tas?: { stb: number; port: number; at: number; resolved?: 'stb' | 'port'; ghost?: boolean };
+  hull?: { b: number; at: number };
+  /** Last CW Doppler closing speed (kn). */
+  dopplerKn?: number;
+  /** Set when the latest bearing was measured away from the own ship (sonobuoy position). */
+  originX?: number;
+  originY?: number;
   history: BearingSample[];
+}
+
+const RESOLVE_DEG = 5;
+const GHOST_DEG = 9;
+const MATCH_WINDOW = 15; // s
+
+/** Compare hull and towed bearings: confirm a side or flag a possible ghost. */
+function resolveTas(tr: ContactTrack): void {
+  if (!tr.tas || !tr.hull || Math.abs(tr.tas.at - tr.hull.at) > MATCH_WINDOW) return;
+  const d = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+  const ds = d(tr.hull.b, tr.tas.stb);
+  const dp = d(tr.hull.b, tr.tas.port);
+  const best = Math.min(ds, dp);
+  if (best <= RESOLVE_DEG || (best < GHOST_DEG && !tr.tas.resolved)) {
+    tr.tas.resolved = ds <= dp ? 'stb' : 'port';
+    tr.tas.ghost = false;
+  } else if (best >= GHOST_DEG) {
+    tr.tas.ghost = true;
+  }
 }
 
 const HISTORY_MAX = 180;
 const PREFIX: Record<SensorKind, string> = {
-  hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E',
+  hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S',
 };
 
 /** Per-observer contact bookkeeping. Keyed internally by target, labels are opaque. */
@@ -51,9 +81,30 @@ export class ContactBook {
       this.byTarget.set(d.targetId, tr);
     }
     tr.lastSeen = d.time;
-    tr.bearing = d.bearing;
-    tr.bearingAlt = d.bearingAlt;
     tr.se = d.se;
+    let alt = d.bearingAlt;
+    if (d.sensor === 'towed' && d.bearingAlt !== undefined) {
+      tr.tas = { stb: d.bearing, port: d.bearingAlt, at: d.time, resolved: tr.tas?.resolved, ghost: tr.tas?.ghost };
+      resolveTas(tr);
+      const side = tr.tas.resolved;
+      tr.bearing = side === 'port' ? d.bearingAlt : d.bearing;
+      alt = side ? undefined : d.bearingAlt;
+      tr.bearingAlt = alt;
+    } else if (d.originX !== undefined) {
+      // Sonobuoy: bearing from the buoy, not from the own ship
+      tr.bearing = d.bearing;
+      tr.bearingAlt = undefined;
+    } else {
+      if (d.sensor === 'hull') {
+        tr.hull = { b: d.bearing, at: d.time };
+        resolveTas(tr);
+      }
+      tr.bearing = d.bearing;
+      tr.bearingAlt = undefined;
+    }
+    if (d.dopplerKn !== undefined) tr.dopplerKn = d.dopplerKn;
+    tr.originX = d.originX;
+    tr.originY = d.originY;
     if (d.range !== undefined) {
       tr.range = d.range;
       tr.rangeAt = d.time;
@@ -64,7 +115,7 @@ export class ContactBook {
       tr.evidence = d.evidence;
       tr.evidenceAt = d.time;
     }
-    tr.history.push({ t: d.time, b: d.bearing, alt: d.bearingAlt, r: d.range, sensor: d.sensor });
+    tr.history.push({ t: d.time, b: tr.bearing, alt, r: d.range, sensor: d.sensor, ox: d.originX, oy: d.originY });
     if (tr.history.length > HISTORY_MAX) tr.history.shift();
     return tr;
   }

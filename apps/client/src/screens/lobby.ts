@@ -39,8 +39,10 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     }
     const mine = match.slots.find((s) => s.playerId === me.playerId);
     const team = (t: 'west' | 'east') => match!.slots.filter((s) => s.team === t).map((s) => `
-      <div class="slot"><span>${esc(s.callsign)}${s.playerId === me.playerId ? ' <span class="dim">(DU)</span>' : ''}</span>
-      <span>${CLASS_NAME[s.cls].title} · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
+      <div class="slot"><span>${esc(s.callsign)}${s.playerId === me.playerId ? ' <span class="dim">(DU)</span>' : ''}${s.bot ? ' <span class="dim">(KI)</span>' : ''}</span>
+      <span>${s.crewOf ? `<span class="dim">BESATZUNG BEI ${esc(match!.slots.find((c) => c.playerId === s.crewOf)?.callsign ?? '?')}</span>` : CLASS_NAME[s.cls].title}
+      ${mine && s.team === mine.team && !s.bot && !s.crewOf && s.playerId !== me.playerId && mine.crewOf !== s.playerId ? `<button data-crew="${s.playerId}" title="Als Besatzung auf diesem Schiff mitfahren">Mitfahren</button>` : ''}
+      · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
       '<div class="slot dim">Freier Platz</div>';
     const classes = mine?.team === 'west' ? (['ffg'] as const) : (['ssk', 'ssn'] as const);
     el.innerHTML = `
@@ -50,15 +52,17 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
         <div class="panel"><div class="hd team-e"><span>Ostpakt · Wolfsrudel</span><button data-switch="east">Wechseln</button></div>${team('east')}</div>
       </div>
       <div class="cols">
-        <div class="panel"><div class="hd"><span>Deine Schiffsklasse</span></div>
+        <div class="panel"><div class="hd"><span>Deine Schiffsklasse</span>${mine?.crewOf ? '<button id="own-ship">Eigenes Schiff führen</button>' : ''}</div>
+          ${mine?.crewOf ? '<div class="dim" style="margin-bottom:6px">DU FÄHRST ALS BESATZUNG MIT. ALLE AN BORD KÖNNEN JEDE STATION BEDIENEN.</div>' : ''}
           <div class="grid2">${classes.map((c) => `
             <button data-cls="${c}" class="${mine?.cls === c ? 'on' : ''}" style="text-align:left;text-transform:none;padding:10px">
               <div>${CLASS_NAME[c].title}</div><div class="dim">${CLASS_NAME[c].info}</div></button>`).join('')}
           </div></div>
         <div class="panel"><div class="hd"><span>Einstellungen</span></div>
-          <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${match.settings.layerDepth} M</span></div>
+          <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${match.settings.layerDepth > 0 ? match.settings.layerDepth + ' M' : 'UNBEKANNT · MESSEN'}</span></div>
           <div class="row"><span class="dim">SEEGANG</span><span>${match.settings.seaState}</span></div>
           <div class="row"><span class="dim">ZEITLIMIT</span><span>${match.settings.timeLimitMin} MIN</span></div>
+          <div class="row"><span class="dim">LEERES TEAM</span><span>${match.settings.fillBots ? 'KI ÜBERNIMMT' : 'BLEIBT LEER'}</span></div>
           <div style="display:flex;gap:6px;margin-top:10px">
             <button id="ready" class="${mine?.ready ? 'on' : ''}" style="flex:1">${mine?.ready ? 'Bereit ✓' : 'Bereit melden'}</button>
             <button id="leave">Verlassen</button>
@@ -73,6 +77,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     el.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) => {
       b.onclick = () => net.send({ t: 'join', matchId: match!.id, team: b.dataset.switch as 'west' | 'east' });
     });
+    el.querySelectorAll<HTMLButtonElement>('[data-crew]').forEach((b) => (b.onclick = () => net.send({ t: 'crew', captainId: b.dataset.crew! })));
+    el.querySelector<HTMLButtonElement>('#own-ship')?.addEventListener('click', () => net.send({ t: 'crew', captainId: null }));
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });
     el.querySelector<HTMLButtonElement>('#leave')!.onclick = () => {
       match = undefined;

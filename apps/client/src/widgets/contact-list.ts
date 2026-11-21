@@ -3,7 +3,7 @@ import { isFriendlyContact } from './friendly.js';
 import { store } from '../store.js';
 
 const SENSOR_LABEL: Record<string, string> = {
-  hull: 'RUMPF', towed: 'SCHLEPP', active: 'AKTIV', intercept: 'PING', periscope: 'OPTIK', radar: 'RADAR', esm: 'ESM',
+  hull: 'RUMPF', towed: 'SCHLEPP', active: 'AKTIV', intercept: 'PING', periscope: 'OPTIK', radar: 'RADAR', esm: 'ESM', buoy: 'BOJE',
 };
 
 /** Clickable contact table; selection is shared across stations. Friendly contacts sink to the bottom. */
@@ -20,13 +20,18 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
       const cls = c.label === store.selected ? 'amber selrow' : own || age > 30 ? 'dim' : '';
-      const range = c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 ? km(c.range) : sol ? '≈ LSG' : '—';
+      let range = c.range !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 ? km(c.range) : sol ? '≈ LSG' : '—';
+      if (c.dopplerKn !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 && Math.abs(c.dopplerKn) >= 1) {
+        range += c.dopplerKn > 0 ? ` ↓${c.dopplerKn.toFixed(0)}` : ` ↑${(-c.dopplerKn).toFixed(0)}`;
+      }
+      const side = store.tasSide.get(c.label);
+      const tasNote = c.tas?.ghost ? '<span class="red"> GEIST?</span>' : c.bearingAlt !== undefined ? (side ? ` (${side === 'stb' ? 'STB' : 'BB'})` : ' <span class="amber">S/B?</span>') : '';
       const name = c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : '';
       const what = own ? `EIGEN${name ? ' · ' + name : ''}` : name || (age > 30 ? `ALT ${Math.round(age)} S` : `? ${c.se.toFixed(0)} DB`);
       const color = c.assigned === 'torpedo' ? 'red' : '';
       return `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
         <span>${esc(c.label)}</span>
-        <span>${deg1(c.bearing)}°${c.bearingAlt !== undefined ? `/${deg1(c.bearingAlt)}°` : ''}</span>
+        <span>${c.bearingAlt !== undefined && side ? deg1(side === 'stb' ? c.bearing : c.bearingAlt) + '°' : `${deg1(c.bearing)}°${c.bearingAlt !== undefined ? `/${deg1(c.bearingAlt)}°` : ''}`}${tasNote}${c.originX !== undefined ? ' <span class="blue">(BOJE)</span>' : ''}</span>
         <span>${range}</span>
         <span>${c.sensors.map((x) => SENSOR_LABEL[x]).join('/')}</span>
         <span class="${color}">${what}</span>

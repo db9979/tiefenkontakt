@@ -55,8 +55,14 @@ export function mountHelm(el: HTMLElement) {
   q<HTMLInputElement>('#h-speed').oninput = (e) => order({ speedKn: Number((e.target as HTMLInputElement).value) });
   q<HTMLInputElement>('#h-depth').oninput = (e) => order({ depth: Number((e.target as HTMLInputElement).value) });
   q<HTMLButtonElement>('#h-peri').onclick = () => order({ depth: PERISCOPE_DEPTH });
-  q<HTMLButtonElement>('#h-above').onclick = () => order({ depth: Math.max(30, (store.snap?.env.layerDepth ?? 120) - 40) });
-  q<HTMLButtonElement>('#h-below').onclick = () => order({ depth: (store.snap?.env.layerDepth ?? 120) + 30 });
+  q<HTMLButtonElement>('#h-above').onclick = () => {
+    const l = store.snap?.env.layerDepth;
+    if (l !== undefined) order({ depth: Math.max(30, l - 40) });
+  };
+  q<HTMLButtonElement>('#h-below').onclick = () => {
+    const l = store.snap?.env.layerDepth;
+    if (l !== undefined) order({ depth: l + 30 });
+  };
 
   function drawCompass(): void {
     const s = store.snap;
@@ -127,7 +133,8 @@ export function mountHelm(el: HTMLElement) {
       if (document.activeElement !== sp) sp.value = String(o.order.speedKn);
       q('#depth-box').style.display = spec.submarine ? '' : 'none';
       if (spec.submarine) {
-        q('#h-dep').innerHTML = `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth}</span>`;
+        q('#h-dep').innerHTML = `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>`;
+        q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const dp = q<HTMLInputElement>('#h-depth');
         dp.max = String(spec.maxDepth);
         if (document.activeElement !== dp) dp.value = String(o.order.depth);

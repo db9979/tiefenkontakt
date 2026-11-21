@@ -59,6 +59,19 @@ class Audio {
     if (this.master && this.ctx && !this.muted) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   }
 
+  /** Output node panned to a bearing relative to the own bow (left = port). */
+  private out(pan = 0): AudioNode {
+    const p = this.ctx!.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(this.master!);
+    return p;
+  }
+
+  private panFor(s: Snapshot, bearing?: number): number {
+    if (bearing === undefined) return 0;
+    return Math.sin(((bearing - s.own.heading) * Math.PI) / 180);
+  }
+
   private noise(): AudioBufferSourceNode | undefined {
     if (!this.ctx || !this.noiseBuf) return undefined;
     const s = this.ctx.createBufferSource();
@@ -99,7 +112,7 @@ class Audio {
   }
 
   /** Short sine burst with optional echo tail: active sonar ping. */
-  ping(distant = false): void {
+  ping(distant = false, pan = 0): void {
     if (!this.ctx || !this.master) return;
     const c = this.ctx;
     const t = c.currentTime;
@@ -115,16 +128,17 @@ class Audio {
     delay.delayTime.value = 0.28;
     const fb = c.createGain();
     fb.gain.value = 0.35;
+    const dest = this.out(pan);
     o.connect(g);
-    g.connect(this.master);
+    g.connect(dest);
     g.connect(delay).connect(fb).connect(delay);
-    fb.connect(this.master);
+    fb.connect(dest);
     o.start(t);
     o.stop(t + 2.5);
   }
 
   /** Two-tone klaxon for an incoming torpedo. */
-  torpedoAlarm(): void {
+  torpedoAlarm(pan = 0): void {
     if (!this.ctx || !this.master) return;
     const c = this.ctx;
     const t = c.currentTime;
@@ -135,13 +149,13 @@ class Audio {
     for (let i = 0; i < 6; i++) o.frequency.setValueAtTime(i % 2 ? 660 : 880, t + i * 0.28);
     g.gain.setValueAtTime(0.07, t + 1.6);
     g.gain.linearRampToValueAtTime(0, t + 1.7);
-    o.connect(g).connect(this.master);
+    o.connect(g).connect(this.out(pan));
     o.start(t);
     o.stop(t + 1.75);
   }
 
   /** Low-passed noise burst. near = own ship hit or close detonation. */
-  explosion(near: boolean): void {
+  explosion(near: boolean, pan = 0): void {
     if (!this.ctx || !this.master) return;
     const c = this.ctx;
     const t = c.currentTime;
@@ -153,9 +167,48 @@ class Audio {
     const g = c.createGain();
     g.gain.setValueAtTime(near ? 0.9 : 0.35, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + (near ? 4 : 3));
-    n.connect(lp).connect(g).connect(this.master);
+    n.connect(lp).connect(g).connect(this.out(pan));
     n.start(t);
     n.stop(t + 4.2);
+  }
+
+  /** Metallic transient (tube flooding, launch) heard from a bearing. */
+  transient(pan = 0): void {
+    if (!this.ctx || !this.master) return;
+    const c = this.ctx;
+    const t = c.currentTime;
+    const n = this.noise()!;
+    const hp = c.createBiquadFilter();
+    hp.type = 'bandpass';
+    hp.frequency.value = 900;
+    hp.Q.value = 6;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.25, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    n.connect(hp).connect(g).connect(this.out(pan));
+    n.start(t);
+    n.stop(t + 0.6);
+  }
+
+  /** Active echo after its two-way travel time: CW = soft tone, LFM = short sweep. */
+  echo(delayS: number, lfm: boolean, strength: number, pan = 0): void {
+    if (!this.ctx || !this.master) return;
+    const c = this.ctx;
+    const t = c.currentTime + Math.max(0, delayS);
+    const o = c.createOscillator();
+    o.type = 'sine';
+    if (lfm) {
+      o.frequency.setValueAtTime(3300, t);
+      o.frequency.linearRampToValueAtTime(3700, t + 0.25);
+    } else o.frequency.value = 3500;
+    const g = c.createGain();
+    const peak = Math.min(0.25, 0.03 + strength / 80);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + (lfm ? 0.3 : 0.6));
+    o.connect(g).connect(this.out(pan));
+    o.start(t);
+    o.stop(t + 0.7);
   }
 
   /** Compressed-air launch whoosh. */
@@ -270,8 +323,17 @@ class Audio {
     h.flowFilter.frequency.setTargetAtTime(200 + sp * 25, t, 0.5);
 
     if (s.own.lastPingAt !== undefined && s.own.lastPingAt !== this.lastPing) {
-      if (this.lastPing >= 0) this.ping(false);
+      const firstSeen = this.lastPing < 0;
       this.lastPing = s.own.lastPingAt;
+      if (!firstSeen) {
+        this.ping(false);
+        // Echoes return after 2R/c, scaled to real time
+        for (const c of s.contacts) {
+          if (c.via !== 'own' || c.rangeAt !== s.own.lastPingAt || c.range === undefined || !c.sensors.includes('active')) continue;
+          const delay = (2 * c.range) / 1500 / Math.max(1, s.timeScale) - (s.time - s.own.lastPingAt) / Math.max(1, s.timeScale);
+          this.echo(delay, s.own.pulse === 'lfm', c.se, this.panFor(s, c.bearing));
+        }
+      }
     }
     if (s.torpedoes.length > this.lastTorps) this.launch();
     this.lastTorps = s.torpedoes.length;
@@ -281,10 +343,12 @@ class Audio {
       if (this.seenAlerts.has(key)) continue;
       this.seenAlerts.add(key);
       if (s.time - a.time > 3) continue;
-      if (a.kind === 'torpedo') this.torpedoAlarm();
-      else if (a.kind === 'ping') this.ping(true);
-      else if (a.kind === 'hit') this.explosion(false);
+      const pan = this.panFor(s, a.bearing);
+      if (a.kind === 'torpedo') this.torpedoAlarm(pan);
+      else if (a.kind === 'ping') this.ping(true, pan);
+      else if (a.kind === 'hit') this.explosion(false, pan);
       else if (a.kind === 'sunk') this.explosion(true);
+      else if (a.kind === 'transient') this.transient(pan);
     }
   }
 
