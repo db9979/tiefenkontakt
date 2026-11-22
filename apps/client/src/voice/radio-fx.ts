@@ -1,7 +1,9 @@
 /**
  * Radio sound for one incoming voice: narrow band (300–3000 Hz), a little clipping, hiss that
  * grows toward the edge of range, a click when the carrier comes up and a squelch tail when it
- * drops. The intercom of the own ship stays clean (wider band, no hiss).
+ * drops. Toward the edge the voice also gets quieter and thinner (less treble), fades slowly
+ * in and out, and below about 35 % quality drops out for moments at a time. The intercom of
+ * the own ship stays clean (wider band, no hiss, no fading).
  */
 
 let noiseBuf: AudioBuffer | undefined;
@@ -28,6 +30,10 @@ export class RadioChannel {
   private voice: GainNode;
   private hiss: GainNode;
   private hissSrc: AudioBufferSourceNode;
+  private lp: BiquadFilterNode;
+  /** Fading and dropouts act here, between the radio band and the volume. */
+  private fade: GainNode;
+  private fadeTimer?: ReturnType<typeof setTimeout>;
   private talking = false;
   private q = 0;
 
@@ -43,7 +49,9 @@ export class RadioChannel {
     this.voice.gain.value = 0;
     const shaper = ctx.createWaveShaper();
     shaper.curve = clipCurve(intercom ? 1.2 : 2.5);
-    this.input.connect(hp).connect(lp).connect(shaper).connect(this.voice).connect(dest);
+    this.lp = lp;
+    this.fade = ctx.createGain();
+    this.input.connect(hp).connect(lp).connect(shaper).connect(this.fade).connect(this.voice).connect(dest);
     // Hiss through the same band, only while a carrier is up
     this.hissSrc = ctx.createBufferSource();
     this.hissSrc.buffer = noise(ctx);
@@ -66,8 +74,39 @@ export class RadioChannel {
     if (!keyUp && this.talking && !this.intercom) this.burst(0.18, 0.22 + (1 - this.q) * 0.2);
     this.talking = keyUp;
     this.q = q;
-    this.voice.gain.setTargetAtTime(keyUp ? 1 : 0, now, 0.02);
+    // Weaker signal: quieter (down to about half at the edge) and thinner (treble cut toward 1.8 kHz)
+    const level = this.intercom || q >= 0.7 ? 1 : 0.45 + ((q - 0.15) / 0.55) * 0.55;
+    this.voice.gain.setTargetAtTime(keyUp ? Math.max(0.45, level) : 0, now, 0.02);
+    if (!this.intercom) this.lp.frequency.setTargetAtTime(q >= 0.7 ? 3000 : 1800 + ((q - 0.15) / 0.55) * 1200, now, 0.1);
     this.hiss.gain.setTargetAtTime(keyUp && !this.intercom ? 0.015 + (1 - q) * 0.12 : 0, now, 0.03);
+    if (keyUp && !this.intercom && q < 0.5) this.startFading();
+    else this.stopFading();
+  }
+
+  /**
+   * Weak link: the level wanders slowly (multipath fading), and under 35 % quality the voice
+   * drops out for 80–250 ms, more often the weaker the link.
+   */
+  private startFading(): void {
+    if (this.fadeTimer) return;
+    const step = () => {
+      const now = this.ctx.currentTime;
+      const depth = (0.5 - this.q) * 1.2;
+      this.fade.gain.setTargetAtTime(1 - Math.random() * depth, now, 0.25);
+      if (this.q < 0.35 && Math.random() < (0.35 - this.q) * 2.5) {
+        const gap = 0.08 + Math.random() * 0.17;
+        this.fade.gain.setValueAtTime(0.02, now + 0.01);
+        this.fade.gain.setValueAtTime(1 - Math.random() * depth, now + 0.01 + gap);
+      }
+      this.fadeTimer = setTimeout(step, 300 + Math.random() * 400);
+    };
+    step();
+  }
+
+  private stopFading(): void {
+    if (this.fadeTimer) clearTimeout(this.fadeTimer);
+    this.fadeTimer = undefined;
+    this.fade.gain.setTargetAtTime(1, this.ctx.currentTime, 0.05);
   }
 
   /** Short noise burst: key-up click or squelch tail. */
@@ -84,6 +123,7 @@ export class RadioChannel {
   }
 
   close(): void {
+    this.stopFading();
     try {
       this.hissSrc.stop();
     } catch {

@@ -1,6 +1,7 @@
 import { CLASSES } from './classes.js';
 import { mastRaised, type Ship } from './entities.js';
 import { clamp, distance } from './math.js';
+import type { Environment } from './acoustics.js';
 
 /**
  * Voice radio rules, shared by server (who may talk to whom) and client (what to show).
@@ -30,17 +31,29 @@ export function radioDownReason(s: Ship): string | undefined {
   return 'Kein Sprechfunk getaucht · auf Sehrohrtiefe gehen und Funkmast ausfahren';
 }
 
-/** UHF line-of-sight range between two antennas (m): 4.12 km × (√h1 + √h2). */
-export function voiceRange(a: Ship, b: Ship): number {
-  return 4120 * (Math.sqrt(antennaHeight(a)) + Math.sqrt(antennaHeight(b)));
+/**
+ * Weather on the link: rain attenuates and adds static, heavy seas throw spray on the
+ * antennas – and wash over a submarine's low mast. Factor on the range, 1 = clear.
+ */
+export function weatherFactor(env: Pick<Environment, 'seaState' | 'rain'> | undefined, a: Ship, b: Ship): number {
+  if (!env) return 1;
+  let f = env.rain ? 0.85 : 1;
+  f *= 1 - 0.05 * Math.max(0, env.seaState - 4);
+  for (const s of [a, b]) if (CLASSES[s.cls].submarine && s.depth > 0.5) f *= 1 - 0.08 * Math.max(0, env.seaState - 3);
+  return clamp(f, 0.4, 1);
+}
+
+/** UHF line-of-sight range between two antennas (m): 4.12 km × (√h1 + √h2), cut by the weather. */
+export function voiceRange(a: Ship, b: Ship, env?: Pick<Environment, 'seaState' | 'rain'>): number {
+  return 4120 * (Math.sqrt(antennaHeight(a)) + Math.sqrt(antennaHeight(b))) * weatherFactor(env, a, b);
 }
 
 /** Link quality 0..1 between two ships (0 = no link). Same ship = intercom = 1. */
-export function voiceQuality(a: Ship, b: Ship): number {
+export function voiceQuality(a: Ship, b: Ship, env?: Pick<Environment, 'seaState' | 'rain'>): number {
   if (a.id === b.id) return a.alive ? 1 : 0;
   if (!radioUp(a) || !radioUp(b)) return 0;
   const d = distance(a.pos, b.pos);
-  const r = voiceRange(a, b);
+  const r = voiceRange(a, b, env);
   if (d > r) return 0;
   return clamp(1 - (d / r) ** 4, 0.15, 1);
 }

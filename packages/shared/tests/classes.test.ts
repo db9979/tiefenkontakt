@@ -44,3 +44,20 @@ describe('corvette and coastal submarine', () => {
     expect(createLoadout('ssc').heavy).toBe(0);
   });
 });
+
+import { PERISCOPE_DEPTH, voiceQuality, voiceRange } from '../src/index.js';
+describe('voice radio range', () => {
+  it('rain and heavy seas cut the range; a boat mast suffers most in a sea', () => {
+    const a = createShip({ id: 'a', cls: 'ffg', name: 'A', pos: { x: 0, y: 0 }, heading: 0, speedKn: 10 });
+    const b = createShip({ id: 'b', cls: 'ffg', name: 'B', pos: { x: 30_000, y: 0 }, heading: 0, speedKn: 10 });
+    const u = createShip({ id: 'u', cls: 'ssk', name: 'U', team: 'east', pos: { x: 20_000, y: 0 }, heading: 0, speedKn: 4, depth: PERISCOPE_DEPTH });
+    u.mastUp = true;
+    u.mastExt = 1;
+    const calm = { seaState: 2, rain: false };
+    const storm = { seaState: 6, rain: true };
+    expect(voiceRange(a, b, storm)).toBeLessThan(voiceRange(a, b, calm) * 0.8);
+    expect(voiceQuality(a, b, storm)).toBeLessThan(voiceQuality(a, b, calm));
+    expect(voiceQuality(a, u, storm)).toBe(0);
+    expect(voiceQuality(a, u, calm)).toBeGreaterThan(0);
+  });
+});

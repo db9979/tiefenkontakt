@@ -137,7 +137,7 @@ export class VoiceHub {
     for (const [o, other] of room) {
       if (o === pid || this.team(m, o) !== team) continue;
       const os = m.shipOf(o);
-      const q = ship && os ? Math.round(voiceQuality(ship, os) * 100) / 100 : 0;
+      const q = ship && os ? Math.round(voiceQuality(ship, os, m.world?.env) * 100) / 100 : 0;
       // Talking reaches me over the intercom (same ship) or over the air (both up, in range: q > 0)
       const theirsUp = !!os && (os.id === ship?.id || radioUp(os));
       links.push({ playerId: o, q, talking: other.ptt && theirsUp && q > 0 });
