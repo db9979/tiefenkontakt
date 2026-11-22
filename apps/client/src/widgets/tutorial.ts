@@ -65,8 +65,23 @@ export const LESSON_STEPS: Record<string, { title: string; steps: Step[]; sequen
 export function mountTutorial(lesson: string): { el: HTMLElement; update(): void } {
   const def = LESSON_STEPS[lesson];
   const el = h(`<div class="tutorial panel"><div class="hd"><span>Ausbildung · ${esc(def?.title ?? '')}</span><button id="tut-min">–</button></div><div id="tut-body"></div></div>`);
-  const done = new Set<number>();
-  const skipped = new Set<number>();
+  // Progress survives a reload of the tab (one-off steps such as the shot can't tick again)
+  const key = `tk_tut_${store.matchId ?? ''}_${lesson}`;
+  const saved = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(key) ?? '{}') as { done?: number[]; skipped?: number[] };
+    } catch {
+      return {};
+    }
+  })();
+  const done = new Set<number>(saved.done ?? []);
+  const skipped = new Set<number>(saved.skipped ?? []);
+  let savedN = done.size;
+  const save = () => {
+    if (done.size === savedN) return;
+    savedN = done.size;
+    sessionStorage.setItem(key, JSON.stringify({ done: [...done], skipped: [...skipped] }));
+  };
   let collapsed = false;
   let reported = false;
   el.querySelector<HTMLButtonElement>('#tut-min')!.onclick = () => {
@@ -85,6 +100,7 @@ export function mountTutorial(lesson: string): { el: HTMLElement; update(): void
         if (!done.has(i) && st.done(s)) done.add(i);
       });
     }
+    save();
     const current = next();
     if (current < 0 && !reported) {
       reported = true;

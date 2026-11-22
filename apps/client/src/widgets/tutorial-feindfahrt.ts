@@ -51,7 +51,7 @@ export const FIRST_PATROL_STEPS: { title: string; sequential: true; steps: Step[
     },
     {
       where: 'Ruderstand · Kurswechsel',
-      text: 'Aus Peilungen allein folgt keine Entfernung. Fahre einen zweiten Schlag: ändere den Kurs um 40–60° (Klick in den Kompass), am besten quer zur Sichtlinie zum Ziel, und halte ihn ein paar Minuten.',
+      text: 'Aus Peilungen allein folgt keine Entfernung. Fahre einen zweiten Schlag: Fahrt „Langsam“ (bei Schleichfahrt dreht das Boot zu träge) und Kurs etwa 210° (Klick in den Kompass) – vom Ziel weg, quer zur Sichtlinie. Dann wandert die Peilung schnell. Nicht auf das Ziel zu drehen: bleibt die Peilung stehen, läuft ihr auf Kollisionskurs und die Entfernung bleibt unbestimmt.',
       done: () => !!sel() && ownLegChange(sel()!.history, store.ownTrack) >= 30,
     },
     {
@@ -61,7 +61,7 @@ export const FIRST_PATROL_STEPS: { title: string; sequential: true; steps: Step[
     },
     {
       where: '3 · Feuerleitung · Güte',
-      text: 'Ziehe den gelben Kreis und seine Vektorspitze, bis die Residuen um null streuen. Die Güte muss über 60 % steigen; mit jeder Minute auf dem neuen Schlag wird sie besser.',
+      text: 'Ziehe den gelben Kreis und seine Vektorspitze, bis die Residuen um null streuen, oder drücke nach ein paar Minuten auf dem neuen Schlag noch einmal „Auto-TMA“. Die Güte muss über 60 % steigen.',
       done: () => quality() > 60,
     },
     {

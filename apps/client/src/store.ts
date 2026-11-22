@@ -1,5 +1,18 @@
 import type { Debrief, Marks, OwnFix, Snapshot, TmaSolution } from '@tk/shared';
 
+/** Bearing samples kept per contact on the client (about one per second). */
+const HISTORY_KEEP = 900;
+
+type Sample = Snapshot['contacts'][number]['history'][number];
+/** Compact form for the tab's session storage: [t, b, alt, r, sensor, ox, oy]. */
+type PackedSample = [number, number, number | null, number | null, Sample['sensor'], number | null, number | null];
+const r1 = (x: number) => Math.round(x * 10) / 10;
+const opt = (x: number | undefined) => (x === undefined ? null : r1(x));
+const packSample = (h: Sample): PackedSample => [r1(h.t), r1(h.b), opt(h.alt), opt(h.r), h.sensor, opt(h.ox), opt(h.oy)];
+const unpackSample = ([t, b, alt, r, sensor, ox, oy]: PackedSample): Sample => ({
+  t, b, sensor, ...(alt !== null && { alt }), ...(r !== null && { r }), ...(ox !== null && { ox }), ...(oy !== null && { oy }),
+});
+
 export type Realism = 'einsteiger' | 'profi';
 
 /** Client-side game state: latest snapshot plus everything the player derived from it. */
@@ -52,7 +65,8 @@ export const store = {
       const prev = this.histories.get(c.label) ?? [];
       const lastT = prev[prev.length - 1]?.t ?? -Infinity;
       const merged = prev.concat(c.history.filter((h) => h.t > lastT));
-      if (merged.length > 240) merged.splice(0, merged.length - 240);
+      // 15 minutes of bearings: a TMA needs both legs (the server only sends its last 3 minutes)
+      if (merged.length > HISTORY_KEEP) merged.splice(0, merged.length - HISTORY_KEEP);
       this.histories.set(c.label, merged);
       c.history = merged;
     }
@@ -88,6 +102,8 @@ export const store = {
     sessionStorage.setItem(`tk_state_${this.matchId}`, JSON.stringify({
       ownTrack: this.ownTrack.slice(-1800), solutions: [...this.solutions], marks: [...this.marks],
       tasSide: [...this.tasSide], selected: this.selected,
+      // Bearings of the contacts being worked on (the server resends only its last 3 minutes)
+      histories: [...this.histories].filter(([l]) => this.solutions.has(l) || l === this.selected).map(([l, h]) => [l, h.map(packSample)]),
     }));
   },
 
@@ -102,6 +118,7 @@ export const store = {
       this.marks = new Map(d.marks ?? []);
       this.tasSide = new Map(d.tasSide ?? []);
       this.selected = d.selected;
+      this.histories = new Map((d.histories ?? []).map(([l, h]: [string, PackedSample[]]) => [l, h.map(unpackSample)]));
     } catch {
       /* corrupt local state: start fresh */
     }

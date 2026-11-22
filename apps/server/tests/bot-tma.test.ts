@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { KN, angleDiff, bearing, createShip, createWorld, headingVec, installWeapons, stepWorld, targetPosAt, type OwnFix, type TmaSolution } from '@tk/shared';
+import { KN, botSolve, type BotFix, angleDiff, bearing, createShip, createWorld, headingVec, installWeapons, stepWorld, targetPosAt, type OwnFix, type TmaSolution } from '@tk/shared';
 import { BotCrew } from '../src/bots/index.js';
-import { botSolve, type BotFix } from '../src/bots/tma-bot.js';
 
 /** Bins of a straight-running target seen from an own ship on alternating legs. */
 function plot(truth: TmaSolution, legs: number[], legS: number, noise: number, seed = 1): BotFix[] {

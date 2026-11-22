@@ -3,6 +3,7 @@ import {
   CHOICE_MAX_KN,
   CLASSES,
   autoSolve,
+  lsqSolve,
   bearing,
   ekelundRange,
   ownLegChange,
@@ -152,7 +153,9 @@ export function fireControlStation(): Station {
     if (!c) return;
     // Classified contacts bound the speed search: a freighter can't make 24 kn
     const maxKn = c.assigned ? CHOICE_MAX_KN[c.assigned] : c.classified ? CLASSES[c.classified].maxSpeedKn : 30;
-    const sol = autoSolve(c.history, store.ownTrack, maxKn);
+    // Least-squares fit over the whole plot (both legs); the grid search is the fallback for
+    // contacts without own-ship bearings (unresolved towed array)
+    const sol = lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol ?? autoSolve(c.history, store.ownTrack, maxKn);
     if (sol) store.solutions.set(c.label, sol);
   };
   q<HTMLButtonElement>('#clear').onclick = () => store.selected && store.solutions.delete(store.selected);

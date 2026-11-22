@@ -1,7 +1,11 @@
-import { KN, angleDiff, headingVec, ownPosAt, type ClassChoice, type ContactTrack, type OwnFix, type TmaSolution } from '@tk/shared';
+import type { ContactTrack } from './contacts.js';
+import { KN, angleDiff, headingVec } from './math.js';
+import type { ClassChoice } from './signatures.js';
+import { ownPosAt, type OwnFix, type TmaSolution } from './tma.js';
 
 /**
- * The AI captains' passive target motion analysis. The contact book keeps only the last
+ * Least-squares passive target motion analysis, used by the AI captains and by the
+ * player's Auto-TMA. The contact book keeps only the last
  * few minutes of raw bearings (one own leg at most), so each captain logs its own plot:
  * bearings averaged over 10 s bins with the own position, kept for 15 minutes. The fit is a
  * range profile: for each range on the latest bearing a linear least-squares solve gives
@@ -180,4 +184,16 @@ export function botSolve(fx: readonly BotFix[], maxKn: number, choice?: ClassCho
   const plausible = Math.exp(-best.prior / 3);
   const q = Math.round(100 * obs * fit * data * plausible);
   return { sol: best.sol, q, rmsDeg, courseSpread: spread, rangeLo: rLo, rangeHi: rHi };
+}
+
+/**
+ * One-off solve of a whole bearing history (the player's Auto-TMA): bins it like the
+ * captains' log and runs the least-squares fit. Undefined when there is too little
+ * own-ship data (e.g. a towed-array contact with unresolved sides).
+ */
+export function lsqSolve(history: ContactTrack['history'], track: readonly OwnFix[], maxKn: number, choice?: ClassChoice): BotTma | undefined {
+  const last = history[history.length - 1];
+  if (!last) return undefined;
+  const log = logBearings({}, { label: '_', history } as ContactTrack, track, last.t);
+  return botSolve(log.fixes, maxKn, choice);
 }

@@ -25,6 +25,7 @@ export * from './loadout.js';
 export * from './weapons.js';
 export * from './protocol.js';
 export * from './tma.js';
+export * from './tma-lsq.js';
 export * from './signatures.js';
 export * from './aviation.js';
 export * from './damage.js';

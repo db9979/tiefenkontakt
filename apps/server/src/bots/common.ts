@@ -1,5 +1,9 @@
 import {
   angleDiff,
+  botSolve,
+  logBearings,
+  pruneLogs,
+  type BearingLog,
   bearing,
   CHOICE_MAX_KN,
   distance,
@@ -12,7 +16,7 @@ import {
   type TmaSolution,
   type World,
 } from '@tk/shared';
-import { botSolve, logBearings, pruneLogs, type BearingLog } from './tma-bot.js';
+
 
 /**
  * Shared helpers for the AI captains. Fair play: they decide from their own contact
@@ -149,7 +153,7 @@ export function votedPeek(m: BotMemory, t: ContactTrack): ClassChoice | undefine
 }
 
 /**
- * The AI's TMA (tma-bot.ts) on its own 15-minute bearing plot, refreshed every 30 s per
+ * The AI's TMA (shared tma-lsq.ts) on its own 15-minute bearing plot, refreshed every 30 s per
  * contact. Every call logs the contact's newest bearings, so call it on each think.
  */
 export function solveFor(m: BotMemory, t: ContactTrack, now: number, choice?: ClassChoice): { sol: TmaSolution; q: number } | undefined {

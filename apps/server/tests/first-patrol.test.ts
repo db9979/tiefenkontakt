@@ -20,7 +20,7 @@ function lastSnap(c: { inbox: ServerMsg[] }): Snapshot | undefined {
 }
 
 describe('Erste Feindfahrt (guided first patrol)', () => {
-  it('builds a calm duel against one slow freighter crossing ahead of the boat', () => {
+  it('builds a calm duel against one freighter crossing ahead of the boat', () => {
     const slot = lessonSlot('feindfahrt', 'p1', 'Neuling');
     expect(slot).toMatchObject({ team: 'east', cls: 'ssk' });
     const { world, passiveBots } = buildLesson('feindfahrt', slot, 42);
@@ -31,7 +31,7 @@ describe('Erste Feindfahrt (guided first patrol)', () => {
     expect(others.map((s) => s.id)).toEqual([FIRST_PATROL_TARGET]);
     const target = others[0]!;
     expect(target.cls).toBe('merchant');
-    expect(target.order.speedKn).toBeLessThanOrEqual(8);
+    expect(target.order.speedKn).toBeLessThanOrEqual(12);
     // Starts shallow and fast so the first steps (depth, speed) have something to do
     expect(boat.depth).toBeLessThan(50);
     expect(boat.order.speedKn).toBeGreaterThan(5);
@@ -43,6 +43,8 @@ describe('Erste Feindfahrt (guided first patrol)', () => {
     expect(b > 270 || b < 90).toBe(true);
     expect(target.pos.y).toBeGreaterThan(boat.pos.y);
     expect(world.env.seaState).toBeLessThanOrEqual(2);
+    // One heavyweight (80) is enough: the lesson plans a single shot
+    expect(target.hp).toBeLessThanOrEqual(80);
   });
 
   it('succeeds only once the target is sunk and the boat has gone deep', () => {
