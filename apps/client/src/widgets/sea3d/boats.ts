@@ -19,12 +19,8 @@ export type P3 = [number, number, number];
 
 /** Body of revolution along z from [radius, z] points ordered stern → bow (faces outward). */
 export function rev(g: THREE.Object3D, pts: [number, number][], m: THREE.Material, seg = 20): THREE.Mesh {
-  // hullkit's lathe maps profile z to world −z: feed it −z, ordered so its faces point outward
-  const mesh = lathe(g, pts.map(([r, z]) => [r, -z] as [number, number]), m, seg);
-  // ...and its normals then point inward: turn them round
-  const n = mesh.geometry.attributes.normal as THREE.BufferAttribute;
-  for (let i = 0; i < n.array.length; i++) (n.array as Float32Array)[i] = -n.array[i]!;
-  return mesh;
+  // hullkit's lathe maps profile z to world +z with outward faces when ordered stern → bow
+  return lathe(g, pts, m, seg);
 }
 
 /** Symmetric section half-thickness (0…1) at chord fraction u (0 leading edge … 1 trailing edge). */

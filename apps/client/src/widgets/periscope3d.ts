@@ -16,6 +16,35 @@ import { dprGl, oceanSegments } from './perf.js';
 
 const EARTH_R = 6_371_000;
 
+/** Forward bridge windows (glass planes facing ahead, high up): their z, or a default. */
+function bridgeFront(g: THREE.Group): number {
+  let best = -Infinity;
+  g.updateMatrixWorld(true);
+  g.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.geometry.type !== 'PlaneGeometry' || Math.abs(m.rotation.y) > 0.01) return;
+    const p = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld);
+    const mat = m.material as THREE.MeshStandardMaterial;
+    if (p.y > 8 && mat.color && mat.color.getHex() < 0x202020 && p.z > best) best = p.z;
+  });
+  return Number.isFinite(best) ? best : 24;
+}
+
+/** Remove the own ship's parts whose bounds come within r of the eye. */
+function cullNear(g: THREE.Group, eye: THREE.Vector3, r: number): void {
+  g.updateMatrixWorld(true);
+  const drop: THREE.Object3D[] = [];
+  const box = new THREE.Box3();
+  g.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.name === 'hull' || m.name === 'deck') return;
+    box.setFromObject(m);
+    // Only what reaches up to eye height (dome, mast foot, whips); the bridge we stand on stays
+    if (box.distanceToPoint(eye) < r && box.max.y > eye.y - 0.5) drop.push(m);
+  });
+  for (const o of drop) o.removeFromParent();
+}
+
 export interface PeriscopeTarget {
   label: string;
   cls: ClassId;
@@ -119,9 +148,12 @@ export class Periscope3D {
     this.scene.add(this.camera);
     if (opts.own) {
       // Foredeck, gun and bridge front in the lower part of the picture: the eye sits on the bridge roof
-      const g = mergeStatic(shipModel(opts.own));
+      const g = shipModel(opts.own);
       for (const n of ['wake']) g.getObjectByName(n)?.removeFromParent();
-      this.own = { g, bridgeZ: opts.own === 'kor' ? 14 : opts.own === 'ffv' ? 22 : 24 };
+      // Eye just behind the forward bridge windows; parts right at the eye (dome, mast foot) would fill the view
+      const bridgeZ = bridgeFront(g) - 1.5;
+      cullNear(g, new THREE.Vector3(0, this.eye, bridgeZ), 6);
+      this.own = { g: mergeStatic(g), bridgeZ };
       this.scene.add(g);
     }
   }

@@ -16,7 +16,7 @@ export const std = (color: number, o: THREE.MeshStandardMaterialParameters = {})
 
 export const K = {
   navy: std(0x6b767c), navyDark: std(0x4d565b), deck: std(0x3d4244, { roughness: 0.95 }), black: std(0x1a1d1f, { roughness: 0.6 }),
-  white: std(0xcfd4d4, { roughness: 0.7 }), glass: std(0x0a1013, { roughness: 0.15, metalness: 0.6 }), sub: std(0x1b2023, { roughness: 0.55, metalness: 0.2 }),
+  white: std(0xcfd4d4, { roughness: 0.7 }), glass: std(0x0a1013, { roughness: 0.15, metalness: 0.6 }), sub: std(0x2a3135, { roughness: 0.55, metalness: 0.2 }),
   rubber: std(0x15181a, { roughness: 0.95 }), orange: std(0xd8732e, { roughness: 0.6 }), steel: std(0x8b9499, { roughness: 0.5, metalness: 0.5 }),
 };
 
@@ -191,13 +191,16 @@ export function loftHull(g: THREE.Object3D, s: HullSpec): Hull {
   };
 }
 
-/** Body of revolution about the z axis from a profile of [radius, z] points (nose last or first). */
+/**
+ * Body of revolution about the z axis from [radius, z] points ordered by increasing z (stern →
+ * bow); faces point outward. For upright parts (turrets, domes, funnels) use LatheGeometry
+ * directly about y.
+ */
 export function lathe(g: THREE.Object3D, profile: [number, number][], m: THREE.Material, segments = 20): THREE.Mesh {
   const pts = profile.map(([r, z]) => new THREE.Vector2(Math.max(0.001, r), z));
   const geo = new THREE.LatheGeometry(pts, segments);
-  // Lathe turns about y: tip it so its axis runs along z
+  // Lathe turns about y: a proper rotation (no mirroring) puts profile height onto +z
   geo.rotateX(Math.PI / 2);
-  geo.scale(1, 1, -1);
   const mesh = new THREE.Mesh(geo, m);
   g.add(mesh);
   return mesh;

@@ -23,7 +23,7 @@ export function asw(g: THREE.Group): void {
   // Foredeck: single-arm missile launcher with its magazine drum, anchor gear, breakwater
   const zl = 47;
   const yl = h.deckAt(zl);
-  lathe(g, [[0.01, 0], [1.9, 0], [1.9, 1.1], [1.4, 1.5], [0.01, 1.5]], N).position.set(0, yl - 0.1, zl);
+  vlathe(g, [[0.01, 0], [1.9, 0], [1.9, 1.1], [1.4, 1.5], [0.01, 1.5]], N).position.set(0, yl - 0.1, zl);
   cyl(g, 0.6, 1.4, 0, yl + 2, zl, N);
   const arm = box(g, 0.7, 0.7, 4.2, 0, yl + 2.6, zl + 0.8, K.navyDark);
   arm.rotation.x = -0.35;
@@ -58,10 +58,10 @@ export function asw(g: THREE.Group): void {
   box(g, 4.6, 0.5, 5.8, 0, l2 + 4.2, -4, K.black);
   smoke(g, 0, l2 + 4.8, -4, 5, 0x4a4c4e);
   // Gun on the upper deck house, close-in weapon on the hangar roof
-  lathe(g, [[0.01, 0], [1.6, 0], [1.4, 1.2], [0.9, 1.7], [0.01, 1.8]], K.navyDark).position.set(0, l2, -18);
+  vlathe(g, [[0.01, 0], [1.6, 0], [1.4, 1.2], [0.9, 1.7], [0.01, 1.8]], K.navyDark).position.set(0, l2, -18);
   const barrel = cyl(g, 0.14, 5, 0, l2 + 1.1, -15.2, N);
   barrel.rotation.x = Math.PI / 2 - 0.15;
-  lathe(g, [[0.01, 0], [0.9, 0], [0.9, 1.4], [0.7, 2.4], [0.01, 2.6]], K.white).position.set(0, l1, -40);
+  vlathe(g, [[0.01, 0], [0.9, 0], [0.9, 1.4], [0.7, 2.4], [0.01, 2.6]], K.white).position.set(0, l1, -40);
   for (const sx of [-1, 1]) for (const z of [20, 12, -26, -32]) cyl(g, 0.45, 1.6, sx * 5.2, l1 + 0.45, z, K.white).rotation.x = Math.PI / 2;
   // Triple torpedo tubes on deck, life rafts in canisters along the deckhouse
   for (const sx of [-1, 1]) {
