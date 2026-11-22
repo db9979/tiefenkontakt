@@ -159,6 +159,11 @@ export function ambientNoise(env: Environment): number {
 }
 
 /** Self noise of the hull array of a receiver at its current speed. */
+/** Depth of the hull sonar: the variable-depth body when lowered, else the ship's own depth. */
+export function sonarDepth(s: Ship): number {
+  return (s.vdsDepth ?? 0) > 5 ? s.vdsDepth! : s.depth;
+}
+
 export function hullSelfNoise(s: Ship): number {
   const h = CLASSES[s.cls].hull;
   const kn = Math.max(s.speed / KN, 1);
@@ -241,7 +246,7 @@ export function activeSignalExcess(target: Ship, pinger: Ship, range: number, en
   const spec = CLASSES[pinger.cls];
   const sl = spec.hull.activeSl;
   if (sl === undefined) return -Infinity;
-  const tl = transmissionLoss(range, pinger.depth, target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
+  const tl = transmissionLoss(range, sonarDepth(pinger), target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
   const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
   const ts = targetStrengthToward(target, pinger.pos);
   return sl - 2 * tl + ts - dbSum(nl - spec.hull.di, reverbLevel(sl, range, env, bottom, o)) - DT_ACTIVE;
@@ -261,7 +266,7 @@ export function pointEchoExcess(pinger: Ship, range: number, depth: number, ts: 
 export function pingInterceptExcess(pinger: Ship, listener: Ship, range: number, env: Environment): number {
   const sl = CLASSES[pinger.cls].hull.activeSl;
   if (sl === undefined) return -Infinity;
-  const tl = transmissionLoss(range, pinger.depth, listener.depth, env, ALPHA_ACTIVE);
+  const tl = transmissionLoss(range, sonarDepth(pinger), listener.depth, env, ALPHA_ACTIVE);
   const nl = dbSum(ambientNoise(env), hullSelfNoise(listener));
   return sl - tl - nl - DT_PASSIVE;
 }

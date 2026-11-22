@@ -152,7 +152,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
   // Reconnaissance: an escort seen through the periscope gets reported at once
-  if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified === 'ffg' || t.classified === 'kor') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
+  if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified === 'ffg' || t.classified === 'kor' || t.classified === 'ffv') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
     transmit(w, s, 'Feindmeldung: Geleitschiff in Sicht');
   }
   // Pack report: costs a periscope-depth excursion and an ESM bearing for the escorts

@@ -1,4 +1,4 @@
-import type { ClassId } from './classes.js';
+import { CLASSES, type ClassId } from './classes.js';
 
 export interface Tube {
   loaded: boolean;
@@ -22,16 +22,20 @@ const TEMPLATES: Record<ClassId, Omit<Loadout, 'tubes'> & { tubeCount: number }>
   ssk: { heavy: 12, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 6, reloadTime: 120, towedDecoy: false, xbt: 0 },
   ssc: { heavy: 6, light: 0, rockets: 0, depthCharges: 0, noisemakers: 4, tubeCount: 4, reloadTime: 150, towedDecoy: false, xbt: 0 },
   kor: { heavy: 0, light: 4, rockets: 4, depthCharges: 16, noisemakers: 0, tubeCount: 2, reloadTime: 50, towedDecoy: false, xbt: 6 },
+  ffv: { heavy: 0, light: 8, rockets: 8, depthCharges: 8, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
+  ssa: { heavy: 10, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 6, reloadTime: 120, towedDecoy: false, xbt: 0 },
+  fischer: { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 },
   ffg: { heavy: 0, light: 6, rockets: 8, depthCharges: 12, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
   merchant: { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 },
 };
 
 export function createLoadout(cls: ClassId): Loadout {
   const { tubeCount, ...rest } = TEMPLATES[cls];
-  const stock = cls === 'ffg' || cls === 'kor' ? rest.light : rest.heavy;
+  const surface = !CLASSES[cls].submarine;
+  const stock = surface ? rest.light : rest.heavy;
   const loaded = Math.min(tubeCount, stock);
   const tubes = Array.from({ length: tubeCount }, (_, i) => ({ loaded: i < loaded, reloadDoneAt: 0 }));
-  if (cls === 'ffg') rest.light -= loaded;
+  if (surface) rest.light -= loaded;
   else rest.heavy -= loaded;
   return { ...rest, tubes };
 }
@@ -46,7 +50,7 @@ export function stepReload(l: Loadout, cls: ClassId, now: number, slowdown = 1):
       continue;
     }
     if (t.reloadDoneAt === 0) {
-      const key = cls === 'ffg' ? 'light' : 'heavy';
+      const key = CLASSES[cls].submarine ? 'heavy' : 'light';
       if (l[key] > 0) {
         l[key] -= 1;
         t.reloadDoneAt = now + l.reloadTime * slowdown;

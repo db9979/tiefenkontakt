@@ -138,3 +138,29 @@ describe('hull blind cone', () => {
     expect(belowHull(f, { depth: 200 } as typeof f, 2000)).toBe(false);
   });
 });
+
+import { CLASSES as CL, DEFAULT_ENV, createShip as mk, stepShip as stepS, passiveSignalExcess } from '../src/index.js';
+describe('new classes', () => {
+  it('a VDS below the layer hears a deep boat far better than the hull set', () => {
+    const env = { ...DEFAULT_ENV, layerDepth: 80, layerLoss: 14 };
+    const f = mk({ id: 'f', cls: 'ffv', name: 'F', pos: { x: 0, y: 0 }, heading: 0, speedKn: 10 });
+    const u = mk({ id: 'u', cls: 'ssk', name: 'U', pos: { x: 0, y: 8000 }, heading: 90, speedKn: 4, depth: 150 });
+    const hullSe = passiveSignalExcess(u, f, 8000, 'hull', env, 6, 3000);
+    const vdsSe = passiveSignalExcess(u, f, 8000, 'hull', env, 120, 3000);
+    expect(vdsSe).toBeGreaterThan(hullSe + 8);
+    f.vdsOrder = 120;
+    for (let i = 0; i < 700; i++) stepS(f, 0.1, 0);
+    expect(f.vdsDepth).toBeGreaterThan(100);
+    f.speed = 25 * 0.5144;
+    stepS(f, 0.1, 70);
+    expect(f.vdsOrder).toBe(0);
+  });
+  it('an AIP boat creeps without draining the battery', () => {
+    const s = mk({ id: 'a', cls: 'ssa', name: 'A', pos: { x: 0, y: 0 }, heading: 0, speedKn: 4, depth: 80 });
+    s.speed = 4 * 0.5144;
+    const b0 = s.battery!;
+    for (let i = 0; i < 3600; i++) stepS(s, 1, i);
+    expect(s.battery).toBe(b0);
+    expect(CL.ssa.aipKn).toBe(5);
+  });
+});

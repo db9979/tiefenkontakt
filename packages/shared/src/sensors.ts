@@ -10,6 +10,7 @@ import {
   beamNoise,
   sourceLevelToward,
   transmissionLoss,
+  sonarDepth,
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
@@ -169,7 +170,7 @@ const heardCache = new WeakMap<Ship, { t: number; heard: Heard[] }>();
 /** Hull arrays look out and down only to about 30°: a target steeper below the hull is in the blind cone. */
 const BLIND_TAN = Math.tan((30 * Math.PI) / 180);
 export function belowHull(obs: Ship, tgt: Ship, range: number): boolean {
-  return tgt.depth - obs.depth > Math.max(range, 1) * BLIND_TAN;
+  return tgt.depth - sonarDepth(obs) > Math.max(range, 1) * BLIND_TAN;
 }
 
 function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): void {
@@ -185,7 +186,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   const heard = cache.heard;
 
   if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle && !belowHull(obs, tgt, range)) {
-    const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, obs.depth, bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
+    const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, sonarDepth(obs), bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'hull', ctx.env);
     if (se > 0) {
       out.push({

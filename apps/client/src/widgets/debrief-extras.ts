@@ -13,7 +13,7 @@ export function timelineMarkers(d: Debrief): string {
 /** Concrete lessons for the player from their own numbers. */
 export function debriefTips(st: PlayerStats | undefined): string {
   if (!st) return '';
-  const sub = st.cls === 'ssk' || st.cls === 'ssn' || st.cls === 'ssc';
+  const sub = st.cls === 'ssk' || st.cls === 'ssn' || st.cls === 'ssc' || st.cls === 'ssa';
   const tips: { good: boolean; text: string }[] = [];
   if (st.kills > 0) tips.push({ good: true, text: L(`${st.kills} Schiff(e) versenkt, ${Math.round(st.tonnageSunk / 1000)}k BRT.`, `${st.kills} ship(s) sunk, ${Math.round(st.tonnageSunk / 1000)}k GRT.`) });
   if (st.firstContactS === undefined) tips.push({ good: false, text: L('Kein eigener Kontakt: langsamer fahren (das Eigengeräusch überdeckt alles) und das Schleppsonar nutzen.', 'No contact of your own: go slower (self noise masks everything) and use the towed array.') });

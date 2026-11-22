@@ -18,11 +18,11 @@ export type ClientMsg =
   | { t: 'join_code'; matchId: string }
   | { t: 'join'; matchId: string; team: Exclude<Team, 'neutral'> }
   | { t: 'leave' }
-  | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant'> }
+  | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant' | 'fischer'> }
   | { t: 'ready'; ready: boolean }
   | { t: 'order'; heading?: number; speedKn?: number; depth?: number }
   /** silent = "Ruhe im Boot", battle = Gefechtsstationen, buoyant = Schleppantenne (receive-only). */
-  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant'; on: boolean }
+  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant' | 'vds'; on: boolean }
   | { t: 'blow' }
   | { t: 'mad'; bearing: number; range: number }
   | { t: 'towed'; length: number }
@@ -66,7 +66,7 @@ export interface PlayerSlot {
   playerId: string;
   callsign: string;
   team: Exclude<Team, 'neutral'>;
-  cls: Exclude<ClassId, 'merchant'>;
+  cls: Exclude<ClassId, 'merchant' | 'fischer'>;
   ready: boolean;
   /** AI captain filling an empty team. */
   bot?: boolean;
@@ -144,6 +144,8 @@ export interface OwnShipView {
   lastPingAt?: number;
   towedLength: number;
   towedOrder?: number;
+  vdsDepth?: number;
+  vdsOrder?: number;
   towedReady: boolean;
   /** People aboard, air (diesel boats), trim, high-pressure air, blow, buoy antenna (crew.ts, boat.ts). */
   crew?: { fatigue: number; morale: number; wounded: number; battle: boolean; silent: boolean; performance: number };

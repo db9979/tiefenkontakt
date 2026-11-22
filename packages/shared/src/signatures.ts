@@ -7,7 +7,7 @@ import type { Rng } from './rng.js';
  * the player's decision, helped by the class library below.
  */
 
-export type SigKey = 'merchant' | 'ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc' | 'torpedo' | 'bio';
+export type SigKey = 'merchant' | 'fischer' | 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'torpedo' | 'bio';
 export type ClassChoice = 'merchant' | 'warship' | 'submarine' | 'torpedo' | 'bio' | 'unknown';
 
 export interface Tonal {
@@ -63,6 +63,24 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     rpmPerKn: 12, rpmRange: [30, 170], tonalBand: [20, 80], maxSpeedKn: 14,
     tonals: [{ hz: 60, level: -4 }],
     snorkelTonals: [{ hz: 30, level: 7 }, { hz: 60, level: 6 }, { hz: 90, level: 4 }],
+  },
+  ssa: {
+    // AIP: no snorkel lines while the plant runs; a faint 400 Hz converter hum gives it away
+    key: 'ssa', name: 'U-Boot Projekt 6 (AIP)', choice: 'submarine', blades: [7],
+    rpmPerKn: 11, rpmRange: [30, 200], tonalBand: [20, 420], maxSpeedKn: 20,
+    tonals: [{ hz: 400, level: -3 }, { hz: 50, level: -5 }],
+    snorkelTonals: [{ hz: 27, level: 7 }, { hz: 54, level: 6 }, { hz: 81, level: 4 }],
+  },
+  ffv: {
+    key: 'ffv', name: 'Fregatte F-30 (Diesel-elektrisch)', choice: 'warship', blades: [5],
+    rpmPerKn: 6.5, rpmRange: [40, 190], tonalBand: [45, 260], maxSpeedKn: 29,
+    tonals: [{ hz: 50, level: 5 }, { hz: 100, level: 4 }, { hz: 250, level: 3 }],
+  },
+  fischer: {
+    // Old trawler: noisy diesel, winch and a strong blade line at low speed
+    key: 'fischer', name: 'Fischtrawler (Diesel)', choice: 'merchant', blades: [3, 4],
+    rpmPerKn: 22, rpmRange: [80, 260], tonalBand: [30, 300], maxSpeedKn: 11,
+    tonals: [{ hz: 30, level: 9 }, { hz: 90, level: 6 }, { hz: 270, level: 4 }],
   },
   bio: {
     // Whales: no shaft or blades, but pulsed low tones (fin whale 20 Hz) and song in the low hundreds

@@ -483,7 +483,7 @@ export class Plot {
         const hv = headingVec(f.heading);
         ctx.beginPath(); ctx.moveTo(p.x + hv.x * 4, p.y - hv.y * 4); ctx.lineTo(p.x + hv.x * 10, p.y - hv.y * 10); ctx.stroke();
       } else {
-        drawSymbol(ctx, p.x, p.y, 'friend', f.cls === 'ssk' || f.cls === 'ssn' || f.cls === 'ssc' ? 'subsurface' : 'surface', 6);
+        drawSymbol(ctx, p.x, p.y, 'friend', CLASSES[f.cls].submarine ? 'subsurface' : 'surface', 6);
         const hv = headingVec(f.heading);
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y - hv.y * 14); ctx.stroke();
         const age = s.time - f.reportedAt;

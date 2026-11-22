@@ -80,7 +80,7 @@ function special(w: World, timeLimitS: number, mission: string): MatchResult | u
     if (e.kind !== 'transmission' || e.time <= prev - 1e-6 || e.time > w.time) continue;
     const sender = subs.find((s) => s.id === e.senderId);
     // Close enough to make out the type and its weapons: 4 km at most
-    const seen = sender && w.books.get(sender.id)?.tracks().some((t) => (t.classified === 'ffg' || t.classified === 'kor') && e.time - t.lastSeen < 90 && (t.range ?? Infinity) < 4000);
+    const seen = sender && w.books.get(sender.id)?.tracks().some((t) => (t.classified === 'ffg' || t.classified === 'kor' || t.classified === 'ffv') && e.time - t.lastSeen < 90 && (t.range ?? Infinity) < 4000);
     if (seen && w.env.reportAt === undefined) {
       w.env.reportAt = e.time;
       w.env.reportBy = sender.id;

@@ -51,9 +51,10 @@ export interface CustomMission {
 export const DEFAULT_CUSTOM: CustomMission = { convoyKn: 9, seabed: 'tief', subFrac: 0.5 };
 
 /** Classes a team may pick in a mission: in the duel both sides fight with submarines. */
-export function allowedClasses(mission: MissionId, team: 'west' | 'east'): ('ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc')[] {
-  if (mission === 'duell') return ['ssn', 'ssk', 'ssc'];
-  return team === 'west' ? ['ffg', 'kor'] : ['ssk', 'ssn', 'ssc'];
+export type PlayableClass = 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa';
+export function allowedClasses(mission: MissionId, team: 'west' | 'east'): PlayableClass[] {
+  if (mission === 'duell') return ['ssn', 'ssk', 'ssc', 'ssa'];
+  return team === 'west' ? ['ffg', 'kor', 'ffv'] : ['ssk', 'ssn', 'ssc', 'ssa'];
 }
 
 export const LIGHT: Record<TimeOfDay, number> = { tag: 1, daemmerung: 0.5, nacht: 0.12 };

@@ -71,6 +71,9 @@ export interface Ship {
   towedLength: number; // m deployed, 0 = stowed
   /** Ordered array length; the winch pays out about 4 m/s and recovers about 3 m/s. */
   towedOrder?: number;
+  /** Variable-depth sonar: depth of the towed body (0 = housed) and the ordered depth. */
+  vdsDepth?: number;
+  vdsOrder?: number;
   activeSonar: boolean; // pings periodically when true
   lastPingAt: number;
   /** Active pulse: CW (coarse range, Doppler) or LFM (precise range, beats reverberation). */

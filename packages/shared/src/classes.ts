@@ -1,6 +1,6 @@
 /** Fictional Cold-War-era platform classes. All numbers are game-balance values, tunable. */
 
-export type ClassId = 'ssn' | 'ssk' | 'ssc' | 'ffg' | 'kor' | 'merchant';
+export type ClassId = 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'ffg' | 'kor' | 'ffv' | 'merchant' | 'fischer';
 export type Team = 'west' | 'east' | 'neutral';
 
 export interface HullSonarSpec {
@@ -46,6 +46,10 @@ export interface ClassSpec {
   hull: HullSonarSpec;
   towed?: TowedArraySpec;
   battery?: { capacityKnH: number }; // SSK: knot-hours of submerged running at slow speed
+  /** Air-independent propulsion: up to this speed the battery does not drain. */
+  aipKn?: number;
+  /** Variable-depth sonar: the hull set lowered on a cable down to maxDepth, usable up to maxSpeedKn. */
+  vds?: { maxDepth: number; maxSpeedKn: number };
   hp: number;
 }
 
@@ -95,6 +99,34 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
     towed: { di: 20, selfNoise: 50, maxSpeedKn: 14, maxLength: 600, settleTime: 45 },
     hp: 70,
   },
+  ssa: {
+    id: 'ssa', name: 'U-Boot Projekt 6 (AIP)', team: 'east', submarine: true, tonnage: 1800,
+    maxSpeedKn: 20, accel: 0.05, turnRateDeg: 2.2, turnRadius: 260, maxDepth: 250, depthRate: 1.2, planeAngleDeg: 15, draft: 0,
+    slBase: 111, slRefKn: 4, slSlope: 50, cavKn: 7, cavDepthKn: 4,
+    targetStrength: 10,
+    hull: { di: 15, baffleHalfAngle: 30, selfNoiseBase: 54, selfNoiseRefKn: 4, activeSl: 208 },
+    battery: { capacityKnH: 60 },
+    aipKn: 5,
+    hp: 70,
+  },
+  ffv: {
+    id: 'ffv', name: 'Fregatte F-30 (VDS)', team: 'west', submarine: false, tonnage: 4200,
+    maxSpeedKn: 29, accel: 0.13, turnRateDeg: 2.2, turnRadius: 420, maxDepth: 0, depthRate: 0, draft: 6,
+    slBase: 146, slRefKn: 15, slSlope: 45,
+    targetStrength: 25,
+    hull: { di: 16, baffleHalfAngle: 30, selfNoiseBase: 70, selfNoiseRefKn: 15, activeSl: 226 },
+    towed: { di: 24, selfNoise: 48, maxSpeedKn: 14, maxLength: 1200, settleTime: 60 },
+    vds: { maxDepth: 250, maxSpeedKn: 18 },
+    hp: 100,
+  },
+  fischer: {
+    id: 'fischer', name: 'Fischtrawler', team: 'neutral', submarine: false, tonnage: 900,
+    maxSpeedKn: 11, accel: 0.04, turnRateDeg: 2, turnRadius: 150, maxDepth: 0, depthRate: 0, draft: 4,
+    slBase: 152, slRefKn: 8, slSlope: 35,
+    targetStrength: 20,
+    hull: { di: 0, baffleHalfAngle: 180, selfNoiseBase: 90, selfNoiseRefKn: 8 },
+    hp: 50,
+  },
   merchant: {
     id: 'merchant', name: 'Frachter', team: 'west', submarine: false, tonnage: 12000,
     maxSpeedKn: 14, accel: 0.03, turnRateDeg: 0.8, turnRadius: 350, maxDepth: 0, depthRate: 0, draft: 9,
@@ -111,7 +143,7 @@ export function classSpec(id: ClassId): ClassSpec {
 
 /** Surface warship escorting the convoy (frigate or corvette). */
 export function isEscort(cls: ClassId): boolean {
-  return cls === 'ffg' || cls === 'kor';
+  return cls === 'ffg' || cls === 'kor' || cls === 'ffv';
 }
 
 /** Carries a helicopter (dipping sonar, sonobuoys, helo torpedoes). */

@@ -7,7 +7,7 @@ import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
 import { CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km, mastState } from '../../widgets/format.js';
 
-const MAST_HEIGHT: Record<ClassId, number> = { merchant: 28, ffg: 32, kor: 24, ssn: 8, ssk: 7, ssc: 5 };
+const MAST_HEIGHT: Record<ClassId, number> = { merchant: 28, ffg: 32, kor: 24, ssn: 8, ssk: 7, ssc: 5, ssa: 6, ffv: 33, fischer: 14 };
 
 interface Wave {
   x: number;

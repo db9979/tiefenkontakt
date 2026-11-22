@@ -67,6 +67,13 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     s.snorkelExt = approach(s.snorkelExt ?? 0, snorkelOut ? 1 : 0, (snorkelOut ? 1 / 15 : 1 / 6) * dt);
   }
 
+  // Variable-depth sonar: about 2 m/s on the winch; above its speed limit it has to be housed
+  const vds = CLASSES[s.cls].vds;
+  if (vds && (s.vdsOrder !== undefined || (s.vdsDepth ?? 0) > 0)) {
+    if (s.speed / KN > vds.maxSpeedKn) s.vdsOrder = 0;
+    s.vdsDepth = approach(s.vdsDepth ?? 0, Math.min(s.vdsOrder ?? 0, vds.maxDepth), 2 * dt);
+  }
+
   // Towed array winch: streaming 900 m takes almost 4 minutes; a moving array is not settled
   if (s.towedOrder !== undefined && s.towedOrder !== s.towedLength) {
     s.towedLength = approach(s.towedLength, s.towedOrder, (s.towedOrder > s.towedLength ? 4 : 3) * dt);
@@ -96,6 +103,8 @@ function stepBattery(s: Ship, dt: number): void {
     s.battery = Math.min(spec.battery.capacityKnH, s.battery + 40 * hours);
     return;
   }
+  // AIP plant carries slow running on its own
+  if (spec.aipKn !== undefined && kn <= spec.aipKn) return;
   // Drain grows roughly with the square of speed plus hotel load
   const drain = 1 + (kn * kn) / 4;
   s.battery = Math.max(0, s.battery - drain * hours);

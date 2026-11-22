@@ -1,5 +1,6 @@
 import {
   CLASSES,
+  KN,
   PERISCOPE_DEPTH,
   dropDepthCharge,
   dropXbt,
@@ -31,12 +32,12 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('join_code'), matchId: z.string().regex(/^[a-f0-9]{8}$/) }),
   z.object({ t: z.literal('join'), matchId: z.string().max(40), team }),
   z.object({ t: z.literal('leave') }),
-  z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ffg', 'kor']) }),
+  z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ffg', 'kor', 'ffv']) }),
   z.object({ t: z.literal('ready'), ready: z.boolean() }),
   z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
   z.object({ t: z.literal('blow') }),
   z.object({ t: z.literal('mad'), bearing: deg, range: z.number().finite().min(200).max(30_000) }),
-  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant']), on: z.boolean() }),
+  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds']), on: z.boolean() }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
     t: z.literal('fire'), heading: deg, enableAfter: z.number().finite().min(0).max(30_000),
@@ -124,6 +125,13 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
         crewOf(s).silent = m.on;
       } else if (m.what === 'battle') {
         crewOf(s).battle = m.on;
+      } else if (m.what === 'vds') {
+        const vds = spec.vds;
+        if (!vds) return 'Kein Tiefensonar (VDS) an Bord';
+        if (m.on && s.speed / KN > vds.maxSpeedKn) return `Erst unter ${vds.maxSpeedKn} kn`;
+        // Lower the body below the layer (40 m under it), or to 150 m without a layer
+        const layer = s.btLayer ?? w.env.layerDepth;
+        s.vdsOrder = m.on ? Math.min(vds.maxDepth, layer !== undefined ? layer + 40 : 150) : 0;
       } else if (m.what === 'buoyant') {
         if (!spec.submarine) return 'Nur für U-Boote';
         s.buoyAntenna = m.on;

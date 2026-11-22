@@ -58,9 +58,11 @@ function trigger(w: World, st: IncidentState): void {
       const c = convoy.length ? convoy[0]!.pos : any.pos;
       const across = wrap360((w.convoy?.guideHeading ?? 0) + (w.rng.next() < 0.5 ? 90 : -90));
       const v = headingVec(across + 180);
+      // Either a merchant without AIS or a trawler working the area (noisy, slow, many lights)
+      const fisher = w.rng.next() < 0.5;
       const n = createShip({
-        id: `n${++st.neutrals}`, cls: 'merchant', name: 'Frachter ohne AIS', team: 'neutral',
-        pos: { x: c.x + v.x * 16_000 + w.rng.gauss(0, 3000), y: c.y + v.y * 16_000 + w.rng.gauss(0, 3000) }, heading: across, speedKn: 12,
+        id: `n${++st.neutrals}`, cls: fisher ? 'fischer' : 'merchant', name: fisher ? 'Fischtrawler' : 'Frachter ohne AIS', team: 'neutral',
+        pos: { x: c.x + v.x * 16_000 + w.rng.gauss(0, 3000), y: c.y + v.y * 16_000 + w.rng.gauss(0, 3000) }, heading: across, speedKn: fisher ? 6 : 12,
       });
       w.ships.push(n);
     },
@@ -151,7 +153,7 @@ export function stepIncidents(w: World, dt: number): void {
     h.y += v.y * 1.5 * dt;
   }
   // Neutral traffic just steams across
-  for (const s of w.ships) if (s.team === 'neutral' && s.alive) s.order.speedKn = 12;
+  for (const s of w.ships) if (s.team === 'neutral' && s.alive) s.order.speedKn = s.cls === 'fischer' ? 6 : 12;
 }
 
 export function installIncidents(w: World): void {

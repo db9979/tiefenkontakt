@@ -31,7 +31,7 @@ import { learnFrom } from './learning.js';
 import { applyCommand, type GameCommand } from './input.js';
 import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
-import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
+import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
@@ -57,7 +57,6 @@ export const SPECTATE_DELAY = 240;
 const SNAP_EVERY = 1; // ticks -> 10 Hz (clients also extrapolate between snapshots)
 
 type Side = 'west' | 'east';
-type PlayableClass = Exclude<ClassId, 'merchant'>;
 
 export interface SavedMatch {
   v: 1;

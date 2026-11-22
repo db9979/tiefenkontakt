@@ -3,7 +3,8 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { h, setHtml } from '../../widgets/format.js';
+import { h, setHtml, setText } from '../../widgets/format.js';
+import { CLASSES } from '@tk/shared';
 import { Waterfall } from '../../widgets/waterfall.js';
 import { pickByBearing } from '../sub/sonar.js';
 
@@ -17,6 +18,7 @@ export function frigateSonarStation(): Station {
           <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
           <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
           <button id="xbt" title="Bathythermograph werfen: misst die Sprungschicht">BT messen</button>
+          <button id="vds" title="Tiefensonar unter die Sprungschicht absenken (nur bis 18 kn)" style="display:none">VDS absenken</button>
           ${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}
         </div>
       </div>
@@ -43,6 +45,7 @@ export function frigateSonarStation(): Station {
   el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
   el.querySelector<HTMLButtonElement>('#xbt')!.onclick = () => net.send({ t: 'bt' });
+  el.querySelector<HTMLButtonElement>('#vds')!.onclick = () => net.send({ t: 'toggle', what: 'vds', on: !(store.snap?.own.vdsOrder ?? 0) });
   el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => {
     b.onclick = () => {
       const l = store.selected;
@@ -63,7 +66,12 @@ export function frigateSonarStation(): Station {
       const o = s.own;
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
-      el.querySelector('#hs')!.textContent = o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV';
+      const vdsTxt = (o.vdsDepth ?? 0) > 5 || (o.vdsOrder ?? 0) > 0 ? ` · VDS ${o.vdsDepth ?? 0}${o.vdsOrder !== o.vdsDepth ? ` / ${o.vdsOrder ?? 0}` : ''} M` : '';
+      setText(el.querySelector('#hs')!, (o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV') + vdsTxt);
+      const vb = el.querySelector<HTMLButtonElement>('#vds')!;
+      vb.style.display = CLASSES[o.cls].vds ? '' : 'none';
+      vb.classList.toggle('on', (o.vdsOrder ?? 0) > 0);
+      setText(vb, (o.vdsOrder ?? 0) > 0 ? 'VDS einholen' : 'VDS absenken');
       const tgt = o.towedOrder ?? o.towedLength;
       const winch = tgt !== o.towedLength;
       el.querySelector('#ts')!.textContent = winch

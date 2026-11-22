@@ -59,7 +59,15 @@ export class BotCrew {
       const sub = CLASSES[ship.cls].submarine;
       m.nextThink = w.time + (sub ? k.subThink : k.think);
       if (sub) thinkSub(w, m, ship, this.skill, this.pack);
-      else thinkFrigate(w, m, ship, this.skill);
+      else {
+        thinkFrigate(w, m, ship, this.skill);
+        // VDS frigates hunt with the body under the layer whenever they are slow enough
+        const vds = CLASSES[ship.cls].vds;
+        if (vds) {
+          const layer = ship.btLayer ?? w.env.layerDepth;
+          ship.vdsOrder = ship.order.speedKn <= vds.maxSpeedKn ? Math.min(vds.maxDepth, layer !== undefined ? layer + 40 : 150) : 0;
+        }
+      }
     }
     this.pack = this.pack.filter((r) => w.time - r.t < 3600);
   }

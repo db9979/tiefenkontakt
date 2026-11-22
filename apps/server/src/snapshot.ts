@@ -166,7 +166,7 @@ export function buildSnapshot(
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, order: { ...own.order },
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
       snorkel: own.snorkel, mastUp: own.mastUp, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
-      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, towedReady: towedArrayReady(own, w.time),
+      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
       crew: own.crew && { ...own.crew, performance: Math.round(crewPerformance(own) * 100) / 100 },
       air: own.air && { ...own.air }, trim: own.trim, hpAir: own.hpAir, blowing: own.blowing, buoyAntenna: own.buoyAntenna,

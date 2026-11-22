@@ -88,7 +88,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       ${mine && s.team === mine.team && !s.bot && !s.crewOf && s.playerId !== me.playerId && mine.crewOf !== s.playerId ? `<button data-crew="${s.playerId}" title="Als Besatzung auf diesem Schiff mitfahren">Mitfahren</button>` : ''}
       · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
       '<div class="slot dim">Freier Platz</div>';
-    const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn', 'ssc'] as const) : (['ffg', 'kor'] as const);
+    const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn', 'ssc', 'ssa'] as const) : (['ffg', 'kor', 'ffv'] as const);
     el.innerHTML = `
       <div class="hd" style="font-size:14px"><span>PARTIE „${esc(match.name)}“</span><span>${match.slots.length} SPIELER · KONVOI ${match.settings.merchants} FRACHTER</span></div>
       <div class="invite"><span class="dim">${match.settings.private ? 'PRIVATE PARTIE · NUR PER LINK' : 'EINLADEN'}</span>
@@ -166,7 +166,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       };
     });
     el.querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) => {
-      b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc' });
+      b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa' });
     });
     el.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) => {
       b.onclick = () => net.send({ t: 'join', matchId: match!.id, team: b.dataset.switch as 'west' | 'east' });

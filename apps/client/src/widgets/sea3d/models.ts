@@ -189,6 +189,36 @@ function warship(g: THREE.Group, len: number, beam: number, frigate: boolean): v
   wake(g, frigate ? 190 : 140, beam, len / 2, -len / 2);
 }
 
+/** Frigate with a variable-depth sonar: no hangar, a big gantry and towed body on the quarterdeck. */
+function vdsFrigate(g: THREE.Group): void {
+  warship(g, 130, 15, false);
+  // Stern gantry (A-frame) with the yellow towed body hanging from it
+  for (const x of [-4, 4]) box(g, 0.8, 7, 0.8, x, 10, -60, M.grey).rotation.x = 0.3;
+  box(g, 9, 0.8, 0.8, 0, 13.3, -61, M.grey);
+  box(g, 2.6, 1.4, 4, 0, 8, -63, mat(0xd8a12e));
+  // Bow sonar dome hint: a second, taller mast with the long-range radar
+  cyl(g, 0.4, 12, 0, 22, -10, M.black, 0.6);
+  box(g, 6, 1.2, 0.4, 0, 28, -10, M.black);
+}
+
+/** Stern trawler: high bow, bridge forward, gallows and nets aft, lots of lights. */
+function trawler(g: THREE.Group): void {
+  const red = mat(0x7a2a22);
+  hull(g, 45, 10, 6, 1.5, red, M.black);
+  deckCap(g, 45, 10, 5, M.deck);
+  box(g, 8, 5, 9, 0, 8, 10, M.white);
+  box(g, 8.2, 1, 9.2, 0, 10, 10, M.glass);
+  cyl(g, 0.3, 10, 0, 14, 12, M.black);
+  cyl(g, 1.1, 4, 0, 10, 4, M.black, 1.2);
+  // Gallows and net drum on the aft deck
+  for (const x of [-3.5, 3.5]) box(g, 0.6, 6, 0.6, x, 8, -16, mat(0xb08a3a));
+  box(g, 7.6, 0.6, 0.6, 0, 11, -16, mat(0xb08a3a));
+  cyl(g, 1.4, 6, 0, 6.5, -10, mat(0x2b3a31)).rotation.z = Math.PI / 2;
+  smoke(g, 0, 12, 4, 3);
+  navLights(g, 45, 10, 14, 10, 6);
+  wake(g, 70, 10, 22, -22);
+}
+
 function surfacedBoat(g: THREE.Group, len: number): void {
   const r = Math.max(3, len / 17);
   const body = cyl(g, r, len, 0, -r * 0.55, 0, M.sub);
@@ -214,13 +244,15 @@ export function shipModel(cls: ClassId): THREE.Group {
   if (cls === 'merchant') merchant(g);
   else if (cls === 'ffg') warship(g, 125, 14, true);
   else if (cls === 'kor') warship(g, 90, 11, false);
-  else surfacedBoat(g, cls === 'ssn' ? 100 : cls === 'ssc' ? 45 : 70);
+  else if (cls === 'ffv') vdsFrigate(g);
+  else if (cls === 'fischer') trawler(g);
+  else surfacedBoat(g, cls === 'ssn' ? 100 : cls === 'ssc' ? 45 : cls === 'ssa' ? 60 : 70);
   return g;
 }
 
 /** What a lookout actually sees of a submerged boat: a periscope with its feather, or a snorkel with exhaust haze. */
 export function sightingModel(what: Sighting, cls: ClassId): THREE.Group {
-  if (what === 'surfaced') return shipModel(cls === 'merchant' || cls === 'ffg' || cls === 'kor' ? 'ssk' : cls);
+  if (what === 'surfaced') return shipModel(cls === 'merchant' || cls === 'ffg' || cls === 'kor' || cls === 'ffv' || cls === 'fischer' ? 'ssk' : cls);
   const g = new THREE.Group();
   const head = cyl(g, what === 'snorkel' ? 0.6 : 0.22, what === 'snorkel' ? 2.2 : 3.4, 0, 1.3, 0, M.black);
   head.name = 'head';
