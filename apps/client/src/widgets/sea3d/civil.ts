@@ -140,7 +140,8 @@ function bay(k: Kit, h: Hull, r: () => number, z: number, maxTiers: number): voi
     const n = Math.min(rows - i, 1 + Math.floor(r() * 3));
     const x = (i + n / 2 - rows / 2) * 2.5;
     const t = Math.max(1, maxTiers - Math.floor(r() * r() * 3));
-    for (let j = 0; j < t; j++) k.block(n * 2.5 - 0.12, 2.55, l, x, yc + j * 2.6, z, pick(r, BOXES));
+    // Boxes sit exactly on each other and side by side: no slivers of daylight between them
+    for (let j = 0; j < t; j++) k.block(n * 2.5, 2.6, l, x, yc + j * 2.6, z, pick(r, BOXES));
     i += n;
   }
 }
@@ -191,6 +192,22 @@ function sideBand(k: Kit, h: Hull, z0: number, z1: number, inset: number, y0: nu
   for (const sx of [-1, 1]) k.strip(zs.map((z): V3 => [sx * w(z), y0, z]), zs.map((z): V3 => [sx * w(z), y1, z]), c);
 }
 
+/**
+ * Raked bridge front: a wedge on the wheelhouse front leaning forward by `rake` at the top,
+ * with the window band in the sloped face (glare off the glass goes down to the sea) and mullions.
+ */
+function rakedFront(k: Kit, hw: number, y0: number, y1: number, z: number, rake: number): void {
+  const zAt = (y: number) => z + ((y - y0) / (y1 - y0)) * rake;
+  const row = (y: number, dz = 0): V3[] => [[-hw, y, zAt(y) + dz], [hw, y, zAt(y) + dz]];
+  const g0 = y0 + 0.8, g1 = y1 - 0.35;
+  k.strip(row(y0), row(g0), C.white);
+  k.strip(row(g0), row(g1), C.glass);
+  k.strip(row(g1), row(y1), C.white);
+  k.strip([[-hw, y1, z], [hw, y1, z]], row(y1), C.white);
+  for (const sx of [-1, 1]) k.raw([sx * hw, y0, z, sx * hw, y1, z, sx * hw, y1, z + rake], C.white);
+  for (let x = -hw + 1.6; x < hw - 0.8; x += 1.6) k.line([x, g0, zAt(g0) + 0.03], [x, g1, zAt(g1) + 0.03]);
+}
+
 /** RoRo ferry (~150 m): white tiers along most of the length with window bands, lifeboats along the sides, twin funnels. */
 export function ferry(g: THREE.Group): void {
   const r = rng();
@@ -217,7 +234,8 @@ export function ferry(g: THREE.Group): void {
       sideBand(k, h, t.z0 + 2, t.z1 - 1.5, t.inset, t.y0 + 1.0, t.y0 + 2.1, C.glass);
       const fw = h.halfBeamAt(t.z1, h.deckAt(t.z1)) - t.inset;
       const n = Math.max(1, Math.floor((fw * 2 - 2) / 1.6));
-      winRow(k, 'x', 0, t.y0 + 1.55, t.z1 + 0.03, (n - 1) * 1.6, n, 1.2, 1.1);
+      if (i < T.length - 1) winRow(k, 'x', 0, t.y0 + 1.55, t.z1 + 0.03, (n - 1) * 1.6, n, 1.2, 1.1);
+      else rakedFront(k, fw, t.y0, t.y1, t.z1, 1.5);
     }
   });
   // Livery stripe along the hull, square ports on the vehicle deck, stern door outline on the transom
@@ -314,7 +332,16 @@ export function tug(g: THREE.Group): void {
   wake(g, 70, beam, len / 2, -len / 2);
 }
 
-const SAIL = 0xffffff;
+/**
+ * Sailcloth: matte and double-sided; thin cloth lets the light through, so the sun lights it
+ * from either side (and a little even edge-on), plus a faint glow: it reads white under side light.
+ */
+const SAIL_MAT = new THREE.MeshStandardMaterial({ color: 0xf7f5ef, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, emissive: 0x2c2b28 });
+SAIL_MAT.onBeforeCompile = (sh) => {
+  sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+    'float dotNL = saturate( dot( geometryNormal, directLight.direction ) );', 'float dotNL = abs( dot( geometryNormal, directLight.direction ) ) * 0.8 + 0.2;'));
+};
+SAIL_MAT.customProgramCacheKey = () => 'sailcloth';
 
 /** Sailing yacht (~13 m sloop) under sail: coachroof, cockpit, mast with main and jib sheeted to starboard. */
 export function yacht(g: THREE.Group): void {
@@ -351,13 +378,14 @@ export function yacht(g: THREE.Group): void {
   const clew: V3 = [-Math.sin(a) * bl, yb + 0.15, zM - Math.cos(a) * bl];
   k.rod([0, yb, zM - 0.1], clew, 0.07, C.steel, 4);
   // Sails with a little belly to leeward (starboard, −x)
+  const sk = new Kit(g);
   const sail = (luff: V3[], leech: V3[], belly: number) => {
     const mid = leech.map((p, i): V3 => {
       const q = luff[i]!;
       return [(p[0] + q[0]) / 2 - belly, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2];
     });
-    k.strip(luff, mid, SAIL);
-    k.strip(mid, leech, SAIL);
+    sk.strip(luff, mid, 0xffffff);
+    sk.strip(mid, leech, 0xffffff);
   };
   const lerp = (p: V3, q: V3, t: number): V3 => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
   const tackM: V3 = [0, yb + 0.1, zM - 0.12];
@@ -378,6 +406,9 @@ export function yacht(g: THREE.Group): void {
   }
   railing(g, h, -6.2, 5, 0.6, 0.12);
   k.done();
+  const sails = sk.done();
+  sails.material = SAIL_MAT;
+  sails.name = 'sails';
   navLights(g, len, beam, yM + mh, zM, h.deckAt(0));
   wake(g, 22, beam, len / 2, -len / 2);
 }

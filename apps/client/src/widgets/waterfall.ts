@@ -1,4 +1,4 @@
-import { angleDiff, type Snapshot } from '@tk/shared';
+import { angleDiff, iceCover, type Snapshot } from '@tk/shared';
 import { COL, deg3, fitCanvas } from './format.js';
 
 const BINS = 360;
@@ -42,8 +42,11 @@ export class Waterfall {
     const row = this.bctx.createImageData(BINS, 1);
     const stern = s.own.heading + 180;
     const selfNoise = Math.min(0.35, Math.max(0, (s.own.noiseDb - 110) / 120));
+    const ice = iceCover(s.env.met, s.own);
     for (let x = 0; x < BINS; x++) {
-      let v = 0.1 + Math.random() * 0.2 + selfNoise * Math.random();
+      let v = 0.1 + Math.random() * 0.2 + selfNoise * Math.random() + (s.env.rain ? 0.08 * Math.random() : 0);
+      // Ice: a raised floor and sharp crackling all round
+      if (ice > 0) v += ice * 0.12 * Math.random() + (Math.random() < ice * 0.1 ? 0.3 + Math.random() * 0.5 : 0);
       for (const l of lines) {
         const d = Math.abs(angleDiff(l.b, x));
         v += l.amp * Math.exp((-d * d) / (2 * l.width * l.width)) * (0.6 + 0.4 * Math.random());

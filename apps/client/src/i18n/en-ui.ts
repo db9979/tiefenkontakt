@@ -274,4 +274,5 @@ export const EN_UI: [string, string][] = [
   ['Konvoifrachter folgen dem Geleit', 'Convoy freighters follow the escort'],
   ['Nur Ziele ohne Kapitän lassen sich entfernen', 'Only targets without a captain can be removed'],
   ['Einheit nicht gefunden', 'Unit not found'], ['ABGEBROCHEN', 'ABORTED'],
+  ['NEBEL', 'FOG'], ['EIS', 'ICE'], ['SCHAUER', 'SHOWER'], ['EISBERG', 'ICEBERG'], ['KOLLISION MIT EISBERG', 'COLLISION WITH ICEBERG'], ['SCHÄDEN', 'DAMAGE'],
 ];

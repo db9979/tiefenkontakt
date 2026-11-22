@@ -4,6 +4,7 @@ import { isAtPeriscopeDepth, mastExposed, type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, NM, bearing, distance, wrap360 } from './math.js';
 import type { Rng } from './rng.js';
+import { FOG_SIGHT_K, fogAt, sightPenalty } from './met.js';
 
 /**
  * Bridge lookouts on surface escorts: binoculars from about 20 m eye height.
@@ -20,6 +21,8 @@ export const LOOKOUT_EYE_M = 20;
 const SURFACED_MAX = 12_000;
 /** Torpedo tracks (bubbles, turbulence) are only seen close by and in daylight (m). */
 const WAKE_RANGE = 2_000;
+/** In thick fog a torpedo track is seen at a tenth of the range. */
+const FOG_WAKE = 9;
 
 /** Daylight and rain factor for visual search (1 = clear day). */
 export function visibility(env: Environment): number {
@@ -64,6 +67,8 @@ export function lookoutSweep(obs: Ship, ships: readonly Ship[], env: Environment
     if (!s) continue;
     const r = distance(obs.pos, tgt.pos);
     if (r > s.range) continue;
+    // Fog banks and rain curtains in the line of sight hide even close boats
+    if (r + sightPenalty(env.met, obs.pos, tgt.pos) > s.range) continue;
     if (rng.next() > 0.15 + 0.5 * (1 - r / s.range)) continue;
     out.push({
       targetId: tgt.id, sighting: s.what,
@@ -75,15 +80,16 @@ export function lookoutSweep(obs: Ship, ships: readonly Ship[], env: Environment
   return out;
 }
 
-/** Whether the lookouts can see a torpedo's track coming in (daylight, close, moderate sea). */
+/** Whether the lookouts can see a torpedo's track coming in (daylight, close, moderate sea, no fog). */
 export function seesTorpedoTrack(obs: Ship, range: number, env: Environment): boolean {
   if (CLASSES[obs.cls].submarine || (env.light ?? 1) < 0.4) return false;
-  return range < WAKE_RANGE * visibility(env) * clutter(env);
+  return range * (1 + FOG_WAKE * fogAt(env.met, obs.pos)) < WAKE_RANGE * visibility(env) * clutter(env);
 }
 
 /** Current lookout ranges for the bridge display: periscope at 6 kn, snorkel, surfaced boat (m). */
-export function lookoutRanges(env: Environment): { mast: number; snorkel: number; surfaced: number } {
-  const vis = visibility(env);
+export function lookoutRanges(env: Environment, fog = 0): { mast: number; snorkel: number; surfaced: number } {
+  // Inside a fog bank (density 0..1 at the bridge) the eye reaches only a fraction as far
+  const vis = visibility(env) / (1 + FOG_SIGHT_K * fog);
   return {
     mast: Math.min(4_500, 900 + 380 * 6) * vis * clutter(env),
     snorkel: (3_500 + 300 * 6) * vis * (0.5 + 0.5 * clutter(env)),

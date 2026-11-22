@@ -7,3 +7,4 @@ dist
 tiefenkontakt.db
 .matches
 backup-mirror
+.claude/worktrees/

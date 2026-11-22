@@ -1,6 +1,6 @@
 /** GLSL for the 3D sea view: a multi-wave ocean with whitecaps and glitter, and a sky with clouds, sun and moon. */
 
-const WAVES = `
+export const WAVES = `
 uniform float uTime; uniform float uAmp;
 float wave(vec2 p, vec2 d, float f, float s) { return sin(dot(p, normalize(d)) * f + uTime * s); }
 float height(vec2 p) {
@@ -26,7 +26,7 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 
-const NOISE = `
+export const NOISE = `
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
@@ -38,6 +38,7 @@ export const OCEAN_FRAG = `${NOISE}
 uniform float uTime;
 uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uFog;
 uniform float uFogDensity; uniform float uLight; uniform float uFoam; uniform float uSunUp;
+uniform vec4 uIce[4];
 varying vec3 vPos; varying vec3 vNormal; varying float vH;
 void main() {
   vec3 view = normalize(cameraPosition - vPos);
@@ -67,6 +68,21 @@ void main() {
     float streak = fbm(vPos.xz * vec2(0.08, 0.025) + vec2(uTime * 0.05, 0.0));
     float foam = smoothstep(0.55, 0.95, vH + streak * 0.6) * uFoam;
     col = mix(col, vec3(0.86, 0.9, 0.92) * (0.25 + 0.75 * uLight), foam * 0.8);
+  }
+  // Pack ice beyond the modelled floes: a floe pattern drifting with its field (x, z, radius, cover)
+  float icec = 0.0; vec2 iceL = vec2(0.0);
+  for (int i = 0; i < 4; i++) {
+    vec4 f = uIce[i];
+    if (f.w <= 0.0) continue;
+    float k = clamp((f.z - length(vPos.xz - f.xy)) / 2000.0 + 0.5, 0.0, 1.0) * f.w;
+    if (k > icec) { icec = k; iceL = vPos.xz - f.xy; }
+  }
+  if (icec > 0.0) {
+    float pat = noise(iceL * 0.045) * 0.65 + noise(iceL * 0.13) * 0.35;
+    float floe = smoothstep(1.0 - icec - 0.05, 1.0 - icec + 0.05, pat);
+    // Far off the pattern would only flicker: blend to the mean cover
+    floe = mix(floe, icec * 0.85, smoothstep(3500.0, 8000.0, dist)) * smoothstep(1700.0, 2600.0, dist);
+    col = mix(col, vec3(0.84, 0.9, 0.94) * (0.12 + 0.88 * uLight * uLight), floe);
   }
   float d = length(cameraPosition - vPos);
   float fog = 1.0 - exp(-pow(d * uFogDensity, 2.0));

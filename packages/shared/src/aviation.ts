@@ -276,8 +276,8 @@ export function airSystem(w: World): void {
 /** Passive omni buoys: bearings from the buoy's position, reported to the owner. */
 export function buoySensors(buoys: readonly Buoy[], ctx: SensorContext): Detection[] {
   const out: Detection[] = [];
-  const nl = ambientNoise(ctx.env);
   for (const b of buoys) {
+    const nl = ambientNoise(ctx.env, b.pos);
     for (const tgt of ctx.ships) {
       if (!tgt.alive || tgt.id === b.ownerId) continue;
       const range = distance(b.pos, tgt.pos);
@@ -305,7 +305,7 @@ function dipPing(w: World, s: Sortie, owner: Ship, depth: number): Detection[] {
  */
 function activePing(w: World, from: Vec2, depth: number, owner: Ship, sl: number, source: 'dip' | 'buoy', maxRange: number): Detection[] {
   const out: Detection[] = [];
-  const nl = ambientNoise(w.env);
+  const nl = ambientNoise(w.env, from);
   const s = { target: from };
   for (const tgt of w.ships) {
     if (!tgt.alive || tgt.team === owner.team) continue;
