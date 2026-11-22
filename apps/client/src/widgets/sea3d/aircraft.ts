@@ -1,24 +1,34 @@
 import * as THREE from 'three';
 import type { PlaneKind } from '@tk/shared';
-import { M, box, cyl, mat } from './parts.js';
+import { K, std } from './hullkit.js';
+import { blades, foil, pod, rev, rod, type P3, type Ring, type Station } from './boats.js';
 
 /**
- * Aircraft after period types (names fictional): a twin-jet airliner with a contrail, a high-
- * wing light aircraft, a big four-turboprop long-range recon aircraft, a four-turboprop
- * maritime patrol aircraft with the MAD boom in the tail, and an ASW helicopter whose rotors
- * turn. Nose toward +z. Night lights: red port wingtip (+x), green starboard, white tail and a
- * flashing red beacon (userData.strobe).
+ * Aircraft after period types (names fictional): a twin-jet narrow-body airliner with a
+ * contrail, a high-wing light aircraft with struts, a long-range four-turboprop recon aircraft
+ * with contra-rotating props and a nose probe, a four-turboprop maritime patrol aircraft with
+ * the MAD boom in the tail and a chin radome, and a naval ASW helicopter whose rotors turn.
+ * Fuselages are lofted round bodies, wings real tapered and swept foils; engines, struts,
+ * pylons and gear all reach into what carries them. Nose toward +z. Night lights: red port
+ * wingtip (+x), green starboard, white tail and a flashing red beacon (userData.strobe).
  */
 
-const WHITE = mat(0xdfe3e4);
-const GREY = mat(0x8c969b);
-const DARK = mat(0x4a5258);
+const WHITE = std(0xdfe3e4, { roughness: 0.45 });
+const GREY = std(0x9aa3a8, { roughness: 0.5 });
+const LGREY = std(0xb4bcc0, { roughness: 0.55 });
+const SILVER = std(0xa7adb0, { roughness: 0.4, metalness: 0.45 });
+const DARK = std(0x4a5258, { roughness: 0.6 });
+const NAVY = std(0x5d686e, { roughness: 0.7 });
+const BLUE = std(0x2b4a78, { roughness: 0.5 });
+const RED = std(0xb03a2e, { roughness: 0.5 });
+const DISC = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
 
-function lights(g: THREE.Group, span: number, tailZ: number, topY: number): void {
+let lampTex: THREE.Texture | undefined;
+function lights(g: THREE.Group, tip: P3, tail: P3, beacon: P3): void {
   const n = new THREE.Group();
   n.name = 'navlights';
   n.visible = false;
-  const tex = (() => {
+  if (!lampTex) {
     const c = document.createElement('canvas');
     c.width = c.height = 32;
     const x = c.getContext('2d')!;
@@ -27,141 +37,302 @@ function lights(g: THREE.Group, span: number, tailZ: number, topY: number): void
     gr.addColorStop(1, 'rgba(255,255,255,0)');
     x.fillStyle = gr;
     x.fillRect(0, 0, 32, 32);
-    return new THREE.CanvasTexture(c);
-  })();
-  const lamp = (color: number, x: number, y: number, z: number, size: number) => {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false, transparent: true }));
+    lampTex = new THREE.CanvasTexture(c);
+  }
+  const lamp = (color: number, p: P3, size: number) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: lampTex, color, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false, transparent: true }));
     s.scale.setScalar(size);
-    s.position.set(x, y, z);
+    s.position.set(...p);
     n.add(s);
     return s;
   };
-  lamp(0xff3b30, span / 2, 0, 0, 0.006);
-  lamp(0x3dff7a, -span / 2, 0, 0, 0.006);
-  lamp(0xffffff, 0, 0, tailZ, 0.005);
-  g.userData.strobe = lamp(0xff2a1a, 0, topY, 0, 0.009);
+  lamp(0xff3b30, tip, 0.006);
+  lamp(0x3dff7a, [-tip[0], tip[1], tip[2]], 0.006);
+  lamp(0xffffff, tail, 0.005);
+  g.userData.strobe = lamp(0xff2a1a, beacon, 0.009);
   g.add(n);
 }
 
+type FR = [number, number, number][];
+
+/** Round fuselage lofted through [z, radius, centre height] rings, so the tail can sweep up; returns the rings sorted by z. */
+function fuselage(g: THREE.Group, rings: FR, m: THREE.Material): FR {
+  const rs = [...rings].sort((a, b) => a[0] - b[0]);
+  pod(g, rs.map(([z, r, y]) => ({ z, w: r, h: r, y })), m, 20);
+  return rs;
+}
+
 /**
- * Swept wing pair; returns where the wing's centre line lies at a spanwise position x, so
- * engines and props can be hung exactly under it.
+ * Flush panel (windows, windscreen) on a round fuselage at station z, angle th from the top
+ * (+ toward port), a wide around the skin and l long: it lies on the skin, so nothing pokes out.
  */
-function wing(g: THREE.Group, span: number, chord: number, y: number, z: number, sweep: number, m: THREE.Material): (x: number) => number {
-  const zc = z - Math.abs(sweep) / 2;
-  const a = sweep * 0.02;
-  for (const side of [-1, 1]) {
-    // Root at the fuselage centre line; rotating about the root keeps it attached
-    const w = new THREE.Mesh(new THREE.BoxGeometry(span / 2, 0.4, chord), m);
-    w.geometry.translate(side * span / 4, 0, 0);
-    w.position.set(0, y, zc + Math.abs(sweep) / 2);
-    w.rotation.y = side * a;
-    g.add(w);
-  }
-  // A point at spanwise x on the rotated wing lies |x|·tan(a) further aft of the root
-  return (x: number) => zc + Math.abs(sweep) / 2 - Math.abs(x) * Math.tan(a);
+function decal(g: THREE.Group, rs: FR, z: number, th: number, a: number, l: number, m: THREE.Material = K.glass): void {
+  const i = Math.max(0, rs.findIndex((q) => q[0] >= z) - 1);
+  const [z0, r0, y0] = rs[i]!;
+  const [z1, r1, y1] = rs[Math.min(rs.length - 1, i + 1)]!;
+  const f = z1 > z0 ? (z - z0) / (z1 - z0) : 0;
+  const r = r0 + (r1 - r0) * f;
+  const y = y0 + (y1 - y0) * f;
+  const dr = z1 > z0 ? (r1 - r0) / (z1 - z0) : 0;
+  const n = new THREE.Vector3(Math.sin(th), Math.cos(th), -dr).normalize();
+  const t1 = new THREE.Vector3(Math.cos(th), -Math.sin(th), 0);
+  const t2 = new THREE.Vector3().crossVectors(n, t1);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(a, l, 0.08), m);
+  p.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(t1, t2, n));
+  p.position.set(r * Math.sin(th), y + r * Math.cos(th), z);
+  g.add(p);
 }
 
-function fuselage(g: THREE.Group, len: number, r: number, m: THREE.Material): void {
-  const f = cyl(g, r, len, 0, 0, 0, m, r * 0.9);
-  f.rotation.x = Math.PI / 2;
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), m);
-  nose.scale.set(1, 1, 1.8);
-  nose.position.z = len / 2;
-  g.add(nose);
+/** Wing (or tailplane) pair from stations on one side (s ≥ 0), mirrored. */
+function wings(g: THREE.Group, st: Station[], m: THREE.Material): void {
+  for (const sx of [1, -1]) foil(g, st.map((S) => ({ ...S, s: S.s * sx })), m, false);
 }
 
-/** Turboprop nacelles hung under the wing line (top of the nacelle touches the wing), props in front. */
-function props(g: THREE.Group, xs: number[], wingY: number, at: (x: number) => number, r: number): void {
-  const disc = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
-  for (const x of xs) {
-    const z = at(x);
-    const y = wingY - 0.2 - 0.8;
-    const nac = cyl(g, 0.9, 5, x, y, z + 0.5, DARK);
-    nac.rotation.x = Math.PI / 2;
-    const p = new THREE.Mesh(new THREE.CircleGeometry(r, 16), disc);
-    p.position.set(x, y, z + 3.1);
-    g.add(p);
+/** Leading edge, trailing edge, centre height and half thickness of a station list at span x. */
+function at(st: Station[], x: number): Station {
+  const a = Math.abs(x);
+  for (let i = 0; i < st.length - 1; i++) {
+    const p = st[i]!;
+    const q = st[i + 1]!;
+    if (a <= q.s || i === st.length - 2) {
+      const f = (a - p.s) / (q.s - p.s);
+      const l = (u: number, v: number) => u + (v - u) * f;
+      return { s: a, le: l(p.le, q.le), te: l(p.te, q.te), t: l(p.t, q.t), o: l(p.o ?? 0, q.o ?? 0) };
+    }
   }
+  return st[0]!;
+}
+
+/** Spinning propeller (blades plus a faint disc) at z on a nacelle axis; registered for animateAircraft. */
+function prop(g: THREE.Group, x: number, y: number, z: number, n: number, r: number, hub: number, chord: number, dir = 1, m: THREE.Material = K.black): void {
+  const p = blades(n, hub * 0.5, r - hub * 0.5, chord, 0.6 * dir, m, 0.06);
+  p.position.set(x, y, z);
+  const d = new THREE.Mesh(new THREE.CircleGeometry(r, 20), DISC);
+  p.add(d);
+  g.add(p);
+  ((g.userData.props ??= []) as { o: THREE.Object3D; d: number }[]).push({ o: p, d: dir });
+}
+
+/** Turbofan nacelle on a pylon under the wing: intake lip, dark fan face, exhaust cone. */
+function jet(g: THREE.Group, x: number, y: number, z: number, wingY: number, wingLe: number, m: THREE.Material): void {
+  const n = rev(g, [[0.05, -3.2], [0.32, -2.8], [0.58, -2.2], [0.72, -2.05], [0.95, -0.4], [0.99, 0.9], [0.92, 1.85], [0.74, 2.0], [0.7, 1.8], [0.001, 1.6]], m, 18);
+  n.position.set(x, y, z);
+  const fan = new THREE.Mesh(new THREE.CircleGeometry(0.71, 16), K.black);
+  fan.position.set(x, y, z + 1.65);
+  g.add(fan);
+  foil(g, [
+    { s: y + 0.6, le: z + 1.2, te: z - 2.2, t: 0.16, o: x },
+    { s: wingY, le: Math.min(wingLe - 0.3, z + 0.4), te: z - 2.6, t: 0.14, o: x },
+  ], m, true);
+}
+
+/** Turboprop nacelle through the wing with spinner and one or two (contra-rotating) blade rows. */
+function turboprop(g: THREE.Group, x: number, y: number, zf: number, back: number, r: number, propR: number, n: number, rows: number, m: THREE.Material): void {
+  rev(g, [[0.05, zf - back], [r * 0.5, zf - back + 0.8], [r * 0.9, zf - back * 0.55], [r, zf - 2.2], [r * 0.95, zf - 0.6], [r * 0.85, zf]], m, 16).position.set(x, y, 0);
+  const sl = rows > 1 ? 2.4 : 1.4;
+  rev(g, [[r * 0.84, zf - 0.05], [r * 0.75, zf + sl * 0.45], [r * 0.5, zf + sl * 0.8], [0.001, zf + sl]], DARK, 14).position.set(x, y, 0);
+  for (let i = 0; i < rows; i++) prop(g, x, y, zf + 0.35 + i * 0.95, n, propR, r * 0.8, propR * 0.13, i % 2 ? -1 : 1);
 }
 
 function airliner(g: THREE.Group): void {
-  fuselage(g, 38, 2, WHITE);
-  const at = wing(g, 34, 6, -0.8, 0, 12, GREY);
-  // Engines on short pylons: top of the nacelle meets the underside of the wing
-  for (const x of [-6, 6]) {
-    cyl(g, 1.1, 4, x, -2.1, at(x) + 1, GREY).rotation.x = Math.PI / 2;
+  // Narrow-body twin jet, 38 m: round fuselage with upswept tail cone
+  const F = fuselage(g, [[19.4, 0.05, -0.4], [19.1, 0.75, -0.32], [18.5, 1.22, -0.2], [17.5, 1.62, -0.08], [16, 1.9, 0], [13, 1.95, 0], [-9, 1.95, 0],
+    [-12, 1.85, 0.15], [-15, 1.45, 0.55], [-17.5, 0.9, 0.95], [-19, 0.38, 1.25], [-19.4, 0.05, 1.3]], WHITE);
+  // Windscreen, window line and cheat line
+  for (const sx of [-1, 1]) {
+    decal(g, F, 17.6, sx * 0.3, 0.6, 0.45);
+    decal(g, F, 17.35, sx * 0.85, 0.5, 0.5);
+    decal(g, F, 2, sx * 1.3, 0.24, 23);
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 24), BLUE);
+    c.position.set(sx * 1.93, -0.05, 2);
+    g.add(c);
   }
-  box(g, 0.4, 7, 5, 0, 3.6, -18, WHITE);
-  box(g, 12, 0.3, 3.5, 0, 0.6, -18, GREY);
-  // Contrail: two long white streaks from the engines
+  // Low swept wing with dihedral, wing-body fairing underneath
+  const W: Station[] = [
+    { s: 0, le: 4.2, te: -3.8, t: 0.42, o: -1.25 },
+    { s: 5.6, le: 1.5, te: -3.3, t: 0.34, o: -0.76 },
+    { s: 17, le: -4.0, te: -5.6, t: 0.11, o: 0.24 },
+  ];
+  wings(g, W, GREY);
+  pod(g, [{ z: -6.5, w: 0.1, h: 0.1, y: -1.5 }, { z: -4.5, w: 1.5, h: 0.55, y: -1.55 }, { z: 3.5, w: 1.6, h: 0.6, y: -1.55 }, { z: 6, w: 0.1, h: 0.1, y: -1.45 }], GREY, 14);
+  // Engines on short pylons under the wing (nacelle top meets the pylon, pylon reaches into the wing)
+  for (const x of [-5.6, 5.6]) {
+    const w = at(W, x);
+    jet(g, x, w.o! - w.t - 1.05, w.le + 0.35, w.o!, w.le, GREY);
+  }
+  // Fin with dorsal fillet in company blue, tailplanes with dihedral
+  foil(g, [{ s: 1.1, le: -9.3, te: -17.6, t: 0.32 }, { s: 2.3, le: -11.6, te: -17.9, t: 0.28 }, { s: 8.6, le: -16.4, te: -19.3, t: 0.12 }], BLUE, true);
+  wings(g, [{ s: 0, le: -14.6, te: -18.7, t: 0.22, o: 0.9 }, { s: 6.3, le: -18.3, te: -20, t: 0.08, o: 1.66 }], GREY);
+  // Contrail: two long white streaks from the engines, older and spread out further back
   const trail = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false });
   const c = new THREE.Group();
   c.name = 'contrail';
-  // Fresh and narrow behind the engines, older and spread out further back
-  for (const x of [-6, 6]) {
+  const ey = at(W, 5.6);
+  for (const x of [-5.6, 5.6]) {
     const t = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 1500), trail);
-    t.position.set(x, -2.1, -770);
+    t.position.set(x, ey.o! - ey.t - 1.05, -770);
     c.add(t);
   }
   const old = new THREE.Mesh(new THREE.BoxGeometry(40, 18, 3000), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false }));
   old.position.set(0, -2.4, -3000);
   c.add(old);
   g.add(c);
-  lights(g, 34, -20, 2.2);
+  lights(g, [17, 0.24, -4.8], [0, 1.3, -19.5], [0, 2.0, -1]);
 }
 
 function lightPlane(g: THREE.Group): void {
-  fuselage(g, 7.5, 0.6, WHITE);
-  // High wing resting on the cabin roof, with struts down to the fuselage
-  box(g, 11, 0.15, 1.5, 0, 0.65, 0.6, WHITE);
-  for (const x of [-1.6, 1.6]) box(g, 0.06, 0.9, 0.06, x, 0.2, 0.6, GREY).rotation.z = x > 0 ? 0.9 : -0.9;
-  box(g, 0.12, 1.4, 1, 0, 0.8, -3.6, mat(0xb03a2e));
-  box(g, 3.4, 0.1, 0.8, 0, 0.2, -3.6, WHITE);
-  lights(g, 11, -4, 1.2);
+  // High-wing four-seater, 8.3 m: cowling, cabin, slim tail cone
+  pod(g, [
+    { z: -4.45, w: 0.02, h: 0.05, y: 0.42 }, { z: -4.3, w: 0.08, h: 0.2, y: 0.4 }, { z: -3, w: 0.22, h: 0.35, y: 0.32 }, { z: -1.5, w: 0.42, h: 0.55, y: 0.25 },
+    { z: -0.6, w: 0.55, h: 0.7, y: 0.2 }, { z: 0.6, w: 0.56, h: 0.73, y: 0.17 }, { z: 1.15, w: 0.56, h: 0.72, y: 0.16 }, { z: 1.7, w: 0.54, h: 0.56, y: 0.02 }, { z: 2.3, w: 0.5, h: 0.5, y: 0 },
+    { z: 2.75, w: 0.42, h: 0.42, y: -0.05 },
+  ].map((r): Ring => ({ ...r, n: 2.6 })), WHITE, 16);
+  const ws = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.55), K.glass);
+  ws.position.set(0, 0.7, 1.43);
+  ws.rotation.x = 0.5;
+  g.add(ws);
+  for (const sx of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.36, 1.7), K.glass);
+    w.position.set(sx * 0.52, 0.55, 0.1);
+    g.add(w);
+  }
+  // Wing on the cabin roof; struts from the lower fuselage into the wing
+  const W: Station[] = [{ s: 0, le: 1.5, te: -0.1, t: 0.085, o: 0.95 }, { s: 2.6, le: 1.5, te: -0.1, t: 0.085, o: 1.03 }, { s: 5.5, le: 1.35, te: 0.25, t: 0.05, o: 1.12 }];
+  wings(g, W, WHITE);
+  for (const sx of [-1, 1]) rod(g, [sx * 0.45, -0.25, 0.75], [sx * 2.55, 1.02, 0.75], 0.045, GREY);
+  // Fixed tricycle gear: legs from inside the fuselage to the wheel hubs
+  const wheel = new THREE.CylinderGeometry(0.22, 0.22, 0.13, 12);
+  wheel.rotateZ(Math.PI / 2);
+  for (const [a, b] of [[[0.4, -0.35, -0.1], [1.2, -1.12, -0.1]], [[-0.4, -0.35, -0.1], [-1.2, -1.12, -0.1]], [[0, -0.3, 2.0], [0, -1.15, 2.2]]] as [P3, P3][]) {
+    rod(g, a, b, 0.04, GREY);
+    const w = new THREE.Mesh(wheel, K.rubber);
+    w.position.set(...b);
+    g.add(w);
+  }
+  // Fin and stabiliser
+  foil(g, [{ s: 0.3, le: -2.9, te: -4.35, t: 0.07 }, { s: 0.55, le: -3.4, te: -4.45, t: 0.06 }, { s: 1.6, le: -4.0, te: -4.6, t: 0.04 }], RED, true);
+  wings(g, [{ s: 0, le: -3.3, te: -4.35, t: 0.05, o: 0.36 }, { s: 1.7, le: -3.6, te: -4.3, t: 0.03, o: 0.36 }], WHITE);
+  // Spinner and two-blade propeller
+  rev(g, [[0.42, 2.7], [0.36, 2.95], [0.22, 3.2], [0.001, 3.4]], RED, 12);
+  prop(g, 0, -0.05, 3.0, 2, 0.95, 0.3, 0.15);
+  lights(g, [5.5, 1.12, 0.8], [0, 0.55, -4.5], [0, 1.6, -4.25]);
 }
 
 function recon(g: THREE.Group): void {
-  // Long-range recon: long fuselage, long swept wings with four big turboprops, tall fin
-  fuselage(g, 46, 1.9, GREY);
-  const at = wing(g, 50, 6, -0.4, 2, 20, GREY);
-  props(g, [-17, -8, 8, 17], -0.4, at, 2.8);
-  box(g, 0.4, 9, 6, 0, 4.6, -20, GREY);
-  box(g, 15, 0.3, 4, 0, 1, -20, GREY);
-  lights(g, 50, -23, 2);
+  // Long-range recon: long thin fuselage, 35° swept wings, four turboprops with contra-props, tall fin
+  const F = fuselage(g, [[23.4, 0.05, -0.2], [22.7, 0.7, -0.1], [21.3, 1.2, 0], [19.5, 1.42, 0], [-14, 1.45, 0], [-18, 1.3, 0.1], [-21, 0.95, 0.25],
+    [-22.8, 0.6, 0.35], [-23.4, 0.3, 0.35], [-23.6, 0.05, 0.35]], SILVER);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), K.glass);
+  nose.position.set(0, -0.15, 23.0);
+  g.add(nose);
+  const turret = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), K.glass);
+  turret.position.set(0, 0.35, -23.2);
+  g.add(turret);
+  for (const sx of [-1, 1]) {
+    decal(g, F, 20.6, sx * 0.3, 0.55, 0.6);
+    decal(g, F, 20.4, sx * 0.85, 0.5, 0.6);
+  }
+  // Refuelling probe over the nose, rooted in the fuselage
+  rod(g, [0, 0.9, 20.5], [0, 1.0, 26], 0.08, DARK);
+  // Big ventral search radome
+  pod(g, [{ z: -4.5, w: 0.05, h: 0.05, y: -1.3 }, { z: -3, w: 1.1, h: 0.6, y: -1.35 }, { z: 1, w: 1.3, h: 0.75, y: -1.35 }, { z: 5, w: 1.0, h: 0.5, y: -1.3 }, { z: 6, w: 0.05, h: 0.05, y: -1.2 }], DARK, 14);
+  const W: Station[] = [{ s: 0, le: 5.5, te: -2.5, t: 0.45, o: -0.4 }, { s: 12, le: -3.2, te: -8.4, t: 0.3, o: -0.65 }, { s: 25, le: -12, te: -14.6, t: 0.13, o: -0.9 }];
+  wings(g, W, SILVER);
+  for (const sx of [-1, 1]) {
+    for (const [x, back] of [[7, 13], [14.5, 8]] as const) {
+      const w = at(W, x);
+      turboprop(g, sx * x, w.o! - 0.15, w.le + 3.6, back, 0.95, 2.8, 4, 2, SILVER);
+    }
+  }
+  foil(g, [{ s: 0.8, le: -13, te: -21.5, t: 0.35 }, { s: 1.6, le: -15.5, te: -21.8, t: 0.3 }, { s: 8.4, le: -20.8, te: -24.3, t: 0.14 }], SILVER, true);
+  wings(g, [{ s: 0, le: -16.5, te: -21.5, t: 0.25, o: 0.5 }, { s: 7.3, le: -21.3, te: -23.8, t: 0.08, o: 0.5 }], SILVER);
+  lights(g, [25, -0.9, -13.3], [0, 0.35, -23.8], [0, 1.5, 2]);
 }
 
 function mpa(g: THREE.Group): void {
-  // Patrol aircraft: low wing, four turboprops, MAD boom sticking out of the tail
-  fuselage(g, 32, 1.7, WHITE);
-  const at = wing(g, 30, 4.5, -1, 1, 4, WHITE);
-  props(g, [-9.5, -4.5, 4.5, 9.5], -1, at, 2);
-  box(g, 0.4, 6, 4, 0, 3.4, -14, WHITE);
-  box(g, 12, 0.3, 3, 0, 0.6, -14, WHITE);
-  cyl(g, 0.25, 5, 0, 0, -18.5, GREY).rotation.x = Math.PI / 2;
-  lights(g, 30, -21, 1.8);
+  // Maritime patrol: low straight wing, four turboprops, chin radome, MAD boom out of the tail
+  const F = fuselage(g, [[17.2, 0.05, -0.35], [16.6, 0.75, -0.2], [15.4, 1.35, -0.05], [13.8, 1.65, 0], [12, 1.7, 0], [-8, 1.7, 0], [-11, 1.55, 0.15],
+    [-13.5, 1.1, 0.45], [-15, 0.6, 0.7], [-15.6, 0.36, 0.78]], LGREY);
+  rev(g, [[0.05, -20.8], [0.22, -20.4], [0.3, -19.5], [0.34, -16.5], [0.4, -15.2]], LGREY, 10).position.y = 0.78;
+  pod(g, [{ z: 11.6, w: 0.05, h: 0.05, y: -1.5 }, { z: 12.3, w: 0.6, h: 0.35, y: -1.55 }, { z: 13.8, w: 0.95, h: 0.55, y: -1.55 }, { z: 15.6, w: 0.7, h: 0.4, y: -1.5 }, { z: 16.3, w: 0.05, h: 0.05, y: -1.4 }], DARK, 14);
+  for (const sx of [-1, 1]) {
+    decal(g, F, 15.6, sx * 0.3, 0.55, 0.55);
+    decal(g, F, 15.4, sx * 0.85, 0.55, 0.6);
+  }
+  const W: Station[] = [{ s: 0, le: 4.4, te: -1.6, t: 0.42, o: -1.0 }, { s: 15.2, le: 2.2, te: 0, t: 0.13, o: 0.6 }];
+  wings(g, W, LGREY);
+  for (const sx of [-1, 1]) {
+    for (const x of [4.9, 10]) {
+      const w = at(W, x);
+      turboprop(g, sx * x, w.o! + 0.1, w.le + 2.4, 7.5, 0.8, 2.05, 4, 1, LGREY);
+    }
+  }
+  foil(g, [{ s: 0.9, le: -6.5, te: -15.2, t: 0.3 }, { s: 2.0, le: -11.5, te: -15.6, t: 0.28 }, { s: 7.6, le: -14.6, te: -17.0, t: 0.14 }], LGREY, true);
+  wings(g, [{ s: 0, le: -12.5, te: -16.0, t: 0.22, o: 0.8 }, { s: 6.4, le: -14.8, te: -16.6, t: 0.08, o: 1.57 }], LGREY);
+  lights(g, [15.2, 0.6, 1.1], [0, 0.78, -20.9], [0, 1.8, 2]);
 }
 
 function helo(g: THREE.Group): void {
-  // ASW helicopter: cabin pod, tail boom with tail rotor, main rotor turning above
-  const pod = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 10), M.hullGrey);
-  pod.scale.set(1, 1, 2.4);
-  g.add(pod);
-  const boom = cyl(g, 0.45, 8, 0, 0.4, -6.5, M.hullGrey, 0.25);
-  boom.rotation.x = Math.PI / 2;
-  box(g, 0.2, 2, 1.2, 0, 1.2, -10.5, M.hullGrey);
+  // Naval ASW helicopter: boat-hull cabin, engine housing, five-blade rotor, tail pylon with tail rotor, sponsons
+  pod(g, [
+    { z: -9.4, w: 0.02, h: 0.1, y: 1.6 }, { z: -9.0, w: 0.28, h: 0.45, y: 1.6 }, { z: -8.2, w: 0.3, h: 0.45, y: 1.55 }, { z: -6, w: 0.45, h: 0.6, y: 1.3, n: 2.6 },
+    { z: -4, w: 0.8, h: 0.95, y: 0.95, n: 3 }, { z: -2.5, w: 1.1, h: 1.35, y: 0.65, n: 3.2 }, { z: 0, w: 1.15, h: 1.5, y: 0.55, n: 3.5 }, { z: 4.5, w: 1.15, h: 1.45, y: 0.55, n: 3.5 },
+    { z: 6, w: 1.1, h: 1.25, y: 0.45, n: 3 }, { z: 7.1, w: 0.9, h: 0.95, y: 0.3, n: 2.5 }, { z: 7.6, w: 0.3, h: 0.4, y: 0.2 },
+  ], NAVY, 18);
+  pod(g, [{ z: -3.8, w: 0.05, h: 0.05, y: 2.0 }, { z: -3.2, w: 0.35, h: 0.3, y: 2.0 }, { z: -1.5, w: 0.8, h: 0.55, y: 2.0, n: 3 }, { z: 2.6, w: 0.75, h: 0.55, y: 2.0, n: 3 }, { z: 3.4, w: 0.05, h: 0.05, y: 2.0 }], NAVY, 14);
+  for (const sx of [-1, 1]) {
+    const ws = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.9), K.glass);
+    ws.position.set(sx * 0.36, 1.48, 6.55);
+    ws.rotation.x = 0.39;
+    g.add(ws);
+  }
+  for (const sx of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 1.5), K.glass);
+    w.position.set(sx * 1.12, 1.15, 5.1);
+    g.add(w);
+    // Sponson with the main wheel below it
+    const sp = pod(g, [{ z: -1.9, w: 0.08, h: 0.08, y: -0.45 }, { z: -1.2, w: 0.45, h: 0.35, y: -0.45 }, { z: 0.6, w: 0.38, h: 0.3, y: -0.45 }, { z: 1.2, w: 0.05, h: 0.05, y: -0.45 }], NAVY, 12);
+    sp.position.x = sx * 1.3;
+    rod(g, [sx * 1.4, -0.6, -0.5], [sx * 1.4, -1.25, -0.5], 0.08, K.black);
+    const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.2, 12), K.rubber);
+    wh.rotation.z = Math.PI / 2;
+    wh.position.set(sx * 1.4, -1.25, -0.5);
+    g.add(wh);
+  }
+  rod(g, [0, 1.0, -6.6], [0, 0.1, -6.9], 0.06, K.black);
+  const tw = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 10), K.rubber);
+  tw.rotation.z = Math.PI / 2;
+  tw.position.set(0, 0.1, -6.9);
+  g.add(tw);
+  // Rotor mast out of the engine housing; the turning rotor head sits on top
+  rod(g, [0, 2.3, 0.4], [0, 3.3, 0.4], 0.2, K.black, 8);
   const rotor = new THREE.Group();
   rotor.name = 'rotor';
-  for (const a of [0, Math.PI / 2]) box(rotor, 13, 0.08, 0.5, 0, 0, 0, M.black).rotation.y = a;
-  rotor.position.set(0, 2.1, 0);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.35, 10), K.black);
+  rotor.add(hub);
+  for (let i = 0; i < 5; i++) {
+    const geo = new THREE.BoxGeometry(0.5, 0.08, 9.2);
+    geo.translate(0, 0, 4.7);
+    geo.rotateY((i / 5) * Math.PI * 2);
+    rotor.add(new THREE.Mesh(geo, K.black));
+  }
+  rotor.position.set(0, 3.3, 0.4);
   g.add(rotor);
-  cyl(g, 0.15, 0.6, 0, 1.8, 0, M.black);
+  // Tail pylon (fin), stabiliser and the tail rotor on the pylon's side
+  foil(g, [{ s: 1.4, le: -7.8, te: -9.2, t: 0.2 }, { s: 2.0, le: -8.2, te: -9.5, t: 0.2 }, { s: 3.9, le: -9.0, te: -10.1, t: 0.14 }], NAVY, true);
+  foil(g, [{ s: 0, le: -9.0, te: -9.75, t: 0.07, o: 3.5 }, { s: -1.8, le: -9.15, te: -9.75, t: 0.05, o: 3.5 }], NAVY, false);
+  rod(g, [0.05, 3.1, -9.5], [0.42, 3.1, -9.5], 0.13, K.black, 8);
   const tail = new THREE.Group();
   tail.name = 'tailrotor';
-  box(tail, 0.06, 2.2, 0.25, 0, 0, 0, M.black);
-  tail.position.set(0.3, 1.2, -10.5);
+  for (let i = 0; i < 5; i++) {
+    const geo = new THREE.BoxGeometry(0.05, 1.55, 0.2);
+    geo.translate(0, 0.85, 0);
+    geo.rotateX((i / 5) * Math.PI * 2);
+    tail.add(new THREE.Mesh(geo, K.black));
+  }
+  tail.position.set(0.42, 3.1, -9.5);
   g.add(tail);
-  lights(g, 3.4, -10.5, 2.4);
+  lights(g, [1.75, -0.45, -0.4], [0, 3.85, -10.1], [0, 2.6, -1.6]);
 }
 
 export function aircraftModel(kind: PlaneKind): THREE.Group {
@@ -174,12 +345,13 @@ export function aircraftModel(kind: PlaneKind): THREE.Group {
   return g;
 }
 
-/** Turn rotors and flash the beacon. */
+/** Turn rotors and propellers and flash the beacon. */
 export function animateAircraft(g: THREE.Group, t: number, night: boolean): void {
   const r = g.getObjectByName('rotor');
   if (r) r.rotation.y = t * 30;
   const tr = g.getObjectByName('tailrotor');
   if (tr) tr.rotation.x = t * 60;
+  for (const p of (g.userData.props ?? []) as { o: THREE.Object3D; d: number }[]) p.o.rotation.z = t * 40 * p.d;
   const s = g.userData.strobe as THREE.Sprite | undefined;
   if (s) s.visible = night && t % 1.2 < 0.12;
 }
