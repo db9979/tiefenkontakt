@@ -162,7 +162,7 @@ function warship(g: THREE.Group, len: number, beam: number, frigate: boolean): v
   hull(g, len, beam, 7.5, 1.5, M.hullGrey, M.black);
   deckCap(g, len, beam, 6, M.deck);
   // Gun forward, bridge, mast with a turning radar, funnel, hangar aft
-  cyl(g, 2.2 * k, 2.4, 0, 7.6, 40 * k, M.grey, 2.6 * k);
+  cyl(g, 2.2 * k, 2.4, 0, 7.2, 40 * k, M.grey, 2.6 * k);
   const barrel = cyl(g, 0.25, 6 * k, 0, 8.2, 44 * k, M.grey);
   barrel.rotation.x = Math.PI / 2 - 0.15;
   box(g, beam * 0.75, 7, 20 * k, 0, 9.5, 18 * k, M.grey);
@@ -175,16 +175,17 @@ function warship(g: THREE.Group, len: number, beam: number, frigate: boolean): v
   box(g, beam * 0.55, 7, 9 * k, 0, 9.5, -4 * k, M.grey).rotation.x = -0.12;
   smoke(g, 0, 14, -6 * k, 5, 0x4a4c4e);
   // ASW rocket launcher (box with cells) between gun and bridge; hull number area; boats
-  box(g, 4 * k, 2.2, 6 * k, 0, 7.4, 30 * k, M.grey);
-  box(g, 3.4 * k, 0.4, 5.4 * k, 0, 8.6, 30 * k, M.black);
-  for (const x of [-1, 1]) box(g, 1.2, 1.2, 5 * k, x * beam * 0.42, 10, 4 * k, mat(0xd8732e));
+  box(g, 4 * k, 2.2, 6 * k, 0, 7.1, 30 * k, M.grey);
+  box(g, 3.4 * k, 0.4, 5.4 * k, 0, 8.3, 30 * k, M.black);
+  // Lifeboats in their cradles on deck beside the superstructure
+  for (const x of [-1, 1]) box(g, 1.2, 1.2, 5 * k, x * beam * 0.42, 6.6, 4 * k, mat(0xd8732e));
   if (frigate) {
     box(g, beam * 0.8, 6, 16 * k, 0, 9, -26 * k, M.grey);
-    box(g, beam * 0.86, 0.3, 22 * k, 0, 6.6, -48 * k, M.deck);
+    box(g, beam * 0.86, 0.3, 22 * k, 0, 6.15, -48 * k, M.deck);
     // Point-defence missile launcher on the hangar roof, flight deck marking
     box(g, 2.5, 1.4, 3, 0, 12.7, -30 * k, M.grey);
-    box(g, 0.4, 0.05, 18 * k, 0, 6.8, -48 * k, mat(0xd9d9d0));
-  } else box(g, beam * 0.5, 3, 10 * k, 0, 8, -24 * k, M.grey);
+    box(g, 0.4, 0.05, 18 * k, 0, 6.33, -48 * k, mat(0xd9d9d0));
+  } else box(g, beam * 0.5, 3, 10 * k, 0, 7.5, -24 * k, M.grey);
   navLights(g, len, beam, 34 * k, 12 * k, 7);
   wake(g, frigate ? 190 : 140, beam, len / 2, -len / 2);
 }
@@ -193,29 +194,35 @@ function warship(g: THREE.Group, len: number, beam: number, frigate: boolean): v
 function vdsFrigate(g: THREE.Group): void {
   warship(g, 130, 15, false);
   // Stern gantry (A-frame) with the yellow towed body hanging from it
-  for (const x of [-4, 4]) box(g, 0.8, 7, 0.8, x, 10, -60, M.grey).rotation.x = 0.3;
-  box(g, 9, 0.8, 0.8, 0, 13.3, -61, M.grey);
-  box(g, 2.6, 1.4, 4, 0, 8, -63, mat(0xd8a12e));
-  // Bow sonar dome hint: a second, taller mast with the long-range radar
-  cyl(g, 0.4, 12, 0, 22, -10, M.black, 0.6);
-  box(g, 6, 1.2, 0.4, 0, 28, -10, M.black);
+  // Legs stand on the quarterdeck (deck at 6 m), crossbar on top, the body hangs from a cable
+  for (const x of [-4, 4]) box(g, 0.8, 8, 0.8, x, 10, -60, M.grey);
+  box(g, 9, 0.8, 0.8, 0, 14.2, -60, M.grey);
+  cyl(g, 0.08, 4.4, 0, 11.8, -60, M.black);
+  box(g, 2.6, 1.4, 4, 0, 8.9, -60, mat(0xd8a12e));
+  // Winch house in front of the gantry, on deck
+  box(g, 6, 2.6, 5, 0, 7.3, -52, M.grey);
+  // Second mast for the long-range radar, stepped on the deckhouse aft of the funnel
+  box(g, 5, 5, 6, 0, 8.5, -16, M.grey);
+  cyl(g, 0.4, 14, 0, 18, -16, M.black, 0.6);
+  box(g, 6, 1.2, 0.4, 0, 25, -16, M.black);
 }
 
 /** Stern trawler: high bow, bridge forward, gallows and nets aft, lots of lights. */
 function trawler(g: THREE.Group): void {
   const red = mat(0x7a2a22);
+  // Hull top and deck at 4.5 m; everything below stands on it
   hull(g, 45, 10, 6, 1.5, red, M.black);
-  deckCap(g, 45, 10, 5, M.deck);
-  box(g, 8, 5, 9, 0, 8, 10, M.white);
-  box(g, 8.2, 1, 9.2, 0, 10, 10, M.glass);
-  cyl(g, 0.3, 10, 0, 14, 12, M.black);
-  cyl(g, 1.1, 4, 0, 10, 4, M.black, 1.2);
+  deckCap(g, 45, 10, 4.5, M.deck);
+  box(g, 8, 5, 9, 0, 7, 10, M.white);
+  box(g, 8.2, 1, 9.2, 0, 8.6, 10, M.glass);
+  cyl(g, 0.3, 10, 0, 14.5, 12, M.black);
+  cyl(g, 1.1, 5, 0, 7, 4, M.black, 1.2);
   // Gallows and net drum on the aft deck
-  for (const x of [-3.5, 3.5]) box(g, 0.6, 6, 0.6, x, 8, -16, mat(0xb08a3a));
-  box(g, 7.6, 0.6, 0.6, 0, 11, -16, mat(0xb08a3a));
-  cyl(g, 1.4, 6, 0, 6.5, -10, mat(0x2b3a31)).rotation.z = Math.PI / 2;
-  smoke(g, 0, 12, 4, 3);
-  navLights(g, 45, 10, 14, 10, 6);
+  for (const x of [-3.5, 3.5]) box(g, 0.6, 6, 0.6, x, 7.5, -16, mat(0xb08a3a));
+  box(g, 7.6, 0.6, 0.6, 0, 10.5, -16, mat(0xb08a3a));
+  cyl(g, 1.4, 6, 0, 5.9, -10, mat(0x2b3a31)).rotation.z = Math.PI / 2;
+  smoke(g, 0, 10, 4, 3);
+  navLights(g, 45, 10, 14, 10, 4.5);
   wake(g, 70, 10, 22, -22);
 }
 

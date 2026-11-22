@@ -12,8 +12,9 @@ const skill = (process.argv[3] ?? 'normal') as ScenarioSettings['botSkill'];
 const missions: ScenarioSettings['mission'][] = ['groenland', 'schelf', 'fjord'];
 const slots: PlayerSlot[] = [
   { playerId: 'bot-w1', callsign: 'W1', team: 'west', cls: 'ffg', ready: true, bot: true },
-  { playerId: 'bot-w2', callsign: 'W2', team: 'west', cls: 'ffg', ready: true, bot: true },
-  { playerId: 'bot-e1', callsign: 'E1', team: 'east', cls: 'ssk', ready: true, bot: true },
+  // ARENA_MIX=1: the newer classes (VDS frigate, AIP boat) take the second slot of each side
+  { playerId: 'bot-w2', callsign: 'W2', team: 'west', cls: process.env.ARENA_MIX ? 'ffv' : 'ffg', ready: true, bot: true },
+  { playerId: 'bot-e1', callsign: 'E1', team: 'east', cls: process.env.ARENA_MIX ? 'ssa' : 'ssk', ready: true, bot: true },
   { playerId: 'bot-e2', callsign: 'E2', team: 'east', cls: 'ssn', ready: true, bot: true },
 ];
 const tally = { west: 0, east: 0 };
