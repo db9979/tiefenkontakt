@@ -8,3 +8,4 @@ tiefenkontakt.db
 .matches
 backup-mirror
 .claude/worktrees/
+.claude/settings.local.json
