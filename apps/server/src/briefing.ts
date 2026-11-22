@@ -48,6 +48,14 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
     if (centre) intel.push(`${harbour ? 'Ankerplatz' : 'Konvoi'}: Peilung ${deg3(bearing(ship.pos, centre))}, ${km(distance(ship.pos, centre))}, ${merchants.length} Frachter`);
     intel.push(`Bedrohung: ${enemies.length} U-Boot(e), vermutlich voraus des Konvois`);
   }
+  // Missions with goals beyond sinking
+  const special: Record<string, [string, string]> = {
+    fuehlung: ['Fühlung zum Konvoi halten: 25 Minuten Kontakt aus höchstens 12 km, dabei alle 15 Minuten die Lage funken. Waffen sind gesperrt.', 'Die Fühlung der U-Boote abschütteln, bis die Zeit abläuft.'],
+    meerenge: ['Durch die Enge nach Norden durchbrechen: ein Boot muss das Nordende erreichen.', 'Die Enge halten: kein U-Boot darf nach Norden durch.'],
+    aufklaerung: ['Ein Geleitschiff auf höchstens 4 km im Sehrohr erkennen, per Funk melden und danach 20 Minuten entkommen.', 'Keine Feindmeldung zulassen: U-Boote abdrängen oder versenken.'],
+  };
+  const sp = special[settings.mission];
+  if (sp) goal = sub ? sp[0] : sp[1];
   if (w.env.layerDepth > 0) intel.push('Sprungschicht vorhanden, Tiefe noch nicht gemessen');
   // Fleet intelligence sometimes knows the enemy commander's character (AI ships only)
   const ai = enemies.find((e) => e.id.startsWith('p_bot-'));

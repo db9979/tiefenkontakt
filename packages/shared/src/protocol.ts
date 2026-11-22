@@ -3,7 +3,7 @@ import type { ContactTrack } from './contacts.js';
 import type { DamageState, ShipSystem } from './damage.js';
 import type { ClassChoice } from './signatures.js';
 
-export type MissionKey = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene';
+export type MissionKey = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
 export interface CustomMissionSettings {
   convoyKn: number;
   seabed: 'tief' | 'schelf' | 'fjord';

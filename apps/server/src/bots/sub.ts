@@ -14,6 +14,7 @@ import {
   isConvoyShip,
   TRAITS,
   commanderTrait,
+  headingVec,
 } from '@tk/shared';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
@@ -58,6 +59,23 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const warships = fresh.filter((t) => voted(m, t) === 'warship' && !isFriendly(w, s, t, m));
   // Escorts are loud from far away: only a strong signal (close) or a ping counts as a threat
   const threatNear = pinged || warships.some((t) => t.se > 24 || (t.range !== undefined && t.range < 6000));
+  // Strait breakthrough: creep north through the deepest water, deep and slow, ignore targets
+  if (w.env.mission === 'meerenge') {
+    // Straight north unless the water ahead gets shallow; then the deeper side
+    let best = 0;
+    let bestDepth = depthAt(w.env.seabed, s.pos.x, s.pos.y + 1500);
+    if (bestDepth < 80) {
+      for (const off of [-25, 25, -45, 45]) {
+        const v = headingVec(off);
+        const d = depthAt(w.env.seabed, s.pos.x + v.x * 1500, s.pos.y + v.y * 1500);
+        if (d > bestDepth + 15) [best, bestDepth] = [off, d];
+      }
+    }
+    s.order.heading = wrap360(best);
+    s.order.speedKn = threatNear ? 4 : 7;
+    s.order.depth = Math.max(25, Math.min(maxSafe, (s.btLayer ?? 80) + 30, bestDepth - 30));
+    return;
+  }
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip);
   const wanted = duel ? 'submarine' : 'merchant';
@@ -121,8 +139,12 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   s.order.heading = wrap360(target.bearing + 40 * m.legSign);
   s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
+  // Reconnaissance: an escort seen through the periscope gets reported at once
+  if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified === 'ffg' || t.classified === 'kor') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
+    transmit(w, s, 'Feindmeldung: Geleitschiff in Sicht');
+  }
   // Pack report: costs a periscope-depth excursion and an ESM bearing for the escorts
-  if (k.pack && now - m.lastReport > REPORT_EVERY && !threatNear) {
+  if (k.pack && now - m.lastReport > (w.env.mission === 'fuehlung' ? 480 : REPORT_EVERY) && !threatNear) {
     if (mastRaised(s)) {
       transmit(w, s, `Konvoi Peilung ${Math.round(target.bearing)}`);
       pack.push({ t: now, x: s.pos.x, y: s.pos.y, b: target.bearing, team: s.team });

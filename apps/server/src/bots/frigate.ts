@@ -21,6 +21,7 @@ import {
   TRAITS,
   commanderTrait,
 } from '@tk/shared';
+import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
 const ROCKET_COOLDOWN = 90;
@@ -136,6 +137,15 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     }
     s.order.heading = distance(s.pos, station) > 2500 ? to : wrap360(to + 30 * m.legSign);
     s.order.speedKn = distance(s.pos, station) > 4000 ? 18 : 12;
+  } else if (w.env.mission === 'meerenge') {
+    // Guard the narrows: long legs across the channel around the guard line
+    const station = { x: flankOf(w, s) * 1200, y: STRAIT_GUARD_Y };
+    if (now > m.legUntil) {
+      m.legSign = -m.legSign;
+      m.legUntil = now + 360;
+    }
+    s.order.heading = distance(s.pos, station) > 3000 ? bearing(s.pos, station) : m.legSign > 0 ? 80 : 260;
+    s.order.speedKn = 8;
   }
 
   if (now - m.lastShot < ROCKET_COOLDOWN / SKILL[skill].fireRate) return;

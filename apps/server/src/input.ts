@@ -57,7 +57,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('spectate'), matchId: z.string().max(40) }),
   z.object({
     t: z.literal('settings'),
-    mission: z.enum(['groenland', 'schelf', 'fjord', 'duell', 'hafen', 'eigene']).optional(),
+    mission: z.enum(['groenland', 'schelf', 'fjord', 'duell', 'hafen', 'eigene', 'fuehlung', 'meerenge', 'aufklaerung']).optional(),
     custom: z.object({ convoyKn: z.number().min(5).max(14), seabed: z.enum(['tief', 'schelf', 'fjord']), subFrac: z.number().min(0.2).max(0.9) }).optional(),
     merchants: z.number().int().min(2).max(12).optional(),
     timeOfDay: z.enum(['tag', 'daemmerung', 'nacht']).optional(),

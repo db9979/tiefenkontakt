@@ -1,7 +1,9 @@
+import { SHADOW_GOAL_S, SHADOW_RANGE_M } from './scenario.js';
 import {
   CLASSES,
   type World,
   isConvoyShip,
+  distance,
 } from '@tk/shared';
 
 export interface Score {
@@ -28,6 +30,7 @@ export function computeScore(w: World): Score {
 /** Win conditions; undefined while the match continues. */
 export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): MatchResult | undefined {
   if (mission === 'duell') return duel(w, timeLimitS);
+  if (mission === 'fuehlung' || mission === 'meerenge' || mission === 'aufklaerung') return special(w, timeLimitS, mission);
   const sc = computeScore(w);
   if (sc.totalTons > 0 && sc.sunkTons >= sc.totalTons * 0.5) return { winner: 'east', reason: 'Die Hälfte der Konvoi-Tonnage versenkt' };
   if (sc.totalTons > 0 && sc.arrivedTons > sc.totalTons * 0.5) return { winner: 'west', reason: 'Der Konvoi hat sein Ziel erreicht' };
@@ -43,6 +46,55 @@ export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): M
       ? { winner: 'east', reason: 'Zeit abgelaufen, genug Tonnage versenkt' }
       : { winner: 'west', reason: 'Zeit abgelaufen, Konvoi weitgehend unversehrt' };
   }
+  return undefined;
+}
+
+const lastEval = new WeakMap<World, number>();
+
+/** Shadowing, strait breakthrough and reconnaissance: goals beyond sinking ships. */
+function special(w: World, timeLimitS: number, mission: string): MatchResult | undefined {
+  const subs = w.ships.filter((s) => s.team === 'east' && s.alive);
+  if (!subs.length) return { winner: 'west', reason: 'Alle U-Boote versenkt' };
+  const prev = lastEval.get(w) ?? w.time;
+  lastEval.set(w, w.time);
+  if (mission === 'fuehlung') {
+    // Contact counts while a boat holds a fresh track on a convoy ship
+    const convoy = w.ships.filter((s) => isConvoyShip(s) && s.alive);
+    const ids = new Set(convoy.map((s) => s.id));
+    // A shadower only counts while it keeps reporting: a radio report within the last 15 minutes (which the escorts can DF)
+    const reported = new Set(w.events.filter((e) => e.kind === 'transmission' && w.time - e.time < 900).map((e) => (e as { senderId: string }).senderId));
+    const holding = subs.some((s) => reported.has(s.id) && convoy.some((c) => distance(s.pos, c.pos) < SHADOW_RANGE_M) &&
+      w.books.get(s.id)?.entries().some(([id, tr]) => ids.has(id) && w.time - tr.lastSeen < 30));
+    if (holding) w.env.shadowS = (w.env.shadowS ?? 0) + (w.time - prev);
+    if ((w.env.shadowS ?? 0) >= SHADOW_GOAL_S) return { winner: 'east', reason: 'Fühlung 25 Minuten gehalten, der Konvoi ist gemeldet' };
+    if (w.time >= timeLimitS) return { winner: 'west', reason: 'Zeit abgelaufen, die Fühlung ist abgerissen' };
+    return undefined;
+  }
+  if (mission === 'meerenge') {
+    if (subs.some((s) => s.pos.y >= (w.env.exitY ?? Infinity))) return { winner: 'east', reason: 'Durchbruch gelungen: ein U-Boot hat die Enge passiert' };
+    if (w.time >= timeLimitS) return { winner: 'west', reason: 'Zeit abgelaufen, die Enge hat gehalten' };
+    return undefined;
+  }
+  // Reconnaissance: a radio report from a boat that has an escort in its periscope (classified by sight)
+  for (const e of w.events) {
+    if (e.kind !== 'transmission' || e.time <= prev - 1e-6 || e.time > w.time) continue;
+    const sender = subs.find((s) => s.id === e.senderId);
+    // Close enough to make out the type and its weapons: 4 km at most
+    const seen = sender && w.books.get(sender.id)?.tracks().some((t) => (t.classified === 'ffg' || t.classified === 'kor') && e.time - t.lastSeen < 90 && (t.range ?? Infinity) < 4000);
+    if (seen && w.env.reportAt === undefined) {
+      w.env.reportAt = e.time;
+      w.env.reportBy = sender.id;
+    }
+  }
+  // The reporting boat then has to get away: 20 minutes with the escorts on its DF bearing
+  if (w.env.reportAt !== undefined) {
+    const reporter = w.ships.find((s) => s.id === w.env.reportBy);
+    if (!reporter?.alive) {
+      w.env.reportAt = undefined;
+      w.env.reportBy = undefined;
+    } else if (w.time - w.env.reportAt >= 1200) return { winner: 'east', reason: 'Feindmeldung abgesetzt und entkommen' };
+  }
+  if (w.time >= timeLimitS) return { winner: 'west', reason: 'Zeit abgelaufen, keine Feindmeldung' };
   return undefined;
 }
 

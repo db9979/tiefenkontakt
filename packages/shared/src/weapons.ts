@@ -119,6 +119,7 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
   const st = ws(w);
   const l = st.loadouts.get(shooter.id);
   if (!shooter.alive || !l) return 'Schiff kann nicht feuern';
+  if (w.env.weaponsTight === shooter.team) return 'Waffen gesperrt: Fühlung halten, nicht schießen';
   if (weaponsBroken(shooter)) return 'Waffenanlage ausgefallen';
   const tube = l.tubes.find((t) => t.loaded);
   if (!tube) return 'Kein Rohr geladen';

@@ -25,6 +25,14 @@ export interface Environment {
   incidents?: IncidentState;
   /** Match seed (AI commanders' traits are drawn from it). */
   seed?: number;
+  /** Mission id and its running state (shadowing time, exit line, weapons tight). */
+  mission?: string;
+  shadowS?: number;
+  weaponsTight?: 'west' | 'east';
+  exitY?: number;
+  /** Reconnaissance: when and by whom the enemy report went out. */
+  reportAt?: number;
+  reportBy?: string;
   /** What each side's AI learned about the other side's players' habits. */
   adapt?: { west?: { pd?: boolean; above?: boolean; fast?: boolean }; east?: { ping?: boolean; fast?: boolean } };
 }

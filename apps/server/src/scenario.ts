@@ -17,7 +17,15 @@ import {
 } from '@tk/shared';
 import type { LessonId } from './lessons.js';
 
-export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene';
+export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
+/** Strait breakthrough: escorts guard the narrows here, the boats must get past this line. */
+export const STRAIT_GUARD_Y = 7_000;
+export const STRAIT_EXIT_Y = 15_000;
+/** Shadowing: minutes of held contact the pack needs. */
+export const SHADOW_GOAL_S = 25 * 60;
+/** Shadowing only counts within this distance of a convoy ship. */
+export const SHADOW_RANGE_M = 12_000;
+
 export type TimeOfDay = 'tag' | 'daemmerung' | 'nacht';
 
 export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; subSpread: number }> = {
@@ -26,6 +34,9 @@ export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: 
   fjord: { title: 'Fjordausfahrt', info: 'Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', seabed: 'fjord', subSpread: 2200 },
   duell: { title: 'U-Boot-Duell', info: 'U-Boote gegen U-Boote, kein Konvoi: wer zuerst hört, gewinnt', seabed: 'tief', subSpread: 3000 },
   hafen: { title: 'Hafenangriff', info: 'Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt', seabed: 'fjord', subSpread: 2000 },
+  fuehlung: { title: 'Fühlung halten', info: 'Waffen gesperrt: Kontakt zum Konvoi 25 Minuten aus höchstens 12 km halten', seabed: 'tief', subSpread: 4000 },
+  meerenge: { title: 'Meerengen-Durchbruch', info: 'Die U-Boote müssen durch eine bewachte Enge nach Norden', seabed: 'fjord', subSpread: 700 },
+  aufklaerung: { title: 'Aufklärung', info: 'Ein Geleitschiff im Sehrohr erkennen und per Funk melden', seabed: 'schelf', subSpread: 4000 },
   eigene: { title: 'Eigene Mission', info: 'Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar', seabed: 'tief', subSpread: 4000 },
 };
 
@@ -92,7 +103,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const custom = mission === 'eigene' ? { ...DEFAULT_CUSTOM, ...settings.custom } : undefined;
   const route = routeLength(settings);
   const merchants: Ship[] = [];
-  const nMerchants = mission === 'duell' ? 0 : settings.merchants;
+  const nMerchants = mission === 'duell' || mission === 'meerenge' ? 0 : settings.merchants;
   const convoyKn = custom?.convoyKn ?? 9;
   for (let i = 0; i < nMerchants; i++) {
     const anchored = mission === 'hafen';
@@ -113,17 +124,19 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     const sub = CLASSES[p.cls].submarine;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'west', playerId: p.playerId,
-      pos: { x, y: mission === 'hafen' ? 6500 : 2500 }, heading: 0, speedKn: sub ? 5 : mission === 'hafen' ? 8 : 12, depth: sub ? 80 : undefined,
+      // Strait: the escorts guard the narrows halfway up the channel
+      pos: { x: mission === 'meerenge' ? x * 0.5 : x, y: mission === 'hafen' ? 6500 : mission === 'meerenge' ? STRAIT_GUARD_Y : 2500 }, heading: 0,
+      speedKn: sub ? 5 : mission === 'hafen' || mission === 'meerenge' ? 8 : 12, depth: sub ? 80 : undefined,
     }));
   });
   east.forEach((p, i) => {
     const frac = custom ? custom.subFrac : mission === 'hafen' ? 0.9 : 0.45 + ((i * 0.37) % 0.3);
     const spread = MISSIONS[mission].subSpread;
     const x = (i % 2 === 0 ? 1 : -1) * (spread + (i * spread) / 2);
-    const y = mission === 'duell' ? 25_000 : mission === 'hafen' ? Math.min(route * frac, 22_000) : route * frac;
+    const y = mission === 'duell' ? 25_000 : mission === 'meerenge' ? -1500 - i * 800 : mission === 'hafen' ? Math.min(route * frac, 22_000) : route * frac;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'east', playerId: p.playerId,
-      pos: { x, y }, heading: 180, speedKn: 4, depth: 80,
+      pos: { x, y }, heading: mission === 'meerenge' ? 0 : 180, speedKn: 4, depth: 80,
     }));
   });
 
@@ -133,6 +146,12 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed }, light: LIGHT[settings.timeOfDay],
   });
   w.env.seed = seed;
+  w.env.mission = mission;
+  if (mission === 'fuehlung') {
+    w.env.weaponsTight = 'east';
+    w.env.shadowS = 0;
+  }
+  if (mission === 'meerenge') w.env.exitY = STRAIT_EXIT_Y;
   w.env.weather = initWeather(w.env, START_HOUR[settings.timeOfDay], settings.weather !== 'stabil');
   w.env.light = daylight(START_HOUR[settings.timeOfDay]);
   // Subs start safely above the bottom in shallow missions
