@@ -38,7 +38,7 @@ export type ClientMsg =
   | { t: 'classify'; label: string; choice: ClassChoice }
   | { t: 'pulse'; pulse: 'cw' | 'lfm' }
   | { t: 'bt' }
-  | { t: 'buoy'; bearing: number; range: number; deep: boolean }
+  | { t: 'buoy'; bearing: number; range: number; deep: boolean; active?: boolean }
   | { t: 'dip'; bearing: number; range: number; deep: boolean }
   | { t: 'helotorp'; bearing: number; range: number }
   | { t: 'mpa'; bearing: number; range: number }
@@ -211,7 +211,7 @@ export interface AlertView {
   kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient' | 'sighting' | 'boat' | 'splash' | 'command';
   /** Intercepted ping: received level (dB over threshold) and the kind of source. */
   level?: number;
-  source?: 'hull' | 'dip';
+  source?: 'hull' | 'dip' | 'buoy';
   /** Lookout sightings: what, rough range and the contact label. */
   what?: 'mast' | 'snorkel' | 'surfaced';
   range?: number;
@@ -274,7 +274,7 @@ export interface Snapshot {
   score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
-    buoys: { id: string; x: number; y: number; depth: number; leftS: number }[];
+    buoys: { id: string; x: number; y: number; depth: number; leftS: number; active?: boolean }[];
     helos: { x: number; y: number; kind: 'buoy' | 'dip' | 'torpedo' | 'mpa' | 'mad'; hovering: boolean }[];
     stock: number;
     heloReadyInS: number;

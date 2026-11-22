@@ -29,6 +29,9 @@ export interface Buoy {
   pos: Vec2;
   depth: number;
   expiresAt: number;
+  /** DICASS: pings itself every 45 s (range fix, but every boat around hears it). */
+  active?: boolean;
+  nextPing?: number;
 }
 
 export type SortieKind = 'buoy' | 'dip' | 'torpedo' | 'mpa' | 'mad';
@@ -49,6 +52,8 @@ export interface Sortie {
   landAt: number;
   readyAt: number;
   deep: boolean;
+  /** Buoy sorties: drop an active (DICASS) buoy. */
+  active?: boolean;
   dropped: boolean;
 }
 
@@ -190,7 +195,7 @@ export function callMpa(w: World, ship: Ship, center: Vec2, acrossBearing: numbe
   return true;
 }
 
-export function sendBuoy(w: World, ship: Ship, target: Vec2, deep: boolean): true | string {
+export function sendBuoy(w: World, ship: Ship, target: Vec2, deep: boolean, active = false): true | string {
   const e = heloCheck(w, ship, target);
   if (e) return e;
   const air = w.air!;
@@ -201,6 +206,7 @@ export function sendBuoy(w: World, ship: Ship, target: Vec2, deep: boolean): tru
   w.events.push({ kind: 'weapon', time: w.time, sourceId: ship.id, what: 'buoy' });
   void d;
   launchHelo(w, ship, target, 'buoy', deep);
+  if (active) air.sorties[air.sorties.length - 1]!.active = true;
   return true;
 }
 
@@ -234,7 +240,8 @@ export function airSystem(w: World): void {
     const kind = s.kind ?? 'buoy';
     // A buoy hitting the water is a sharp transient that boats nearby can hear
     if (kind === 'buoy' || kind === 'torpedo') w.events.push({ kind: 'transient', time: w.time, sourceId: s.shipId, x: s.target.x, y: s.target.y, what: 'splash' });
-    if (kind === 'buoy') air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: s.target, depth: buoyDepth(s.target, s.deep), expiresAt: w.time + BUOY_LIFE });
+    // Active buoys run their battery down in 15 minutes, passive ones last 30
+    if (kind === 'buoy') air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: { ...s.target }, depth: buoyDepth(s.target, s.deep), expiresAt: w.time + (s.active ? BUOY_LIFE / 2 : BUOY_LIFE), active: s.active || undefined });
     else if (kind === 'torpedo') dropLightweight(w, s.shipId, s.target);
     else if (kind === 'mpa') {
       const across = headingVec((s.bearing ?? 0) + 90);
@@ -248,6 +255,22 @@ export function airSystem(w: World): void {
   if (Math.floor(w.time) !== Math.floor(w.time - 0.1)) madSweep(w);
   air.sorties = air.sorties.filter((s) => w.time < s.readyAt + 1);
   air.buoys = air.buoys.filter((b) => w.time < b.expiresAt && w.ships.some((s) => s.id === b.ownerId && s.alive));
+  // Buoys drift with the current; active ones ping on their own
+  const cur = w.env.current;
+  for (const b of air.buoys) {
+    if (cur) {
+      b.pos.x += cur.x * 0.1;
+      b.pos.y += cur.y * 0.1;
+    }
+    if (b.active && w.time >= (b.nextPing ?? 0)) {
+      b.nextPing = w.time + 45;
+      const owner = w.ships.find((x) => x.id === b.ownerId);
+      if (!owner) continue;
+      const dets = activePing(w, b.pos, b.depth, owner, 205, 'buoy', 6000);
+      w.lastDetections.push(...dets);
+      for (const d of dets) bookFor(w, d.observerId).ingest(d);
+    }
+  }
 }
 
 /** Passive omni buoys: bearings from the buoy's position, reported to the owner. */
@@ -273,27 +296,36 @@ export function buoySensors(buoys: readonly Buoy[], ctx: SensorContext): Detecti
 
 /** One dipping-sonar ping: echoes (with range) for the frigate, intercepts for every listening boat. */
 function dipPing(w: World, s: Sortie, owner: Ship, depth: number): Detection[] {
+  return activePing(w, s.target, depth, owner, 212, 'dip', DIP_RANGE);
+}
+
+/**
+ * An active ping from a point in the water (dipping sonar, DICASS buoy): range and bearing
+ * from that point for the owner, and an intercept for every boat that hears it.
+ */
+function activePing(w: World, from: Vec2, depth: number, owner: Ship, sl: number, source: 'dip' | 'buoy', maxRange: number): Detection[] {
   const out: Detection[] = [];
   const nl = ambientNoise(w.env);
+  const s = { target: from };
   for (const tgt of w.ships) {
     if (!tgt.alive || tgt.team === owner.team) continue;
     const range = distance(s.target, tgt.pos);
-    if (range > DIP_RANGE * 2) continue;
+    if (range > maxRange * 2) continue;
     const bottom = pathDepth(w.env.seabed, s.target, tgt.pos);
     // Dipping sonar: higher frequency (more absorption), LFM-like processing, and reverberation like the hull sonar
     const tl = transmissionLoss(range, depth, tgt.depth, w.env, 1.8, bottom);
-    const se = 212 - 2 * tl + targetStrengthToward(tgt, s.target) - dbSum(nl - 12, reverbLevel(212, range, w.env, bottom, { lfm: true })) - DT_ACTIVE + w.rng.gauss(0, 2);
-    if (se > 0 && range < DIP_RANGE) {
+    const se = sl - 2 * tl + targetStrengthToward(tgt, s.target) - dbSum(nl - 12, reverbLevel(sl, range, w.env, bottom, { lfm: true })) - DT_ACTIVE + w.rng.gauss(0, 2);
+    if (se > 0 && range < maxRange) {
       out.push({
         observerId: owner.id, targetId: tgt.id, sensor: 'active', time: w.time,
         bearing: wrap360(bearing(s.target, tgt.pos) + w.rng.gauss(0, 1)), range: Math.max(10, range + w.rng.gauss(0, 15)),
         se, originX: s.target.x, originY: s.target.y,
       });
     }
-    const heard = 212 - tl - nl - DT_PASSIVE;
+    const heard = sl - tl - nl - DT_PASSIVE;
     if (heard > 0 && CLASSES[tgt.cls].hull.di > 0) {
       out.push({
-        observerId: tgt.id, targetId: `H-${owner.id}`, sensor: 'intercept', time: w.time, source: 'dip',
+        observerId: tgt.id, targetId: source === 'dip' ? `H-${owner.id}` : `AB-${owner.id}`, sensor: 'intercept', time: w.time, source,
         bearing: wrap360(bearing(tgt.pos, s.target) + w.rng.gauss(0, 2)), se: heard,
       });
     }

@@ -40,7 +40,7 @@ export interface Detection {
   /** Bridge lookout: what was seen (periscope feather, snorkel haze, conning tower). */
   sighting?: Sighting;
   /** Intercepted ping: whose sonar it was (frequency tells hull sonar from a dipping sonar). */
-  source?: 'hull' | 'dip';
+  source?: 'hull' | 'dip' | 'buoy';
   /** Seen through the periscope with navigation lights burning. */
   lit?: boolean;
   /** Narrowband/DEMON measurements for passive sonar looks. */
@@ -166,6 +166,12 @@ function maskingLoss(obs: Ship, tgtId: string, tgtB: number, heard: Heard[], arr
 
 const heardCache = new WeakMap<Ship, { t: number; heard: Heard[] }>();
 
+/** Hull arrays look out and down only to about 30°: a target steeper below the hull is in the blind cone. */
+const BLIND_TAN = Math.tan((30 * Math.PI) / 180);
+export function belowHull(obs: Ship, tgt: Ship, range: number): boolean {
+  return tgt.depth - obs.depth > Math.max(range, 1) * BLIND_TAN;
+}
+
 function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): void {
   const spec = CLASSES[obs.cls];
   const range = distance(obs.pos, tgt.pos);
@@ -178,7 +184,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   if (!cache || cache.t !== ctx.time) heardCache.set(obs, (cache = { t: ctx.time, heard: heardSources(obs, ctx) }));
   const heard = cache.heard;
 
-  if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle) {
+  if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle && !belowHull(obs, tgt, range)) {
     const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, obs.depth, bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'hull', ctx.env);
     if (se > 0) {
@@ -246,7 +252,7 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
     const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom, { lfm, closingKn: closing }) + ctx.rng.gauss(0, 2) -
       2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger);
-    if (se > 0 && !inBaffles) {
+    if (se > 0 && !inBaffles && !belowHull(pinger, tgt, range)) {
       out.push({
         observerId: pinger.id, targetId: tgt.id, sensor: 'active', time: ctx.time,
         bearing: noisyBearing(trueB, se + 10, ctx.rng),

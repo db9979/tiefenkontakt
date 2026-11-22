@@ -47,6 +47,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
     ...(s.air.stock > 0 ? [
       { label: `Sonarboje flach hierher (${km(d)})`, run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: false }) },
       { label: 'Sonarboje tief (unter Schicht) hierher', run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: true }) },
+      { label: 'Aktive Boje (DICASS) hierher · pingt, verrät sich', run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: true, active: true }) },
     ] : []),
     { label: 'Hubschrauber: Tauchsonar hier (flach)', run: () => net.send({ t: 'dip', bearing: b, range: d, deep: false }) },
     { label: 'Hubschrauber: Tauchsonar hier (unter Schicht)', run: () => net.send({ t: 'dip', bearing: b, range: d, deep: true }) },

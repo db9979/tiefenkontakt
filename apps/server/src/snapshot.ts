@@ -146,7 +146,7 @@ export function buildSnapshot(
     const mine = w.air.sorties.filter((s) => s.shipId === own.id && s.kind !== 'mpa').map((s) => s.readyAt);
     const mpa = w.air.mpa?.[own.team];
     air = {
-      buoys: w.air.buoys.filter((b) => team.has(b.ownerId)).map((b) => ({ id: b.id, x: b.pos.x, y: b.pos.y, depth: b.depth, leftS: b.expiresAt - w.time })),
+      buoys: w.air.buoys.filter((b) => team.has(b.ownerId)).map((b) => ({ id: b.id, x: b.pos.x, y: b.pos.y, depth: b.depth, leftS: b.expiresAt - w.time, active: b.active })),
       helos,
       stock: w.air.stock.get(own.id) ?? 0,
       heloReadyInS: Math.max(0, ...mine.map((t) => t - w.time)),

@@ -35,7 +35,8 @@ describe('AI captains', () => {
         if (w.ships.some((s) => s.team === 'west' && s.alive && Math.hypot(s.pos.x - p.pos.x, s.pos.y - p.pos.y) < 2500)) rocketsNearFriends++;
       }
     }
-    expect(w.events.some((e) => e.kind === 'transmission')).toBe(true);
+    // Subs either report (radio) or press home an attack; which one depends on the draw
+    expect(w.events.some((e) => e.kind === 'transmission' || e.kind === 'sunk')).toBe(true);
     expect(w.events.some((e) => e.kind === 'weapon' && e.what === 'torpedo')).toBe(true);
     expect(rocketsNearFriends).toBe(0);
   });

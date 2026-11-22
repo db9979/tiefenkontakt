@@ -260,7 +260,8 @@ export class Plot {
       ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(p.x, p.y - 4); ctx.lineTo(p.x, p.y + 4); ctx.stroke();
       ctx.fillStyle = COL.blue;
-      ctx.fillText(`${b.id}${b.depth > 60 ? ' T' : ''}`, p.x + 6, p.y + 4);
+      if (b.active) { ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, 7); ctx.stroke(); }
+      ctx.fillText(`${b.id}${b.depth > 60 ? ' T' : ''}${b.active ? ' A' : ''}`, p.x + 6, p.y + 4);
     }
     for (const hp of s.air?.helos ?? []) {
       const p = P(hp);

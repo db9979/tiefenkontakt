@@ -129,3 +129,12 @@ describe('masking', () => {
     expect(heard(0)).toBeLessThan(heard(5000));
   });
 });
+
+import { belowHull } from '../src/index.js';
+describe('hull blind cone', () => {
+  it('a boat steeply below the hull is in the blind cone', () => {
+    const f = { depth: 0 } as Parameters<typeof belowHull>[0];
+    expect(belowHull(f, { depth: 200 } as typeof f, 300)).toBe(true);
+    expect(belowHull(f, { depth: 200 } as typeof f, 2000)).toBe(false);
+  });
+});

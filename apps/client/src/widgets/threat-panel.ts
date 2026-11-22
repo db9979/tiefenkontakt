@@ -52,7 +52,8 @@ export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
     update(s) {
       const recent = s.alerts.filter((a) => s.time - a.time < WINDOW_S);
       const pings = recent.filter((a) => a.kind === 'ping');
-      const hull = pings.filter((a) => a.source !== 'dip');
+      const hull = pings.filter((a) => a.source !== 'dip' && a.source !== 'buoy');
+      const buoy = pings.filter((a) => a.source === 'buoy');
       const dip = pings.filter((a) => a.source === 'dip');
       const splashes = recent.filter((a) => a.kind === 'transient' && /BOJENEINSCHLAG/.test(a.text));
       const torp = recent.filter((a) => a.kind === 'torpedo' && s.time - a.time < 90).pop();
@@ -62,7 +63,7 @@ export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       setText(q('#th-sum'), torp ? 'TORPEDO!' : pings.length ? `${pings.length} PINGS / 5 MIN` : 'RUHIG');
       q('#th-sum').className = torp ? 'red blink' : pings.length ? 'amber' : 'dim';
       setHtml(q('#th-rows'), [
-        `<div class="row"><span class="dim">BORDSONAR · TAUCHSONAR</span><span>${hull.length} · ${dip.length}</span></div>`,
+        `<div class="row"><span class="dim">BORDSONAR · TAUCHSONAR · BOJE</span><span>${hull.length} · ${dip.length} · ${buoy.length}</span></div>`,
         loud ? `<div class="row"><span class="dim">LAUTESTER</span><span class="${(loud.level ?? 0) >= ECHO_LIKELY ? 'red' : ''}">${deg3(loud.bearing ?? 0)}° · ${loud.level ?? 0} DB${(loud.level ?? 0) >= ECHO_LIKELY ? ' · ER HAT VERMUTLICH EIN ECHO' : ''}</span></div>` : '',
         last2.length === 2 ? `<div class="row"><span class="dim">TREND</span><span class="${trend > 1 ? 'red' : ''}">${trend > 1 ? 'STEIGEND · ER KOMMT NÄHER' : trend < -1 ? 'FALLEND' : 'GLEICH'}</span></div>` : '',
         `<div class="row"><span class="dim">BOJENEINSCHLÄGE (4 SM)</span><span class="${splashes.length ? 'amber' : ''}">${splashes.length}${splashes.length ? ` · ZULETZT ${deg3(splashes[splashes.length - 1]!.bearing ?? 0)}°` : ''}</span></div>`,

@@ -26,6 +26,19 @@ describe('helicopter and sonobuoys', () => {
     expect(Math.abs(angleDiff(sample.b, 75))).toBeLessThan(25);
   });
 
+  it('an active buoy pings: range for the frigate, an intercept for the boat; buoys drift', () => {
+    const { w, ffg } = world();
+    w.env.current = { x: 0.5, y: 0 };
+    expect(sendBuoy(w, ffg, { x: 9000, y: 1000 }, false, true)).toBe(true);
+    for (let i = 0; i < 2000 && !w.air!.buoys.length; i++) stepWorld(w);
+    const x0 = w.air!.buoys[0]!.pos.x;
+    for (let i = 0; i < 600; i++) stepWorld(w);
+    expect(w.air!.buoys[0]!.pos.x).toBeGreaterThan(x0 + 20);
+    const tr = w.books.get('f')!.entries().find(([id]) => id === 'u')?.[1];
+    expect(tr?.history.some((h) => h.sensor === 'active' && h.r !== undefined)).toBe(true);
+    expect(w.books.get('u')!.entries().some(([id]) => id === 'AB-f')).toBe(true);
+  });
+
   it('refuses targets out of helicopter range', () => {
     const { w, ffg } = world();
     expect(sendBuoy(w, ffg, { x: 40_000, y: 0 }, false)).toMatch(/Reichweite/);
