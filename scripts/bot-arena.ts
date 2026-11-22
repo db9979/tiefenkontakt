@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS, buildScenario, simTimeLimit, type ScenarioSettings } 
 
 const games = Number(process.argv[2] ?? 6);
 const skill = (process.argv[3] ?? 'normal') as ScenarioSettings['botSkill'];
-const missions: ScenarioSettings['mission'][] = ['groenland', 'schelf', 'fjord'];
+const missions = (process.env.ARENA_MISSIONS?.split(',') ?? ['groenland', 'schelf', 'fjord']) as ScenarioSettings['mission'][];
 const slots: PlayerSlot[] = [
   { playerId: 'bot-w1', callsign: 'W1', team: 'west', cls: 'ffg', ready: true, bot: true },
   // ARENA_MIX=1: the newer classes (VDS frigate, AIP boat) take the second slot of each side

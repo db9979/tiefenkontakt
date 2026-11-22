@@ -283,8 +283,10 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
     const r = c ? distance(t.pos, c.pos) : Infinity;
     // A decoy is unmasked when the torpedo runs through it, or earlier by an active seeker (no hull echo)
     if (c?.decoy && (Math.hypot(r, t.depth - c.depth) < HIT_RADIUS || (t.mode === 'active' && r < ACTIVE_REJECT_RANGE))) {
-      // Lightweights (small seeker, 8 km run) are spent on the decoy; heavyweights re-attack
-      if (t.kind === 'light') return false;
+      // Lightweights: a knuckle (no hull echo, no noise source) is always seen through; a noisemaker
+      // spends the small seeker half the time. Heavyweights always re-attack
+      const knuckle = ws(w).decoys.find((d) => d.id === c.id)?.knuckle;
+      if (t.kind === 'light' && !knuckle && w.rng.next() < 0.5) return false;
       (t.rejected ??= []).push(c.id);
       t.homingOn = undefined;
     } else if (c) {

@@ -112,7 +112,11 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     // Helicopter: alternate dipping sonar and buoys along the bearing
     const deep = (s.btLayer ?? 0) > 0 && !w.env.adapt?.west?.above;
     if (SKILL[skill].air && Math.floor(now / 400) % 2 === 0) sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1);
-    else if (w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) sendBuoy(w, s, drop, deep);
+    else if (w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) {
+      // Shallow water or a quiet boat that passive buoys can't hold: an active (DICASS) buoy
+      const shallow = depthAt(w.env.seabed, drop.x, drop.y) < 300;
+      sendBuoy(w, s, drop, deep, shallow || Math.floor(now / 600) % 2 === 1);
+    }
     // A radio/transient lead far out: ask the patrol aircraft for a buoy line across it
     if (SKILL[skill].air && !target && m.lead && now - m.lead.t < 300) {
       const lv = headingVec(m.lead.b);

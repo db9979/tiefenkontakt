@@ -238,7 +238,8 @@ export function reverbLevel(sl: number, range: number, env: Environment, bottom:
   const scatter = bottom < SHALLOW_M ? -22 + (SHALLOW_M - bottom) / 40 : -45 + 2 * env.seaState;
   // Scattering cell ≈ r · (c·τ/2) · beam width; LFM compresses τ, a Doppler-shifted CW echo avoids the band
   const rl = sl - 30 * Math.log10(r) + scatter + 11.8 - (2 * ALPHA_ACTIVE * r) / 1000;
-  return rl - (o.lfm ? 10 : Math.abs(o.closingKn ?? 0) >= 3 ? 10 : 0);
+  // LFM: pulse compression wins about 14 dB against reverberation; CW only when Doppler lifts the echo out of it
+  return rl - (o.lfm ? 14 : Math.abs(o.closingKn ?? 0) >= 3 ? 10 : 0);
 }
 
 /** Signal excess of an active sonar echo (monostatic): echo against noise and reverberation. */

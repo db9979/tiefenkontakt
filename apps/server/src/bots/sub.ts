@@ -60,8 +60,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const warships = fresh.filter((t) => voted(m, t) === 'warship' && !isFriendly(w, s, t, m));
   // Escorts are loud from far away: only a strong signal (close) or a ping counts as a threat
   const threatNear = pinged || warships.some((t) => t.se > 24 || (t.range !== undefined && t.range < 6000));
-  // Any ping heard (even faint) means rig for silent running for ten minutes
-  if (tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 30)) m.silentUntil = now + 600;
+  // Any ping heard (even faint) means rig for silent running for five minutes
+  if (tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 30)) m.silentUntil = now + 300;
   crewOf(s).silent = now < (m.silentUntil ?? 0);
   // A merchant nearby whose noise masks ours: with escorts close, creep in under it
   const cover = !w.ships.some(isConvoyShip) ? undefined
