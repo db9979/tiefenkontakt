@@ -72,7 +72,9 @@ services:
       --denied-peer-ip=192.168.0.0-192.168.255.255
 
   # Voice server (selective forwarding): the game server grants talking and listening.
-  # Start with COMPOSE_PROFILES=sfu (or turn,sfu). Router: forward TCP 7881 and UDP 50000–50100.
+  # Start with COMPOSE_PROFILES=sfu (or turn,sfu). Router: forward TCP 7881 and UDP 7882.
+  # All voice traffic is multiplexed on UDP 7882 (load test on the Pi: a port range of 101 ports
+  # ran out at about 50 participants, long before the CPU).
   livekit:
     image: livekit/livekit-server:v1.8
     profiles: ["sfu"]
@@ -85,8 +87,7 @@ services:
         log_level: warn
         rtc:
           tcp_port: 7881
-          port_range_start: 50000
-          port_range_end: 50100
+          udp_port: 7882
           use_external_ip: true
         room:
           empty_timeout: 300
