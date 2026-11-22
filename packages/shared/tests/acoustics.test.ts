@@ -51,10 +51,16 @@ describe('source level', () => {
 });
 
 describe('transmission loss', () => {
-  it('adds the layer penalty only when crossing it', () => {
+  it('adds the layer penalty only when crossing it (plus the surface duct above it)', () => {
     const same = transmissionLoss(5000, 50, 60, env);
     const cross = transmissionLoss(5000, 50, 200, env);
-    expect(cross - same).toBeCloseTo(env.layerLoss, 5);
+    // Both above the layer in deep water: the surface duct saves 2 dB
+    expect(cross - same).toBeCloseTo(env.layerLoss + 2, 5);
+  });
+
+  it('lets steep paths through the layer close in', () => {
+    const near = transmissionLoss(1000, 50, 200, env) - transmissionLoss(1000, 50, 60, env);
+    expect(near).toBeCloseTo(env.layerLoss / 2, 5);
   });
 });
 

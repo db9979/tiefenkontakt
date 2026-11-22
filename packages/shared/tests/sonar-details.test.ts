@@ -66,7 +66,8 @@ describe('active pulses', () => {
     expect(Math.abs(lfm.range! - 3000)).toBeLessThan(30);
   });
 
-  it('CW struggles against a slow target in reverberation', () => {
+  it('CW struggles against a slow target in shallow-water reverberation', () => {
+    const shallow = { ...env, seabed: { kind: 'schelf' as const, seed: 3 } };
     let cwHits = 0;
     let lfmHits = 0;
     for (let seed = 1; seed <= 30; seed++) {
@@ -75,7 +76,7 @@ describe('active pulses', () => {
         ffg.activeSonar = true;
         ffg.pulse = p;
         const sub = createShip({ id: 'u', cls: 'ssk', name: 'U', pos: { x: 0, y: 7500 }, heading: 90, speedKn: 1, depth: 60 });
-        return runSensors({ ships: [ffg, sub], env, time: 1000, rng: new Rng(seed) }).some((d) => d.sensor === 'active');
+        return runSensors({ ships: [ffg, sub], env: shallow, time: 1000, rng: new Rng(seed) }).some((d) => d.sensor === 'active');
       };
       if (far('cw')) cwHits++;
       if (far('lfm')) lfmHits++;
@@ -108,5 +109,23 @@ describe('transients and layer', () => {
     expect(ffg.btLayer).toBeUndefined();
     expect(dropXbt(w, ffg)).toBe(true);
     expect(Math.abs(ffg.btLayer! - 120)).toBeLessThan(16);
+  });
+});
+
+describe('masking', () => {
+  it('a loud merchant on the same bearing hides a quiet boat; off the bearing it is heard', () => {
+    const quietEnv = { layerDepth: 0, layerLoss: 0, seaState: 1 };
+    const heard = (subX: number) => {
+      let n = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const ear = createShip({ id: 'e', cls: 'ssn', name: 'E', pos: { x: 0, y: 0 }, heading: 0, speedKn: 3, depth: 100, team: 'east' });
+        const merchant = createShip({ id: 'm', cls: 'merchant', name: 'M', pos: { x: 0, y: 9000 }, heading: 90, speedKn: 12, team: 'west' });
+        const sub = createShip({ id: 'u', cls: 'ssn', name: 'U', pos: { x: subX, y: 8000 }, heading: 90, speedKn: 12, depth: 100, team: 'west' });
+        const dets = runSensors({ ships: [ear, merchant, sub], env: quietEnv, time: 100 + seed, rng: new Rng(seed) });
+        if (dets.some((d) => d.observerId === 'e' && d.targetId === 'u' && d.sensor === 'hull')) n++;
+      }
+      return n;
+    };
+    expect(heard(0)).toBeLessThan(heard(5000));
   });
 });

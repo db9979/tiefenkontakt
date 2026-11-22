@@ -1,4 +1,5 @@
-import { ambientNoise, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
+import { ambientNoise, reverbLevel, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
+import { dbSum } from './math.js';
 import { CLASSES, hasHelicopter, isEscort } from './classes.js';
 import { dropLightweight } from './weapons.js';
 import { bookFor } from './world.js';
@@ -278,8 +279,10 @@ function dipPing(w: World, s: Sortie, owner: Ship, depth: number): Detection[] {
     if (!tgt.alive || tgt.team === owner.team) continue;
     const range = distance(s.target, tgt.pos);
     if (range > DIP_RANGE * 2) continue;
-    const tl = transmissionLoss(range, depth, tgt.depth, w.env, 2.5, pathDepth(w.env.seabed, s.target, tgt.pos));
-    const se = 212 - 2 * tl + targetStrengthToward(tgt, s.target) - (nl - 12) - DT_ACTIVE + w.rng.gauss(0, 2);
+    const bottom = pathDepth(w.env.seabed, s.target, tgt.pos);
+    // Dipping sonar: higher frequency (more absorption), LFM-like processing, and reverberation like the hull sonar
+    const tl = transmissionLoss(range, depth, tgt.depth, w.env, 1.8, bottom);
+    const se = 212 - 2 * tl + targetStrengthToward(tgt, s.target) - dbSum(nl - 12, reverbLevel(212, range, w.env, bottom, { lfm: true })) - DT_ACTIVE + w.rng.gauss(0, 2);
     if (se > 0 && range < DIP_RANGE) {
       out.push({
         observerId: owner.id, targetId: tgt.id, sensor: 'active', time: w.time,

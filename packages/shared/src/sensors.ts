@@ -7,6 +7,9 @@ import {
   pointEchoExcess,
   pingInterceptExcess,
   type Environment,
+  beamNoise,
+  sourceLevelToward,
+  transmissionLoss,
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
@@ -16,7 +19,7 @@ import { SHALLOW_M, pathDepth } from './seabed.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
-import { KN, NM, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
+import { KN, NM, angleDiff, bearing, dbSum, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
 
 export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual' | 'mad';
@@ -61,8 +64,6 @@ export interface Emitter {
 export const PING_INTERVAL = 30; // s
 const SE_FLUCTUATION = 1; // dB sd per sample (fast part)
 const FADE_DB = 3; // slow fading amplitude
-const SLOW_TARGET_KN = 2; // CW can't separate slower targets from reverberation
-const CW_REVERB_PENALTY = 6;
 
 function hash01(s: string): number {
   let h = 2166136261;
@@ -121,6 +122,48 @@ export function towedArrayReady(s: Ship, now: number): boolean {
   return !!spec && s.towedLength > 0 && now - s.lastTurnAt >= spec.settleTime;
 }
 
+/** Received broadband level of every other loud source at an observer (computed once per sweep). */
+interface Heard { id: string; b: number; rl: number }
+const BEAM_HALF = { hull: 8, towed: 5 } as const;
+const MASK_FLOOR_DB = 25;
+
+function heardSources(obs: Ship, ctx: SensorContext): Heard[] {
+  const out: Heard[] = [];
+  for (const s of ctx.ships) {
+    if (s === obs || !s.alive) continue;
+    const r = distance(obs.pos, s.pos);
+    const rl = sourceLevelToward(s, obs.pos) - transmissionLoss(r, s.depth, obs.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, obs.pos, s.pos));
+    out.push({ id: s.id, b: bearing(obs.pos, s.pos), rl });
+  }
+  return out;
+}
+
+/**
+ * Masking: loud ships in or near the same beam drown a quiet target (a convoy hides a boat
+ * running in its noise). Returns the dB the target's signal excess loses on this array.
+ */
+function maskingLoss(obs: Ship, tgtId: string, tgtB: number, heard: Heard[], array: 'hull' | 'towed', env: Environment): number {
+  const half = BEAM_HALF[array];
+  // Only sources clearly louder than the target in its beam drown it; equal ones are told apart
+  const own = heard.find((h) => h.id === tgtId)?.rl ?? -Infinity;
+  let sum = 0;
+  for (const h of heard) {
+    if (h.id === tgtId) continue;
+    // A line array can't tell port from starboard: sources at the mirrored cone angle mask too
+    const off = array === 'towed'
+      ? Math.abs(Math.abs(angleDiff(obs.heading, h.b)) - Math.abs(angleDiff(obs.heading, tgtB)))
+      : Math.abs(angleDiff(h.b, tgtB));
+    const rejection = off <= half ? 0 : Math.min(MASK_FLOOR_DB, (off - half) * 1.5);
+    const level = h.rl - rejection;
+    if (level > own + 3) sum += 10 ** (level / 10);
+  }
+  if (sum <= 0) return 0;
+  const n = beamNoise(obs, array, env);
+  return dbSum(n, 10 * Math.log10(sum)) - n;
+}
+
+const heardCache = new WeakMap<Ship, { t: number; heard: Heard[] }>();
+
 function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): void {
   const spec = CLASSES[obs.cls];
   const range = distance(obs.pos, tgt.pos);
@@ -129,10 +172,13 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   const rel = angleDiff(obs.heading, trueB);
   // Operators: fresh, alert crews hear more; knuckles in the path swallow sound
   const adj = crewSonarDb(obs) - knuckleLoss(obs.pos, tgt.pos, ctx.knuckles);
+  let cache = heardCache.get(obs);
+  if (!cache || cache.t !== ctx.time) heardCache.set(obs, (cache = { t: ctx.time, heard: heardSources(obs, ctx) }));
+  const heard = cache.heard;
 
   if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle) {
     const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, obs.depth, bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
-      ctx.rng.gauss(0, SE_FLUCTUATION) + adj;
+      ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'hull', ctx.env);
     if (se > 0) {
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'hull', time: ctx.time,
@@ -147,7 +193,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
       passiveSignalExcess(tgt, obs, range, 'towed', ctx.env, Math.min(towedArrayDepth(obs), bottom - 10), bottom) -
       endfire +
       fading(`${obs.id}|${tgt.id}|t`, ctx.time) +
-      ctx.rng.gauss(0, SE_FLUCTUATION) + adj;
+      ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'towed', ctx.env);
     if (se > 0) {
       // A line array measures only the angle to its axis: report starboard side first, port as mirror
       const measuredRel = Math.abs(rel + ctx.rng.gauss(0, bearingSigma(se)));
@@ -191,16 +237,14 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const trueB = bearing(pinger.pos, tgt.pos);
     const inBaffles = Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - CLASSES[pinger.cls].hull.baffleHalfAngle;
     const lfm = pinger.pulse === 'lfm';
-    const slow = tgt.speed / KN < SLOW_TARGET_KN;
     const bottom = pathDepth(ctx.env.seabed, pinger.pos, tgt.pos);
-    const shallowReverb = !lfm && bottom < SHALLOW_M ? 4 : 0;
-    const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom) - (!lfm && slow ? CW_REVERB_PENALTY : 0) - shallowReverb + ctx.rng.gauss(0, 2) -
+    // Radial speed of the target toward the pinger (positive = closing): a CW echo with Doppler escapes reverberation
+    const los = { x: (pinger.pos.x - tgt.pos.x) / Math.max(range, 1), y: (pinger.pos.y - tgt.pos.y) / Math.max(range, 1) };
+    const tv = headingVec(tgt.heading);
+    const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
+    const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom, { lfm, closingKn: closing }) + ctx.rng.gauss(0, 2) -
       2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger);
     if (se > 0 && !inBaffles) {
-      // Radial speed of the target toward the pinger (positive = closing), measured by CW Doppler
-      const los = { x: (pinger.pos.x - tgt.pos.x) / Math.max(range, 1), y: (pinger.pos.y - tgt.pos.y) / Math.max(range, 1) };
-      const tv = headingVec(tgt.heading);
-      const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
       out.push({
         observerId: pinger.id, targetId: tgt.id, sensor: 'active', time: ctx.time,
         bearing: noisyBearing(trueB, se + 10, ctx.rng),

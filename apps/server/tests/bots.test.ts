@@ -19,7 +19,8 @@ describe('AI captains', () => {
       { playerId: 'bot-e1', callsign: 'E1', team: 'east', cls: 'ssk', ready: true, bot: true },
       { playerId: 'bot-e2', callsign: 'E2', team: 'east', cls: 'ssn', ready: true, bot: true },
     ];
-    const settings = { ...DEFAULT_SETTINGS, timeLimitMin: 15 };
+    // Long enough for slow, realistic boats to close and shoot before the convoy is through
+    const settings = { ...DEFAULT_SETTINGS, timeLimitMin: 25 };
     const w = buildScenario(slots, settings, 1001);
     const crew = new BotCrew('normal');
     for (const s of slots) crew.add(`p_${s.playerId}`);

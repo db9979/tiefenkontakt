@@ -43,10 +43,14 @@ export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaSta
 export const DT_PASSIVE = 10;
 export const DT_ACTIVE = 10;
 
-/** Transition range from spherical to cylindrical spreading. */
-const R0 = 1000;
-const ALPHA_PASSIVE = 0.2; // dB/km broadband
-const ALPHA_ACTIVE = 2.5; // dB/km at active sonar frequencies (incl. reverberation losses)
+/** Transition from spherical to cylindrical spreading: about the water depth (clamped). */
+const R0_MIN = 150;
+const R0_MAX = 1500;
+const ALPHA_PASSIVE = 0.2; // dB/km broadband (dominated by low frequencies)
+/** dB/km at hull-sonar frequencies (≈5–8 kHz) incl. scattering; reverberation is modelled separately. */
+const ALPHA_ACTIVE = 1.8;
+/** Steep paths get through the layer close in; its full shadow builds up by this range. */
+const LAYER_FULL_M = 2000;
 const CAVITATION_DB = 15;
 const SNORKEL_DB = 28;
 
@@ -131,15 +135,21 @@ export function transmissionLoss(
   bottom = 3000,
 ): number {
   const r = Math.max(range, 1);
-  const spread = r <= R0 ? 20 * Math.log10(r) : 20 * Math.log10(R0) + 10 * Math.log10(r / R0);
+  // Spherical until the sound fills the water column, then cylindrical (shallow water: early)
+  const r0 = Math.max(R0_MIN, Math.min(R0_MAX, bottom));
+  const spread = r <= r0 ? 20 * Math.log10(r) : 20 * Math.log10(r0) + 10 * Math.log10(r / r0);
   const absorb = (alphaDbPerKm * r) / 1000;
   const shallow = bottom < SHALLOW_M;
-  // Shallow water: bottom bounce fills the shadow zone (weaker layer) but the bottom absorbs energy
-  const layer = crossesLayer(depthA, depthB, env) ? env.layerLoss * (shallow ? 0.5 : 1) : 0;
-  const bottomLoss = shallow && r > 2000 ? 3 + (2 * (SHALLOW_M - bottom)) / SHALLOW_M : 0;
+  // Layer: close in, steep paths go straight through; the shadow is full from ~2 km.
+  // Shallow water: bottom bounce fills the shadow (weaker layer)
+  const layer = crossesLayer(depthA, depthB, env) ? env.layerLoss * (shallow ? 0.5 : 1) * Math.min(1, r / LAYER_FULL_M) : 0;
+  // Surface duct: both above a layer in deep water, sound stays trapped and spreads less
+  const duct = !shallow && env.layerDepth > 30 && depthA < env.layerDepth && depthB < env.layerDepth && r > 3000 ? 2 : 0;
+  // Every bottom bounce costs energy: the loss grows with range, the shallower the more
+  const bottomLoss = shallow && r > r0 ? Math.min(20, (r / 1000) * 0.3 * (SHALLOW_M / Math.max(bottom, 30))) : 0;
   // Deep water: the first convergence zone refocuses sound around 55 km
   const cz = bottom > DEEP_M && r > 50_000 && r < 62_000 ? 12 : 0;
-  return spread + absorb + layer + bottomLoss - cz;
+  return spread + absorb + layer + bottomLoss - cz - duct;
 }
 
 export function ambientNoise(env: Environment): number {
@@ -161,6 +171,14 @@ export function towedSelfNoise(s: Ship): number {
   const kn = s.speed / KN;
   const overspeed = Math.max(0, kn - t.maxSpeedKn);
   return t.selfNoise + overspeed * 6;
+}
+
+/** Noise in one beam of an array (ambient + self noise, reduced by the array gain). */
+export function beamNoise(receiver: Ship, array: 'hull' | 'towed', env: Environment): number {
+  const spec = CLASSES[receiver.cls];
+  const di = array === 'hull' ? spec.hull.di : (spec.towed?.di ?? 0);
+  const self = array === 'hull' ? hullSelfNoise(receiver) : towedSelfNoise(receiver);
+  return dbSum(ambientNoise(env), self) - di;
 }
 
 /** Signal excess for passive detection of target by receiver on the given array. */
@@ -195,15 +213,36 @@ export function passiveExcessFrom(
   return sl - tl - (nl - di) - DT_PASSIVE;
 }
 
-/** Signal excess of an active sonar echo (monostatic). */
-export function activeSignalExcess(target: Ship, pinger: Ship, range: number, env: Environment, bottom = 3000): number {
+/** Pulse options: LFM compresses the pulse (less reverberation); a CW echo with Doppler stands clear of it. */
+export interface PulseOpts {
+  lfm?: boolean;
+  /** Radial speed of the target in kn (CW only); ≥ 3 kn moves the echo out of the reverberation band. */
+  closingKn?: number;
+}
+
+/**
+ * Reverberation level at a range: the pulse lights up the sea surface (and the bottom in
+ * shallow water) and that backscatter competes with the echo. Grows weaker with range
+ * (30·log r for a surface-limited cell), stronger with sea state and over a shallow bottom.
+ */
+export function reverbLevel(sl: number, range: number, env: Environment, bottom: number, o: PulseOpts = {}): number {
+  const r = Math.max(range, 50);
+  // Shallow water: strong bottom backscatter (grazing paths); deep water: surface only, rising with sea state
+  const scatter = bottom < SHALLOW_M ? -22 + (SHALLOW_M - bottom) / 40 : -45 + 2 * env.seaState;
+  // Scattering cell ≈ r · (c·τ/2) · beam width; LFM compresses τ, a Doppler-shifted CW echo avoids the band
+  const rl = sl - 30 * Math.log10(r) + scatter + 11.8 - (2 * ALPHA_ACTIVE * r) / 1000;
+  return rl - (o.lfm ? 10 : Math.abs(o.closingKn ?? 0) >= 3 ? 10 : 0);
+}
+
+/** Signal excess of an active sonar echo (monostatic): echo against noise and reverberation. */
+export function activeSignalExcess(target: Ship, pinger: Ship, range: number, env: Environment, bottom = 3000, o: PulseOpts = {}): number {
   const spec = CLASSES[pinger.cls];
   const sl = spec.hull.activeSl;
   if (sl === undefined) return -Infinity;
   const tl = transmissionLoss(range, pinger.depth, target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
   const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
   const ts = targetStrengthToward(target, pinger.pos);
-  return sl - 2 * tl + ts - (nl - spec.hull.di) - DT_ACTIVE;
+  return sl - 2 * tl + ts - dbSum(nl - spec.hull.di, reverbLevel(sl, range, env, bottom, o)) - DT_ACTIVE;
 }
 
 /** Echo excess from a point reflector (knuckle, wreck) with a fixed target strength. */
@@ -213,7 +252,7 @@ export function pointEchoExcess(pinger: Ship, range: number, depth: number, ts: 
   if (sl === undefined) return -Infinity;
   const tl = transmissionLoss(range, pinger.depth, depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
   const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
-  return sl - 2 * tl + ts - (nl - spec.hull.di) - DT_ACTIVE;
+  return sl - 2 * tl + ts - dbSum(nl - spec.hull.di, reverbLevel(sl, range, env, bottom, { lfm: pinger.pulse === 'lfm' })) - DT_ACTIVE;
 }
 
 /** Signal excess for a target hearing someone else's ping (counter-detection, one-way). */

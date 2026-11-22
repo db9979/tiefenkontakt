@@ -149,9 +149,13 @@ describe('reconnect', () => {
 describe('manual classification', () => {
   it('sonar contacts arrive unclassified; the player classifies, the enemy never sees it', () => {
     const { lobby, m, east, west } = setup();
-    for (let i = 0; i < 40; i++) m.tick();
-    const s = lastSnap(east)!;
-    const c = s.contacts.find((x) => x.sensors.includes('hull'))!;
+    // Wait for a hull-sonar contact (masking by louder ships can delay the first one)
+    let c;
+    for (let i = 0; i < 400 && !c; i++) {
+      m.tick();
+      if (i >= 40) c = lastSnap(east)!.contacts.find((x) => x.sensors.includes('hull') && x.evidence);
+    }
+    if (!c) throw new Error('no hull contact');
     expect(c.classified).toBeUndefined();
     expect(c.evidence).toBeDefined();
     lobby.handle(east, { t: 'classify', label: c.label, choice: 'merchant' });
