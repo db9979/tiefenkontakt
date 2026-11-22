@@ -83,3 +83,23 @@ export function drawMines(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: 
   }
   ctx.restore();
 }
+
+/** Search sector of the mine-avoidance sonar ahead of the own ship (±70°, its current range). */
+export function drawMineSector(ctx: CanvasRenderingContext2D, s: Snapshot, me: { x: number; y: number }, scale: number): void {
+  const r = s.own.mineAvoidRange;
+  if (!s.own.mineAvoid || !r) return;
+  const px = r / scale;
+  const a0 = ((s.own.heading - 70 - 90) * Math.PI) / 180;
+  const a1 = ((s.own.heading + 70 - 90) * Math.PI) / 180;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(159,225,203,0.55)';
+  ctx.fillStyle = 'rgba(159,225,203,0.06)';
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.moveTo(me.x, me.y);
+  ctx.arc(me.x, me.y, px, a0, a1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}

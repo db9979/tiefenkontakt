@@ -63,6 +63,9 @@ export interface CampaignPlan {
 
 /** Glue between the campaign store, the lobby and running campaign matches. */
 export class CampaignService {
+  /** Called after a mission was folded into a run (badges). */
+  onRunSaved?: (userId: number, run: CampaignRun) => void;
+
   constructor(private store: CampaignStore) {}
 
   /** Plan the next mission for a player, or an error text. */
@@ -94,6 +97,8 @@ export class CampaignService {
     const cur = this.store.active(uid);
     if (!cur || cur.run.status !== 'sea') return;
     const stat = d?.stats.find((s) => s.playerId === slot!.playerId);
-    this.store.save(cur.id, afterMission(cur.run, outcomeOf(m.world, ship, stat, d?.reason ?? '', !d)));
+    const run = afterMission(cur.run, outcomeOf(m.world, ship, stat, d?.reason ?? '', !d));
+    this.store.save(cur.id, run);
+    this.onRunSaved?.(uid, run);
   }
 }

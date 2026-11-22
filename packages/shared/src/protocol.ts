@@ -24,7 +24,7 @@ export type ClientMsg =
   | { t: 'ready'; ready: boolean }
   | { t: 'order'; heading?: number; speedKn?: number; depth?: number }
   /** silent = "Ruhe im Boot", battle = Gefechtsstationen, buoyant = Schleppantenne (receive-only). */
-  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant' | 'vds'; on: boolean }
+  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant' | 'vds' | 'mineavoid'; on: boolean }
   | { t: 'blow' }
   | { t: 'mad'; bearing: number; range: number }
   | { t: 'towed'; length: number }
@@ -50,6 +50,8 @@ export type ClientMsg =
   | { t: 'sam'; planeId: string }
   | { t: 'fighter' }
   | { t: 'mine' }
+  /** Escort: shift the convoy's track sideways (m, + = starboard of its leg; 0 = back on the route). */
+  | { t: 'convoy_detour'; offset: number }
   | { t: 'repair'; system: ShipSystem }
   /** Pass a FLASH order on (convoy turn) to the commodore. */
   | { t: 'execute_order'; id: string }
@@ -57,7 +59,7 @@ export type ClientMsg =
   | { t: 'compartment'; index: number; action: 'priority' | 'seal' | 'open' }
   | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
-  | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' }
+  | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' }
   | { t: 'lesson_done' }
   | { t: 'station'; index: number }
   | { t: 'quick' }
@@ -154,7 +156,7 @@ export interface MatchLobby extends MatchSummary {
     weather: 'wechselhaft' | 'stabil';
     custom?: CustomMissionSettings;
     merchantsCount?: number;
-    lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
+    lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt';
     /** Training sandbox: truth view, time controls and spawning. */
     sandbox?: boolean;
     /** A mission of a player's campaign run. */
@@ -191,6 +193,11 @@ export interface OwnShipView {
   towedOrder?: number;
   vdsDepth?: number;
   vdsOrder?: number;
+  /** High-frequency mine-avoidance sonar on, and the range it reaches now (m). */
+  mineAvoid?: boolean;
+  mineAvoidRange?: number;
+  /** Escorts: the convoy's ordered detour (m, + = starboard of the leg). */
+  convoyOffset?: number;
   towedReady: boolean;
   /** People aboard, air (diesel boats), trim, high-pressure air, blow, buoy antenna (crew.ts, boat.ts). */
   crew?: { fatigue: number; morale: number; wounded: number; battle: boolean; silent: boolean; performance: number; xp?: number };
@@ -306,7 +313,7 @@ export interface Snapshot {
   /** Who mans which station aboard. */
   stations?: { callsign: string; station: number }[];
   /** Training lesson id when this is a lesson. */
-  lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
+  lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt';
   briefing?: Briefing;
   own: OwnShipView;
   contacts: (Omit<ContactTrack, 'history'> & {
@@ -393,6 +400,10 @@ export interface PlayerStats {
   habits?: Habits;
   /** Bonus/penalty for the side's FLASH orders (counts in the service points). */
   orderPoints?: number;
+  /** Ships sunk by this ship's own mines (part of kills; badges). */
+  mineKills?: number;
+  /** Torpedo attacks on this ship it lived through to the end (badges). */
+  attacksSurvived?: number;
 }
 
 export interface Habits {

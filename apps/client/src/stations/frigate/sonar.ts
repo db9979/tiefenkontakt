@@ -18,6 +18,7 @@ export function frigateSonarStation(): Station {
           <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
           <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
           <button id="xbt" title="Bathythermograph werfen: misst die Sprungschicht">BT messen</button>
+          <button id="mav" title="Hochfrequentes Minenmeidesonar: findet verankerte Minen voraus bis etwa 1,6 km (±70°), nur bis 15 kn, kaum weit zu hören">Minenmeiden</button>
           <button id="vds" title="Tiefensonar unter die Sprungschicht absenken (nur bis 18 kn)" style="display:none">VDS absenken</button>
           ${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}
         </div>
@@ -45,6 +46,7 @@ export function frigateSonarStation(): Station {
   el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
   el.querySelector<HTMLButtonElement>('#xbt')!.onclick = () => net.send({ t: 'bt' });
+  el.querySelector<HTMLButtonElement>('#mav')!.onclick = () => net.send({ t: 'toggle', what: 'mineavoid', on: !store.snap?.own.mineAvoid });
   el.querySelector<HTMLButtonElement>('#vds')!.onclick = () => net.send({ t: 'toggle', what: 'vds', on: !(store.snap?.own.vdsOrder ?? 0) });
   el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => {
     b.onclick = () => {
@@ -67,7 +69,9 @@ export function frigateSonarStation(): Station {
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
       const vdsTxt = (o.vdsDepth ?? 0) > 5 || (o.vdsOrder ?? 0) > 0 ? ` · VDS ${o.vdsDepth ?? 0}${o.vdsOrder !== o.vdsDepth ? ` / ${o.vdsOrder ?? 0}` : ''} M` : '';
-      setText(el.querySelector('#hs')!, (o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV') + vdsTxt);
+      const mavTxt = o.mineAvoid ? (o.mineAvoidRange ? ` · MINENMEIDEN ${o.mineAvoidRange} M` : ' · MINENMEIDEN ZU SCHNELL') : '';
+      setText(el.querySelector('#hs')!, (o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV') + vdsTxt + mavTxt);
+      el.querySelector('#mav')!.classList.toggle('on', !!o.mineAvoid);
       const vb = el.querySelector<HTMLButtonElement>('#vds')!;
       vb.style.display = CLASSES[o.cls].vds ? '' : 'none';
       vb.classList.toggle('on', (o.vdsOrder ?? 0) > 0);

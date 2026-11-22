@@ -88,6 +88,10 @@ export const EN_UX: [string, string][] = [
   ['PRIVAT', 'PRIVATE'], ['Nicht in der Liste; nur per Einladungslink', 'Not listed; invite link only'], ['EINLADEN', 'INVITE'],
   ['PRIVATE PARTIE · NUR PER LINK', 'PRIVATE MATCH · LINK ONLY'], ['Link kopieren', 'Copy link'], ['Kopiert ✓', 'Copied ✓'], ['Wertung', 'Rating'],
   ['Einladung ungültig oder Partie läuft schon', 'Invite invalid or the match has already started'], ['BACKUP_DIR ist nicht gesetzt', 'BACKUP_DIR is not set'],
+  // Mine countermeasures
+  ['Minenmeiden', 'Mine avoidance'], ['Hochfrequentes Minenmeidesonar: findet verankerte Minen voraus bis etwa 1,6 km (±70°), nur bis 15 kn, kaum weit zu hören', 'High-frequency mine-avoidance sonar: finds moored mines ahead out to about 1.6 km (±70°), only up to 15 kn, hardly heard far away'],
+  ['MINENMEIDEN ZU SCHNELL', 'MINE AVOIDANCE TOO FAST'], ['Konvoi umleiten', 'Convoy detour'], ['Route', 'Route'], ['AUF ROUTE', 'ON ROUTE'], ['Zurück auf die befohlene Route', 'Back onto the ordered route'],
+  ['Nur Geleitschiffe haben ein Minenmeidesonar', 'Only escorts have a mine-avoidance sonar'], ['Kein Konvoi unter eigenem Befehl', 'No convoy under your command'],
 ];
 
 export const EN_UX_PHRASES: [RegExp, string][] = [
@@ -132,6 +136,8 @@ export const EN_UX_PHRASES: [RegExp, string][] = [
   [/^Ankerplatz: Peilung (\d+), (\d+) km, (\d+) Frachter$/, 'Anchorage: bearing $1, $2 km, $3 merchants'],
   [/^Bedrohung: (\d+) U-Boot\(e\), vermutlich voraus des Konvois$/, 'Threat: $1 submarine(s), probably ahead of the convoy'],
   [/Atom-U-Boot Projekt 9/, 'Nuclear submarine Project 9'], [/Diesel-U-Boot Projekt 4/, 'Diesel submarine Project 4'], [/Küsten-U-Boot Projekt 2/, 'Coastal submarine Project 2'], [/^Korvette K-7/, 'Corvette K-7'], [/^Fregatte F-12/, 'Frigate F-12'], [/^Sprechen \((.+)\)$/, 'Talk ($1)'], [/Leertaste/, 'Space'],
+  [/^MINENMEIDEN (\d+) M$/, 'MINE AVOIDANCE $1 M'], [/^(\d+),(\d) KM BB$/, '$1.$2 KM PORT'], [/^(\d+),(\d) KM STB$/, '$1.$2 KM STBD'], [/^◀ (\d+),(\d) km$/, '◀ $1.$2 km'], [/^(\d+),(\d) km ▶$/, '$1.$2 km ▶'],
+  [/^Kurs des Konvois (\d+),(\d) km nach (Backbord|Steuerbord)/, 'Kurs des Konvois $1.$2 km nach $3'], [/^Kurs des Konvois ([\d.]+) km nach Backbord versetzen \(z\. B\. um eine Minensperre\)$/, 'Shift the convoy track $1 km to port (e.g. around a minefield)'], [/^Kurs des Konvois ([\d.]+) km nach Steuerbord versetzen \(z\. B\. um eine Minensperre\)$/, 'Shift the convoy track $1 km to starboard (e.g. around a minefield)'],
   // Campaign: briefing lines, logbook and dockyard with numbers
   [/^Gegner: KI LEICHT/, 'Enemy: AI EASY'], [/^Gegner: KI NORMAL/, 'Enemy: AI NORMAL'], [/^Gegner: KI SCHWER/, 'Enemy: AI HARD'], [/ \(verstärkt während der langen Werftliegezeit\)$/, ' (reinforced during the long dockyard stay)'],
   [/^Rumpf nur (\d+) % – ein weiterer Treffer kann das Ende sein\.$/, 'Hull only $1 % – one more hit may be the end.'], [/^(\d+) Posten unbesetzt – das Boot arbeitet langsamer\.$/, '$1 posts unmanned – the boat works more slowly.'],

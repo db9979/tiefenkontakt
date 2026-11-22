@@ -1,7 +1,7 @@
 /** Handbook chapters 9–12: missions, environment and incidents, tactics, keys and glossary. */
 
 const MISSIONS: [string, string, string][] = [
-  ['Grönland-Lücke', 'Tiefes Wasser, Konvergenzzonen, ausgeprägte Sprungschicht.', 'Schicht nutzen; Schleppsonare hören sehr weit.'],
+  ['Grönland-Lücke', 'Tiefes Wasser, Konvergenzzonen, ausgeprägte Sprungschicht. Quer zur Route liegt eine flache Bank (150–250 m) im Wartegebiet der U-Boote.', 'Schicht nutzen; Schleppsonare hören sehr weit. Minen gehen nur auf der Bank.'],
   ['Schelfmeer', 'Flach (110–270 m), schwache Schicht, viel Nachhall, wenig Tauchtiefe.', 'Eskorte: LFM-Puls und aktive Bojen. U-Boot: nah am Grund und im Lärm der Frachter.'],
   ['Fjordausfahrt', 'Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf.', 'Der Konvoi ist berechenbar – die U-Boote auch: Die Rinne zwingt beide auf wenige Wege.'],
   ['Hafenangriff', 'Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt.', 'Langsam an der Einfahrt horchen; Schüsse auf ankernde Ziele brauchen keine TMA.'],

@@ -17,6 +17,8 @@ export interface ConvoyState {
   arriveRadius: number;
   /** Known mines: the merchants steer clear of them (mines.ts). */
   hazards?: Vec2[];
+  /** Detour ordered by the escort: the track is shifted sideways by this much (m, + = starboard of the leg). */
+  offset?: number;
 }
 
 const ZIG_PERIOD = 480; // s per leg
@@ -49,6 +51,29 @@ function stationPoint(c: ConvoyState, off: Vec2): Vec2 {
   return { x: c.guide.x + stb.x * off.x + fwd.x * off.y, y: c.guide.y + stb.y * off.x + fwd.y * off.y };
 }
 
+/** Largest sideways detour the commodore accepts (m). */
+export const CONVOY_DETOUR_MAX = 4000;
+
+/** Shift the convoy's track sideways (e.g. around a mined stretch); 0 returns to the route. */
+export function setConvoyOffset(c: ConvoyState, offset: number): void {
+  c.offset = clamp(Math.round(offset), -CONVOY_DETOUR_MAX, CONVOY_DETOUR_MAX) || undefined;
+}
+
+/**
+ * Where the guide steers: the waypoint, or with a detour ordered a point on the parallel
+ * track 3 km ahead (the convoy moves over to it within a few kilometres, then follows it).
+ */
+function legTarget(c: ConvoyState, wp: Vec2, prev: Vec2): Vec2 {
+  if (!c.offset) return wp;
+  const dir = headingVec(bearing(prev, wp));
+  const stb = headingVec(bearing(prev, wp) + 90);
+  const end = { x: wp.x + stb.x * c.offset, y: wp.y + stb.y * c.offset };
+  const along = (c.guide.x - prev.x) * dir.x + (c.guide.y - prev.y) * dir.y;
+  const legLen = (wp.x - prev.x) * dir.x + (wp.y - prev.y) * dir.y;
+  const at = Math.min(legLen, along + 3000);
+  return at >= legLen ? end : { x: prev.x + dir.x * at + stb.x * c.offset, y: prev.y + dir.y * at + stb.y * c.offset };
+}
+
 /** Order the convoy to scatter away from a threat position for `duration` seconds. */
 export function scatterConvoy(c: ConvoyState, from: Vec2, now: number, duration = 600): void {
   c.scatterUntil = now + duration;
@@ -59,8 +84,10 @@ export function scatterConvoy(c: ConvoyState, from: Vec2, now: number, duration 
 export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: number): void {
   const wp = c.waypoints[c.wpIndex];
   if (wp) {
-    if (distance(c.guide, wp) < 1500 && c.wpIndex < c.waypoints.length - 1) c.wpIndex++;
-    const leg = bearing(c.guide, c.waypoints[c.wpIndex] ?? wp);
+    const prev = c.waypoints[c.wpIndex - 1] ?? c.guide;
+    if (distance(c.guide, legTarget(c, wp, prev)) < 1500 && c.wpIndex < c.waypoints.length - 1) c.wpIndex++;
+    const cur = c.waypoints[c.wpIndex] ?? wp;
+    const leg = bearing(c.guide, legTarget(c, cur, c.waypoints[c.wpIndex - 1] ?? prev));
     const zig = c.zigzag ? (Math.floor(now / ZIG_PERIOD) % 2 === 0 ? ZIG_ANGLE : -ZIG_ANGLE) : 0;
     c.guideHeading = wrap360(leg + zig);
     const v = headingVec(c.guideHeading);

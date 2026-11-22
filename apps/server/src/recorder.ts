@@ -25,6 +25,16 @@ function habitsOf(h?: [number, number, number, number, number]): Habits | undefi
   return { pd: f(1), above: f(2), fast: f(3), ping: f(4) };
 }
 
+/** Mine kills (victim had one of our mines go off under it) and torpedo attacks lived through. */
+export function feats(w: World, shipId: string, kills: { t: number; shipId: string }[], alive: boolean): Pick<PlayerStats, 'mineKills' | 'attacksSurvived'> {
+  let mineKills = 0;
+  for (const k of kills) {
+    if (w.events.some((e) => e.kind === 'mine' && e.what === 'detonated' && e.shipId === k.shipId && Math.round(e.time) <= k.t)) mineKills++;
+  }
+  const attacks = alive ? w.events.filter((e) => e.kind === 'torpedo_alert' && e.shipId === shipId).length : 0;
+  return { mineKills: mineKills || undefined, attacksSurvived: attacks || undefined };
+}
+
 /** Records ground truth during the match; it is only revealed in the debrief after the end. */
 export class Recorder {
   s: RecorderState = { frames: [], torpedoes: [], lastFrame: -1e9, distance: {}, lastPos: {} };
@@ -95,6 +105,7 @@ export class Recorder {
         won: p.team === result.winner,
         habits: habitsOf(this.s.habits?.[shipId]),
         orderPoints: orders.list.some((o) => o.team === p.team) ? orders.points[p.team] : undefined,
+        ...feats(w, shipId, kills, !!ship?.alive),
       };
     });
     return {

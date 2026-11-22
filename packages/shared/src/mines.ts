@@ -42,8 +42,12 @@ export const MOORED_DEPTH = 10;
 export const MINE_ARM_S = 180;
 export const MINE_LAY_MAX_KN = 8;
 export const MINE_LAY_INTERVAL_S = 30;
-/** Mine-avoidance sonar: range against a moored mine ahead (m) and its sector (±deg). */
+/** Mine search ahead with the hull sonar's active mode: range against a moored mine (m) and its sector (±deg). */
 export const MINE_DETECT_M = 1000;
+/** The dedicated high-frequency mine-avoidance sonar reaches further, also without the active hull sonar. */
+export const MINE_AVOID_FACTOR = 1.6;
+/** Above this speed the flow noise drowns the high-frequency echoes. */
+export const MINE_AVOID_MAX_KN = 15;
 export const MINE_DETECT_SECTOR = 70;
 
 export function mineStateOf(w: World): MineState {
@@ -96,11 +100,18 @@ export function layMine(w: World, s: Ship): true | string {
 
 /** Range at which an escort's mine-avoidance sonar finds this mine (0 = not now). */
 export function mineDetectRange(w: World, s: Ship, m: Mine): number {
-  if (!s.alive || !isEscort(s.cls) || !s.activeSonar) return 0;
+  if (!s.alive || !isEscort(s.cls)) return 0;
   const kn = s.speed / KN;
+  const hf = s.mineAvoid && kn <= MINE_AVOID_MAX_KN;
+  if (!hf && !s.activeSonar) return 0;
   const flow = kn > 18 ? 0.5 : 1;
   const sea = 1 - 0.06 * w.env.seaState;
-  return MINE_DETECT_M * flow * sea * (m.bottom ? 0.6 : 1);
+  return MINE_DETECT_M * (hf ? MINE_AVOID_FACTOR : flow) * sea * (m.bottom ? 0.6 : 1);
+}
+
+/** How far ahead this ship finds a moored mine right now (0 = not searching). */
+export function mineSearchRange(w: World, s: Ship): number {
+  return Math.round(mineDetectRange(w, s, { bottom: false } as Mine));
 }
 
 function detonate(w: World, m: Mine, s: Ship, r3: number, reach: number): void {
@@ -133,7 +144,7 @@ export function mineSystem(w: World, dt: number): void {
   if (st.detectAccum < 1) return;
   st.detectAccum = 0;
   for (const s of w.ships) {
-    if (!s.alive || !s.activeSonar || !isEscort(s.cls)) continue;
+    if (!s.alive || !(s.activeSonar || s.mineAvoid) || !isEscort(s.cls)) continue;
     for (const m of st.mines) {
       if (m.known.includes(s.team)) continue;
       const d = distance(s.pos, m.pos);

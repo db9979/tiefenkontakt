@@ -1,0 +1,27 @@
+# Nightly balance check: 90 bot-vs-bot games on Grönland, Schelf and Fjord. Fails when one side
+# wins more than 65 % (ARENA_BAND), so a balance shift shows up the morning after. Can also be
+# started by hand from the Actions tab (with a different number of games).
+name: Arena
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      games:
+        description: Anzahl Partien
+        default: '90'
+jobs:
+  arena:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bot-Arena
+        env:
+          ARENA_BAND: '0.35'
+        run: npx tsx scripts/bot-arena.ts ${{ inputs.games || '90' }}

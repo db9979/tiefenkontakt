@@ -289,6 +289,13 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 .chipcount { margin-left: auto; font-size: 10px; }
 .ltable { display: grid; grid-template-columns: 28px 1.4fr 0.8fr 0.9fr 0.8fr 0.7fr 0.8fr; gap: 6px; }
 .ltable span:not(:nth-child(2)) { text-align: right; }
+.ltable span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltable .badges span, .badges .badge { text-align: left; }
+.badges { margin-left: 4px; letter-spacing: 1px; color: var(--amber, #e0b050); cursor: help; }
+.badgeshelf { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; }
+.badgechip { white-space: nowrap; cursor: help; }
+.badgechip .badge { color: var(--amber, #e0b050); }
+.badgechip.dim .badge { color: inherit; }
 .topbar .status .st-ship { flex-shrink: 0; }
 .st-prog { min-width: 0; }
 #pb-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

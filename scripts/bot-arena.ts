@@ -36,3 +36,14 @@ for (let g = 0; g < games; g++) {
 }
 const st = seriesStats(results);
 console.log(`Bilanz: Westbund ${st.westWins} · Ostpakt ${st.eastWins} · Ø Ortung West ${st.avgDetectWest ?? '—'} m, Ost ${st.avgDetectEast ?? '—'} m | Befehle erfüllt/nicht: W ${ordersTally.west.join('/')} O ${ordersTally.east.join('/')}`);
+// ARENA_BAND=0.35: fail (exit 1) when the West's share of wins leaves [band, 1 − band] — for the nightly CI run
+const band = Number(process.env.ARENA_BAND ?? 0);
+const share = results.length ? st.westWins / results.length : 0.5;
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const { appendFileSync } = await import('node:fs');
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Bot-Arena (${results.length} Partien, ${skill})\n\nWestbund ${st.westWins} : Ostpakt ${st.eastWins} (West ${Math.round(share * 100)} %)${band ? `, erlaubt ${Math.round(band * 100)}–${Math.round((1 - band) * 100)} %` : ''}\n`);
+}
+if (band && (share < band || share > 1 - band)) {
+  console.error(`Balance außerhalb des Bands: West ${Math.round(share * 100)} %`);
+  process.exit(1);
+}

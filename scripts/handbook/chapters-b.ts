@@ -53,6 +53,11 @@ Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann m
 <li><b>Flugzeugradar im ESM</b> (Bedrohungsseite „LUFT“): Seeaufklärer in der Nähe – Mast einfahren und tiefer gehen. Der eigene Fernaufklärer meldet den Konvoi dagegen über die Führung: Wer dann auf Empfangstiefe ist, bekommt Peilung, Entfernung, Kurs und Fahrt.</li>
 <li><b>Lärmdeckung:</b> Wer nahe hinter einem Frachter läuft, verschwindet für die Eskorte in dessen Lärm.</li>
 </ul>
+<h2>Minen</h2>
+<p>Kilo-, Küsten- und AIP-Boote haben vier Minen an Bord („Mine legen“ im Feuerleitstand, höchstens 8 kn, alle 30 s eine). Sie gehen nur in Wasser
+von 25 bis 300 m: bis 60 m auf den Grund, tiefer verankert in 10 m. Nach drei Minuten sind sie scharf und treffen jedes Schiff, auch eigene und neutrale.
+Am wirksamsten ist eine Sperre quer zur Route, 3 bis 6 km vor dem Konvoi, mit etwa 100 m Abstand – ein Frachter löst erst im Umkreis von rund 55 m aus.
+In der Kampagne bleiben gelegte Minen verbraucht, bis die Werft aufmunitioniert.</p>
 `;
 
 export const chapterEscort = `
@@ -95,6 +100,11 @@ ${shot('ui-f-bruecke.jpg', 'Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.')}
 <li>Nah dran: Wasserbomben überlaufen das Ziel; sie wirken in der eingestellten Tiefe.</li>
 <li>Torpedowarnung: Täuschkörper-Schleppe ausbringen, abdrehen, Fahrt aufnehmen.</li>
 </ol>
+<h2>Minenabwehr</h2>
+<p>Das aktive Rumpfsonar findet verankerte Minen voraus bis etwa 1 km (Grundminen 0,6 km). Das <b>Minenmeidesonar</b> (Sonarstation, „Minenmeiden“)
+reicht 1,6 km in ±70° voraus, auch ohne Aktivsonar und kaum weit zu hören – aber nur bis 15 kn. Sein Suchsektor steht im Lagebild.
+Gefundene Minen gehen über den Datalink an alle Geleitschiffe; der Konvoi weicht ihnen mit 400 m Abstand aus.
+Liegt eine ganze Sperre vor dem Konvoi, versetzt <b>„Konvoi umleiten“</b> in der OPZ seinen Kurs um 1,5 oder 3 km zur Seite; „Route“ führt ihn zurück.</p>
 <h2>Positionslichter</h2>
 <p>Neutrale Schiffe fahren immer mit Lichtern. Der Konvoi führt sie, um die Kolonnen zu halten, und verdunkelt, sobald eine Bedrohung gemeldet wird
 (Torpedowarnung, Verlust, Sichtung), für 30 ruhige Minuten. Eskorten löschen ihre Lichter zusätzlich, solange sie pingen oder auf Gefechtsstationen sind.

@@ -1,6 +1,7 @@
-import { CLASSES, KN, NM, bearing, depthAt, distance, evaluateSolution, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
+import { CLASSES, KN, NM, bearing, distance, evaluateSolution, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { drawAir } from './air-symbols.js';
+import { drawMineSector } from './airdef-symbols.js';
 import { drawMet } from './met-overlay.js';
 import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
@@ -10,6 +11,7 @@ import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
 import { drawOrderMarks } from './order-marks.js';
+import { DepthChart } from './plot-depth.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -232,7 +234,7 @@ export class Plot {
     const P = (p: Vec2) => this.toScreen(p);
     const c = this.center();
 
-    this.drawDepth(ctx, s, w, height);
+    this.depth.draw(ctx, s.env.seabed, this.center(), this.scale, w, height);
     drawMet(ctx, s.env.met, P, this.scale);
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
@@ -283,6 +285,7 @@ export class Plot {
     // Aircraft with a position (datalink, radar, eye) and ESM strobes on aircraft radars
     const meA = P(ownNow());
     drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120);
+    drawMineSector(ctx, s, meA, this.scale);
 
     for (const t of s.torpedoes) {
       const p = P(t);
@@ -324,46 +327,7 @@ export class Plot {
     ctx.fillText(foot, 8, height - 8);
   }
 
-  private depthCache?: { key: string; img: HTMLCanvasElement; at: number };
-
-  /** Chart shading from the (public) seabed: land, shoals, shelf and deep water. */
-  private drawDepth(ctx: CanvasRenderingContext2D, s: Snapshot, w: number, hgt: number): void {
-    const spec = s.env.seabed;
-    if (!spec) return;
-    const c = this.center();
-    const cell = 6;
-    const cols = Math.ceil(w / cell);
-    const rows = Math.ceil(hgt / cell);
-    const key = `${Math.round(c.x / (this.scale * 4))}|${Math.round(c.y / (this.scale * 4))}|${this.scale.toFixed(2)}|${cols}|${rows}`;
-    const now = performance.now();
-    if (!this.depthCache || (this.depthCache.key !== key && now - this.depthCache.at > 120)) {
-      const img = this.depthCache?.img ?? document.createElement('canvas');
-      img.width = cols;
-      img.height = rows;
-      const ic = img.getContext('2d')!;
-      const data = ic.createImageData(cols, rows);
-      // Depth bands for isobaths (0, 50, 100, 200, 500, 1000, 2000 m)
-      const band = (d: number) => [0, 50, 100, 200, 500, 1000, 2000].filter((z) => d >= z).length;
-      const depths = new Float32Array(cols * rows);
-      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) depths[j * cols + i] = depthAt(spec, c.x + (i * cell - w / 2) * this.scale, c.y - (j * cell - hgt / 2) * this.scale);
-      for (let j = 0; j < rows; j++) {
-        for (let i = 0; i < cols; i++) {
-          const d = depths[j * cols + i]!;
-          const edge = (i + 1 < cols && band(depths[j * cols + i + 1]!) !== band(d)) || (j + 1 < rows && band(depths[(j + 1) * cols + i]!) !== band(d));
-          const [r, g, b] = edge && d >= 0 ? [30, 66, 62] : d < 0 ? [38, 36, 26] : d < 60 ? [52, 64, 50] : d < 300 ? [14, 34, 34] : d < 2000 ? [9, 22, 24] : [6, 14, 16];
-          const k = (j * cols + i) * 4;
-          data.data[k] = r;
-          data.data[k + 1] = g;
-          data.data[k + 2] = b;
-          data.data[k + 3] = 255;
-        }
-      }
-      ic.putImageData(data, 0, 0);
-      this.depthCache = { key, img, at: now };
-    }
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.depthCache.img, 0, 0, cols * cell, rows * cell);
-  }
+  private depth = new DepthChart();
 
   private lineFilters = new Map<string, { f: BearingRangeFilter; last: number }>();
 

@@ -60,6 +60,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
         </div>
         <div class="panel" style="margin-top:10px">
           <div class="hd"><span>Ausbildung</span><span class="dim">EINZELSPIELER · MIT ANLEITUNG · <a class="btnlink" href="/handbuch.pdf" download="Tiefenkontakt-Handbuch.pdf" title="Ausführliches Spielerhandbuch zum Drucken (A4, PDF)">HANDBUCH (PDF)</a></span></div>
+          <button data-lesson="feindfahrt" class="on" style="width:100%;text-align:left;text-transform:none;margin-bottom:6px" title="Geführte Einsteiger-Mission: Schritt für Schritt vom Tauchen bis zum Torpedoschuss"><div>Erste Feindfahrt · Einstieg mit Anleitung</div><div class="dim">Tiefe und Ruder, Horchen, Kurswechsel und Lösung, Sehrohr, Torpedo, Ablaufen</div></button>
           <div class="grid2">
             <button data-lesson="klassifizieren" style="text-align:left;text-transform:none"><div>1 · Horchen und Klassifizieren</div><div class="dim">LOFAR, DEMON, Klassenbibliothek</div></button>
             <button data-lesson="tma" style="text-align:left;text-transform:none"><div>2 · Zielbewegungsanalyse</div><div class="dim">Kurswechsel, Lösung, Güte</div></button>
@@ -73,7 +74,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       el.appendChild(accountPanel());
       el.appendChild(adminPanel());
       el.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => {
-        b.onclick = () => net.send({ t: 'training', lesson: b.dataset.lesson as 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' });
+        b.onclick = () => net.send({ t: 'training', lesson: b.dataset.lesson as 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' });
       });
       el.querySelector<HTMLButtonElement>('#logout')!.onclick = () => void logout();
       el.querySelector<HTMLButtonElement>('#create')!.onclick = () => {

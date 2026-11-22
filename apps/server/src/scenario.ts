@@ -96,6 +96,12 @@ export function routeLength(s: ScenarioSettings): number {
   return 9 * 0.514444 * s.timeLimitMin * 60 * DEFAULT_SETTINGS.timeScale * 0.85;
 }
 
+/**
+ * Grönland-Lücke: a shallow bank (150–250 m) crosses the convoy route about here (fraction of
+ * the route), in the boats' waiting area. The only water shallow enough for mines.
+ */
+export const GROENLAND_BANK_FRAC = 0.5;
+
 /** Sandbox matches run without a time limit (the time scale changes while they run). */
 export const SANDBOX_LIMIT_S = 1e9;
 
@@ -154,7 +160,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const layer = settings.layerDepth > 0 ? settings.layerDepth : 80 + ((seed * 7919) % 91);
   const w = createWorld(ships, seed, {
     layerDepth: layer, layerLoss: 12, seaState: settings.seaState,
-    seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed }, light: LIGHT[settings.timeOfDay],
+    seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed, ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}) }, light: LIGHT[settings.timeOfDay],
   });
   w.env.seed = seed;
   w.env.mission = mission;

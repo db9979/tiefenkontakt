@@ -1,4 +1,6 @@
 import {
+  isEscort,
+  setConvoyOffset,
   CLASSES,
   KN,
   PERISCOPE_DEPTH,
@@ -42,7 +44,8 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
   z.object({ t: z.literal('blow') }),
   z.object({ t: z.literal('mad'), bearing: deg, range: z.number().finite().min(200).max(30_000) }),
-  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds']), on: z.boolean() }),
+  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds', 'mineavoid']), on: z.boolean() }),
+  z.object({ t: z.literal('convoy_detour'), offset: z.number().finite().min(-4000).max(4000) }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
     t: z.literal('fire'), heading: deg, enableAfter: z.number().finite().min(0).max(30_000),
@@ -82,7 +85,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
     bearing: deg.optional(), range: z.number().finite().min(200).max(60_000).optional(), heading: deg.optional(),
     speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(600).optional(), id: z.string().max(20).optional(),
   }),
-  z.object({ t: z.literal('training'), lesson: z.enum(['klassifizieren', 'tma', 'angriff', 'ujagd']) }),
+  z.object({ t: z.literal('training'), lesson: z.enum(['klassifizieren', 'tma', 'angriff', 'ujagd', 'feindfahrt']) }),
   z.object({ t: z.literal('crew'), captainId: z.string().max(64).nullable() }),
   z.object({ t: z.literal('repair'), system: z.enum(['antrieb', 'sonar', 'waffen', 'leck']) }),
   z.object({ t: z.literal('execute_order'), id: z.string().max(16) }),
@@ -124,7 +127,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -164,6 +167,9 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
         // Lower the body below the layer (40 m under it), or to 150 m without a layer
         const layer = s.btLayer ?? w.env.layerDepth;
         s.vdsOrder = m.on ? Math.min(vds.maxDepth, layer !== undefined ? layer + 40 : 150) : 0;
+      } else if (m.what === 'mineavoid') {
+        if (!isEscort(s.cls)) return 'Nur Geleitschiffe haben ein Minenmeidesonar';
+        s.mineAvoid = m.on;
       } else if (m.what === 'buoyant') {
         if (!spec.submarine) return 'Nur für U-Boote';
         s.buoyAntenna = m.on;
@@ -240,6 +246,13 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'mine': {
       const r = m.t === 'sam' ? fireSam(w, s, m.planeId) : m.t === 'fighter' ? callFighter(w, s) : layMine(w, s);
       return r === true ? undefined : r;
+    }
+    case 'convoy_detour': {
+      // The commodore takes detour orders from the escorts of his own side only
+      const merchant = w.ships.find((x) => x.cls === 'merchant');
+      if (!w.convoy || !merchant || merchant.team !== s.team || !isEscort(s.cls)) return 'Kein Konvoi unter eigenem Befehl';
+      setConvoyOffset(w.convoy, m.offset);
+      return undefined;
     }
     case 'noisemaker': {
       const r = launchNoisemaker(w, s);

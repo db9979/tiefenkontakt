@@ -7,7 +7,12 @@ import { SandboxHub } from './sandbox.js';
 import type { CampaignPlan } from './campaign-match.js';
 import { takePhoto } from './photos.js';
 
-const MAX_MATCHES = 50;
+/**
+ * Matches at the same time (lobby + running). Load test on the Pi 5: 12 matches with 24 players
+ * and AI cost 1.3 ms per tick (≈16 % of one core) at a steady 10 snapshots/s, so 30 leaves room
+ * for the voice server and the system. MAX_MATCHES in .env overrides it.
+ */
+const MAX_MATCHES = Math.max(1, Number(process.env.MAX_MATCHES) || 30);
 /** A running match with nobody connected stays (paused) this long before it is dropped. */
 export const ABANDON_MS = 15 * 60_000;
 

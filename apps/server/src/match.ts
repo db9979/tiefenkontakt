@@ -1,6 +1,5 @@
 import {
   CLASSES,
-  KN,
   SIM_DT,
   isAtPeriscopeDepth,
   mastExposed,
@@ -34,6 +33,7 @@ import { computeScore, evaluate, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
+import { radioToTeam, spectateView } from './match-io.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
 export interface Conn {
@@ -261,19 +261,7 @@ export class Match {
   }
 
   private sendSpectate(conn: Conn): void {
-    const w = this.world;
-    if (!w) return;
-    const cutoff = w.time - SPECTATE_DELAY;
-    const full = this.recorder.debrief(w, this.slots, { winner: 'west', reason: 'LIVE' });
-    conn.send({
-      t: 'spectate', delayS: SPECTATE_DELAY,
-      d: {
-        ...full, stats: [], reason: 'Live, verzögert', duration: Math.max(0, Math.round(cutoff)),
-        frames: full.frames.filter((f) => f[0] <= cutoff),
-        torpedoes: full.torpedoes.filter((f) => f[0] <= cutoff),
-        events: full.events.filter((e) => e.t <= cutoff && e.kind !== 'shot'),
-      },
-    });
+    if (this.world) conn.send({ t: 'spectate', delayS: SPECTATE_DELAY, d: spectateView(this.recorder, this.world, this.slots, SPECTATE_DELAY) });
   }
 
   /** Join a teammate's ship as crew (or leave the crew with null). */
@@ -400,21 +388,7 @@ export class Match {
     transmit(w, ship, text);
     this.radioLog.push({ from: ship.name, playerId, text });
     if (this.radioLog.length > 200) this.radioLog.shift();
-    for (const mate of this.slots.filter((s) => s.team === ship.team)) {
-      const x = this.extras.get(mate.playerId);
-      if (!x) continue;
-      x.radio.push({ time: w.time, from: ship.name, text });
-      if (x.radio.length > 60) {
-        x.radio.shift();
-        x.radioDropped = (x.radioDropped ?? 0) + 1;
-      }
-      if (this.shipOf(mate.playerId)?.id !== ship.id) {
-        x.reports.set(ship.id, {
-          id: ship.id, name: ship.name, cls: ship.cls, x: ship.pos.x, y: ship.pos.y, heading: ship.heading,
-          speedKn: ship.speed / KN, reportedAt: w.time, alive: ship.alive,
-        });
-      }
-    }
+    radioToTeam(w, ship, text, this.slots, this.extras, (id) => this.shipOf(id));
     return undefined;
   }
 

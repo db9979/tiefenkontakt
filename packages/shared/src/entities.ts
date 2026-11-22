@@ -76,6 +76,8 @@ export interface Ship {
   vdsDepth?: number;
   vdsOrder?: number;
   activeSonar: boolean; // pings periodically when true
+  /** High-frequency mine-avoidance sonar (escorts): finds mines further ahead; too high in pitch to be heard far away. */
+  mineAvoid?: boolean;
   lastPingAt: number;
   /** Active pulse: CW (coarse range, Doppler) or LFM (precise range, beats reverberation). */
   pulse: 'cw' | 'lfm';

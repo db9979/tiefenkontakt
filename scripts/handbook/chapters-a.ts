@@ -45,6 +45,7 @@ Sprechfunk mit Verbindungsgüte; ein grüner Punkt heißt: er spricht gerade.</p
 <tr><td>Risiko</td><td>Jede Sendung über Funk gibt dem Gegner eine Funkpeilung, bei langem Sprechen alle paar Sekunden eine neue. Kurz fassen!</td></tr>
 </table>
 <h2>Lektionen</h2>
+<p>Für den Einstieg führt <b>„Erste Feindfahrt“</b> (Lobby, Ausbildung) durch einen ganzen Angriff auf einen einzelnen Frachter: Tiefe, Schleichfahrt, Horchen, Schenkel für die TMA, Sehrohr, Schuss, Drahtlenkung und Ablaufen – jeder Schritt mit Haken, „Weiter“ überspringt.</p>
 <p>Die geführten Lektionen bringen jede Station Schritt für Schritt bei: Horchen, Peilen, TMA, Torpedoangriff, Schleppsonar, Hubschrauber und Ausweichen.
 Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Einsteiger“ beschriftet Linien und bietet Auto-Marken und Auto-TMA,
 „Profi“ verzichtet darauf.</p>

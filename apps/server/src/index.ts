@@ -15,6 +15,8 @@ import { handleAdmin } from './admin.js';
 import { ModerationStore } from './moderation.js';
 import { Backups } from './backup.js';
 import { Ratings } from './rating.js';
+import { BadgeStore } from './badges.js';
+import { Rankings } from './rankings.js';
 import { log } from './log.js';
 import { Match } from './match.js';
 import { clientIpFrom } from './client-ip.js';
@@ -40,6 +42,10 @@ const backups = new Backups(auth.db);
 const ratings = new Ratings(auth.db);
 const campaigns = new CampaignStore(auth.db);
 const campaign = new CampaignService(campaigns);
+const badges = new BadgeStore(auth.db);
+const rankings = new Rankings(auth.db, stats, badges);
+rankings.init();
+campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
 lobby.onCampaignStart = (conn) => campaign.plan(conn);
 backups.start();
@@ -67,6 +73,7 @@ lobby.onFinish = (m, d) => {
   if (m.settings.sandbox) return; // training: no results, no rating
   stats.record(d, m.settings.mission, m.settings.timeOfDay);
   ratings.update(d);
+  rankings.afterMatch(d);
 };
 lobby.onLessonDone = (playerId, lesson) => {
   const uid = userIdOf(playerId);
@@ -173,12 +180,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     }
     return handleAdmin(req, body, (status, b) => json(res, status, b), lobby, mod);
   }
-  if (req.url === '/api/leaderboard' && req.method === 'GET') return json(res, 200, stats.leaderboard());
+  if (rankings.handle(req.method ?? 'GET', req.url ?? '', (st, b) => json(res, st, b))) return;
   if (req.url === '/api/balance' && req.method === 'GET') return json(res, 200, stats.balance());
   if (req.url === '/api/stats' && req.method === 'GET') {
     const u = auth.userForToken(token);
     if (!u) return json(res, 401, { error: 'Nur mit Konto' });
-    return json(res, 200, { summary: stats.summary(u.id), campaign: stats.campaign(u.id), rating: ratings.get(u.id) });
+    return json(res, 200, { summary: stats.summary(u.id), campaign: stats.campaign(u.id), rating: ratings.get(u.id), badges: badges.of(u.id) });
   }
   const opsUser = req.url?.startsWith('/api/campaign') || req.url?.startsWith('/api/series') ? auth.userForToken(token) : undefined;
   const opsCtx = { method: req.method ?? 'GET', url: req.url ?? '', user: opsUser, admin: mod.isAdmin(opsUser?.callsign), body: () => readBody(req), reply: (st: number, b: unknown) => json(res, st, b) };

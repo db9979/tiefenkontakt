@@ -14,6 +14,13 @@ describe('seabed', () => {
       expect(shelf).toBeGreaterThan(100);
       expect(shelf).toBeLessThan(300);
     }
+    // Greenland's bank across the route: shallow enough for mines on its crest, deep sea beyond
+    for (let x = -20_000; x <= 20_000; x += 2500) {
+      const crest = depthAt({ kind: 'tief', seed: 3, bankY: 17_000 }, x, 17_000);
+      expect(crest).toBeGreaterThan(120);
+      expect(crest).toBeLessThan(270);
+      expect(depthAt({ kind: 'tief', seed: 3, bankY: 17_000 }, x, 30_000)).toBeGreaterThan(2000);
+    }
     expect(depthAt({ kind: 'fjord', seed: 3 }, 0, 10_000)).toBeGreaterThan(100);
     expect(depthAt({ kind: 'fjord', seed: 3 }, 15_000, 10_000)).toBeLessThan(0);
   });

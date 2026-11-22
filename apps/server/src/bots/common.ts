@@ -1,10 +1,8 @@
 import {
   angleDiff,
-  autoSolve,
   bearing,
   CHOICE_MAX_KN,
   distance,
-  evaluateSolution,
   rankClasses,
   type ClassChoice,
   type ContactTrack,
@@ -14,6 +12,7 @@ import {
   type TmaSolution,
   type World,
 } from '@tk/shared';
+import { botSolve, logBearings, pruneLogs, type BearingLog } from './tma-bot.js';
 
 /**
  * Shared helpers for the AI captains. Fair play: they decide from their own contact
@@ -25,9 +24,9 @@ export type BotSkill = 'leicht' | 'normal' | 'schwer';
 export const SKILL = {
   // Submarines: TMA quality before a shot, salvo size, pack reports.
   // Escorts: aim error of rockets/helo torpedoes (m), use of dipping sonar and patrol aircraft, fire rate.
-  leicht: { think: 4, subThink: 4, tmaQuality: 64, salvo: 2, pack: true, reactS: 40, aimErr: 500, air: true, fireRate: 0.67, pingDuty: 120 },
-  normal: { think: 2, subThink: 2, tmaQuality: 62, salvo: 2, pack: true, reactS: 15, aimErr: 150, air: true, fireRate: 1.3, pingDuty: 120 },
-  schwer: { think: 1, subThink: 2, tmaQuality: 62, salvo: 2, pack: true, reactS: 5, aimErr: 0, air: true, fireRate: 2, pingDuty: 240 },
+  leicht: { think: 4, subThink: 4, tmaQuality: 56, salvo: 2, pack: true, reactS: 40, aimErr: 500, air: true, fireRate: 0.67, pingDuty: 120 },
+  normal: { think: 2, subThink: 2, tmaQuality: 52, salvo: 2, pack: true, reactS: 15, aimErr: 150, air: true, fireRate: 1.3, pingDuty: 120 },
+  schwer: { think: 1, subThink: 2, tmaQuality: 52, salvo: 2, pack: true, reactS: 5, aimErr: 0, air: true, fireRate: 2, pingDuty: 240 },
 } as const;
 
 export interface BotMemory {
@@ -63,6 +62,8 @@ export interface BotMemory {
   convoyLine?: { x: number; y: number; course: number; speedKn: number; t: number };
   /** Mine barrage in progress: from which side of the convoy track the boat crosses. */
   mineRun?: { side: number };
+  /** The captain's own bearing plot per contact label (10 s bins, 15 min), for the TMA. */
+  blog?: Record<string, BearingLog>;
 }
 
 export function newMemory(shipId: string, passive = false): BotMemory {
@@ -135,16 +136,19 @@ export function votedPeek(m: BotMemory, t: ContactTrack): ClassChoice | undefine
   return best;
 }
 
-/** A cheap TMA for the AI (coarse grid), refreshed at most once a minute per contact. */
+/**
+ * The AI's TMA (tma-bot.ts) on its own 15-minute bearing plot, refreshed every 30 s per
+ * contact. Every call logs the contact's newest bearings, so call it on each think.
+ */
 export function solveFor(m: BotMemory, t: ContactTrack, now: number, choice?: ClassChoice): { sol: TmaSolution; q: number } | undefined {
+  const logs = (m.blog ??= {});
+  const log = logBearings(logs, t, m.track, now);
   const cached = m.sols[t.label];
-  if (cached && now - cached.at < 60) return cached;
-  const hist = t.history.filter((h) => h.alt === undefined);
-  if (hist.length < 8 || m.track.length < 6) return cached;
-  const sol = autoSolve(hist, m.track, CHOICE_MAX_KN[choice ?? 'unknown'], { courseStep: 15, speedStep: 2, rangeFactor: 1.3, samples: 14 });
-  if (!sol) return cached;
-  const q = evaluateSolution(sol, hist, m.track).quality;
-  m.sols[t.label] = { sol, at: now, q };
+  if (cached && now - cached.at < 30) return cached;
+  pruneLogs(logs, now);
+  const fit = botSolve(log.fixes, CHOICE_MAX_KN[choice ?? 'unknown'], choice);
+  if (!fit) return cached;
+  m.sols[t.label] = { sol: fit.sol, at: now, q: fit.q };
   return m.sols[t.label];
 }
 

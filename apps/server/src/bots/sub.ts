@@ -139,7 +139,9 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     return;
   }
 
-  // Legs across the line of sight make the range observable for the TMA
+  // Legs across the line of sight make the range observable for the TMA (a long patrol leg
+  // from the search ends at once: the plot needs the turns)
+  if (m.legUntil > now + LEG_S) m.legUntil = now;
   if (now > m.legUntil) {
     m.legSign = -m.legSign;
     m.legUntil = now + LEG_S;

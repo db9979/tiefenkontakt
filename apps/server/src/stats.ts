@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Debrief, Habits, PlayerStats } from '@tk/shared';
+import type { CareerTotals, Debrief, Habits, PlayerStats } from '@tk/shared';
 
 /** Match results, points and campaign progress for registered players (guests are not recorded). */
 
@@ -54,6 +54,9 @@ export function pointsFor(s: PlayerStats): number {
   return (s.won ? 25 : -5) + Math.round(s.tonnageSunk / 2000) + (s.survived ? 5 : 0) + (s.orderPoints ?? 0);
 }
 
+/** Ranking weight of a match whose opposing side had no human player (only AI). */
+export const BOT_ONLY_WEIGHT = 0.5;
+
 export class StatsStore {
   constructor(private db: DatabaseSync) {
     db.exec(`
@@ -95,6 +98,7 @@ export class StatsStore {
         team TEXT NOT NULL,
         pd REAL NOT NULL, above REAL NOT NULL, fast REAL NOT NULL, ping REAL NOT NULL
       );`);
+    migrateResults(db);
   }
 
   /** Record a finished (non-lesson) match: balance data for all, results for account players. */
@@ -103,12 +107,14 @@ export class StatsStore {
     const classes = d.ships.filter((s) => s.player).map((s) => `${s.team}:${s.cls}`);
     this.db.prepare('INSERT INTO matches (ended_at, mission, time_of_day, winner, duration, humans_west, humans_east, classes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(now, mission, timeOfDay, d.winner, d.duration, humans('west'), humans('east'), JSON.stringify(classes));
-    const ins = this.db.prepare(`INSERT INTO results (user_id, ended_at, mission, time_of_day, team, cls, won, kills, tonnage, shots, survived, points)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const ins = this.db.prepare(`INSERT INTO results (user_id, ended_at, mission, time_of_day, team, cls, won, kills, tonnage, shots, survived, points, weight, mine_kills, attacks_survived)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const s of d.stats) {
       const uid = userIdOf(s.playerId);
       if (uid === undefined) continue;
-      ins.run(uid, now, mission, timeOfDay, s.team, s.cls, s.won ? 1 : 0, s.kills, s.tonnageSunk, s.shots + s.rockets, s.survived ? 1 : 0, pointsFor(s));
+      const weight = humans(s.team === 'west' ? 'east' : 'west') === 0 ? BOT_ONLY_WEIGHT : 1;
+      ins.run(uid, now, mission, timeOfDay, s.team, s.cls, s.won ? 1 : 0, s.kills, s.tonnageSunk, s.shots + s.rockets, s.survived ? 1 : 0, pointsFor(s),
+        weight, s.mineKills ?? 0, s.attacksSurvived ?? 0);
       if (s.habits) {
         this.db.prepare('INSERT INTO habits (user_id, ended_at, team, pd, above, fast, ping) VALUES (?, ?, ?, ?, ?, ?, ?)')
           .run(uid, now, s.team, s.habits.pd, s.habits.above, s.habits.fast, s.habits.ping);
@@ -171,10 +177,56 @@ export class StatsStore {
     return { missions: [...missions.values()].map(round), classes: [...classes.values()].map(round), total: rows.length };
   }
 
-  leaderboard(limit = 20): PlayerSummary[] {
-    return (this.db.prepare(`SELECT u.callsign AS callsign, SUM(r.points) AS points, COUNT(r.id) AS matches, SUM(r.won) AS wins,
-      SUM(r.kills) AS kills, SUM(r.tonnage) AS tonnage FROM results r JOIN users u ON u.id = r.user_id
-      WHERE u.verified = 1 GROUP BY u.id ORDER BY points DESC, wins DESC LIMIT ?`).all(limit) as unknown as PlayerSummary[]).map((r) => ({ ...r }));
+  /**
+   * Ranking of verified accounts (guests and AI never have result rows), optionally for one
+   * time window (a season). Points are weighted: matches against an AI-only side count half.
+   */
+  leaderboard(limit = 20, from = 0, to = Number.MAX_SAFE_INTEGER): (PlayerSummary & { userId: number })[] {
+    return (this.db.prepare(`SELECT u.id AS userId, u.callsign AS callsign, CAST(ROUND(SUM(r.points * r.weight)) AS INTEGER) AS points, COUNT(r.id) AS matches,
+      SUM(r.won) AS wins, SUM(r.kills) AS kills, SUM(r.tonnage) AS tonnage FROM results r JOIN users u ON u.id = r.user_id
+      WHERE u.verified = 1 AND r.ended_at >= ? AND r.ended_at < ? GROUP BY u.id ORDER BY points DESC, wins DESC, u.id ASC LIMIT ?`)
+      .all(from, to, limit) as unknown as (PlayerSummary & { userId: number })[]).map((r) => ({ ...r }));
+  }
+
+  /** Career totals for the badges. */
+  careerTotals(userId: number): CareerTotals {
+    const r = this.db.prepare(`SELECT COUNT(id) AS matches, COALESCE(SUM(kills),0) AS kills, COALESCE(SUM(tonnage),0) AS tonnage,
+      COALESCE(SUM(mine_kills),0) AS mineKills, COALESCE(SUM(attacks_survived),0) AS attacksSurvived FROM results WHERE user_id = ?`).get(userId) as unknown as CareerTotals;
+    return { ...r };
+  }
+
+  /** Accounts with any recorded result. */
+  userIds(): number[] {
+    return (this.db.prepare('SELECT DISTINCT user_id FROM results').all() as { user_id: number }[]).map((r) => r.user_id);
+  }
+
+  /** End time of the first recorded result (start of the season history). */
+  firstResultAt(): number | undefined {
+    return (this.db.prepare('SELECT MIN(ended_at) AS t FROM results').get() as { t: number | null }).t ?? undefined;
+  }
+}
+
+/**
+ * Additive migration of the results table: ranking weight, mine kills and torpedo attacks
+ * survived. Existing rows keep their data; the weight is backfilled from the matches table
+ * (same end time and mission, opposing side without humans = AI-only).
+ */
+export function migrateResults(db: DatabaseSync): void {
+  const cols = (db.prepare('PRAGMA table_info(results)').all() as { name: string }[]).map((c) => c.name);
+  db.exec('BEGIN');
+  try {
+    if (!cols.includes('weight')) {
+      db.exec('ALTER TABLE results ADD COLUMN weight REAL NOT NULL DEFAULT 1');
+      db.prepare(`UPDATE results SET weight = ? WHERE EXISTS (SELECT 1 FROM matches m WHERE m.ended_at = results.ended_at AND m.mission = results.mission
+        AND ((results.team = 'west' AND m.humans_east = 0) OR (results.team = 'east' AND m.humans_west = 0)))`).run(BOT_ONLY_WEIGHT);
+    }
+    if (!cols.includes('mine_kills')) db.exec('ALTER TABLE results ADD COLUMN mine_kills INTEGER NOT NULL DEFAULT 0');
+    if (!cols.includes('attacks_survived')) db.exec('ALTER TABLE results ADD COLUMN attacks_survived INTEGER NOT NULL DEFAULT 0');
+    db.exec('CREATE INDEX IF NOT EXISTS results_ended ON results (ended_at)');
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
   }
 }
 

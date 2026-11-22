@@ -265,6 +265,21 @@ async function main() {
   await sleep(1200);
   assert(await A.ev(`!__tk.msgs.some((m) => m.t === 'sandbox')`), 'truth view refused in a normal match');
 
+  step = 'reload mid-match';
+  // Lost link / page reload: the same ship comes back with its orders, snapshots stream again
+  const before = await B.ev(`(() => { const s = __tk.store.snap; return { id: s.own.id, name: s.own.name, kn: s.own.order.speedKn }; })()`);
+  await B.ev(`__tk.net.send({ t: 'order', speedKn: 7 }); true`);
+  await waitFor('order before reload', () => B.ev(`__tk.store.snap.own.order.speedKn === 7`), 10_000);
+  await B.cmd('Page.reload', { ignoreCache: false });
+  await sleep(500);
+  await waitFor('page back', () => B.ev(`document.readyState === 'complete'`).catch(() => false), 30_000);
+  await waitFor('hook after reload', () => B.ev(HOOK).catch(() => false), 30_000);
+  await waitFor('game screen after reload', () => B.ev(`document.querySelectorAll('#tabs button').length >= 4`), 30_000);
+  if (await B.ev(`!!document.querySelector('#brief-go')`)) await B.click('#brief-go');
+  await waitFor('snapshots after reload', () => B.ev(`__tk.snaps >= 10`), 15_000);
+  const after = await B.ev(`(() => { const s = __tk.store.snap; return { id: s.own.id, name: s.own.name, kn: s.own.order.speedKn, alive: s.own.alive }; })()`);
+  assert(after.id === before.id && after.name === before.name && after.kn === 7 && after.alive, `reload: same ship ${after.name} back with its orders (7 kn)`);
+
   step = 'voice radio';
   for (const T of [A, B]) {
     await T.click('[data-st="radio"]');

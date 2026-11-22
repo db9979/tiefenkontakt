@@ -2,6 +2,7 @@ import { evaluateSolution, ownLegChange, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { esc, h, setHtml } from './format.js';
+import { FIRST_PATROL_STEPS } from './tutorial-feindfahrt.js';
 
 interface Step {
   text: string;
@@ -17,7 +18,8 @@ const bestQuality = () => {
   return c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
 };
 
-export const LESSON_STEPS: Record<string, { title: string; steps: Step[] }> = {
+export const LESSON_STEPS: Record<string, { title: string; steps: Step[]; sequential?: boolean }> = {
+  feindfahrt: FIRST_PATROL_STEPS,
   klassifizieren: {
     title: 'Horchen und Klassifizieren',
     steps: [
@@ -64,30 +66,45 @@ export function mountTutorial(lesson: string): { el: HTMLElement; update(): void
   const def = LESSON_STEPS[lesson];
   const el = h(`<div class="tutorial panel"><div class="hd"><span>Ausbildung · ${esc(def?.title ?? '')}</span><button id="tut-min">–</button></div><div id="tut-body"></div></div>`);
   const done = new Set<number>();
+  const skipped = new Set<number>();
   let collapsed = false;
   let reported = false;
   el.querySelector<HTMLButtonElement>('#tut-min')!.onclick = () => {
     collapsed = !collapsed;
     el.querySelector<HTMLElement>('#tut-body')!.style.display = collapsed ? 'none' : '';
   };
-  return {
-    el,
-    update() {
-      const s = store.snap;
-      if (!s || !def) return;
+  const next = () => (def ? def.steps.findIndex((_, i) => !done.has(i)) : -1);
+  function update(): void {
+    const s = store.snap;
+    if (!s || !def) return;
+    if (def.sequential) {
+      // Strictly in order: only the current step is checked
+      for (let i = next(); i >= 0 && def.steps[i]!.done(s); i = next()) done.add(i);
+    } else {
       def.steps.forEach((st, i) => {
         if (!done.has(i) && st.done(s)) done.add(i);
       });
-      const current = def.steps.findIndex((_, i) => !done.has(i));
-      if (current < 0 && !reported) {
-        reported = true;
-        net.send({ t: 'lesson_done' });
-      }
-      setHtml(el.querySelector('#tut-body')!, def.steps.map((st, i) => `
-        <div class="row ${i === current ? 'amber' : done.has(i) ? 'dim' : ''}" style="display:block">
-          <span>${done.has(i) ? '✓' : i === current ? '▸' : '·'} <span class="dim">${esc(st.where)}</span></span>
-          ${i === current || !done.has(i) ? `<div>${esc(st.text)}</div>` : ''}
-        </div>`).join('') + (current < 0 ? '<div class="row">LEKTION GESCHAFFT. ÜBER „?“ GEHT ES ZUR HILFE, ÜBER DIE LOBBY ZUR NÄCHSTEN LEKTION.</div>' : ''));
-    },
-  };
+    }
+    const current = next();
+    if (current < 0 && !reported) {
+      reported = true;
+      net.send({ t: 'lesson_done' });
+    }
+    setHtml(el.querySelector('#tut-body')!, def.steps.map((st, i) => `
+      <div class="row ${i === current ? 'amber' : done.has(i) ? 'dim' : ''}" style="display:block">
+        <span>${skipped.has(i) ? '»' : done.has(i) ? '✓' : i === current ? '▸' : '·'} <span class="dim">${esc(st.where)}</span></span>
+        ${i === current || (!done.has(i) && !def.sequential) ? `<div>${esc(st.text)}</div>` : ''}
+        ${i === current ? '<div style="text-align:right"><button class="tut-skip" title="Diesen Schritt überspringen">Weiter</button></div>' : ''}
+      </div>`).join('') + (current < 0 ? '<div class="row">LEKTION GESCHAFFT. ÜBER „?“ GEHT ES ZUR HILFE, ÜBER DIE LOBBY ZUR NÄCHSTEN LEKTION.</div>' : ''));
+  }
+  // "Weiter": skip the current step (stuck, or already known); the body is re-rendered, so delegate
+  el.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('.tut-skip')) return;
+    const i = next();
+    if (i < 0) return;
+    done.add(i);
+    skipped.add(i);
+    update();
+  });
+  return { el, update };
 }
