@@ -1,4 +1,4 @@
-import { CLASSES, type Snapshot } from '@tk/shared';
+import { CLASSES, angleDiff, type AlertView, type Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { store } from '../store.js';
@@ -34,7 +34,7 @@ export function voiceOn(): boolean {
 let voice: SpeechSynthesisVoice | undefined;
 function pickVoice(): void {
   const all = typeof speechSynthesis !== 'undefined' ? speechSynthesis.getVoices() : [];
-  voice = all.find((v) => v.lang.startsWith(en ? 'en' : 'de') && /male|Markus|Yannick|Daniel|Alex/i.test(v.name)) ??
+  voice = all.find((v) => v.lang.startsWith(en ? 'en' : 'de') && /\bmale\b|Markus|Yannick|Flo|Eddy|Reed|Rocko|Daniel|Alex|Arthur|Oliver/i.test(v.name)) ??
     all.find((v) => v.lang.startsWith(en ? 'en' : 'de'));
 }
 if (typeof speechSynthesis !== 'undefined') {
@@ -55,7 +55,7 @@ function say(text: string, urgent: boolean): void {
   speechSynthesis.speak(u);
 }
 
-const LEVEL: Record<string, LogEntry['level']> = { torpedo: 'alarm', sunk: 'alarm', ping: 'warn', esm: 'warn', transient: 'warn', hit: 'info' };
+const LEVEL: Record<string, LogEntry['level']> = { sighting: 'warn', torpedo: 'alarm', sunk: 'alarm', ping: 'warn', esm: 'warn', transient: 'warn', hit: 'info' };
 
 export class Callouts {
   reset(): void {
@@ -96,6 +96,11 @@ export class Callouts {
     // New contacts (own sensors only; datalink tracks are not "our" reports)
     for (const c of s.contacts) {
       if (this.known.has(c.label) || c.via !== 'own') continue;
+      // Lookout sightings are announced by their own report below
+      if (c.sensors.includes('visual')) {
+        this.known.add(c.label);
+        continue;
+      }
       this.known.add(c.label);
       this.report(s, { level: 'info', text: L(`Neuer Kontakt ${c.label}, Peilung ${deg3(c.bearing)}`, `New contact ${c.label}, bearing ${deg3(c.bearing)}`), label: c.label, station: sonar },
         en ? `New contact ${c.label}, bearing ${digits(c.bearing)}` : `Neuer Kontakt ${c.label}, Peilung ${digits(c.bearing)}`);
@@ -106,6 +111,8 @@ export class Callouts {
       if (a.kind === 'torpedo') {
         const text = store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}` : a.text;
         this.report(s, { level: 'alarm', text, station: sub ? 3 : 2 }, en ? `Torpedo in the water! Bearing ${b}!` : `Torpedo im Wasser! Peilung ${b}!`);
+      } else if (a.kind === 'sighting') {
+        this.report(s, { level: 'warn', text: a.text, label: a.label, station: sub ? undefined : 4 }, sightingCall(a, s.own.heading));
       } else if (a.kind === 'ping') {
         this.report(s, { level: 'warn', text: a.text }, en ? `Active sonar, bearing ${b}. We are being pinged.` : `Aktivsonar, Peilung ${b}. Wir werden angepingt.`);
       } else if (a.kind === 'transient') {
@@ -169,3 +176,18 @@ export class Callouts {
 
 export const callouts = new Callouts();
 export const selectFromLog = (label: string) => (store.selected = label);
+
+const WHAT = { mast: ['Sehrohr', 'Periscope'], snorkel: ['Schnorchel', 'Snorkel'], surfaced: ['U-Boot aufgetaucht', 'Submarine on the surface'] } as const;
+
+/** Lookout report as sailors call it: what, side and sector relative to the bow, bearing, rough range. */
+function sightingCall(a: AlertView, heading: number): string {
+  const rel = angleDiff(heading, a.bearing ?? heading);
+  const side = rel >= 0 ? (en ? 'starboard' : 'Steuerbord') : (en ? 'port' : 'Backbord');
+  const abs = Math.abs(rel);
+  const sector = abs < 30 ? (en ? 'bow' : 'voraus') : abs < 150 ? (en ? 'beam' : 'querab') : (en ? 'quarter' : 'achteraus');
+  const what = WHAT[a.what ?? 'mast'][en ? 1 : 0];
+  const m = Math.max(100, Math.round((a.range ?? 0) / 100) * 100);
+  const b = digits(a.bearing ?? 0);
+  if (abs < 8) return en ? `${what} dead ahead! Bearing ${b}, about ${m} meters!` : `${what} recht voraus! Peilung ${b}, etwa ${m} Meter!`;
+  return en ? `${what}, ${side} ${sector}! Bearing ${b}, about ${m} meters!` : `${what} ${side} ${sector}! Peilung ${b}, etwa ${m} Meter!`;
+}

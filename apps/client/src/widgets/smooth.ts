@@ -39,3 +39,24 @@ export function moverNow(p: { x: number; y: number; heading: number; speedKn?: n
   return { x: p.x + v.x * d, y: p.y + v.y * d };
 }
 
+
+const steady = new Map<string, { b: number; at: number }>();
+
+/**
+ * Display bearing for lists: raw sonar bearings jitter by design (noise), so lists show an
+ * exponentially smoothed track bearing (≈ 8 s). Big jumps (new contact, towed-array side
+ * change) reset it at once. TMA, waterfall and history keep using the raw measurements.
+ */
+export function steadyBearing(key: string, bearing: number, at: number, tauS = 8): number {
+  const p = steady.get(key);
+  if (!p || Math.abs(angleDiff(p.b, bearing)) > 15 || at < p.at) {
+    steady.set(key, { b: bearing, at });
+    return bearing;
+  }
+  if (at > p.at) {
+    const k = 1 - Math.exp(-(at - p.at) / tauS);
+    p.b = wrap360(p.b + angleDiff(p.b, bearing) * k);
+    p.at = at;
+  }
+  return p.b;
+}

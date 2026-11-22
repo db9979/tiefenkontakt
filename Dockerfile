@@ -13,6 +13,7 @@ ENV NODE_ENV=production \
     TRUST_PROXY=1 \
     DB_PATH=/data/tiefenkontakt.db \
     MATCH_DIR=/data/matches \
+    BACKUP_DIR=/data/backups \
     CLIENT_DIST=/app/apps/client/dist
 VOLUME /data
 EXPOSE 8787

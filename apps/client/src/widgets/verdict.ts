@@ -1,3 +1,4 @@
+import { onTap } from './touch.js';
 import { bladeCount, marksCount, rankClasses, type ClassChoice } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -30,10 +31,9 @@ export function renderVerdict(el: HTMLElement): void {
     <div class="steps" style="margin-top:6px">${CHOICES.map((ch) => `<button data-cls="${ch}" class="${c.assigned === ch || (!c.assigned && ch === 'unknown') ? 'on' : ''}">${CHOICE_LABEL[ch]}</button>`).join('')}</div>`;
   if (!el.dataset.bound) {
     el.dataset.bound = '1';
-    el.addEventListener('mousedown', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-cls]');
+    onTap(el, '[data-cls]', (b) => {
       const label = store.selected;
-      if (b && label) net.send({ t: 'classify', label, choice: b.dataset.cls as ClassChoice });
+      if (label) net.send({ t: 'classify', label, choice: b.dataset.cls as ClassChoice });
     });
   }
 }

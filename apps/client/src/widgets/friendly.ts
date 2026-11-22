@@ -1,6 +1,6 @@
 import { angleDiff, bearing, type ClassChoice, type ContactTrack, type Snapshot } from '@tk/shared';
 
-const CHOICE_OF_CLASS = { merchant: 'merchant', ffg: 'warship', ssn: 'submarine', ssk: 'submarine' } as const;
+const CHOICE_OF_CLASS = { merchant: 'merchant', ffg: 'warship', kor: 'warship', ssn: 'submarine', ssk: 'submarine', ssc: 'submarine' } as const;
 
 /**
  * Datalink correlation: a sonar contact that lines up with a known friendly ship

@@ -40,6 +40,9 @@ function translate(de: string): string {
   // Bullets and markers in front of a known sentence: "▸ Güte über 60 % bringen"
   const lead = /^([▸·✓•–\s]+)(.+)$/.exec(de);
   if (lead) return lead[1]! + translate(lead[2]!);
+  // Sort arrows after a column name: "PEILUNG ▲"
+  const tail = /^(.+?)( [▲▼])$/.exec(de);
+  if (tail) return translate(tail[1]!) + tail[2]!;
   // Composite labels like "1 · OPZ" or "Westbund · Geleitschutz": translate each part
   let out = de.includes(' · ') ? de.split(' · ').map((p) => dict.get(p) ?? p).join(' · ') : de;
   for (const [re, rep] of PHRASES) out = out.replace(re, rep);

@@ -7,7 +7,7 @@ import type { Rng } from './rng.js';
  * the player's decision, helped by the class library below.
  */
 
-export type SigKey = 'merchant' | 'ffg' | 'ssn' | 'ssk' | 'torpedo';
+export type SigKey = 'merchant' | 'ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc' | 'torpedo';
 export type ClassChoice = 'merchant' | 'warship' | 'submarine' | 'torpedo' | 'bio' | 'unknown';
 
 export interface Tonal {
@@ -52,6 +52,17 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     rpmPerKn: 10, rpmRange: [30, 190], tonalBand: [20, 90], maxSpeedKn: 18,
     tonals: [{ hz: 50, level: -2 }],
     snorkelTonals: [{ hz: 24, level: 8 }, { hz: 48, level: 7 }, { hz: 72, level: 5 }],
+  },
+  kor: {
+    key: 'kor', name: 'Korvette K-7 (Diesel)', choice: 'warship', blades: [4],
+    rpmPerKn: 9, rpmRange: [50, 230], tonalBand: [40, 220], maxSpeedKn: 26,
+    tonals: [{ hz: 75, level: 6 }, { hz: 150, level: 4 }, { hz: 225, level: 2 }],
+  },
+  ssc: {
+    key: 'ssc', name: 'Küsten-U-Boot Projekt 2', choice: 'submarine', blades: [5],
+    rpmPerKn: 12, rpmRange: [30, 170], tonalBand: [20, 80], maxSpeedKn: 14,
+    tonals: [{ hz: 60, level: -4 }],
+    snorkelTonals: [{ hz: 30, level: 7 }, { hz: 60, level: 6 }, { hz: 90, level: 4 }],
   },
   torpedo: {
     key: 'torpedo', name: 'Schwergewichtstorpedo', choice: 'torpedo', blades: [9, 11],

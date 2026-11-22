@@ -29,6 +29,7 @@ import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type ScenarioSettings } from './scenario.js';
 import { buildBriefing } from './briefing.js';
+import { metrics } from './metrics.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
 export interface Conn {
@@ -41,6 +42,8 @@ export interface Conn {
   ip?: string;
   /** Naval rank of an account (shown in the lobby). */
   rank?: string;
+  /** Elo rating (guests 1000). */
+  rating?: number;
 }
 
 export const MAX_PER_TEAM = 6;
@@ -115,7 +118,7 @@ export class Match {
     m.extras = new Map(d.extras.map(([k, x]) => [k, { ...x, reports: new Map(x.reports) }]));
     m.state = 'running';
     m.emptySince = Date.now();
-    m.timer = setInterval(() => m.tick(), SIM_DT * 1000);
+    m.timer = setInterval(() => metrics.timeTick(() => m.tick()), SIM_DT * 1000);
     return m;
   }
 
@@ -204,7 +207,7 @@ export class Match {
     if (!existing && this.slots.filter((s) => s.team === team).length >= MAX_PER_TEAM) return 'Team ist voll';
     const cls: PlayableClass = allowedClasses(this.settings.mission, team)[0]!;
     if (existing) Object.assign(existing, { team, cls, ready: false, crewOf: undefined });
-    else this.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team, cls, ready: false, rank: conn.rank });
+    else this.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team, cls, ready: false, rank: conn.rank, rating: conn.rating });
     this.conns.set(conn.playerId, conn);
     this.broadcastLobby();
     return undefined;
@@ -332,7 +335,7 @@ export class Match {
     for (const s of this.slots) this.extras.set(s.playerId, { alerts: [], radio: [], reports: new Map(), timeScale: this.settings.timeScale });
     this.state = 'running';
     this.broadcastLobby();
-    this.timer = setInterval(() => this.tick(), SIM_DT * 1000);
+    this.timer = setInterval(() => metrics.timeTick(() => this.tick()), SIM_DT * 1000);
   }
 
   stop(): void {

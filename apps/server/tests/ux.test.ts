@@ -56,3 +56,43 @@ describe('lobby extras', () => {
     expect(rankFor(5000)).toBe('Kapitän zur See');
   });
 });
+
+describe('private matches and matchmaking', () => {
+  function conn2(id: string, rating?: number): Conn & { inbox: ServerMsg[] } {
+    const inbox: ServerMsg[] = [];
+    return { playerId: id, callsign: id, inbox, send: (m) => inbox.push(m), rating };
+  }
+  const join = (lobby: Lobby, c: Conn) => {
+    lobby.connect(c);
+    lobby.resume(c);
+  };
+
+  it('a private match is hidden from the list and quick match, but joinable by invite', () => {
+    const lobby = new Lobby();
+    const host = conn2('h');
+    const other = conn2('o');
+    join(lobby, host);
+    join(lobby, other);
+    lobby.handle(host, { t: 'create_match', name: 'Geheim', private: true });
+    const m = lobby.matchOf('h')!;
+    const list = [...other.inbox].reverse().find((x) => x.t === 'lobby');
+    expect(list?.t === 'lobby' && list.matches.some((x) => x.id === m.id)).toBe(false);
+    lobby.handle(other, { t: 'quick' });
+    expect(lobby.matchOf('o')?.id).not.toBe(m.id);
+    lobby.handle(other, { t: 'join_code', matchId: m.id });
+    expect(lobby.matchOf('o')?.id).toBe(m.id);
+    expect(m.slots.find((s) => s.playerId === 'o')?.team).toBe('east');
+  });
+
+  it('quick match prefers a lobby with players of similar rating', () => {
+    const lobby = new Lobby();
+    const strong = conn2('s', 1400);
+    const weak = conn2('w', 800);
+    const me = conn2('me', 1380);
+    for (const c of [strong, weak, me]) join(lobby, c);
+    lobby.handle(weak, { t: 'create_match', name: 'Anfänger' });
+    lobby.handle(strong, { t: 'create_match', name: 'Profis' });
+    lobby.handle(me, { t: 'quick' });
+    expect(lobby.matchOf('me')?.id).toBe(lobby.matchOf('s')?.id);
+  });
+});

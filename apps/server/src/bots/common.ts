@@ -22,9 +22,11 @@ import {
 export type BotSkill = 'leicht' | 'normal' | 'schwer';
 
 export const SKILL = {
-  leicht: { think: 4, tmaQuality: 70, salvo: 1, pack: false, reactS: 40 },
-  normal: { think: 2, tmaQuality: 55, salvo: 2, pack: true, reactS: 15 },
-  schwer: { think: 1, tmaQuality: 40, salvo: 2, pack: true, reactS: 5 },
+  // Submarines: TMA quality before a shot, salvo size, pack reports.
+  // Escorts: aim error of rockets/helo torpedoes (m), use of dipping sonar and patrol aircraft, fire rate.
+  leicht: { think: 4, subThink: 4, tmaQuality: 55, salvo: 2, pack: true, reactS: 40, aimErr: 500, air: true, fireRate: 0.67, pingDuty: 120 },
+  normal: { think: 2, subThink: 2, tmaQuality: 55, salvo: 2, pack: true, reactS: 15, aimErr: 250, air: true, fireRate: 1, pingDuty: 120 },
+  schwer: { think: 1, subThink: 2, tmaQuality: 55, salvo: 2, pack: true, reactS: 5, aimErr: 0, air: true, fireRate: 2, pingDuty: 240 },
 } as const;
 
 export interface BotMemory {

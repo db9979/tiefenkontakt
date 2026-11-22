@@ -8,9 +8,15 @@ import { AuthStore, RateLimiter, parseCookies, type User } from './auth.js';
 import { parseClientMsg } from './input.js';
 import { Lobby } from './lobby.js';
 import { MatchStore } from './match-store.js';
-import { createMailer } from './mailer.js';
+import { createMailer, SmtpMailer } from './mailer.js';
+import { resetMail, verifyMail } from './mail-templates.js';
 import { handleAdmin } from './admin.js';
 import { ModerationStore } from './moderation.js';
+import { Backups } from './backup.js';
+import { Ratings } from './rating.js';
+import { log } from './log.js';
+import { clientIpFrom } from './client-ip.js';
+import { metrics } from './metrics.js';
 import { StatsStore, rankFor, userIdOf } from './stats.js';
 import type { Conn } from './match.js';
 
@@ -24,13 +30,16 @@ export const lobby = new Lobby();
 const store = new MatchStore();
 const stats = new StatsStore(auth.db);
 const mod = new ModerationStore(auth.db);
+const backups = new Backups(auth.db);
+const ratings = new Ratings(auth.db);
+backups.start();
 lobby.onReport = (conn, m, from, reason) => {
   const s = m.senderOf(from);
   if (!s) return 'Absender nicht gefunden';
   if (s.playerId === conn.playerId) return 'Du kannst dich nicht selbst melden';
   const reported = m.slots.find((x) => x.playerId === s.playerId)?.callsign ?? from;
   const fresh = mod.report({ reporter: conn.callsign, reported, reportedId: s.playerId, matchId: m.id, reason, evidence: s.evidence });
-  console.log(`[Meldung] ${conn.callsign} meldet ${reported}: ${reason}`);
+  log('info', 'Meldung', { reporter: conn.callsign, reported, reason });
   return fresh ? undefined : 'Bereits gemeldet';
 };
 const LESSON_STEP: Record<string, string> = { klassifizieren: 'l1', tma: 'l2', angriff: 'l3', ujagd: 'l4' };
@@ -44,18 +53,19 @@ lobby.onFinish = (m, d) => {
     return;
   }
   stats.record(d, m.settings.mission, m.settings.timeOfDay);
+  ratings.update(d);
 };
 lobby.onLessonDone = (playerId, lesson) => {
   const uid = userIdOf(playerId);
   if (uid !== undefined && LESSON_STEP[lesson]) stats.complete(uid, LESSON_STEP[lesson]!);
 };
 const restored = store.loadAll(lobby);
-if (restored) console.log(`${restored} laufende Partie(n) wiederhergestellt`);
+if (restored) log('info', 'Partien wiederhergestellt', { count: restored });
 lobby.onDrop = (m) => store.remove(m.id);
-setInterval(() => {
-  lobby.prune();
-  store.saveAll(lobby);
-}, 5000).unref();
+// Running matches are saved every MATCH_SAVE_S seconds (raise it on SD cards to save writes)
+const SAVE_S = Math.max(2, Number(process.env.MATCH_SAVE_S ?? 5));
+setInterval(() => lobby.prune(), 5000).unref();
+setInterval(() => store.saveAll(lobby), SAVE_S * 1000).unref();
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
     store.saveAll(lobby);
@@ -64,15 +74,17 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
 }
 const authLimiter = new RateLimiter(10, 60_000);
 const mailer = createMailer();
+if (mailer instanceof SmtpMailer) {
+  const c = mailer.cfg;
+  log('info', 'Mailversand über SMTP', { host: c.host, port: c.port, security: c.security, from: c.from, login: c.user ? 'ja' : 'nein' });
+} else log('info', 'Kein Mailserver eingestellt: Bestätigungs- und Reset-Links stehen im Log');
 const PUBLIC_URL = process.env.PUBLIC_URL ?? 'http://localhost:5173';
 const HOUR = 3_600_000;
 
-async function sendVerify(userId: number, email: string): Promise<void> {
+async function sendVerify(userId: number, email: string, callsign: string): Promise<void> {
   const t = auth.createToken(userId, 'verify', 48 * HOUR);
-  await mailer.send({
-    to: email, subject: 'Tiefenkontakt: E-Mail bestätigen / verify your email',
-    text: `Willkommen an Bord. Bitte bestätige deine Adresse (der Link gilt 48 Stunden).\nWelcome aboard. Please verify your address (the link is valid for 48 hours).\n\n${PUBLIC_URL}/#verify=${t}\n`,
-  });
+  await mailer.send(verifyMail(email, callsign, `${PUBLIC_URL}/#verify=${t}`));
+  log('info', 'Bestätigungsmail gesendet', { userId });
 }
 
 function json(res: ServerResponse, status: number, body: unknown, cookie?: string): void {
@@ -104,6 +116,24 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
   const token = parseCookies(req.headers.cookie)[COOKIE];
   const ip = clientIp(req);
   if (req.url === '/api/health') return json(res, 200, { ok: true });
+  if (req.url?.startsWith('/api/metrics')) {
+    // METRICS_TOKEN as bearer token (for a monitoring system), or a moderator session
+    const bearer = req.headers.authorization?.replace(/^Bearer /, '');
+    const ok = (!!process.env.METRICS_TOKEN && bearer === process.env.METRICS_TOKEN) || mod.isAdmin(auth.userForToken(token)?.callsign);
+    if (!ok) return json(res, 403, { error: 'Nur für Moderatoren' });
+    const all = lobby.allMatches();
+    const extra = {
+      matchesRunning: all.filter((m) => m.state === 'running').length,
+      matchesLobby: all.filter((m) => m.state === 'lobby').length,
+      playersConnected: all.reduce((a, m) => a + m.connected, 0),
+      connections: wss.clients.size,
+    };
+    if (req.url.includes('format=prom')) {
+      res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' }).end(metrics.prometheus(extra));
+      return;
+    }
+    return json(res, 200, metrics.snapshot(extra));
+  }
   if (req.url === '/api/me' && req.method === 'GET') {
     const u = auth.userForToken(token);
     return u ? json(res, 200, { ...publicUser(u), email: u.email, verified: auth.isVerified(u.id), admin: mod.isAdmin(u.callsign) }) : json(res, 401, { error: 'Nicht angemeldet' });
@@ -118,6 +148,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
         return json(res, 400, { error: 'Ungültige Anfrage' });
       }
     }
+    if (req.url === '/api/admin/backup' && req.method === 'POST') {
+      if (!backups.enabled) return json(res, 400, { error: 'BACKUP_DIR ist nicht gesetzt' });
+      return json(res, 200, { file: backups.run(), backups: backups.list() });
+    }
     return handleAdmin(req, body, (status, b) => json(res, status, b), lobby, mod);
   }
   if (req.url === '/api/leaderboard' && req.method === 'GET') return json(res, 200, stats.leaderboard());
@@ -125,7 +159,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
   if (req.url === '/api/stats' && req.method === 'GET') {
     const u = auth.userForToken(token);
     if (!u) return json(res, 401, { error: 'Nur mit Konto' });
-    return json(res, 200, { summary: stats.summary(u.id), campaign: stats.campaign(u.id) });
+    return json(res, 200, { summary: stats.summary(u.id), campaign: stats.campaign(u.id), rating: ratings.get(u.id) });
   }
   if (req.method !== 'POST') return json(res, 404, { error: 'Nicht gefunden' });
   if (req.url === '/api/logout') {
@@ -147,7 +181,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     case '/api/login': {
       const r = req.url === '/api/register' ? await auth.register(body) : await auth.login(body);
       if ('error' in r) return json(res, 400, r);
-      if (req.url === '/api/register') await sendVerify(r.user.id, r.user.email).catch((e) => console.warn('Mail:', (e as Error).message));
+      if (req.url === '/api/register') await sendVerify(r.user.id, r.user.email, r.user.callsign).catch((e) => log('warn', 'Mailversand fehlgeschlagen', { error: (e as Error).message }));
       return json(res, 200, publicUser(r.user), sessionCookie(r.token, 30 * 86_400));
     }
     case '/api/password/forgot': {
@@ -155,11 +189,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
       const u = auth.findByEmail(body.email);
       if (u) {
         const t = auth.createToken(u.id, 'reset', HOUR);
-        await mailer.send({
-          to: u.email, subject: 'Tiefenkontakt: Passwort zurücksetzen / reset your password',
-          text: `Neues Passwort setzen (der Link gilt eine Stunde):\nSet a new password (the link is valid for one hour):\n\n${PUBLIC_URL}/#reset=${t}\n\nWenn du das nicht angefordert hast, ignoriere diese Mail.\nIf you did not ask for this, ignore this email.\n`,
-        })
-          .catch((e) => console.warn('Mail:', (e as Error).message));
+        await mailer.send(resetMail(u.email, u.callsign, `${PUBLIC_URL}/#reset=${t}`))
+          .then(() => log('info', 'Reset-Mail gesendet', { userId: u.id }))
+          .catch((e) => log('warn', 'Mailversand fehlgeschlagen', { error: (e as Error).message }));
       }
       return json(res, 200, { ok: true });
     }
@@ -186,7 +218,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     }
     case '/api/verify/resend': {
       if (!me) return json(res, 401, { error: 'Nicht angemeldet' });
-      if (!auth.isVerified(me.id)) await sendVerify(me.id, me.email).catch((e) => console.warn('Mail:', (e as Error).message));
+      if (!auth.isVerified(me.id)) await sendVerify(me.id, me.email, me.callsign).catch((e) => log('warn', 'Mailversand fehlgeschlagen', { error: (e as Error).message }));
       return json(res, 200, { ok: true });
     }
     case '/api/account/delete': {
@@ -199,11 +231,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
   return json(res, 404, { error: 'Nicht gefunden' });
 }
 
-/** Real client address: the first X-Forwarded-For entry when TRUST_PROXY=1 (behind your reverse proxy). */
+/** Real client address: the entry your reverse proxy appended to X-Forwarded-For (TRUST_PROXY = number of proxies). */
 function clientIp(req: IncomingMessage): string {
-  const fwd = req.headers['x-forwarded-for'];
-  if (process.env.TRUST_PROXY === '1' && typeof fwd === 'string') return fwd.split(',')[0]!.trim();
-  return req.socket.remoteAddress ?? '?';
+  return clientIpFrom(req.headers['x-forwarded-for'], req.socket.remoteAddress);
 }
 
 const CLIENT_DIST = process.env.CLIENT_DIST ?? (process.env.NODE_ENV === 'production' ? resolve('../client/dist') : '');
@@ -268,13 +298,17 @@ wss.on('connection', (ws: WebSocket, req) => {
   const conn: Conn = {
     ...identity(user, url.searchParams.get('guest'), url.searchParams.get('gid')),
     send: (msg: ServerMsg) => {
-      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg, roundNumbers));
+      if (ws.readyState !== ws.OPEN) return;
+      const text = JSON.stringify(msg, roundNumbers);
+      metrics.sent(text.length);
+      ws.send(text);
     },
     close: (reason: string, code = 4000) => {
       if (ws.readyState === ws.OPEN) ws.close(code, reason);
     },
     ip: clientIp(req),
     rank: user ? rankFor(stats.summary(user.id)?.points ?? 0) : undefined,
+    rating: ratings.get(user?.id),
   };
   const ban = mod.bannedFor(conn.playerId, conn.ip);
   if (ban) {
@@ -294,6 +328,7 @@ wss.on('connection', (ws: WebSocket, req) => {
       count = 0;
     }
     if (++count > MAX_MSGS_PER_SEC) return;
+    metrics.msgsReceived++;
     const msg = parseClientMsg(data.toString());
     if (!msg) return conn.send({ t: 'error', msg: 'Ungültige Nachricht' });
     lobby.handle(conn, msg);
@@ -310,4 +345,4 @@ server.on('error', (e: NodeJS.ErrnoException) => {
   }
   throw e;
 });
-server.listen(PORT, () => console.log(`Tiefenkontakt-Server auf http://localhost:${PORT}`));
+server.listen(PORT, () => log('info', `Tiefenkontakt-Server auf http://localhost:${PORT}`, { port: PORT }));

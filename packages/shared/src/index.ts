@@ -5,6 +5,7 @@ export * from './entities.js';
 export * from './kinematics.js';
 export * from './acoustics.js';
 export * from './sensors.js';
+export * from './lookout.js';
 export * from './contacts.js';
 export * from './convoy-ai.js';
 export * from './world.js';

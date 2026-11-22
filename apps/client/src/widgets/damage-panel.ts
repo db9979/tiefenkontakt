@@ -1,3 +1,4 @@
+import { onTap } from './touch.js';
 import { CLASSES, SYSTEMS, type ShipSystem } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -27,9 +28,8 @@ export function renderDamage(el: HTMLElement): void {
       : '<div class="dim">KEINE SCHÄDEN</div>');
   if (!el.dataset.bound) {
     el.dataset.bound = '1';
-    el.addEventListener('mousedown', (e) => {
-      const row = (e.target as HTMLElement).closest<HTMLElement>('[data-sys]');
-      if (row) net.send({ t: 'repair', system: row.dataset.sys as ShipSystem });
+    onTap(el, '[data-sys]', (row) => {
+      net.send({ t: 'repair', system: row.dataset.sys as ShipSystem });
     });
   }
 }

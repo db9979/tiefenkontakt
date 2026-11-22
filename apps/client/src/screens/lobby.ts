@@ -18,23 +18,42 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
   const el = h(`<div class="center"></div>`);
   root.replaceChildren(el);
 
+  let shownList = '';
+  function renderList(): void {
+    el.querySelector('#merr')!.textContent = error;
+    const key = JSON.stringify(matches);
+    if (key === shownList) return;
+    shownList = key;
+    const list = el.querySelector<HTMLElement>('#mlist')!;
+    list.innerHTML = `<div class="hd"><span>Offene Partien</span><span>${matches.length}</span></div>
+      ${matches.length === 0 ? '<div class="dim" style="padding:8px 0">Keine offenen Partien. Erstelle eine.</div>' : ''}
+      ${matches.map((m) => `
+        <div class="slot"><span>${esc(m.name)} <span class="dim">· ${m.players}/${m.maxPlayers} · ${m.state === 'lobby' ? 'WARTET' : 'LÄUFT'}</span></span>
+        <span>${m.state === 'lobby' ? `<button data-join="${m.id}" data-team="west">Westbund</button> <button data-join="${m.id}" data-team="east">Ostpakt</button>` : `<button data-watch="${m.id}" title="Verzögert zuschauen">Zuschauen</button>`}</span></div>`).join('')}`;
+    list.querySelectorAll<HTMLButtonElement>('[data-watch]').forEach((b) => (b.onclick = () => net.send({ t: 'spectate', matchId: b.dataset.watch! })));
+    list.querySelectorAll<HTMLButtonElement>('[data-join]').forEach((b) => {
+      b.onclick = () => net.send({ t: 'join', matchId: b.dataset.join!, team: b.dataset.team as 'west' | 'east' });
+    });
+  }
+
   function render(): void {
     if (!match) {
+      // Built once; lobby broadcasts only refresh the match list, so taps elsewhere never hit a replaced button
+      if (el.dataset.view === 'list') return renderList();
+      el.dataset.view = 'list';
+      shownList = '';
       el.innerHTML = `
         <div class="title">TIEFENKONTAKT</div>
         <div class="dim" style="margin-bottom:16px">EINGELOGGT ALS ${esc(me.callsign)}</div>
         <div class="panel">
-          <div class="hd"><span>Offene Partien</span><span>${matches.length}</span></div>
-          ${matches.length === 0 ? '<div class="dim" style="padding:8px 0">Keine offenen Partien. Erstelle eine.</div>' : ''}
-          ${matches.map((m) => `
-            <div class="slot"><span>${esc(m.name)} <span class="dim">· ${m.players}/${m.maxPlayers} · ${m.state === 'lobby' ? 'WARTET' : 'LÄUFT'}</span></span>
-            <span>${m.state === 'lobby' ? `<button data-join="${m.id}" data-team="west">Westbund</button> <button data-join="${m.id}" data-team="east">Ostpakt</button>` : `<button data-watch="${m.id}" title="Verzögert zuschauen">Zuschauen</button>`}</span></div>`).join('')}
-          <div style="display:flex;gap:6px;margin-top:10px">
-            <input id="mname" placeholder="Grönland-Lücke" maxlength="40" style="flex:1">
+          <div id="mlist"></div>
+          <div class="newmatch">
+            <input id="mname" placeholder="Grönland-Lücke" maxlength="40">
+            <label class="dim" title="Nicht in der Liste; nur per Einladungslink"><input type="checkbox" id="mpriv"> PRIVAT</label>
             <button id="create">Partie erstellen</button>
             <button id="quick" class="on" title="Einer offenen Partie beitreten oder eine neue eröffnen">Schnelles Spiel</button>
           </div>
-          <div class="err">${esc(error)}</div>
+          <div class="err" id="merr"></div>
         </div>
         <div class="panel" style="margin-top:10px">
           <div class="hd"><span>Ausbildung</span><span class="dim">EINZELSPIELER · MIT ANLEITUNG</span></div>
@@ -53,28 +72,27 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       });
       el.querySelector<HTMLButtonElement>('#create')!.onclick = () => {
         const name = el.querySelector<HTMLInputElement>('#mname')!.value.trim() || t('Grönland-Lücke');
-        net.send({ t: 'create_match', name });
+        net.send({ t: 'create_match', name, private: el.querySelector<HTMLInputElement>('#mpriv')!.checked });
       };
       el.querySelector<HTMLButtonElement>('#quick')!.onclick = () => net.send({ t: 'quick' });
-      el.querySelectorAll<HTMLButtonElement>('[data-watch]').forEach((b) => (b.onclick = () => net.send({ t: 'spectate', matchId: b.dataset.watch! })));
-      el.querySelectorAll<HTMLButtonElement>('[data-join]').forEach((b) => {
-        b.onclick = () => net.send({ t: 'join', matchId: b.dataset.join!, team: b.dataset.team as 'west' | 'east' });
-      });
-      return;
+      return renderList();
     }
+    el.dataset.view = 'match';
     // Keep a half-typed chat line and the focus across re-renders
     const draft = el.querySelector<HTMLInputElement>('#lc-text')?.value ?? '';
     const typing = document.activeElement?.id === 'lc-text';
     const mine = match.slots.find((s) => s.playerId === me.playerId);
     const team = (t: 'west' | 'east') => match!.slots.filter((s) => s.team === t).map((s) => `
-      <div class="slot"><span>${s.rank ? `<span class="rank" title="${esc(s.rank)}">${esc(rankShort(s.rank))}</span> ` : ''}${esc(s.callsign)}${s.playerId === me.playerId ? ' <span class="dim">(DU)</span>' : ''}${s.bot ? ' <span class="dim">(KI)</span>' : ''}</span>
+      <div class="slot"><span>${s.rank ? `<span class="rank" title="${esc(s.rank)}">${esc(rankShort(s.rank))}</span> ` : ''}${esc(s.callsign)}${s.rating && s.rank && !s.bot ? ` <span class="dim" title="Wertung">${s.rating}</span>` : ''}${s.playerId === me.playerId ? ' <span class="dim">(DU)</span>' : ''}${s.bot ? ' <span class="dim">(KI)</span>' : ''}</span>
       <span>${s.crewOf ? `<span class="dim">BESATZUNG BEI ${esc(match!.slots.find((c) => c.playerId === s.crewOf)?.callsign ?? '?')}</span>` : CLASS_NAME[s.cls].title}
       ${mine && s.team === mine.team && !s.bot && !s.crewOf && s.playerId !== me.playerId && mine.crewOf !== s.playerId ? `<button data-crew="${s.playerId}" title="Als Besatzung auf diesem Schiff mitfahren">Mitfahren</button>` : ''}
       · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
       '<div class="slot dim">Freier Platz</div>';
-    const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn'] as const) : (['ffg'] as const);
+    const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn', 'ssc'] as const) : (['ffg', 'kor'] as const);
     el.innerHTML = `
       <div class="hd" style="font-size:14px"><span>PARTIE „${esc(match.name)}“</span><span>${match.slots.length} SPIELER · KONVOI ${match.settings.merchants} FRACHTER</span></div>
+      <div class="invite"><span class="dim">${match.settings.private ? 'PRIVATE PARTIE · NUR PER LINK' : 'EINLADEN'}</span>
+        <input id="inv-link" readonly value="${esc(`${location.origin}/#join=${match.id}`)}"><button id="inv-copy">Link kopieren</button></div>
       <div class="grid2" style="margin-bottom:8px">
         <div class="panel"><div class="hd team-w"><span>Westbund · Geleitschutz</span><button data-switch="west">Wechseln</button></div>${team('west')}</div>
         <div class="panel"><div class="hd team-e"><span>Ostpakt · Wolfsrudel</span><button data-switch="east">Wechseln</button></div>${team('east')}</div>
@@ -119,6 +137,16 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       </div>
       <div class="err">${esc(error)}</div>`;
     paintMissionCharts(el, match.settings.custom?.seabed);
+    el.querySelector<HTMLButtonElement>('#inv-copy')!.onclick = async (e) => {
+      const inp = el.querySelector<HTMLInputElement>('#inv-link')!;
+      try {
+        await navigator.clipboard.writeText(inp.value);
+      } catch {
+        inp.select();
+        document.execCommand('copy');
+      }
+      (e.target as HTMLButtonElement).textContent = 'Kopiert ✓';
+    };
     const lcInput = el.querySelector<HTMLInputElement>('#lc-text')!;
     lcInput.value = draft;
     if (typing) lcInput.focus();
@@ -138,7 +166,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       };
     });
     el.querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) => {
-      b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'ssn' | 'ssk' });
+      b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc' });
     });
     el.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) => {
       b.onclick = () => net.send({ t: 'join', matchId: match!.id, team: b.dataset.switch as 'west' | 'east' });
@@ -171,16 +199,42 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });
     el.querySelector<HTMLButtonElement>('#leave')!.onclick = () => {
       match = undefined;
+      shownMatch = '';
       net.send({ t: 'leave' });
     };
   }
 
+  // While a finger is down or a picker is open, hold re-renders so the tap or selection is not lost
+  let pressing = false;
+  let pending = false;
+  let shownMatch = '';
+  const flush = () => {
+    if (!pending || pressing || el.querySelector('select:focus')) return;
+    pending = false;
+    render();
+  };
+  el.addEventListener('pointerdown', () => (pressing = true));
+  const release = () => {
+    pressing = false;
+    setTimeout(flush, 50); // after the click handler has run
+  };
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+  el.addEventListener('focusout', () => setTimeout(flush, 50));
   const off = net.on((m: ServerMsg) => {
     if (m.t === 'lobby') matches = m.matches;
-    else if (m.t === 'match') match = m.match;
-    else if (m.t === 'error') error = m.msg;
+    else if (m.t === 'match') {
+      const key = JSON.stringify(m.match);
+      if (key === shownMatch && match) return;
+      shownMatch = key;
+      match = m.match;
+    } else if (m.t === 'error') error = m.msg;
     else return;
     if (m.t !== 'error') error = '';
+    if (match && (pressing || el.querySelector('select:focus'))) {
+      pending = true;
+      return;
+    }
     render();
   });
   render();

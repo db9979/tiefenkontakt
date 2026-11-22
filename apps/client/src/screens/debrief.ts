@@ -1,7 +1,9 @@
+import { onTap } from '../widgets/touch.js';
 import { CLASSES, NM, headingVec, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
 import { debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
+import { drawSymbol } from '../widgets/symbols.js';
 
 const SPEEDS = [30, 120, 480];
 
@@ -14,7 +16,14 @@ function teamColor(team: string, player: boolean): string {
  * After-action review: replay of the true tracks with a timeline, the player's own
  * track and TMA solutions overlaid for comparison, and per-player statistics.
  */
+/** Only one debrief at a time: a re-sent debrief (reconnect, server restart) updates it instead of stacking a new one at 00:00. */
+let current: { update(nd: Debrief): void; el: HTMLElement } | undefined;
+
 export function debriefOverlay(d: Debrief, onClose: () => void, live = false): { update(nd: Debrief): void } {
+  if (current && document.body.contains(current.el)) {
+    current.update(d);
+    return current;
+  }
   const ownId = store.snap?.own.id;
   const el = h(`<div class="overlay"><div class="panel" style="max-width:1200px;width:96vw;max-height:94vh;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:10px">
     <div style="min-width:0">
@@ -79,9 +88,8 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
     const m = (e.target as HTMLElement).closest<HTMLElement>('[data-ev]');
     if (m) t = Math.max(0, d.events[Number(m.dataset.ev)]!.t - 30);
   });
-  q('#db-events').addEventListener('mousedown', (e) => {
-    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-ev]');
-    if (row) t = Math.max(0, d.events[Number(row.dataset.ev)]!.t - 30);
+  onTap(q('#db-events'), '[data-ev]', (row) => {
+    t = Math.max(0, d.events[Number(row.dataset.ev)]!.t - 30);
   });
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -101,6 +109,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
   q<HTMLButtonElement>('#db-close').onclick = () => {
     cancelAnimationFrame(raf);
     el.remove();
+    current = undefined;
     onClose();
   };
 
@@ -122,6 +131,17 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
   }
 
   function draw(): void {
+    // Always keep the loop alive, even if one frame fails on odd data
+    raf = requestAnimationFrame(draw);
+    try {
+      frame();
+    } catch (e) {
+      console.error('Nachbesprechung:', e);
+    }
+  }
+
+  function frame(): void {
+    if (!document.body.contains(el)) return cancelAnimationFrame(raf);
     const now = performance.now();
     if (playing) {
       t = Math.min(d.duration, t + ((now - last) / 1000) * SPEEDS[speedIdx]!);
@@ -193,12 +213,13 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
       const c = teamColor(s.team, s.player);
       ctx.fillStyle = e[3] ? c : '#5f7a72';
       ctx.strokeStyle = ctx.fillStyle;
-      if (CLASSES[s.cls].submarine) {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill();
-      } else {
-        const v = headingVec(e[2]);
-        ctx.beginPath(); ctx.moveTo(p.x + v.x * 7, p.y - v.y * 7); ctx.lineTo(p.x - v.y * 4, p.y - v.x * 4); ctx.lineTo(p.x + v.y * 4, p.y + v.x * 4); ctx.closePath(); ctx.fill();
-      }
+      // APP-6 frames from the viewer's side: friend circle, hostile diamond; submerged boats as lower halves
+      const myTeam = d.ships.find((x) => x.id === ownId)?.team ?? 'west';
+      ctx.lineWidth = 1.8;
+      drawSymbol(ctx, p.x, p.y, s.team === myTeam ? 'friend' : 'hostile', CLASSES[s.cls].submarine ? 'subsurface' : 'surface', s.cls === 'merchant' ? 4 : 6, true);
+      const v = headingVec(e[2]);
+      ctx.beginPath(); ctx.moveTo(p.x + v.x * 6, p.y - v.y * 6); ctx.lineTo(p.x + v.x * 12, p.y - v.y * 12); ctx.stroke();
+      ctx.lineWidth = 1;
       if (!e[3]) ctx.fillText('†', p.x + 6, p.y - 6);
       if (s.player || s.id === ownId) ctx.fillText(s.name, p.x + 8, p.y + 4);
     }
@@ -216,10 +237,10 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
     }
     ctx.fillStyle = COL.dim;
     ctx.fillText(`RASTER 5 SM`, 8, H - 8);
-    raf = requestAnimationFrame(draw);
   }
   raf = requestAnimationFrame(draw);
-  return {
+  const api = {
+    el,
     update(nd: Debrief) {
       // Live view: follow the newest frame unless the viewer scrubbed back
       const following = t >= d.duration - 1;
@@ -229,4 +250,6 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
       renderLists();
     },
   };
+  current = api;
+  return api;
 }

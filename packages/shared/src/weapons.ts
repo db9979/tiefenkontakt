@@ -1,5 +1,6 @@
+import { seesTorpedoTrack } from './lookout.js';
 import { crossesLayer, passiveExcessFrom, torpedoSourceLevel, sourceLevelToward, targetStrengthToward } from './acoustics.js';
-import { CLASSES } from './classes.js';
+import { CLASSES, isEscort } from './classes.js';
 import type { Ship } from './entities.js';
 import { applyHitDamage, reloadFactor, weaponsBroken } from './damage.js';
 import { createLoadout, stepReload, type Loadout } from './loadout.js';
@@ -187,7 +188,7 @@ export function launchNoisemaker(w: World, ship: Ship): true | string {
 export function setTowedDecoy(w: World, ship: Ship, on: boolean): void {
   const st = ws(w);
   const l = st.loadouts.get(ship.id);
-  if (!l || ship.cls !== 'ffg') return;
+  if (!l || !isEscort(ship.cls)) return;
   l.towedDecoy = on;
   st.decoys = st.decoys.filter((d) => d.towedBy !== ship.id);
   if (on) st.decoys.push({ id: `D${st.nextId++}`, pos: { ...ship.pos }, depth: 5, sl: 155, expiresAt: Number.MAX_SAFE_INTEGER, towedBy: ship.id });
@@ -320,7 +321,7 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   for (const s of w.ships) {
     if (!s.alive || t.alerted.includes(s.id) || s.cls === 'merchant') continue;
     const r = distance(s.pos, t.pos);
-    if (r < ALERT_RANGE && (r < ALERT_CLOSE || hearsTorpedo(w, s, t, r))) {
+    if (r < ALERT_RANGE && (r < ALERT_CLOSE || hearsTorpedo(w, s, t, r) || seesTorpedoTrack(s, r, w.env))) {
       t.alerted.push(s.id);
       w.events.push({ kind: 'torpedo_alert', time: w.time, shipId: s.id, bearing: bearing(s.pos, t.pos) });
     }

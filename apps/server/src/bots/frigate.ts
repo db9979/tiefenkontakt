@@ -1,4 +1,5 @@
 import {
+  isEscort,
   KN,
   bearing,
   depthAt,
@@ -25,7 +26,7 @@ const PROSECUTE_MAX = 16_000; // m from the convoy: beyond that, return to the s
 
 /** Escorts alternate between the starboard (+1) and port (-1) flank of the convoy. */
 function flankOf(w: World, s: Ship): number {
-  const escorts = w.ships.filter((x) => x.team === s.team && x.cls === 'ffg').map((x) => x.id).sort();
+  const escorts = w.ships.filter((x) => x.team === s.team && isEscort(x.cls)).map((x) => x.id).sort();
   return escorts.indexOf(s.id) % 2 === 0 ? 1 : -1;
 }
 
@@ -89,7 +90,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
   const target = subs[0];
   const leadB = target ? target.bearing : m.lead && now - m.lead.t < 900 ? m.lead.b : undefined;
   const prosecuting = leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
-  s.activeSonar = now < m.alertUntil || prosecuting || now % 600 < 120;
+  s.activeSonar = now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty;
 
   if (prosecuting) {
     m.alertUntil = Math.max(m.alertUntil, now + 300);
@@ -102,10 +103,10 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     const drop = { x: s.pos.x + v.x * Math.min(est, 20_000), y: s.pos.y + v.y * Math.min(est, 20_000) };
     // Helicopter: alternate dipping sonar and buoys along the bearing
     const deep = (s.btLayer ?? 0) > 0;
-    if (Math.floor(now / 400) % 2 === 0) sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1);
+    if (SKILL[skill].air && Math.floor(now / 400) % 2 === 0) sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1);
     else if (w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) sendBuoy(w, s, drop, deep);
     // A radio/transient lead far out: ask the patrol aircraft for a buoy line across it
-    if (!target && m.lead && now - m.lead.t < 300) {
+    if (SKILL[skill].air && !target && m.lead && now - m.lead.t < 300) {
       const lv = headingVec(m.lead.b);
       callMpa(w, s, { x: m.lead.x + lv.x * 15_000, y: m.lead.y + lv.y * 15_000 }, m.lead.b);
     }
@@ -129,11 +130,15 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     s.order.speedKn = distance(s.pos, station) > 4000 ? 18 : 12;
   }
 
-  if (now - m.lastShot < ROCKET_COOLDOWN / (skill === 'schwer' ? 1.5 : 1)) return;
+  if (now - m.lastShot < ROCKET_COOLDOWN / SKILL[skill].fireRate) return;
   const friends = w.ships.filter((f) => f.team === s.team && f.alive);
+  // Weaker captains aim worse
+  const err = SKILL[skill].aimErr;
+  const scatter = (p: Vec2): Vec2 => (err ? { x: p.x + w.rng.gauss(0, err), y: p.y + w.rng.gauss(0, err) } : p);
   // A lightweight torpedo searches a wide circle: never fire near own ships
-  const shoot = (p: Vec2) => {
-    if (friends.some((f) => distance(f.pos, p) < 3000)) return false;
+  const shoot = (aim: Vec2) => {
+    if (friends.some((f) => distance(f.pos, aim) < 3000)) return false;
+    const p = scatter(aim);
     if (launchAswRocket(w, s, p) !== true) return false;
     m.lastShot = now;
     return true;
@@ -149,7 +154,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
       const fix = { x: at.x + v.x * echo.r!, y: at.y + v.y * echo.r! };
       if (shoot(fix)) return;
       // Out of rocket range or rockets gone: the helicopter delivers
-      if (!friends.some((f) => distance(f.pos, fix) < 3000) && sendHeloTorpedo(w, s, fix) === true) {
+      if (!friends.some((f) => distance(f.pos, fix) < 3000) && sendHeloTorpedo(w, s, scatter(fix)) === true) {
         m.lastShot = now;
         return;
       }

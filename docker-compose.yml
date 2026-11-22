@@ -11,11 +11,30 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8787}
       # Comma-separated callsigns of moderator accounts
       ADMIN: ${ADMIN:-}
-      # smtps://user:pass@host:465 or smtp://user:pass@host:587; empty = links go to the log
+      # Outgoing mail (see .env.example for Gmail / iCloud); empty SMTP_HOST = links go to the log
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURITY: ${SMTP_SECURITY:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_TLS_VERIFY: ${SMTP_TLS_VERIFY:-1}
+      SMTP_TIMEOUT_S: ${SMTP_TIMEOUT_S:-20}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Tiefenkontakt}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      # Older single-line form, still accepted: smtps://user:pass@host:465
       SMTP_URL: ${SMTP_URL:-}
-      MAIL_FROM: ${MAIL_FROM:-noreply@localhost}
       # 1 behind an HTTPS proxy (Secure cookie); 0 for plain HTTP on localhost
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      # Daily database copy in the data volume (/data/backups), newest 7 kept
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_EVERY_H: ${BACKUP_EVERY_H:-24}
+      # Bearer token for GET /api/metrics (?format=prom for Prometheus); empty = moderators only
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # Seconds between saves of running matches (higher = fewer writes on SD cards)
+      MATCH_SAVE_S: ${MATCH_SAVE_S:-5}
+      # json = one JSON object per log line (for log collectors)
+      LOG_FORMAT: ${LOG_FORMAT:-}
     volumes:
       - tiefenkontakt-data:/data
     stop_grace_period: 15s

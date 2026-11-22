@@ -20,13 +20,15 @@ export interface Loadout {
 const TEMPLATES: Record<ClassId, Omit<Loadout, 'tubes'> & { tubeCount: number }> = {
   ssn: { heavy: 16, light: 0, rockets: 0, depthCharges: 0, noisemakers: 8, tubeCount: 4, reloadTime: 90, towedDecoy: false, xbt: 0 },
   ssk: { heavy: 12, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 6, reloadTime: 120, towedDecoy: false, xbt: 0 },
+  ssc: { heavy: 6, light: 0, rockets: 0, depthCharges: 0, noisemakers: 4, tubeCount: 4, reloadTime: 150, towedDecoy: false, xbt: 0 },
+  kor: { heavy: 0, light: 4, rockets: 4, depthCharges: 16, noisemakers: 0, tubeCount: 2, reloadTime: 50, towedDecoy: false, xbt: 6 },
   ffg: { heavy: 0, light: 6, rockets: 8, depthCharges: 12, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
   merchant: { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 },
 };
 
 export function createLoadout(cls: ClassId): Loadout {
   const { tubeCount, ...rest } = TEMPLATES[cls];
-  const stock = cls === 'ffg' ? rest.light : rest.heavy;
+  const stock = cls === 'ffg' || cls === 'kor' ? rest.light : rest.heavy;
   const loaded = Math.min(tubeCount, stock);
   const tubes = Array.from({ length: tubeCount }, (_, i) => ({ loaded: i < loaded, reloadDoneAt: 0 }));
   if (cls === 'ffg') rest.light -= loaded;

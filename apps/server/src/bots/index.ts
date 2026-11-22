@@ -56,8 +56,9 @@ export class BotCrew {
       recordTrack(m, ship, w.time);
       this.readEvents(w, m);
       if (w.time < m.nextThink) continue;
-      m.nextThink = w.time + k.think;
-      if (CLASSES[ship.cls].submarine) thinkSub(w, m, ship, this.skill, this.pack);
+      const sub = CLASSES[ship.cls].submarine;
+      m.nextThink = w.time + (sub ? k.subThink : k.think);
+      if (sub) thinkSub(w, m, ship, this.skill, this.pack);
       else thinkFrigate(w, m, ship, this.skill);
     }
     this.pack = this.pack.filter((r) => w.time - r.t < 3600);

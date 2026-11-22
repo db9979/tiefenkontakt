@@ -38,9 +38,9 @@ export interface CustomMission {
 export const DEFAULT_CUSTOM: CustomMission = { convoyKn: 9, seabed: 'tief', subFrac: 0.5 };
 
 /** Classes a team may pick in a mission: in the duel both sides fight with submarines. */
-export function allowedClasses(mission: MissionId, team: 'west' | 'east'): ('ffg' | 'ssn' | 'ssk')[] {
-  if (mission === 'duell') return ['ssn', 'ssk'];
-  return team === 'west' ? ['ffg'] : ['ssk', 'ssn'];
+export function allowedClasses(mission: MissionId, team: 'west' | 'east'): ('ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc')[] {
+  if (mission === 'duell') return ['ssn', 'ssk', 'ssc'];
+  return team === 'west' ? ['ffg', 'kor'] : ['ssk', 'ssn', 'ssc'];
 }
 
 export const LIGHT: Record<TimeOfDay, number> = { tag: 1, daemmerung: 0.5, nacht: 0.12 };
@@ -63,6 +63,8 @@ export interface ScenarioSettings {
   custom?: CustomMission;
   /** Training lesson instead of the convoy battle. */
   lesson?: LessonId;
+  /** Invite-only: hidden from the match list and quick match. */
+  private?: boolean;
 }
 
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */

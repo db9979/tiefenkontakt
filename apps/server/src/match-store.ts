@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Lobby } from './lobby.js';
+import { log } from './log.js';
 import { Match, type SavedMatch } from './match.js';
 
 /** Running matches are written to disk so a server restart doesn't end them. */
@@ -47,7 +48,7 @@ export class MatchStore {
         lobby.adopt(Match.restore(data));
         n++;
       } catch (e) {
-        console.warn(`Spielstand ${name} nicht lesbar, wird verworfen:`, (e as Error).message);
+        log('warn', 'Spielstand nicht lesbar, wird verworfen', { file: name, error: (e as Error).message });
         rmSync(f, { force: true });
       }
     }

@@ -1,3 +1,4 @@
+import { onTap } from '../../widgets/touch.js';
 import {
   CHOICE_MAX_KN,
   CLASSES,
@@ -174,10 +175,9 @@ export function fireControlStation(): Station {
     });
   };
   el.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
-  q('#wires').addEventListener('mousedown', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-steer]');
-    const t = b && store.snap?.torpedoes.find((x) => x.id === b.dataset.steer);
-    if (b && t) net.send({ t: 'steer', torpId: t.id, heading: (t.heading + Number(b.dataset.d) + 360) % 360 });
+  onTap(q('#wires'), '[data-steer]', (b) => {
+    const t = store.snap?.torpedoes.find((x) => x.id === b.dataset.steer);
+    if (t) net.send({ t: 'steer', torpId: t.id, heading: (t.heading + Number(b.dataset.d) + 360) % 360 });
   });
 
   return {

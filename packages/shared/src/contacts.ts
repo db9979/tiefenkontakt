@@ -1,6 +1,7 @@
 import type { ClassId } from './classes.js';
 import type { Detection, SensorKind } from './sensors.js';
 import type { Evidence } from './signatures.js';
+import type { Sighting } from './lookout.js';
 
 export interface BearingSample {
   t: number;
@@ -26,6 +27,11 @@ export interface ContactTrack {
   sensors: SensorKind[];
   /** Visual identification only (periscope). */
   classified?: ClassId;
+  /** Latest bridge-lookout sighting and when it was made. */
+  sighting?: Sighting;
+  sightedAt?: number;
+  /** Start of the current sighting episode (a new one begins after a minute without sightings). */
+  sightingSince?: number;
   /** Latest passive narrowband/DEMON measurement. */
   evidence?: Evidence;
   evidenceAt?: number;
@@ -61,7 +67,7 @@ function resolveTas(tr: ContactTrack): void {
 
 const HISTORY_MAX = 180;
 const PREFIX: Record<SensorKind, string> = {
-  hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S',
+  hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S', visual: 'A',
 };
 
 /** Per-observer contact bookkeeping. Keyed internally by target, labels are opaque. */
@@ -111,6 +117,11 @@ export class ContactBook {
     }
     if (!tr.sensors.includes(d.sensor)) tr.sensors.push(d.sensor);
     if (d.classified) tr.classified = d.classified;
+    if (d.sighting) {
+      if (tr.sightedAt === undefined || d.time - tr.sightedAt > 60) tr.sightingSince = d.time;
+      tr.sighting = d.sighting;
+      tr.sightedAt = d.time;
+    }
     if (d.evidence) {
       tr.evidence = d.evidence;
       tr.evidenceAt = d.time;

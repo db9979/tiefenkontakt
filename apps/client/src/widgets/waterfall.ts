@@ -66,7 +66,7 @@ export class Waterfall {
     const pl = 36;
     const pt = 18;
     const pw = w - pl - 8;
-    const ph = height - pt - 42;
+    const ph = height - pt - 54;
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, w, height);
     ctx.imageSmoothingEnabled = false;
@@ -103,14 +103,29 @@ export class Waterfall {
       ctx.fillText('NOCH KEIN KONTAKT – LANGSAM FAHREN UND HORCHEN', pl + pw / 2, pt + ph / 2 - 8);
       ctx.fillText('SCHIFFE ERSCHEINEN ALS HELLE SENKRECHTE SPUREN', pl + pw / 2, pt + ph / 2 + 8);
     }
+    // Labels in up to three rows; what does not fit is summed up as "+N" in a fourth row
     const rowEnd = [-1e9, -1e9, -1e9];
-    for (const c of shown) {
+    const overflow: { x: number; n: number }[] = [];
+    // The selected contact is placed first so it always gets a label
+    const ordered = [...shown].sort((a, b) => (b.label === selected ? 1 : 0) - (a.label === selected ? 1 : 0));
+    const placed: { c: typeof shown[number]; x: number; row: number }[] = [];
+    for (const c of ordered) {
       const x = pl + (c.bearing / 360) * pw;
+      const row = rowEnd.findIndex((end) => Math.abs(x - end) > 26);
+      if (row < 0) {
+        const near = overflow.find((o) => Math.abs(o.x - x) < 30);
+        if (near) near.n++;
+        else overflow.push({ x, n: 1 });
+      } else {
+        rowEnd[row] = x;
+        placed.push({ c, x, row });
+      }
+    }
+    ctx.fillStyle = COL.dim;
+    for (const o of overflow) ctx.fillText(`+${o.n}`, o.x, pt + ph + 13 + 3 * 12);
+    for (const { c, x, row } of placed) {
       const sel = c.label === selected;
       ctx.fillStyle = sel ? COL.amber : COL.g2;
-      let row = rowEnd.findIndex((end) => x - end > 26);
-      if (row < 0) row = 2;
-      rowEnd[row] = x;
       ctx.fillText(c.label, x, pt + ph + 13 + row * 12);
       if (sel) {
         ctx.strokeStyle = COL.amber;

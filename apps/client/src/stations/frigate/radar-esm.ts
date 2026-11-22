@@ -1,138 +1,153 @@
-import { NM, headingVec } from '@tk/shared';
+import { NM, angleDiff, headingVec } from '@tk/shared';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { COL, deg3, esc, fitCanvas, h } from '../../widgets/format.js';
+import { deg3, esc, fitCanvas, h } from '../../widgets/format.js';
+import { RadarScope, SCOPE } from '../../widgets/radar-scope.js';
+import { onTap } from '../../widgets/touch.js';
 
-const RANGE = 12 * NM;
 const RPM = 24;
+const RANGES = [3, 6, 12, 24] as const;
+/** How far an enemy ESM receiver hears this radar (sensors.ts ESM_RANGE). */
+const ESM_HEARS_NM = 40;
 
-/** PPI with rotating sweep and phosphor persistence, painted from radar contacts only. */
+/** Radar room: phosphor PPI with range scales, radar status and an ESM bearing rose. */
 export function radarEsmStation(): Station {
   const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Luft-/Seeraumradar · 12 SM</span><span id="rs" class="dim"></span></div><canvas id="ppi"></canvas>
-      <div style="display:flex;gap:6px;margin-top:6px"><button id="radar">Radar</button><span class="dim" style="align-self:center">RADAR VERRÄT DIE FREGATTE AUF GROSSE ENTFERNUNG (ESM)</span></div>
+    <div class="panel"><div class="hd"><span>Luft-/Seeraumradar · <span id="rng">12</span> SM</span><span id="rs" class="dim"></span></div><canvas id="ppi"></canvas>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+        <button id="radar">Radar</button>
+        ${RANGES.map((r) => `<button data-rng="${r}" title="Bereich ${r} SM">${r} SM</button>`).join('')}
+        <span class="dim">KLICK AUF ECHO WÄHLT</span>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="panel"><div class="hd"><span>Radarstatus</span><span id="emit" class="dim"></span></div><div id="status"></div></div>
+      <div class="panel"><div class="hd"><span>ESM · Funkpeilung</span><span class="dim">ROSE UND LISTE</span></div>
+        <canvas id="rose" style="display:block;margin:0 auto"></canvas><div id="esm"></div></div>
       <div class="panel"><div class="hd"><span>Radarspuren</span></div><div id="tracks"></div></div>
-      <div class="panel"><div class="hd"><span>ESM / Funkpeilung</span></div><div id="esm"></div></div>
     </div>
   </div>`);
   const canvas = el.querySelector<HTMLCanvasElement>('#ppi')!;
-  const phos = document.createElement('canvas');
-  phos.width = 520;
-  phos.height = 520;
-  const pc = phos.getContext('2d')!;
-  pc.fillStyle = COL.bg;
-  pc.fillRect(0, 0, 520, 520);
-  let sweep = 0;
+  const rose = el.querySelector<HTMLCanvasElement>('#rose')!;
+  const scope = new RadarScope();
+  let rangeNm: number = Number(localStorage.getItem('tk_radar_rng')) || 12;
   let last = performance.now();
+  let geo = { ox: 0, oy: 0, k: 1 };
+  const setRange = (r: number) => {
+    rangeNm = r;
+    localStorage.setItem('tk_radar_rng', String(r));
+    el.querySelector('#rng')!.textContent = String(r);
+    el.querySelectorAll<HTMLButtonElement>('[data-rng]').forEach((b) => b.classList.toggle('on', Number(b.dataset.rng) === r));
+  };
+  setRange(rangeNm);
+  el.querySelectorAll<HTMLButtonElement>('[data-rng]').forEach((b) => (b.onclick = () => setRange(Number(b.dataset.rng))));
+  el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
   canvas.style.cursor = 'pointer';
-  canvas.onmousedown = (e) => {
+  canvas.addEventListener('click', (e) => {
     const s = store.snap;
     if (!s) return;
     const r = canvas.getBoundingClientRect();
-    const size = Math.min(r.width, 520);
-    const k = size / 520;
-    const mx = (e.clientX - r.left - (r.width - size) / 2) / k - 260;
-    const my = 260 - (e.clientY - r.top) / k;
+    const mx = (e.clientX - r.left - geo.ox) / geo.k - SCOPE.C;
+    const my = SCOPE.C - (e.clientY - r.top - geo.oy) / geo.k;
     let best: string | undefined;
-    let bd = 12;
+    let bd = 14;
     for (const c of s.contacts) {
       if (!c.sensors.includes('radar') || c.range === undefined) continue;
       const v = headingVec(c.bearing);
-      const rr = (c.range / RANGE) * 250;
+      const rr = (c.range / (rangeNm * NM)) * SCOPE.R;
       const d = Math.hypot(v.x * rr - mx, v.y * rr - my);
       if (d < bd) [best, bd] = [c.label, d];
     }
     if (best) store.selected = best;
-  };
-  el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
+  });
+  const tracksEl = el.querySelector<HTMLElement>('#tracks')!;
+  onTap(tracksEl, '[data-c]', (row) => (store.selected = row.dataset.c));
+
+  /** ESM rose: intercepted emitters as strobes around the own ship, newest brightest. */
+  function drawRose(): void {
+    const s = store.snap;
+    const size = 170;
+    const ctx = fitCanvas(rose, size);
+    const w = rose.clientWidth;
+    const cx = w / 2, cy = size / 2, r = size / 2 - 16;
+    ctx.fillStyle = '#030807';
+    ctx.fillRect(0, 0, w, size);
+    ctx.strokeStyle = 'rgba(93,202,165,0.3)';
+    for (const f of [0.5, 1]) { ctx.beginPath(); ctx.arc(cx, cy, r * f, 0, 7); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(159,230,204,0.7)';
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const [d, l] of [[0, 'N'], [90, 'O'], [180, 'S'], [270, 'W']] as const) {
+      const a = ((d - 90) * Math.PI) / 180;
+      ctx.fillText(l, cx + Math.cos(a) * (r + 9), cy + Math.sin(a) * (r + 9));
+    }
+    if (!s) return;
+    const hm = ((s.own.heading - 90) * Math.PI) / 180;
+    ctx.strokeStyle = 'rgba(232,195,122,0.7)';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(hm) * r * 0.5, cy + Math.sin(hm) * r * 0.5); ctx.stroke();
+    const t = performance.now() / 1000;
+    for (const c of s.contacts) {
+      if (!c.sensors.includes('esm')) continue;
+      const age = s.time - c.lastSeen;
+      if (age > 600) continue;
+      const a = ((c.bearing - 90) * Math.PI) / 180;
+      const fresh = age < 20;
+      ctx.strokeStyle = `rgba(240,149,149,${fresh ? 0.6 + 0.4 * Math.sin(t * 6) : Math.max(0.15, 0.8 - age / 700)})`;
+      ctx.lineWidth = fresh ? 3 : 2;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r * 0.15, cy + Math.sin(a) * r * 0.15); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#f09595';
+      ctx.fillText(c.label, cx + Math.cos(a) * (r - 12) + 10, cy + Math.sin(a) * (r - 12));
+    }
+  }
 
   return {
     title: 'Radar/ESM',
     el,
     snap() {
       const s = store.snap!;
-      el.querySelector('#radar')!.classList.toggle('on', s.own.radarOn);
-      el.querySelector('#rs')!.textContent = s.own.radarOn ? `SENDET · ${RPM} U/MIN` : 'AUS';
+      const on = s.own.radarOn;
+      el.querySelector('#radar')!.classList.toggle('on', on);
+      el.querySelector('#rs')!.textContent = on ? `SENDET · ${RPM} U/MIN` : 'STANDBY';
+      const emit = el.querySelector<HTMLElement>('#emit')!;
+      emit.textContent = on ? '● ABSTRAHLUNG' : '○ STILL';
+      emit.className = on ? 'red blink' : 'dim';
       const radar = s.contacts.filter((c) => c.via === 'own' && c.sensors.includes('radar') && s.time - c.lastSeen < 30);
-      el.querySelector('#tracks')!.innerHTML = radar.length
-        ? radar.map((c) => `<div class="row ${s.time - c.lastSeen > 5 ? 'amber' : ''}"><span>${esc(c.label)}</span><span>${deg3(c.bearing)}° ${c.range ? (c.range / NM).toFixed(1) + ' SM' : ''}</span><span class="dim">${s.time - c.lastSeen > 5 ? 'KURZ ERFASST' : 'SPUR'}</span></div>`).join('')
-        : '<div class="dim">KEINE SPUREN</div>';
-      const esm = s.contacts.filter((c) => c.sensors.includes('esm'));
+      const friends = radar.filter((c) => s.friendlies.some((f) => {
+        const v = headingVec(c.bearing);
+        return Math.hypot(f.x - (s.own.x + v.x * (c.range ?? 0)), f.y - (s.own.y + v.y * (c.range ?? 0))) < 600;
+      }));
+      el.querySelector('#status')!.innerHTML = `
+        <div class="row"><span class="dim">SENDER</span><span class="${on ? 'red' : ''}">${on ? 'EIN · SENDET' : 'AUS · STANDBY'}</span></div>
+        <div class="row"><span class="dim">BEREICH / ANTENNE</span><span>${rangeNm} SM · ${RPM} U/MIN</span></div>
+        <div class="row"><span class="dim">ECHOS</span><span>${radar.length} · DAVON EIGENE ${friends.length}</span></div>
+        <div class="row"><span class="dim">SEEGANG-STÖRUNG</span><span>${['GERING', 'GERING', 'MÄSSIG', 'MÄSSIG', 'STARK', 'STARK', 'SEHR STARK'][s.env.seaState] ?? '—'}${s.env.rain ? ' · REGEN' : ''}</span></div>
+        <div class="row"><span class="dim">GEGNER-ESM HÖRT UNS</span><span class="${on ? 'amber' : 'dim'}">${on ? `BIS ${ESM_HEARS_NM} SM` : '—'}</span></div>
+        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? 'Jede U-Boot-Funkpeilantenne in 40 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.' : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`;
+      tracksEl.innerHTML = radar.length
+        ? radar.map((c) => {
+          const fr = friends.includes(c);
+          const rel = angleDiff(s.own.heading, c.bearing);
+          return `<div class="row clickable ${c.label === store.selected ? 'amber selrow' : fr ? 'dim' : ''}" data-c="${esc(c.label)}"><span>${esc(c.label)}${fr ? ' · EIGEN' : ''}</span><span>${deg3(c.bearing)}° ${c.range ? (c.range / NM).toFixed(1) + ' SM' : ''}</span><span class="dim">${rel >= 0 ? 'STB' : 'BB'} ${Math.abs(Math.round(rel))}° · ${s.time - c.lastSeen > 5 ? 'KURZ' : 'SPUR'}</span></div>`;
+        }).join('')
+        : `<div class="dim">${on ? 'KEINE SPUREN' : 'RADAR AUS · KEINE SPUREN'}</div>`;
+      const esm = s.contacts.filter((c) => c.sensors.includes('esm')).sort((a, b) => b.lastSeen - a.lastSeen);
       el.querySelector('#esm')!.innerHTML = esm.length
-        ? esm.map((c) => `<div class="row red"><span>${esc(c.label)}</span><span>${deg3(c.bearing)}°</span><span class="dim">VOR ${Math.round(s.time - c.lastSeen)} S</span></div>`).join('')
-        : '<div class="dim">KEINE FUNKPEILUNGEN</div>';
+        ? esm.map((c) => `<div class="row ${s.time - c.lastSeen < 60 ? 'red' : 'dim'}"><span>${esc(c.label)}</span><span>${deg3(c.bearing)}°</span><span class="dim">VOR ${Math.round(s.time - c.lastSeen)} S</span></div>`).join('')
+        : '<div class="dim">KEINE FUNKPEILUNGEN · ALLES STILL</div>';
     },
     frame() {
       const s = store.snap;
       const now = performance.now();
-      const dt = (now - last) / 1000;
+      const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      const prev = sweep;
-      sweep = (sweep + dt * RPM * 6) % 360;
-      const C = 260;
-      const R = 250;
-      pc.save();
-      pc.beginPath(); pc.arc(C, C, R, 0, 7); pc.clip();
-      pc.fillStyle = 'rgba(8,12,11,0.03)';
-      pc.fillRect(0, 0, 520, 520);
-      if (s?.own.radarOn) {
-        const span = (sweep - prev + 360) % 360;
-        for (let i = 0; i < 40; i++) {
-          if (Math.random() > 0.5) continue;
-          const a = (prev + (span * i) / 40 - 90) * (Math.PI / 180);
-          const rr = Math.random() * (10 + s.env.seaState * 6);
-          pc.fillStyle = `rgba(93,202,165,${0.25 + Math.random() * 0.4})`;
-          pc.fillRect(C + Math.cos(a) * rr, C + Math.sin(a) * rr, 1.5, 1.5);
-        }
-        for (const c of s.contacts) {
-          if (!c.sensors.includes('radar') || c.range === undefined || s.time - c.lastSeen > 3) continue;
-          const d = (c.bearing - prev + 360) % 360;
-          if (d > span) continue;
-          const v = headingVec(c.bearing);
-          const r = (c.range / RANGE) * R;
-          if (r > R) continue;
-          const friendly = s.friendlies.some((f) => Math.hypot(f.x - (s.own.x + v.x * c.range!), f.y - (s.own.y + v.y * c.range!)) < 400);
-          pc.fillStyle = friendly ? COL.g2 : COL.amber;
-          pc.beginPath(); pc.arc(C + v.x * r, C - v.y * r, friendly ? 2.6 : 3, 0, 7); pc.fill();
-        }
-        const a = (sweep - 90) * (Math.PI / 180);
-        pc.strokeStyle = 'rgba(159,225,203,0.9)';
-        pc.lineWidth = 1.5;
-        pc.beginPath(); pc.moveTo(C, C); pc.lineTo(C + Math.cos(a) * R, C + Math.sin(a) * R); pc.stroke();
-      }
-      pc.restore();
-
-      const H = 520;
+      scope.update(s, dt, RPM, rangeNm * NM);
+      const H = 540;
       const ctx = fitCanvas(canvas, H);
-      const w = canvas.clientWidth;
-      ctx.fillStyle = COL.bg;
-      ctx.fillRect(0, 0, w, H);
-      const size = Math.min(w, H);
-      const ox = (w - size) / 2;
-      ctx.drawImage(phos, ox, 0, size, size);
-      const k = size / 520;
-      ctx.strokeStyle = 'rgba(93,202,165,0.15)';
-      for (let i = 1; i <= 4; i++) {
-        ctx.beginPath(); ctx.arc(ox + C * k, C * k, (R * k * i) / 4, 0, 7); ctx.stroke();
-      }
-      if (s) {
-        for (const c of s.contacts.filter((x) => x.sensors.includes('esm') && s.time - x.lastSeen < 300)) {
-          const v = headingVec(c.bearing);
-          ctx.strokeStyle = 'rgba(240,149,149,0.7)';
-          ctx.setLineDash([6, 4]);
-          ctx.beginPath(); ctx.moveTo(ox + C * k, C * k); ctx.lineTo(ox + (C + v.x * R) * k, (C - v.y * R) * k); ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-      ctx.font = '11px ui-monospace, monospace';
-      ctx.fillStyle = COL.g;
-      ctx.textAlign = 'center';
-      ctx.fillText('000', ox + C * k, 10);
-      ctx.fillText('180', ox + C * k, H - 2);
-      ctx.fillText('3 SM', ox + C * k + (R * k) / 4 + 14, C * k - 4);
+      geo = scope.draw(ctx, canvas.clientWidth, H, s, rangeNm, store.selected);
+      drawRose();
     },
   };
 }

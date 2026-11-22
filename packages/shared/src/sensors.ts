@@ -8,6 +8,7 @@ import {
   type Environment,
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
+import { lookoutSweep, type Sighting } from './lookout.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
 import { SHALLOW_M, pathDepth } from './seabed.js';
 import { CLASSES, type ClassId } from './classes.js';
@@ -16,7 +17,7 @@ import { isAtPeriscopeDepth } from './entities.js';
 import { KN, NM, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
 
-export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy';
+export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual';
 
 /** A single sensor measurement. targetId never leaves the server. */
 export interface Detection {
@@ -31,6 +32,8 @@ export interface Detection {
   se: number;
   /** Only set by visual identification (periscope). Sonar never names a contact. */
   classified?: ClassId;
+  /** Bridge lookout: what was seen (periscope feather, snorkel haze, conning tower). */
+  sighting?: Sighting;
   /** Narrowband/DEMON measurements for passive sonar looks. */
   evidence?: Evidence;
   /** CW active echo: target closing speed in kn (positive = approaching). */
@@ -261,6 +264,11 @@ export function runSensors(ctx: SensorContext): Detection[] {
     }
     if (CLASSES[obs.cls].submarine && obs.mastUp && isAtPeriscopeDepth(obs)) periscope(obs, ctx, out);
     if (obs.radarOn && !CLASSES[obs.cls].submarine) radar(obs, ctx, out);
+    if (!CLASSES[obs.cls].submarine) {
+      for (const v of lookoutSweep(obs, ctx.ships, ctx.env, ctx.rng)) {
+        out.push({ observerId: obs.id, targetId: v.targetId, sensor: 'visual', time: ctx.time, bearing: v.bearing, range: v.range, se: 20, sighting: v.sighting });
+      }
+    }
     if (hasAntennaUp(obs)) esm(obs, ctx, out);
   }
   return out;

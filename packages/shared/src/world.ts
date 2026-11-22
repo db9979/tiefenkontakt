@@ -10,6 +10,7 @@ import type { Ship } from './entities.js';
 import { stepShip } from './kinematics.js';
 import { Rng } from './rng.js';
 import { interceptTransmission, runSensors, type Detection, type Emitter } from './sensors.js';
+import type { Sighting } from './lookout.js';
 import type { WeaponsState } from './weapons.js';
 import { buoySensors, type AirState } from './aviation.js';
 
@@ -23,7 +24,9 @@ export type GameEvent =
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
   | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
-  | { kind: 'grounded'; time: number; shipId: string };
+  | { kind: 'grounded'; time: number; shipId: string }
+  /** Bridge lookout reports a new sighting (start of an episode, not every sweep). */
+  | { kind: 'sighting'; time: number; shipId: string; label: string; bearing: number; range: number; what: Sighting };
 
 export interface World {
   time: number;
@@ -63,7 +66,12 @@ export function shipById(w: World, id: string): Ship | undefined {
 }
 
 function ingest(w: World, dets: Detection[]): void {
-  for (const d of dets) bookFor(w, d.observerId).ingest(d);
+  for (const d of dets) {
+    const tr = bookFor(w, d.observerId).ingest(d);
+    if (d.sighting && tr.sightingSince === d.time) {
+      w.events.push({ kind: 'sighting', time: d.time, shipId: d.observerId, label: tr.label, bearing: d.bearing, range: d.range ?? 0, what: d.sighting });
+    }
+  }
 }
 
 /** Send a radio message; enemies with antennas up get an ESM bearing on the sender. */
@@ -101,7 +109,7 @@ function checkGround(w: World, s: Ship): void {
 
 /** A submarine's hull thermometer reveals the layer when the boat crosses it. */
 function learnLayer(w: World, s: Ship): void {
-  if (!s.alive || s.depth < 1 || w.env.layerDepth <= 0 || s.cls === 'ffg' || s.cls === 'merchant') return;
+  if (!s.alive || s.depth < 1 || w.env.layerDepth <= 0 || !CLASSES[s.cls].submarine) return;
   const side = s.depth > w.env.layerDepth ? 'below' : 'above';
   if (s.layerSide && s.layerSide !== side) s.btLayer = Math.round(w.env.layerDepth + w.rng.gauss(0, 3));
   s.layerSide = side;

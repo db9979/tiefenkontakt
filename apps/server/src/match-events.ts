@@ -7,6 +7,8 @@ const EXPLOSION_HEARING = 40_000;
 const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000 } as const;
 const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM' } as const;
 
+const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
+
 export interface AlertContext {
   slots: PlayerSlot[];
   shipOf(playerId: string): Ship | undefined;
@@ -21,6 +23,12 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
     } else if (e.kind === 'torpedo_alert') {
       for (const slot of ctx.aboard(e.shipId)) {
         ctx.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${e.bearing.toFixed(0).padStart(3, '0')}` });
+      }
+    } else if (e.kind === 'sighting') {
+      const b = e.bearing.toFixed(0).padStart(3, '0');
+      const r = (Math.round(e.range / 100) / 10).toFixed(1).replace('.', ',');
+      for (const slot of ctx.aboard(e.shipId)) {
+        ctx.alert(slot.playerId, { time: e.time, kind: 'sighting', bearing: e.bearing, range: e.range, what: e.what, label: e.label, text: `AUSGUCK · ${SIGHTING_TEXT[e.what]} PEILUNG ${b} · CA. ${r} KM` });
       }
     } else if (e.kind === 'sunk') {
       const victim = shipById(w, e.shipId);

@@ -30,6 +30,12 @@ const toLobby = () => go('lobby', () => lobbyScreen(root, me!));
 net.on((m: ServerMsg) => {
   if (m.t === 'welcome') {
     me = { playerId: m.playerId, callsign: m.callsign };
+    // Invite link: #join=<match id> joins that match right after connecting
+    const inv = /^#join=([a-f0-9]{8})$/.exec(location.hash);
+    if (inv) {
+      history.replaceState(null, '', location.pathname);
+      net.send({ t: 'join_code', matchId: inv[1]! });
+    }
     store.playerId = m.playerId;
     // A returning player is put back into the match by the server; otherwise show the lobby
     if (!m.resume && screen !== 'lobby') toLobby();

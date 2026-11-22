@@ -51,8 +51,15 @@ export class Lobby {
 
   /** Quick match: join the open lobby with room, on the team that needs players; else open one. */
   private quick(conn: Conn): string | undefined {
-    const open = [...this.matches.values()].filter((m) => m.state === 'lobby' && !m.settings.lesson && m.slots.length < MAX_PER_TEAM * 2);
-    open.sort((a, b) => b.slots.length - a.slots.length);
+    const open = [...this.matches.values()].filter((m) => m.state === 'lobby' && !m.settings.lesson && !m.settings.private && m.slots.length < MAX_PER_TEAM * 2);
+    // Skill matchmaking: prefer lobbies whose players are close to my rating, then fuller ones
+    const mine = conn.rating ?? 1000;
+    const avg = (m: Match) => {
+      const r = m.slots.filter((s) => !s.bot).map((s) => s.rating ?? 1000);
+      return r.length ? r.reduce((a, b) => a + b, 0) / r.length : mine;
+    };
+    const score = (m: Match) => Math.abs(avg(m) - mine) - 40 * m.slots.length;
+    open.sort((a, b) => score(a) - score(b));
     const m = open[0];
     if (!m) {
       const created = this.create('Schnelles Spiel');
@@ -84,7 +91,7 @@ export class Lobby {
   }
 
   private listMsg(): ServerMsg {
-    return { t: 'lobby', matches: [...this.matches.values()].filter((m) => !m.settings.lesson).map((m) => m.summary()) };
+    return { t: 'lobby', matches: [...this.matches.values()].filter((m) => !m.settings.lesson && !m.settings.private).map((m) => m.summary()) };
   }
 
   private broadcastList(): void {
@@ -182,9 +189,20 @@ export class Lobby {
       case 'create_match': {
         const m = this.create(msg.name);
         if (typeof m === 'string') return void err(m);
+        if (msg.private) m.settings.private = true;
         this.leaveCurrent(conn.playerId);
         this.playerMatch.set(conn.playerId, m.id);
         return void err(m.join(conn, 'west'));
+      }
+      case 'join_code': {
+        // Invite link: join the team with fewer human players
+        const m = this.matches.get(msg.matchId);
+        if (!m || m.state !== 'lobby') return void err('Einladung ungültig oder Partie läuft schon');
+        const humans = (t: string) => m.slots.filter((s) => s.team === t && !s.bot).length;
+        if (this.playerMatch.get(conn.playerId) !== m.id) this.leaveCurrent(conn.playerId);
+        const e = m.join(conn, humans('west') <= humans('east') ? 'west' : 'east');
+        if (!e) this.playerMatch.set(conn.playerId, m.id);
+        return void err(e);
       }
       case 'join': {
         const m = this.matches.get(msg.matchId);

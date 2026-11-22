@@ -13,7 +13,7 @@ export function clock(t: number): string {
 }
 
 export const CLASS_LABEL: Record<ClassId, string> = {
-  ssn: 'ATOM-U-BOOT', ssk: 'DIESEL-U-BOOT', ffg: 'FREGATTE', merchant: 'HANDELSSCHIFF',
+  ssn: 'ATOM-U-BOOT', ssk: 'DIESEL-U-BOOT', ssc: 'KÜSTEN-U-BOOT', ffg: 'FREGATTE', kor: 'KORVETTE', merchant: 'HANDELSSCHIFF',
 };
 
 export const CHOICE_LABEL: Record<ClassChoice, string> = {
@@ -24,6 +24,8 @@ export const CLASS_NAME: Record<Exclude<ClassId, 'merchant'>, { title: string; i
   ffg: { title: 'Fregatte F-12', info: 'Rumpf- und Schleppsonar, Radar, U-Jagd-Raketen' },
   ssn: { title: 'Atom-U-Boot Projekt 9', info: 'Schnell, unbegrenzte Ausdauer, laut bei hoher Fahrt' },
   ssk: { title: 'Diesel-U-Boot Projekt 4', info: 'Sehr leise, begrenzte Batterie, muss schnorcheln' },
+  ssc: { title: 'Küsten-U-Boot Projekt 2', info: 'Extrem leise, klein und wendig; nur 4 Rohre, kleine Batterie, 200 m' },
+  kor: { title: 'Korvette K-7', info: 'Leise, schnell, wendig; kurzes Schleppsonar, kein Hubschrauber' },
 };
 
 /** Create an element from an HTML string. */

@@ -1,12 +1,13 @@
 import { net } from '../net.js';
 import { esc, h } from '../widgets/format.js';
+import { bindSortable, sortHead, sortRows, type SortState } from '../widgets/sortable.js';
 
 interface Step {
   id: string;
   kind: 'lesson' | 'mission';
   title: string;
   lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
-  mission?: 'groenland' | 'schelf' | 'fjord';
+  mission?: 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen';
   timeOfDay?: 'tag' | 'daemmerung' | 'nacht';
   done: boolean;
   unlocked: boolean;
@@ -18,7 +19,7 @@ export function careerPanels(): HTMLElement {
   const el = h(`<div class="grid2" style="margin-top:10px"><div class="panel" id="c-me"></div><div style="display:flex;flex-direction:column;gap:10px"><div class="panel" id="c-board"></div><div class="panel" id="c-balance"></div></div></div>`);
   const balance = el.querySelector<HTMLElement>('#c-balance')!;
   const MISSION: Record<string, string> = { groenland: 'Grönland', schelf: 'Schelf', fjord: 'Fjord' };
-  const CLS: Record<string, string> = { ffg: 'Fregatte', ssk: 'Diesel-U-Boot', ssn: 'Atom-U-Boot' };
+  const CLS: Record<string, string> = { ffg: 'Fregatte', kor: 'Korvette', ssk: 'Diesel-U-Boot', ssn: 'Atom-U-Boot', ssc: 'Küsten-U-Boot' };
   fetch('/api/balance').then(async (r) => {
     const b = (await r.json()) as { total: number; missions: { key: string; games: number; westWins: number; eastWins: number; avgMin: number }[]; classes: { key: string; games: number; wins: number }[] };
     const pct = (a: number, n: number) => (n ? Math.round((100 * a) / n) : 0);
@@ -38,9 +39,9 @@ export function careerPanels(): HTMLElement {
       me.innerHTML = '<div class="hd"><span>Dienstbuch und Kampagne</span></div><div class="dim">MIT KONTO WERDEN ERGEBNISSE, PUNKTE UND KAMPAGNE GESPEICHERT.</div>';
       return;
     }
-    const d = (await r.json()) as { summary?: Summary; campaign: Step[] };
+    const d = (await r.json()) as { summary?: Summary; campaign: Step[]; rating?: number };
     const s = d.summary;
-    me.innerHTML = `<div class="hd"><span>Dienstbuch · ${esc(s?.callsign ?? '')}</span><span>${s?.points ?? 0} PUNKTE</span></div>
+    me.innerHTML = `<div class="hd"><span>Dienstbuch · ${esc(s?.callsign ?? '')}</span><span>${s?.points ?? 0} PUNKTE · WERTUNG ${d.rating ?? 1000}</span></div>
       <div class="row"><span class="dim">PARTIEN / SIEGE</span><span>${s?.matches ?? 0} / ${s?.wins ?? 0}</span></div>
       <div class="row"><span class="dim">VERSENKT</span><span>${s?.kills ?? 0} SCHIFFE · ${Math.round((s?.tonnage ?? 0) / 1000)}K BRT</span></div>
       <div class="hd" style="margin-top:8px"><span>Kampagne</span><span class="dim">${d.campaign.filter((c) => c.done).length}/${d.campaign.length}</span></div>
@@ -62,9 +63,25 @@ export function careerPanels(): HTMLElement {
 
   fetch('/api/leaderboard').then(async (r) => {
     const rows = (await r.json()) as Summary[];
-    board.innerHTML = `<div class="hd"><span>Rangliste</span><span class="dim">PUNKTE · SIEGE · VERSENKT</span></div>` +
-      (rows.length ? rows.map((x, i) => `<div class="row"><span>${i + 1}. ${esc(x.callsign)}</span><span>${x.points} · ${x.wins} · ${x.kills}</span></div>`).join('')
-        : '<div class="dim">NOCH KEINE ERGEBNISSE</div>');
+    // Rank stays the points rank; columns re-sort the view
+    const ranked = rows.map((x, i) => ({ ...x, rank: i + 1 }));
+    const ID = 'leaderboard';
+    const DEF: SortState = { key: 'rank', dir: 1 };
+    const draw = () => {
+      const view = sortRows(ranked, ID, DEF, {
+        rank: (x) => x.rank, callsign: (x) => x.callsign.toLowerCase(), points: (x) => x.points, wins: (x) => x.wins,
+        rate: (x) => (x.matches ? x.wins / x.matches : undefined), kills: (x) => x.kills, tonnage: (x) => x.tonnage,
+      });
+      const hd = (k: string, l: string) => sortHead(ID, k, l, DEF);
+      board.innerHTML = `<div class="hd"><span>Rangliste</span><span class="dim">KLICK AUF SPALTE SORTIERT</span></div>` +
+        (rows.length
+          ? `<div class="row dim ltable">${hd('rank', '#')}${hd('callsign', 'RUFZ.')}${hd('points', 'PKT')}${hd('wins', 'SIEGE')}${hd('rate', 'QUOTE')}${hd('kills', 'VERS.')}${hd('tonnage', 'BRT')}</div>` +
+            view.map((x) => `<div class="row ltable"><span>${x.rank}</span><span>${esc(x.callsign)}</span><span>${x.points}</span><span>${x.wins}/${x.matches}</span><span>${x.matches ? Math.round((100 * x.wins) / x.matches) + ' %' : '—'}</span><span>${x.kills}</span><span>${Math.round(x.tonnage / 1000)}K</span></div>`).join('')
+          : '<div class="dim">NOCH KEINE ERGEBNISSE</div>');
+    };
+    const desc = { points: -1, wins: -1, rate: -1, kills: -1, tonnage: -1 } as const;
+    bindSortable(board, ID, DEF, draw, { firstDir: desc });
+    draw();
   }).catch(() => undefined);
   return el;
 }

@@ -22,3 +22,25 @@ export function touchable(el: HTMLElement): void {
   el.addEventListener('pointerup', cancel);
   el.addEventListener('pointercancel', cancel);
 }
+
+/**
+ * Delegated tap for lists that are rebuilt on every snapshot: the target is remembered on
+ * pointerdown and the action fires on release, so a row replaced mid-tap still counts and a
+ * scroll gesture (pointercancel or movement) does not trigger it.
+ */
+export function onTap(el: HTMLElement, selector: string, fn: (target: HTMLElement) => void): void {
+  let down: { target: HTMLElement; x: number; y: number; id: number } | undefined;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const target = (e.target as HTMLElement).closest<HTMLElement>(selector);
+    down = target ? { target, x: e.clientX, y: e.clientY, id: e.pointerId } : undefined;
+  });
+  el.addEventListener('pointercancel', () => (down = undefined));
+  // On the window: the original row may already be detached when the finger lifts
+  window.addEventListener('pointerup', (e) => {
+    const d = down;
+    down = undefined;
+    if (!d || e.pointerId !== d.id || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) return;
+    fn(d.target);
+  });
+}

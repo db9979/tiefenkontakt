@@ -13,7 +13,9 @@ import type { SeekerMode } from './weapons.js';
 
 /** Messages client -> server. Validated with zod on the server. */
 export type ClientMsg =
-  | { t: 'create_match'; name: string }
+  | { t: 'create_match'; name: string; private?: boolean }
+  /** Join through an invite link: the server picks the team with fewer players. */
+  | { t: 'join_code'; matchId: string }
   | { t: 'join'; matchId: string; team: Exclude<Team, 'neutral'> }
   | { t: 'leave' }
   | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant'> }
@@ -71,6 +73,8 @@ export interface PlayerSlot {
   station?: number;
   /** Naval rank from the service record (accounts only). */
   rank?: string;
+  /** Elo rating (accounts; guests 1000). */
+  rating?: number;
 }
 
 export interface LobbyChatLine {
@@ -101,6 +105,8 @@ export interface MatchLobby extends MatchSummary {
     merchants: number;
     fillBots: boolean;
     botSkill: 'leicht' | 'normal' | 'schwer';
+    /** Not listed; joined only through an invite link. */
+    private?: boolean;
     weather: 'wechselhaft' | 'stabil';
     custom?: CustomMissionSettings;
     merchantsCount?: number;
@@ -180,7 +186,11 @@ export interface RadioMsg {
 
 export interface AlertView {
   time: number;
-  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient';
+  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient' | 'sighting';
+  /** Lookout sightings: what, rough range and the contact label. */
+  what?: 'mast' | 'snorkel' | 'surfaced';
+  range?: number;
+  label?: string;
   bearing?: number;
   text: string;
 }

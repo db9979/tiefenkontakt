@@ -103,6 +103,8 @@ export const EN_PHRASES: [RegExp, string][] = [
   [/Ausbildung (\d): /, 'Training $1: '], [/Einsatz (\d): /, 'Mission $1: '], [/Horchen und Klassifizieren/, 'Listening and classifying'],
   [/Zielbewegungsanalyse/, 'Target motion analysis'], [/Torpedoangriff/, 'Torpedo attack'], [/U-Jagd mit Fregatte/, 'ASW with a frigate'],
   [/Grönland-Lücke bei Tag gewinnen/, 'Win the Greenland gap by day'], [/Schelfmeer in der Dämmerung gewinnen/, 'Win the shelf sea at dusk'],
-  [/Fjordausfahrt bei Nacht gewinnen/, 'Win the fjord exit at night'], [/^Dienstbuch/i, 'Service record'], [/ PUNKTE\b/, ' POINTS'], [/ SCHIFFE\b/, ' SHIPS'],
+  [/Fjordausfahrt bei Nacht gewinnen/, 'Win the fjord exit at night'], [/Hafenangriff in der Dämmerung gewinnen/, 'Win the harbour attack at dusk'],
+  [/Schelfmeer bei Nacht gewinnen/, 'Win the shelf sea at night'], [/U-Boot-Duell bei Nacht gewinnen/, 'Win the submarine duel at night'],
+  [/U-Boot-Duell gewinnen/, 'Win the submarine duel'], [/Grönland-Lücke bei Nacht gewinnen/, 'Win the Greenland gap at night'], [/^Dienstbuch/i, 'Service record'], [/ PUNKTE\b/, ' POINTS'], [/ SCHIFFE\b/, ' SHIPS'],
   [/ PARTIEN\b/g, ' MATCHES'], [/ SIEGE\b/g, ' WINS'], [/ALLE SPIELER UND KI/, 'ALL PLAYERS AND AI'], [/^WEST /, 'WEST '], [/ OST /, ' EAST '], [/GEWONNEN/g, 'WON'], [/VERLOREN/g, 'LOST'], [/REGEN/g, 'RAIN'], [/KLAR/g, 'CLEAR'], [/SEEGANG/g, 'SEA STATE'],
 ];

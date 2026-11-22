@@ -5,7 +5,7 @@ import type { Debrief, PlayerStats } from '@tk/shared';
 
 export type CampaignStep =
   | { id: string; kind: 'lesson'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd'; title: string }
-  | { id: string; kind: 'mission'; mission: 'groenland' | 'schelf' | 'fjord'; timeOfDay: 'tag' | 'daemmerung' | 'nacht'; title: string };
+  | { id: string; kind: 'mission'; mission: 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen'; timeOfDay: 'tag' | 'daemmerung' | 'nacht'; title: string };
 
 export const CAMPAIGN: CampaignStep[] = [
   { id: 'l1', kind: 'lesson', lesson: 'klassifizieren', title: 'Ausbildung 1: Horchen und Klassifizieren' },
@@ -15,6 +15,11 @@ export const CAMPAIGN: CampaignStep[] = [
   { id: 'm1', kind: 'mission', mission: 'groenland', timeOfDay: 'tag', title: 'Einsatz 1: Grönland-Lücke bei Tag gewinnen' },
   { id: 'm2', kind: 'mission', mission: 'schelf', timeOfDay: 'daemmerung', title: 'Einsatz 2: Schelfmeer in der Dämmerung gewinnen' },
   { id: 'm3', kind: 'mission', mission: 'fjord', timeOfDay: 'nacht', title: 'Einsatz 3: Fjordausfahrt bei Nacht gewinnen' },
+  { id: 'm4', kind: 'mission', mission: 'hafen', timeOfDay: 'daemmerung', title: 'Einsatz 4: Hafenangriff in der Dämmerung gewinnen' },
+  { id: 'm5', kind: 'mission', mission: 'schelf', timeOfDay: 'nacht', title: 'Einsatz 5: Schelfmeer bei Nacht gewinnen' },
+  { id: 'm6', kind: 'mission', mission: 'duell', timeOfDay: 'tag', title: 'Einsatz 6: U-Boot-Duell gewinnen' },
+  { id: 'm7', kind: 'mission', mission: 'groenland', timeOfDay: 'nacht', title: 'Einsatz 7: Grönland-Lücke bei Nacht gewinnen' },
+  { id: 'm8', kind: 'mission', mission: 'duell', timeOfDay: 'nacht', title: 'Einsatz 8: U-Boot-Duell bei Nacht gewinnen' },
 ];
 
 export interface BalanceRow {

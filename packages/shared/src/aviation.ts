@@ -1,5 +1,5 @@
 import { ambientNoise, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
-import { CLASSES } from './classes.js';
+import { CLASSES, hasHelicopter, isEscort } from './classes.js';
 import { dropLightweight } from './weapons.js';
 import { bookFor } from './world.js';
 import type { Ship } from './entities.js';
@@ -70,10 +70,10 @@ const MPA_SPACING = 3000;
 
 export function installAir(w: World, buoysPerFrigate = 16): AirState {
   const stock = new Map<string, number>();
-  for (const s of w.ships) if (s.cls === 'ffg') stock.set(s.id, buoysPerFrigate);
+  for (const s of w.ships) if (hasHelicopter(s.cls)) stock.set(s.id, buoysPerFrigate);
   const heloTorps = new Map<string, number>();
-  for (const s of w.ships) if (s.cls === 'ffg') heloTorps.set(s.id, 2);
-  const teams = new Set(w.ships.filter((s) => s.cls === 'ffg').map((s) => s.team));
+  for (const s of w.ships) if (hasHelicopter(s.cls)) heloTorps.set(s.id, 2);
+  const teams = new Set(w.ships.filter((s) => isEscort(s.cls)).map((s) => s.team));
   const mpa: AirState['mpa'] = {};
   for (const t of teams) mpa[t] = { readyAt: 0, buoys: 18 };
   w.air = { buoys: [], sorties: [], stock, nextId: 1, heloTorps, mpa };
@@ -84,7 +84,7 @@ export function installAir(w: World, buoysPerFrigate = 16): AirState {
 /** Launch the helicopter to drop a buoy at a point. deep = below the layer. */
 function heloCheck(w: World, ship: Ship, target: Vec2): string | undefined {
   const air = w.air;
-  if (!air || ship.cls !== 'ffg') return 'Kein Hubschrauber an Bord';
+  if (!air || !hasHelicopter(ship.cls)) return 'Kein Hubschrauber an Bord';
   if (!ship.alive) return 'Schiff ist gesunken';
   if (air.sorties.some((s) => s.shipId === ship.id && s.kind !== 'mpa' && w.time < s.readyAt)) return 'Hubschrauber ist unterwegs';
   if (distance(ship.pos, target) > HELO_RANGE) return 'Außer Reichweite des Hubschraubers (30 km)';

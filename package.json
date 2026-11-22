@@ -9,7 +9,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && npm -w @tk/client run typecheck",
     "build": "npm run typecheck && npm -w @tk/client run build",
     "test": "vitest run",
-    "serve": "npm run build && NODE_ENV=production npm -w @tk/server run start"
+    "serve": "npm run build && NODE_ENV=production npm -w @tk/server run start",
+    "arena": "tsx scripts/bot-arena.ts",
+    "loadtest": "tsx scripts/net-load-test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

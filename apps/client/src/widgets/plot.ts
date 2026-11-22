@@ -1,4 +1,4 @@
-import { KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
+import { CLASSES, KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
@@ -278,10 +278,14 @@ export class Plot {
     ctx.setLineDash([2, 3]);
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + ov.x * 40, o.y - ov.y * 40); ctx.stroke();
     ctx.setLineDash([]);
+    // Own ship: APP-6 friendly frame (circle on the surface, lower half-circle submerged), filled, with a dot
     ctx.fillStyle = COL.blue;
-    ctx.beginPath(); ctx.arc(o.x, o.y, 5, 0, 7); ctx.fill();
     ctx.strokeStyle = COL.blue;
     ctx.lineWidth = 2;
+    // Surface ships carry their draft in `depth`: only boats count as subsurface (and only when not surfaced)
+    const ownSub = CLASSES[s.own.cls].submarine && s.own.depth > 1;
+    drawSymbol(ctx, o.x, o.y, 'friend', ownSub ? 'subsurface' : 'surface', 8, true);
+    ctx.beginPath(); ctx.arc(o.x, o.y, 1.8, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y - v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 
@@ -450,13 +454,12 @@ export class Plot {
       ctx.strokeStyle = ctx.fillStyle;
       if (live) drawWake(ctx, p.x, p.y, f.heading, f.speedKn);
       if (f.cls === 'merchant') {
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(wrap360(f.heading) * (Math.PI / 180));
-        ctx.fillRect(-2, -5, 4, 10);
-        ctx.restore();
+        // APP-6 friendly surface frame (circle) with a short course leader; merchants smaller than warships
+        drawSymbol(ctx, p.x, p.y, 'friend', 'surface', 4, true);
+        const hv = headingVec(f.heading);
+        ctx.beginPath(); ctx.moveTo(p.x + hv.x * 4, p.y - hv.y * 4); ctx.lineTo(p.x + hv.x * 10, p.y - hv.y * 10); ctx.stroke();
       } else {
-        drawSymbol(ctx, p.x, p.y, 'friend', f.cls === 'ssk' || f.cls === 'ssn' ? 'subsurface' : 'surface', 6);
+        drawSymbol(ctx, p.x, p.y, 'friend', f.cls === 'ssk' || f.cls === 'ssn' || f.cls === 'ssc' ? 'subsurface' : 'surface', 6);
         const hv = headingVec(f.heading);
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y - hv.y * 14); ctx.stroke();
         const age = s.time - f.reportedAt;

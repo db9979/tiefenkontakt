@@ -1,6 +1,6 @@
 /** Fictional Cold-War-era platform classes. All numbers are game-balance values, tunable. */
 
-export type ClassId = 'ssn' | 'ssk' | 'ffg' | 'merchant';
+export type ClassId = 'ssn' | 'ssk' | 'ssc' | 'ffg' | 'kor' | 'merchant';
 export type Team = 'west' | 'east' | 'neutral';
 
 export interface HullSonarSpec {
@@ -73,6 +73,24 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
     towed: { di: 24, selfNoise: 48, maxSpeedKn: 14, maxLength: 1200, settleTime: 60 },
     hp: 100,
   },
+  ssc: {
+    id: 'ssc', name: 'Küsten-U-Boot Projekt 2', team: 'east', submarine: true, tonnage: 900,
+    maxSpeedKn: 14, accel: 0.12, turnRateDeg: 3, maxDepth: 200, depthRate: 2, draft: 0,
+    slBase: 108, slRefKn: 4, slSlope: 50, cavKn: 6, cavDepthKn: 4,
+    targetStrength: 8,
+    hull: { di: 12, baffleHalfAngle: 35, selfNoiseBase: 54, selfNoiseRefKn: 4, activeSl: 205 },
+    battery: { capacityKnH: 45 },
+    hp: 60,
+  },
+  kor: {
+    id: 'kor', name: 'Korvette K-7', team: 'west', submarine: false, tonnage: 1800,
+    maxSpeedKn: 26, accel: 0.18, turnRateDeg: 3.4, maxDepth: 0, depthRate: 0, draft: 4,
+    slBase: 142, slRefKn: 15, slSlope: 45,
+    targetStrength: 21,
+    hull: { di: 14, baffleHalfAngle: 30, selfNoiseBase: 68, selfNoiseRefKn: 15, activeSl: 220 },
+    towed: { di: 20, selfNoise: 50, maxSpeedKn: 14, maxLength: 600, settleTime: 45 },
+    hp: 70,
+  },
   merchant: {
     id: 'merchant', name: 'Frachter', team: 'west', submarine: false, tonnage: 12000,
     maxSpeedKn: 14, accel: 0.04, turnRateDeg: 0.8, maxDepth: 0, depthRate: 0, draft: 9,
@@ -85,4 +103,14 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
 
 export function classSpec(id: ClassId): ClassSpec {
   return CLASSES[id];
+}
+
+/** Surface warship escorting the convoy (frigate or corvette). */
+export function isEscort(cls: ClassId): boolean {
+  return cls === 'ffg' || cls === 'kor';
+}
+
+/** Carries a helicopter (dipping sonar, sonobuoys, helo torpedoes). */
+export function hasHelicopter(cls: ClassId): boolean {
+  return cls === 'ffg';
 }

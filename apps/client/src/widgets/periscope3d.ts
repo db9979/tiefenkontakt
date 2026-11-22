@@ -1,15 +1,16 @@
 import * as THREE from 'three';
-import type { ClassId } from '@tk/shared';
+import type { ClassId, Sighting } from '@tk/shared';
+import { shipModel, sightingModel } from './sea3d/models.js';
+import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
 
 /**
- * 3D periscope view: shader ocean with swell, sky gradient, haze, simple ship
- * models positioned from (filtered) bearing/range, sunk below the horizon by
- * earth curvature. The 2D reticle is drawn on top by the station.
+ * 3D sea view used by the periscope (eye 4 m) and the escorts' bridge (eye 20 m):
+ * multi-wave ocean with whitecaps and glitter, sky with clouds, sun and moon,
+ * ship models placed from (filtered) bearing/range and sunk by earth curvature.
+ * The 2D reticle or binocular mask is drawn on top by the station.
  */
 
 const EARTH_R = 6_371_000;
-/** Periscope head above the water at periscope depth (m). */
-const EYE = 4;
 
 export interface PeriscopeTarget {
   label: string;
@@ -19,6 +20,8 @@ export interface PeriscopeTarget {
   course?: number;
   speedKn?: number;
   alpha: number;
+  /** Lookout sighting of a submerged boat: draw what is visible of it (feather, snorkel). */
+  sighting?: Sighting;
 }
 
 /** A detonation seen through the optic (from a hit/sunk report): water column, smoke, fire. */
@@ -29,97 +32,9 @@ export interface PeriscopeEffect {
   age: number;
 }
 
-const DEFAULT_KN: Partial<Record<ClassId, number>> = { merchant: 9, ffg: 14 };
+const DEFAULT_KN: Partial<Record<ClassId, number>> = { merchant: 9, ffg: 14, kor: 14 };
 
-/** White foam: a wake wedge behind the stern and a small bow wave. */
-function wakeMesh(len: number): THREE.Group {
-  const g = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ color: 0xdfeef0, transparent: true, opacity: 0.45, depthWrite: false });
-  const wake = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-6, 0.3, 0), new THREE.Vector3(6, 0.3, 0), new THREE.Vector3(len * 0.35, 0.3, len),
-    new THREE.Vector3(-6, 0.3, 0), new THREE.Vector3(len * 0.35, 0.3, len), new THREE.Vector3(-len * 0.35, 0.3, len),
-  ]), mat);
-  wake.name = 'wake';
-  const bow = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0, 0.5, 0), new THREE.Vector3(9, 0.5, 14), new THREE.Vector3(-9, 0.5, 14),
-  ]), mat);
-  bow.name = 'bow';
-  g.add(wake, bow);
-  return g;
-}
-
-const OCEAN_VERT = `
-uniform float uTime; uniform float uAmp;
-varying vec3 vPos; varying vec3 vNormal;
-float wave(vec2 p, vec2 d, float f, float s) { return sin(dot(p, d) * f + uTime * s); }
-void main() {
-  vec3 p = position;
-  vec2 xz = (modelMatrix * vec4(p, 1.0)).xz;
-  float h = uAmp * (0.55 * wave(xz, normalize(vec2(0.8, 0.6)), 0.045, 1.1)
-            + 0.30 * wave(xz, normalize(vec2(-0.4, 0.9)), 0.09, 1.7)
-            + 0.15 * wave(xz, normalize(vec2(0.95, -0.3)), 0.21, 2.6));
-  p.z += h;
-  float e = 0.5;
-  float hx = uAmp * 0.55 * wave(xz + vec2(e, 0.0), normalize(vec2(0.8, 0.6)), 0.045, 1.1) - uAmp * 0.55 * wave(xz, normalize(vec2(0.8, 0.6)), 0.045, 1.1);
-  float hz = uAmp * 0.30 * wave(xz + vec2(0.0, e), normalize(vec2(-0.4, 0.9)), 0.09, 1.7) - uAmp * 0.30 * wave(xz, normalize(vec2(-0.4, 0.9)), 0.09, 1.7);
-  vNormal = normalize(vec3(-hx / e, 1.0, -hz / e));
-  vec4 wp = modelMatrix * vec4(p, 1.0);
-  vPos = wp.xyz;
-  gl_Position = projectionMatrix * viewMatrix * wp;
-}`;
-
-const OCEAN_FRAG = `
-uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uFog; uniform float uFogDensity; uniform float uLight;
-varying vec3 vPos; varying vec3 vNormal;
-void main() {
-  vec3 view = normalize(cameraPosition - vPos);
-  vec3 n = normalize(vNormal);
-  float fres = pow(1.0 - max(dot(n, view), 0.0), 4.0);
-  vec3 col = mix(uDeep, uSky, clamp(fres * 0.55, 0.0, 1.0));
-  vec3 r = reflect(-view, n);
-  float spec = pow(max(dot(r, normalize(uSun)), 0.0), 220.0) * uLight;
-  col += vec3(1.0, 0.95, 0.85) * spec * 0.8;
-  float d = length(cameraPosition - vPos);
-  float fog = 1.0 - exp(-pow(d * uFogDensity, 2.0));
-  gl_FragColor = vec4(mix(col * uLight, uFog, fog), 1.0);
-  #include <colorspace_fragment>
-}`;
-
-const SKY_FRAG = `
-uniform vec3 uTop; uniform vec3 uHorizon; varying vec3 vDir;
-void main() { float h = clamp(vDir.y * 4.0, 0.0, 1.0); gl_FragColor = vec4(mix(uHorizon, uTop, h), 1.0);
-  #include <colorspace_fragment>
-}`;
-const SKY_VERT = `varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`;
-
-function shipModel(cls: ClassId): THREE.Group {
-  const g = new THREE.Group();
-  const grey = new THREE.MeshLambertMaterial({ color: cls === 'merchant' ? 0x4a5258 : 0x5a6268, flatShading: true });
-  const dark = new THREE.MeshLambertMaterial({ color: 0x2e3438, flatShading: true });
-  const box = (w: number, h: number, l: number, x: number, y: number, z: number, m = grey) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), m);
-    b.position.set(x, y, z);
-    g.add(b);
-  };
-  if (cls === 'merchant') {
-    box(20, 9, 130, 0, 3, 0, dark);
-    box(16, 12, 16, 0, 13, -48);
-    box(5, 10, 5, 0, 24, -46, dark);
-    for (const z of [-15, 15, 40]) box(1, 18, 1, 0, 17, z, dark);
-    box(18, 6, 70, 0, 10, 10, new THREE.MeshLambertMaterial({ color: 0x6b4a3a, flatShading: true }));
-  } else if (cls === 'ffg') {
-    box(14, 7, 125, 0, 2.5, 0, dark);
-    box(11, 9, 40, 0, 10, -5);
-    box(6, 6, 10, 0, 17, 0);
-    box(1, 20, 1, 0, 28, 2, dark);
-    box(8, 1, 1, 0, 34, 2, dark);
-    box(3, 3, 8, 0, 8, 48, dark);
-  } else {
-    box(4, 3, 60, 0, 0.5, 0, dark);
-    box(3, 6, 8, 0, 4, 5, dark);
-  }
-  return g;
-}
+interface Placed { g: THREE.Group; key: string; bearing: number }
 
 export class Periscope3D {
   private renderer: THREE.WebGLRenderer;
@@ -129,24 +44,30 @@ export class Periscope3D {
   private sky: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
   private hemi = new THREE.HemisphereLight(0xb8c8d0, 0x1a2a30, 1.2);
   private sun = new THREE.DirectionalLight(0xffffff, 1.2);
-  private ships = new Map<string, { g: THREE.Group; cls: ClassId; bearing: number }>();
+  private ships = new Map<string, Placed>();
   private sinking: { g: THREE.Group; since: number; y0: number }[] = [];
   private effects = new Map<string, THREE.Group>();
   private stars: THREE.Points;
   private rain: THREE.LineSegments;
   private fire = new THREE.PointLight(0xff7a30, 0, 6000, 1.2);
+  /** Eye height above the water (m): 4 for a periscope, about 20 on a frigate's bridge. */
+  private eye: number;
+  /** Own ship around the camera (bridge view): model and how far forward of midships the bridge is. */
+  private own?: { g: THREE.Group; bridgeZ: number };
 
-  constructor(private canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
+    this.eye = opts.eye ?? 4;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x24343b);
     this.camera.rotation.order = 'YXZ';
     this.ocean = new THREE.Mesh(
-      new THREE.PlaneGeometry(40_000, 40_000, 320, 320),
+      new THREE.PlaneGeometry(40_000, 40_000, 256, 256),
       new THREE.ShaderMaterial({
         vertexShader: OCEAN_VERT, fragmentShader: OCEAN_FRAG,
         uniforms: {
-          uTime: { value: 0 }, uAmp: { value: 1 }, uDeep: { value: new THREE.Color(0x14303a) }, uSky: { value: new THREE.Color(0x52676f) },
-          uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uFog: { value: new THREE.Color(0x4b5f67) }, uFogDensity: { value: 0.00006 }, uLight: { value: 1 },
+          uTime: { value: 0 }, uAmp: { value: 1 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) },
+          uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uMoon: { value: new THREE.Vector3(-0.3, 0.4, 0.8) }, uFog: { value: new THREE.Color(0x4b5f67) },
+          uFogDensity: { value: 0.00006 }, uLight: { value: 1 }, uFoam: { value: 0 }, uSunUp: { value: 1 },
         },
       }),
     );
@@ -156,11 +77,13 @@ export class Periscope3D {
       new THREE.SphereGeometry(50_000, 32, 16),
       new THREE.ShaderMaterial({
         vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false,
-        uniforms: { uTop: { value: new THREE.Color(0x24343b) }, uHorizon: { value: new THREE.Color(0x56707a) } },
+        uniforms: {
+          uTop: { value: new THREE.Color(0x24343b) }, uHorizon: { value: new THREE.Color(0x56707a) }, uSun: { value: new THREE.Vector3(0, 1, 0) },
+          uMoon: { value: new THREE.Vector3(0, 1, 0) }, uLight: { value: 1 }, uCloud: { value: 0.4 }, uTime: { value: 0 }, uSunUp: { value: 1 },
+        },
       }),
     );
     this.scene.add(this.sky);
-    this.sun.position.set(3, 5, -8);
     this.scene.add(this.hemi, this.sun, this.fire);
     // Stars on the upper sky dome (visible only at night)
     const sp: number[] = [];
@@ -185,6 +108,13 @@ export class Periscope3D {
     this.rain.visible = false;
     this.camera.add(this.rain);
     this.scene.add(this.camera);
+    if (opts.own) {
+      // Foredeck, gun and bridge front in the lower part of the picture: the eye sits on the bridge roof
+      const g = shipModel(opts.own);
+      for (const n of ['wake']) g.getObjectByName(n)?.removeFromParent();
+      this.own = { g, bridgeZ: opts.own === 'kor' ? 23 : 31 };
+      this.scene.add(g);
+    }
   }
 
   private effectGroup(): THREE.Group {
@@ -228,8 +158,7 @@ export class Periscope3D {
         const puff = g.getObjectByName(`smoke${i}`) as THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>;
         const a = Math.max(0, e.age - 2 - i * 1.5);
         puff.visible = a > 0;
-        const r = 8 + a * 2.5 + i * 2;
-        puff.scale.setScalar(r);
+        puff.scale.setScalar(8 + a * 2.5 + i * 2);
         puff.position.set(a * 3 + i * 2, 15 + a * 6 + i * 10, Math.sin(i) * 6);
         puff.material.opacity = Math.max(0, 0.75 - a / 120);
       }
@@ -245,6 +174,23 @@ export class Periscope3D {
     }
   }
 
+  /** Funnel smoke and snorkel haze drift downwind and fade; radars turn. */
+  private animate(g: THREE.Group, t: number, kn: number, seed: number): void {
+    const sm = g.userData.smoke as { puffs: THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>[]; origin: THREE.Vector3 } | undefined;
+    if (sm) {
+      const n = sm.puffs.length;
+      sm.puffs.forEach((p, i) => {
+        const ph = (t * 0.12 + i / n + seed) % 1;
+        // Apparent wind: the smoke streams aft at speed and drifts to one side
+        p.position.set(sm.origin.x + ph * 14, sm.origin.y + ph * 16, sm.origin.z - ph * (8 + kn * 3));
+        p.scale.setScalar(1.5 + ph * 7);
+        p.material.opacity = 0.45 * (1 - ph);
+      });
+    }
+    const radar = g.userData.radar as THREE.Mesh | undefined;
+    if (radar) radar.rotation.y = t * 2.1 + seed * 6;
+  }
+
   static supported(): boolean {
     try {
       return !!document.createElement('canvas').getContext('webgl2');
@@ -253,10 +199,14 @@ export class Periscope3D {
     }
   }
 
-  render(o: { bearing: number; fovDeg: number; t: number; sea: number; light: number; targets: PeriscopeTarget[]; rain?: boolean; hour?: number; effects?: PeriscopeEffect[] }): void {
+  render(o: {
+    bearing: number; fovDeg: number; t: number; sea: number; light: number; targets: PeriscopeTarget[];
+    rain?: boolean; hour?: number; effects?: PeriscopeEffect[]; pitchDeg?: number; ownKn?: number; ownHeading?: number;
+  }): void {
     const w = this.canvas.clientWidth || 400;
     const h = this.canvas.clientHeight || 400;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Full retina resolution costs four times the fill rate for little gain behind scanlines
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
     if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {
       this.renderer.setPixelRatio(dpr);
       this.renderer.setSize(w, h, false);
@@ -266,31 +216,44 @@ export class Periscope3D {
     const hf = (o.fovDeg * Math.PI) / 180;
     this.camera.fov = (2 * Math.atan(Math.tan(hf / 2) / aspect) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
-    // Slow swell: the boat (and the optic) heave, pitch and roll
+    // Swell: the boat (and the optic) heave, pitch and roll; a high bridge moves less but sways more
     // Wave amplitude (m) by sea state: SS3 ≈ 1.4 m significant wave height
     const amp = 0.12 + o.sea * 0.2;
-    this.camera.position.set(0, EYE + Math.sin(o.t * 0.55) * amp * 0.4, 0);
+    const high = this.eye > 10;
+    this.camera.position.set(0, this.eye + Math.sin(o.t * 0.55) * amp * (high ? 0.25 : 0.4), 0);
     this.camera.rotation.y = (-o.bearing * Math.PI) / 180;
-    this.camera.rotation.x = Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
-    this.camera.rotation.z = Math.sin(o.t * 0.4) * 0.004 * (1 + o.sea * 0.6);
+    this.camera.rotation.x = ((o.pitchDeg ?? 0) * Math.PI) / 180 + Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
+    this.camera.rotation.z = Math.sin(o.t * 0.4) * (high ? 0.007 : 0.004) * (1 + o.sea * 0.6);
 
     const u = this.ocean.material.uniforms;
     u.uTime!.value = o.t;
     u.uAmp!.value = amp;
     u.uLight!.value = o.light;
-    u.uFogDensity!.value = 0.000022 * (1 + o.sea * 0.2);
+    u.uFoam!.value = Math.max(0, Math.min(1, (o.sea - 2) / 4));
     const haze = new THREE.Color(0x7f939b).multiplyScalar(0.25 + 0.75 * o.light);
     u.uFog!.value = haze;
     // Dusk and dawn tint the horizon orange; the sun stands low in the west or east
     const dusk = o.light > 0.15 && o.light < 0.9 ? 1 - Math.abs(o.light - 0.5) * 2 : 0;
     const horizon = new THREE.Color(0x8fa3ab).lerp(new THREE.Color(0xd08a5a), dusk * 0.7).multiplyScalar(0.2 + 0.8 * o.light);
-    this.sky.material.uniforms.uHorizon!.value = o.rain ? horizon.clone().lerp(new THREE.Color(0x5c666a), 0.6) : horizon;
-    this.sky.material.uniforms.uTop!.value = new THREE.Color(0x3d5560).multiplyScalar((0.15 + 0.85 * o.light) * (o.rain ? 0.7 : 1));
+    const su = this.sky.material.uniforms;
+    su.uHorizon!.value = o.rain ? horizon.clone().lerp(new THREE.Color(0x5c666a), 0.6) : horizon;
+    su.uTop!.value = new THREE.Color(0x3d5560).multiplyScalar((0.15 + 0.85 * o.light) * (o.rain ? 0.7 : 1));
     const hour = o.hour ?? 12;
     const sunAz = ((hour - 6) / 12) * Math.PI; // east at 6 h, south at noon, west at 18 h
-    const sunEl = Math.max(0.03, Math.sin(((hour - 6) / 12) * Math.PI) * 0.8);
-    this.sun.position.set(Math.cos(sunAz) * 10, sunEl * 10, Math.sin(sunAz) * 10);
-    u.uSun!.value = this.sun.position.clone().normalize();
+    const sunEl = Math.sin(((hour - 6) / 12) * Math.PI) * 0.8;
+    this.sun.position.set(Math.cos(sunAz) * 10, Math.max(0.03, sunEl) * 10, Math.sin(sunAz) * 10);
+    const sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
+    const moonDir = new THREE.Vector3(-Math.cos(sunAz), 0.35, -Math.sin(sunAz)).normalize();
+    const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (o.rain ? 0.2 : 1);
+    u.uSun!.value = sunDir;
+    u.uMoon!.value = moonDir;
+    u.uSunUp!.value = sunUp;
+    su.uSun!.value = sunDir;
+    su.uMoon!.value = moonDir;
+    su.uSunUp!.value = sunUp;
+    su.uLight!.value = o.light;
+    su.uTime!.value = o.t;
+    su.uCloud!.value = o.rain ? 0.85 : 0.3 + o.sea * 0.06;
     this.sun.color = new THREE.Color(0xffffff).lerp(new THREE.Color(0xffb070), dusk);
     this.hemi.intensity = 0.2 + 1.0 * o.light;
     this.sun.intensity = 1.2 * o.light * (o.rain ? 0.4 : 1);
@@ -301,59 +264,69 @@ export class Periscope3D {
     this.rain.visible = !!o.rain;
     if (o.rain) this.rain.position.y = -((o.t * 22) % 30);
     this.updateEffects(o.effects ?? [], o.light);
+    this.place(o.targets, o.t, o.sea, amp);
+    if (this.own) {
+      // Keep the own hull under the camera: the bridge point sits below the eye, the ship heaves and rolls with it
+      const c = ((o.ownHeading ?? 0) * Math.PI) / 180;
+      const g = this.own.g;
+      g.rotation.y = Math.PI - c;
+      g.position.set(-this.own.bridgeZ * Math.sin(c), this.camera.position.y - this.eye, this.own.bridgeZ * Math.cos(c));
+      g.rotation.z = this.camera.rotation.z;
+      this.animate(g, o.t, o.ownKn ?? 12, 0.3);
+      const bow = g.getObjectByName('bow');
+      if (bow) bow.scale.setScalar(Math.max(0.2, (o.ownKn ?? 12) / 12));
+    }
+    this.renderer.render(this.scene, this.camera);
+  }
 
+  private place(targets: PeriscopeTarget[], t: number, sea: number, amp: number): void {
     const seen = new Set<string>();
-    for (const tg of o.targets) {
+    for (const tg of targets) {
       seen.add(tg.label);
+      const key = `${tg.cls}|${tg.sighting ?? ''}`;
       let s = this.ships.get(tg.label);
-      if (!s || s.cls !== tg.cls) {
+      if (!s || s.key !== key) {
         if (s) this.scene.remove(s.g);
-        const g = shipModel(tg.cls);
-        if (tg.cls !== 'ssk' && tg.cls !== 'ssn') g.add(wakeMesh(180));
-        s = { g, cls: tg.cls, bearing: tg.bearing };
+        s = { g: tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls), key, bearing: tg.bearing };
         this.ships.set(tg.label, s);
         this.scene.add(s.g);
       }
       s.bearing = tg.bearing;
-      // Wake length and bow wave follow the speed
-      const kn = tg.speedKn ?? DEFAULT_KN[tg.cls] ?? 0;
+      // Wake, bow wave and periscope feather follow the speed
+      const kn = tg.speedKn ?? DEFAULT_KN[tg.cls] ?? 4;
       const wake = s.g.getObjectByName('wake');
-      if (wake) {
-        // Wake trails astern (−z), the bow wave spreads aft from the stem (+z)
-        wake.scale.set(1, 1, Math.max(0.05, kn / 10));
-        wake.rotation.y = Math.PI;
-        wake.position.z = -60;
-        const bow = s.g.getObjectByName('bow');
-        if (bow) {
-          bow.rotation.y = Math.PI;
-          bow.position.set(0, 0, 66);
-        }
-      }
+      if (wake) wake.scale.set(1, 1, Math.max(0.05, kn / 10));
+      const bow = s.g.getObjectByName('bow');
+      if (bow) bow.scale.setScalar(Math.max(0.2, kn / 12));
+      const feather = s.g.getObjectByName('feather');
+      if (feather) feather.scale.set(Math.max(0.3, kn / 6), 1, Math.max(0.2, kn / 5));
+      const seed = (tg.label.charCodeAt(1) || 0) / 10;
+      this.animate(s.g, t, kn, seed);
       const b = (tg.bearing * Math.PI) / 180;
-      const drop = (tg.range * tg.range) / (2 * EARTH_R) - EYE * 0.5;
-      const bob = Math.sin(o.t * 0.5 + tg.label.length) * amp * 0.4;
+      // Earth curvature; the small lift keeps hulls from sinking into the wave crests at periscope height
+      const drop = (tg.range * tg.range) / (2 * EARTH_R) - 2;
+      const bob = Math.sin(t * 0.5 + tg.label.length) * amp * 0.4;
       s.g.position.set(Math.sin(b) * tg.range, bob - drop, -Math.cos(b) * tg.range);
       // Models are built bow toward +z; turn them so the bow points along the course (north = −z)
       s.g.rotation.y = Math.PI - ((tg.course ?? tg.bearing + 90) * Math.PI) / 180;
-      s.g.rotation.z = Math.sin(o.t * 0.45 + tg.range) * 0.02 * (1 + o.sea * 0.5);
+      s.g.rotation.z = Math.sin(t * 0.45 + tg.range) * 0.02 * (1 + sea * 0.5);
       s.g.visible = tg.alpha > 0.05;
     }
     for (const [label, s] of this.ships) {
       if (!seen.has(label)) {
         this.ships.delete(label);
         // A ship hit shortly before it vanished goes down by the bow instead of popping away
-        if ((s.g.userData as { doomed?: number }).doomed !== undefined) this.sinking.push({ g: s.g, since: o.t, y0: s.g.position.y });
+        if ((s.g.userData as { doomed?: number }).doomed !== undefined) this.sinking.push({ g: s.g, since: t, y0: s.g.position.y });
         else this.scene.remove(s.g);
       }
     }
     this.sinking = this.sinking.filter((k) => {
-      const a = o.t - k.since;
+      const a = t - k.since;
       k.g.rotation.x = Math.min(0.35, a * 0.01);
       k.g.position.y = k.y0 - a * 0.35;
       if (a > 90) this.scene.remove(k.g);
       return a <= 90;
     });
-    this.renderer.render(this.scene, this.camera);
   }
 
   dispose(): void {

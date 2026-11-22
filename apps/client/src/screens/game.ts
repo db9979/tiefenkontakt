@@ -1,10 +1,11 @@
-import { CLASSES, type ServerMsg } from '@tk/shared';
+import { CLASSES, type ServerMsg, type Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { diveEngineStation } from '../stations/sub/dive-engine.js';
 import { fireControlStation } from '../stations/sub/fire-control.js';
 import { periscopeStation } from '../stations/sub/periscope.js';
+import { bridgeStation } from '../stations/frigate/bridge.js';
 import { subSonarStation } from '../stations/sub/sonar.js';
 import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
@@ -18,6 +19,8 @@ import { debriefOverlay } from './debrief.js';
 import { helpOverlay } from './help.js';
 import { radioLog } from '../widgets/radio-log.js';
 import { isKey, stationKey } from '../widgets/keys.js';
+import { bindSortable, filterChips, getFilters } from '../widgets/sortable.js';
+import { hitCam } from '../widgets/hit-cam.js';
 import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
@@ -43,7 +46,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       <div class="tabs" id="tabs"></div>
       <div class="status">
         <span id="ship" class="st-ship"></span>
-        <span class="st-prog" title="Versenkte und angekommene Konvoi-Tonnage"><span class="pbar"><i id="pb-sunk"></i><i id="pb-arr"></i></span><span id="pb-txt" class="dim"></span></span>
+        <span class="st-prog"><span class="dim pb-lbl">KONVOI</span><span class="pbar"><i id="pb-sunk"></i><i id="pb-arr"></i><b class="pb-mid"></b><b class="pb-30"></b></span><span id="pb-txt"></span></span>
         <span id="clock" class="st-clock"></span>
       </div>
       <button id="mute" class="icon" title="Ton an/aus (M)"></button>
@@ -55,7 +58,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     <div class="side">
       <div class="panel helm" id="helm"></div>
       <div class="panel" id="damage"></div>
-      <div class="panel alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alerts"></div></div>
+      <div class="panel alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alert-chips"></div><div id="alerts"></div></div>
       <div class="panel"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
         <div style="display:flex;gap:4px;margin-top:6px"><input id="rtext" maxlength="200" placeholder="Konvoi Peilung 052" style="flex:1;min-width:0"><button id="rsend">Senden</button></div>
@@ -66,6 +69,29 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   root.replaceChildren(el);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const showRadio = radioLog(q('#radio'));
+  const cam = hitCam(el);
+  // Alert log with level filter chips (none on = everything)
+  const LOG_ID = 'alerts';
+  const logChips = () => (q('#alert-chips').innerHTML = filterChips(LOG_ID, [
+    { key: 'alarm', label: 'ALARM' }, { key: 'warn', label: 'WARNUNG' }, { key: 'info', label: 'INFO' },
+  ]));
+  const renderLog = (s: Snapshot) => {
+    const f = getFilters(LOG_ID);
+    const rows = callouts.log.map((e, i) => ({ e, i })).filter(({ e }) => !f.size || f.has(e.level)).reverse();
+    const logHtml = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
+      (callouts.log.length ? (rows.length ? '' : '<div class="dim">KEINE MELDUNGEN FÜR DIESEN FILTER</div>') : '<div class="dim">KEINE MELDUNGEN · RUHIGE SEE</div>') + rows.map(({ e, i }) => {
+        const fresh = s.time - e.time < 30;
+        const color = e.level === 'alarm' ? 'red' : e.level === 'warn' ? 'amber' : '';
+        const go = e.label !== undefined || e.station !== undefined;
+        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}">${clock(e.time)} ${esc(e.text)}</div>`;
+      }).join('');
+    if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
+  };
+  logChips();
+  bindSortable(q('#alert-chips'), LOG_ID, { key: 'time', dir: -1 }, () => {
+    logChips();
+    if (store.snap) renderLog(store.snap);
+  });
 
   let stations: Station[] = [];
   let current = 0;
@@ -138,7 +164,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     }
     stations = sub
       ? [subSonarStation(), periscopeStation(), fireControlStation(), diveEngineStation()]
-      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation()];
+      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), bridgeStation()];
     tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
     tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.onclick = () => show(Number(b.dataset.i))));
     q('#quick').innerHTML = (sub ? ['Konvoi gesichtet', 'Greife an', 'Werde gejagt', 'Position'] : ['Kontakt', 'Torpedo im Wasser', 'Suche Sektor', 'Position'])
@@ -204,19 +230,22 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${clock(s.score.timeLeftS)}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
-    q('#pb-sunk').style.width = `${pct(s.score.sunkTons)}%`;
-    q('#pb-arr').style.width = `${pct(s.score.arrivedTons)}%`;
-    const prog = s.score.totalTons > 0 ? `VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} %` : '';
-    q('#pb-txt').textContent = prog;
-    q('.st-prog').title = prog;
-    const logHtml = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
-      (callouts.log.length ? '' : '<div class="dim">KEINE MELDUNGEN · RUHIGE SEE</div>') + [...callouts.log].reverse().map((e, i) => {
-        const fresh = s.time - e.time < 30;
-        const color = e.level === 'alarm' ? 'red' : e.level === 'warn' ? 'amber' : '';
-        const go = e.label !== undefined || e.station !== undefined;
-        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${callouts.log.length - 1 - i}">${clock(e.time)} ${esc(e.text)}</div>`;
-      }).join('');
-    if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
+    // Convoy tonnage bar: red grows from the left (sunk), blue from the right (safe in port);
+    // whoever passes the middle mark (50 %) wins at once, the 30 % mark decides at the time limit
+    const sunk = pct(s.score.sunkTons);
+    const safe = pct(s.score.arrivedTons);
+    q('.st-prog').style.display = s.score.totalTons > 0 ? '' : 'none';
+    q('#pb-sunk').style.width = `${sunk}%`;
+    q('#pb-arr').style.width = `${safe}%`;
+    const escort = s.own.team === 'west';
+    const txt = q('#pb-txt');
+    txt.innerHTML = escort
+      ? `<span class="red">VERLOREN ${sunk} %</span> · <span class="blue">SICHER ${safe} %</span> <span class="dim">· SIEG: ÜBER 50 % SICHER</span>`
+      : `<span class="red">VERSENKT ${sunk} %</span> · <span class="blue">ENTKOMMEN ${safe} %</span> <span class="dim">· SIEG: 50 % VERSENKT</span>`;
+    q('.st-prog').title = escort
+      ? `Konvoi-Tonnage. Rot: versenkt (${sunk} %), blau: sicher im Zielhafen (${safe} %). Mehr als die Hälfte im Ziel = Sieg, die Hälfte versenkt = Niederlage. Bei Zeitablauf verliert der Geleitschutz ab 30 % Verlust (Strich).`
+      : `Konvoi-Tonnage. Rot: von uns versenkt (${sunk} %), blau: entkommen (${safe} %). Die Hälfte versenkt = Sieg; kommt mehr als die Hälfte an, ist die Partie verloren. Bei Zeitablauf reichen 30 % (Strich).`;
+    renderLog(s);
     showRadio(s.radio, s.own.name);
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (s.own.mastUp ? '<span class="amber">MAST OBEN · PEILBAR</span>' : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
@@ -246,6 +275,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         setTimeout(() => document.body.classList.remove('hit'), 800);
       }
       callouts.update(m.s);
+      cam.snap(m.s);
       stations[current]?.snap?.();
       helm.update();
       tutorial?.update();
@@ -292,6 +322,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   let raf = 0;
   const loop = () => {
     stations[current]?.frame();
+    cam.frame(store.snap);
     helm.frame();
     raf = requestAnimationFrame(loop);
   };
