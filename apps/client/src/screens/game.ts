@@ -22,6 +22,7 @@ import { isKey, stationKey } from '../widgets/keys.js';
 import { bindSortable, filterChips, getFilters } from '../widgets/sortable.js';
 import { hitCam } from '../widgets/hit-cam.js';
 import { crewPanel } from '../widgets/crew-panel.js';
+import { onTap } from '../widgets/touch.js';
 import { frameIntervalMs } from '../widgets/perf.js';
 import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
@@ -61,13 +62,18 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     <div class="station-wrap"><div class="station" id="station"></div></div>
     <div class="side">
       <div class="panel helm" id="helm"></div>
-      <div class="panel" id="damage"></div>
+      <div class="side-tabs steps" id="side-tabs">
+        <button data-st="alerts">Meldungen</button><button data-st="crew">Boot</button><button data-st="damage">Schaden</button><button data-st="radio">Funk</button>
+      </div>
+      <div class="side-body">
+      <div class="panel" id="damage" data-sp="damage"></div>
       <div id="crew-slot"></div>
-      <div class="panel alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alert-chips"></div><div id="alerts"></div></div>
-      <div class="panel"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
+      <div class="panel alerts" data-sp="alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alert-chips"></div><div id="alerts"></div></div>
+      <div class="panel" data-sp="radio"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
         <div style="display:flex;gap:4px;margin-top:6px"><input id="rtext" maxlength="200" placeholder="Konvoi Peilung 052" style="flex:1;min-width:0"><button id="rsend">Senden</button></div>
         <div class="steps" id="quick"></div>
+      </div>
       </div>
     </div>
   </div>`);
@@ -77,6 +83,29 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const cam = hitCam(el);
   const crew = crewPanel();
   q('#crew-slot').replaceWith(crew.el);
+  crew.el.dataset.sp = 'crew';
+  // Right column: helm always visible, the rest as tabs (one panel at a time, a dot marks news elsewhere)
+  let sideTab = localStorage.getItem('tk-side') ?? 'alerts';
+  const sideSeen: Record<string, string> = {};
+  const sideKey: Record<string, string> = {};
+  function showSide(t: string): void {
+    sideTab = t;
+    localStorage.setItem('tk-side', t);
+    sideSeen[t] = sideKey[t] ?? '';
+    el.querySelectorAll<HTMLElement>('[data-sp]').forEach((p) => p.classList.toggle('on', p.dataset.sp === t));
+    el.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => {
+      b.classList.toggle('on', b.dataset.st === t);
+      if (b.dataset.st === t) b.classList.remove('news');
+    });
+  }
+  onTap(el, '[data-st]', (b) => showSide(b.dataset.st!));
+  showSide(sideTab);
+  function markSide(t: string, key: string): void {
+    sideKey[t] = key;
+    if (sideSeen[t] === undefined) sideSeen[t] = key;
+    if (t === sideTab) sideSeen[t] = key;
+    el.querySelector(`[data-st="${t}"]`)!.classList.toggle('news', sideSeen[t] !== key);
+  }
   // Alert log with level filter chips (none on = everything)
   const LOG_ID = 'alerts';
   const logChips = () => (q('#alert-chips').innerHTML = filterChips(LOG_ID, [
@@ -255,6 +284,10 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       : `Konvoi-Tonnage. Rot: von uns versenkt (${sunk} %), blau: entkommen (${safe} %). Die Hälfte versenkt = Sieg; kommt mehr als die Hälfte an, ist die Partie verloren. Bei Zeitablauf reichen 30 % (Strich).`;
     renderLog(s);
     showRadio(s.radio, s.own.name);
+    markSide('radio', String(s.radio.length));
+    markSide('alerts', String(s.alerts.filter((a) => a.kind === 'torpedo' || a.kind === 'ping').length));
+    const d = s.own.damage;
+    markSide('damage', d ? `${s.own.hp}|${Object.values(d).map((x) => Math.round(x * 10)).join(',')}` : String(s.own.hp));
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (mastState(s.own).raised ? '<span class="amber">MAST OBEN · PEILBAR</span>' : mastState(s.own).moving ? `<span class="amber">MAST FÄHRT ${mastState(s.own).moving === 'aus' ? 'AUS' : 'EIN'}</span>` : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();

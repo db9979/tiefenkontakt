@@ -304,3 +304,17 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 .crew-panel .bar { flex: 1; margin-left: 10px; height: 7px; background: #132320; align-self: center; }
 .crew-panel .bar i { display: block; height: 7px; }
 .crew-panel .steps button { font-size: 10px; }
+
+/* Right column tabs: helm on top, one of messages / boat / damage / radio below, no scrolling of the whole column */
+.side { overflow: hidden; }
+.side-tabs { margin: 0; flex: none; }
+.side-tabs button { position: relative; }
+.side-tabs button.news::after { content: ''; position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+.side-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.side-body > [data-sp] { display: none; flex: 1; min-height: 0; overflow: auto; }
+.side-body > [data-sp].on { display: block; }
+.side-body .radio { max-height: none; }
+@media (max-width: 900px) {
+  .side { display: flex; flex-direction: column; overflow: visible; }
+  .side-body > [data-sp].on { max-height: 45vh; }
+}
