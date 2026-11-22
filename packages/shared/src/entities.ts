@@ -36,6 +36,8 @@ export interface Ship {
   yawRate?: number;
   radarOn: boolean;
   towedLength: number; // m deployed, 0 = stowed
+  /** Ordered array length; the winch pays out about 4 m/s and recovers about 3 m/s. */
+  towedOrder?: number;
   activeSonar: boolean; // pings periodically when true
   lastPingAt: number;
   /** Active pulse: CW (coarse range, Doppler) or LFM (precise range, beats reverberation). */

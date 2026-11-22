@@ -64,8 +64,12 @@ export function frigateSonarStation(): Station {
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
       el.querySelector('#hs')!.textContent = o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV';
-      el.querySelector('#ts')!.textContent = o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
-      el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => b.classList.toggle('on', Number(b.dataset.len) === o.towedLength));
+      const tgt = o.towedOrder ?? o.towedLength;
+      const winch = tgt !== o.towedLength;
+      el.querySelector('#ts')!.textContent = winch
+        ? `${tgt > o.towedLength ? 'AUSBRINGEN' : 'EINHOLEN'} ${o.towedLength} / ${tgt} M`
+        : o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
+      el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => b.classList.toggle('on', Number(b.dataset.len) === tgt));
       el.querySelector('#lab')!.textContent = store.selected ?? '';
       el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => b.classList.toggle('on', b.dataset.pulse === o.pulse));
       el.querySelector('#xbt')!.textContent = `BT messen (${o.loadout.xbt})`;

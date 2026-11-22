@@ -32,7 +32,7 @@ export const LESSON_STEPS: Record<string, { title: string; steps: Step[] }> = {
     title: 'Zielbewegungsanalyse',
     steps: [
       { where: '3 · Feuerleitung', text: 'Wähle einen Frachter in der Kontaktliste.', done: () => !!sel() },
-      { where: 'Ruderstand', text: 'Fahre etwa 3 Minuten geradeaus, dann ändere den Kurs um 40–60° (Klick in den Kompass). Erst dann ist die Entfernung bestimmbar.', done: () => !!sel() && ownLegChange(sel()!.history, store.ownTrack) >= 30 },
+      { where: 'Ruderstand', text: 'Fahre etwa 3 Minuten geradeaus, dann ändere den Kurs um 40–60° (Klick in den Kompass). Bei 4 kn dreht das Boot langsam: die Wende dauert gut 2 Minuten. Erst danach ist die Entfernung bestimmbar.', done: () => !!sel() && ownLegChange(sel()!.history, store.ownTrack) >= 30 },
       { where: 'Zielbewegungsanalyse', text: 'Erzeuge eine Lösung: „Auto-TMA“ (Einsteiger) oder Rechtsklick auf die Karte „TMA-Lösung hierher“.', done: () => !!sel() && store.solutions.has(sel()!.label) },
       { where: 'Lagebild', text: 'Ziehe den gelben Kreis und seine Vektorspitze, bis die Residuen um null streuen und die Güte über 60 % liegt.', done: () => bestQuality() > 60 },
       { where: 'Methoden', text: 'Vergleiche mit „Dot-Stack“: die ruhigste Zeile zeigt die richtige Entfernung.', done: () => bestQuality() > 75 },
@@ -44,13 +44,13 @@ export const LESSON_STEPS: Record<string, { title: string; steps: Step[] }> = {
       { where: '3 · Feuerleitung', text: 'Wähle einen Frachter und erstelle eine TMA-Lösung (Kurswechsel nicht vergessen).', done: () => bestQuality() > 40 },
       { where: 'Torpedo', text: '„Lösung übernehmen“ berechnet Schusskurs und Suchkopf-Distanz. Dann „Feuer“, oder Rechtsklick auf die Karte „Torpedo hierher“.', done: (s) => s.torpedoes.length > 0 },
       { where: 'Draht', text: 'Halte das Boot unter 12 kn, damit der Draht hält; korrigiere mit ◀ ▶, bis „ZIEL ERFASST“ erscheint.', done: (s) => s.torpedoes.some((t) => t.homing) },
-      { where: 'Meldungen', text: 'Warte auf den Treffer. Danach schnell und tief ablaufen.', done: (s) => s.score.sunkTons > 0 },
+      { where: 'Meldungen', text: 'Warte auf den Treffer. Danach ablaufen: Fahrt erhöhen, dann tiefer gehen (ohne Fahrt tauchen die Tiefenruder kaum).', done: (s) => s.score.sunkTons > 0 },
     ],
   },
   ujagd: {
     title: 'U-Jagd mit Fregatte',
     steps: [
-      { where: '2 · Sonar', text: 'Bringe das Schleppsonar mit 900 m aus (unter der Sprungschicht) und halte danach 60 s Kurs.', done: (s) => s.own.towedLength >= 600 },
+      { where: '2 · Sonar', text: 'Bringe das Schleppsonar mit 900 m aus (unter der Sprungschicht). Die Winde braucht knapp 4 Minuten; danach 60 s Kurs halten.', done: (s) => s.own.towedLength >= 600 },
       { where: '1 · OPZ', text: 'Rechtsklick vor den Konvoi: „Sonarboje tief“ abwerfen.', done: (s) => (s.air?.buoys.length ?? 0) > 0 },
       { where: '2 · Sonar', text: 'Finde den leisen Kontakt und klassifiziere ihn per LOFAR/DEMON als U-Boot.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine') },
       { where: '2 · Sonar', text: 'Kurz pingen (LFM ist genauer), um die Entfernung zu bekommen.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine' && c.range !== undefined) },

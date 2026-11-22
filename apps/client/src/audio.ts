@@ -1,3 +1,4 @@
+import { detonation, hullCreak, makeReverb, motor, sinkingNoises, sonarPing, torpedoLaunch, type Fx } from './audio-fx.js';
 import type { Snapshot } from '@tk/shared';
 
 export type ListenMode = 'breitband' | 'gefiltert' | 'ueberlagerung';
@@ -25,6 +26,13 @@ class Audio {
     src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; lfoGain: GainNode; lfo: OscillatorNode;
     noiseGain: GainNode; tones: { o: OscillatorNode; g: GainNode }[];
   };
+  private fx?: Fx;
+  private mastMotor?: (on: number) => void;
+  private winch?: (on: number) => void;
+  private lastMastExt?: number;
+  private lastTowed?: number;
+  private lastDepth?: number;
+  private nextCreak = 0;
   private seenAlerts = new Set<string>();
   private lastPing = -1;
   private lastTorps = 0;
@@ -45,6 +53,7 @@ class Audio {
     this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.fx = { ctx: this.ctx, noise: this.noiseBuf, reverb: makeReverb(this.ctx, this.master) };
   }
 
   setMuted(m: boolean): void {
@@ -114,6 +123,7 @@ class Audio {
   /** Short sine burst with optional echo tail: active sonar ping. */
   ping(distant = false, pan = 0): void {
     if (!this.ctx || !this.master) return;
+    if (this.fx) return sonarPing(this.fx, this.out(pan), distant);
     const c = this.ctx;
     const t = c.currentTime;
     const o = c.createOscillator();
@@ -175,6 +185,12 @@ class Audio {
   /** Low-passed noise burst. near = own ship hit or close detonation. */
   explosion(near: boolean, pan = 0): void {
     if (!this.ctx || !this.master) return;
+    if (this.fx) {
+      detonation(this.fx, this.out(pan), near);
+      // A ship that was hit breaks up audibly a few seconds later (not our own hull)
+      if (!near) sinkingNoises(this.fx, this.out(pan), 3 + Math.random() * 2, 0.22);
+      return;
+    }
     const c = this.ctx;
     const t = c.currentTime;
     const n = this.noise()!;
@@ -232,6 +248,7 @@ class Audio {
   /** Compressed-air launch whoosh. */
   launch(): void {
     if (!this.ctx || !this.master) return;
+    if (this.fx) return torpedoLaunch(this.fx, this.master);
     const c = this.ctx;
     const t = c.currentTime;
     const n = this.noise()!;
@@ -353,6 +370,7 @@ class Audio {
         }
       }
     }
+    this.ambience(s, submarine);
     if (s.torpedoes.length > this.lastTorps) this.launch();
     this.lastTorps = s.torpedoes.length;
 
@@ -370,9 +388,36 @@ class Audio {
     }
   }
 
+  /** Mast hydraulics, the towed-array winch and hull creaks under pressure. */
+  private ambience(s: Snapshot, submarine: boolean): void {
+    if (!this.fx || !this.master) return;
+    this.mastMotor ??= motor(this.fx, this.master, 190, 0.6);
+    this.winch ??= motor(this.fx, this.master, 95, 0.25);
+    const ext = s.own.mastExt ?? (s.own.mastUp ? 1 : 0);
+    this.mastMotor(this.lastMastExt !== undefined && Math.abs(ext - this.lastMastExt) > 0.001 ? 1 : 0);
+    this.lastMastExt = ext;
+    const tow = s.own.towedLength;
+    this.winch(this.lastTowed !== undefined && tow !== this.lastTowed ? 1 : 0);
+    this.lastTowed = tow;
+    if (submarine && s.own.alive) {
+      // Creaks: rare at periscope depth, frequent deep down, and whenever the depth changes
+      const changing = this.lastDepth !== undefined ? Math.abs(s.own.depth - this.lastDepth) : 0;
+      this.lastDepth = s.own.depth;
+      const now = this.ctx!.currentTime;
+      if (now > this.nextCreak && s.own.depth > 40) {
+        hullCreak(this.fx, this.out((Math.random() - 0.5) * 1.4), s.own.depth);
+        const rate = s.own.depth / 400 + changing * 0.6;
+        this.nextCreak = now + 3 + Math.random() * 14 / Math.max(0.2, rate);
+      }
+    }
+  }
+
   stopAll(): void {
     void this.ctx?.close();
     this.ctx = undefined;
+    this.fx = undefined;
+    this.mastMotor = undefined;
+    this.winch = undefined;
     this.hum = undefined;
     this.phone = undefined;
     this.seenAlerts.clear();

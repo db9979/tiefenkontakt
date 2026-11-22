@@ -1,5 +1,6 @@
 import { CLASSES, angleDiff, bearing, distance, type ClassId, type Snapshot } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from './periscope3d.js';
+import type { UnderwaterScene } from './sea3d/underwater.js';
 import { deg3, km, mastState } from './format.js';
 import { lang } from '../i18n/index.js';
 
@@ -14,7 +15,8 @@ const L = (de: string, en: string) => (lang === 'en' ? en : de);
 const SHOW_S = 14;
 const MAX_RANGE = 25_000;
 
-interface Shot { id: string; bearing: number; range: number; cls: ClassId; startMs: number }
+/** lookout: seen from the bridge or through the raised periscope; under: a submerged boat's reconstruction. */
+interface Shot { id: string; bearing: number; range: number; cls: ClassId; startMs: number; mode: 'lookout' | 'under' }
 
 export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: Snapshot | undefined): void } {
   const box = document.createElement('div');
@@ -24,6 +26,7 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
   root.appendChild(box);
   let canvas = box.querySelector<HTMLCanvasElement>('#hc-gl')!;
   let gl: Periscope3D | undefined;
+  let uw: UnderwaterScene | undefined;
   let loading = false;
   let shot: Shot | undefined;
   let lastAlert = -1;
@@ -36,35 +39,47 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
     // Free the extra WebGL context a while after the last hit
     clearTimeout(freeTimer);
     freeTimer = setTimeout(() => {
-      if (!gl || shot) return;
-      gl.dispose();
-      gl = undefined;
-      loading = false;
-      const fresh = canvas.cloneNode() as HTMLCanvasElement;
-      canvas.replaceWith(fresh);
-      canvas = fresh;
+      if (shot) return;
+      freeScenes();
     }, 30_000);
   }
 
-  function ensureGl(): void {
+  /** Give up both scenes and start the next one on a fresh canvas (a lost context can't be reused). */
+  function freeScenes(): void {
+    if (!gl && !uw) return;
+    gl?.dispose();
+    uw?.dispose();
+    gl = undefined;
+    uw = undefined;
+    loading = false;
+    const fresh = canvas.cloneNode() as HTMLCanvasElement;
+    canvas.replaceWith(fresh);
+    canvas = fresh;
+  }
+
+  function ensureGl(mode: Shot['mode']): void {
     clearTimeout(freeTimer);
-    if (gl || loading || localStorage.getItem('tk_3d') === '0') return;
+    if (localStorage.getItem('tk_3d') === '0') return;
+    // One canvas, one scene at a time: switching mode frees the other one
+    if ((mode === 'under' && gl) || (mode === 'lookout' && uw)) freeScenes();
+    if (gl || uw || loading) return;
     loading = true;
-    import('./periscope3d.js')
-      .then((m) => {
+    const load = mode === 'under'
+      ? import('./sea3d/underwater.js').then((m) => (uw = new m.UnderwaterScene(canvas)))
+      : import('./periscope3d.js').then((m) => {
         if (m.Periscope3D.supported()) gl = new m.Periscope3D(canvas, { eye: 18 });
-        loading = false;
-      })
-      .catch(() => undefined);
+      });
+    load.then(() => (loading = false)).catch(() => (loading = false));
   }
 
   return {
     snap(s) {
-      const canSee = !CLASSES[s.own.cls].submarine || mastState(s.own).raised;
+      const sub = CLASSES[s.own.cls].submarine;
+      const mode: Shot['mode'] = !sub || mastState(s.own).raised ? 'lookout' : 'under';
       for (const a of s.alerts) {
         if (a.kind !== 'hit' || a.bearing === undefined || a.time <= lastAlert) continue;
         lastAlert = a.time;
-        if (!canSee || s.time - a.time > 20) continue;
+        if (s.time - a.time > 20) continue;
         // Range and type from our own formation if the victim is one of ours; otherwise a guess
         let range = 6_000;
         let cls: ClassId = 'merchant';
@@ -78,11 +93,13 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
             cls = f.cls;
           }
         }
-        if (range > MAX_RANGE) continue;
-        shot = { id: `${a.time}|${a.bearing}`, bearing: a.bearing, range, cls, startMs: performance.now() };
-        ensureGl();
+        if (mode === 'lookout' && range > MAX_RANGE) continue;
+        shot = { id: `${a.time}|${a.bearing}`, bearing: a.bearing, range, cls, startMs: performance.now(), mode };
+        ensureGl(mode);
         box.style.display = '';
-        box.querySelector('#hc-t')!.textContent = L(`AUSGUCK · TREFFER PEILUNG ${deg3(a.bearing)} · CA. ${km(range)}`, `LOOKOUT · HIT BEARING ${deg3(a.bearing)} · ABOUT ${km(range)}`);
+        box.querySelector('#hc-t')!.textContent = mode === 'under'
+          ? L(`TREFFER GEHÖRT · PEILUNG ${deg3(a.bearing)} · REKONSTRUKTION`, `HIT HEARD · BEARING ${deg3(a.bearing)} · RECONSTRUCTION`)
+          : L(`AUSGUCK · TREFFER PEILUNG ${deg3(a.bearing)} · CA. ${km(range)}`, `LOOKOUT · HIT BEARING ${deg3(a.bearing)} · ABOUT ${km(range)}`);
       }
     },
     frame(s) {
@@ -90,7 +107,12 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
       const age = (performance.now() - shot.startMs) / 1000;
       if (age > SHOW_S) return close();
       box.style.opacity = String(Math.min(1, (SHOW_S - age) / 1.5));
-      if (!gl || !s) return;
+      if (!s) return;
+      if (shot.mode === 'under') {
+        uw?.render(shot.cls, age, s.env.light ?? 1);
+        return;
+      }
+      if (!gl) return;
       // The struck ship is shown for a moment, then dropped: the scene lets it go down by the bow
       const targets: PeriscopeTarget[] = age < 3.5 ? [{ label: shot.id, cls: shot.cls, bearing: shot.bearing, range: shot.range, alpha: 1, speedKn: 4 }] : [];
       gl.render({

@@ -140,6 +140,7 @@ export interface OwnShipView {
   pulse: 'cw' | 'lfm';
   lastPingAt?: number;
   towedLength: number;
+  towedOrder?: number;
   towedReady: boolean;
   noiseDb: number;
   cavitationKn: number;

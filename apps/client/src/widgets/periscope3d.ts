@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { ClassId, Sighting } from '@tk/shared';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
+import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { dprGl, oceanSegments } from './perf.js';
 
 /**
@@ -129,6 +130,7 @@ export class Periscope3D {
       puff.name = `smoke${i}`;
       g.add(puff);
     }
+    g.add(createAftermath(Math.random() * 6));
     return g;
   }
 
@@ -163,7 +165,10 @@ export class Periscope3D {
         puff.position.set(a * 3 + i * 2, 15 + a * 6 + i * 10, Math.sin(i) * 6);
         puff.material.opacity = Math.max(0, 0.75 - a / 120);
       }
-      if (e.age < 90) glow = Math.max(glow, (1 - light) * (1 - e.age / 90));
+      const am = g.getObjectByName('aftermath') as THREE.Group;
+      updateAftermath(am, e.age, performance.now() / 1000, light, (e.bearing * 7) % 6);
+      // Burning oil keeps lighting the scene at night for a few minutes
+      if (e.age < 240) glow = Math.max(glow, (1 - light) * (1 - e.age / 240));
       if (glow > 0) this.fire.position.copy(g.position).setY(20);
     }
     this.fire.intensity = glow * 4;

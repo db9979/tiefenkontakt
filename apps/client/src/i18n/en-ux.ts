@@ -21,6 +21,9 @@ export const EN_UX: [string, string][] = [
   ['Grafik', 'Graphics'], ['Niedrig', 'Low'], ['Mittel', 'Medium'], ['Hoch', 'High'], ['Auto · Mittel', 'Auto · Medium'], ['Auto · Hoch', 'Auto · High'], ['Auto · Niedrig', 'Auto · Low'],
   ['Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)', 'Auto: lighter on phones and small machines (battery, heat)'],
   ['Peillinien: alle / nur Auswahl / aus', 'Bearing lines: all / selected only / off'],
+  ['Bringe das Schleppsonar mit 900 m aus (unter der Sprungschicht). Die Winde braucht knapp 4 Minuten; danach 60 s Kurs halten.', 'Stream the towed array to 900 m (below the layer). The winch needs almost 4 minutes; then hold course for 60 s.'],
+  ['Fahre etwa 3 Minuten geradeaus, dann ändere den Kurs um 40–60° (Klick in den Kompass). Bei 4 kn dreht das Boot langsam: die Wende dauert gut 2 Minuten. Erst danach ist die Entfernung bestimmbar.', 'Run straight for about 3 minutes, then change course by 40–60° (click the compass). At 4 kn the boat turns slowly: the turn takes over 2 minutes. Only then can range be solved.'],
+  ['Warte auf den Treffer. Danach ablaufen: Fahrt erhöhen, dann tiefer gehen (ohne Fahrt tauchen die Tiefenruder kaum).', 'Wait for the hit. Then clear out: speed up, then go deeper (without speed the planes barely work).'],
   ['LAGEBESPRECHUNG', 'BRIEFING'], ['AUFTRAG', 'ORDERS'], ['EIGENES SCHIFF', 'OWN SHIP'], ['LAGE', 'SITUATION'], ['ERSTE SCHRITTE', 'FIRST STEPS'],
   ['Auf Station', 'Man your station'], ['Schelfmeer', 'Shelf sea'], ['Fjordausfahrt', 'Fjord exit'],
   ['Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', 'Narrow channel between shoals; leave it and you run aground'],
@@ -56,6 +59,7 @@ export const EN_UX: [string, string][] = [
 ];
 
 export const EN_UX_PHRASES: [RegExp, string][] = [
+  [/^AUSBRINGEN (\d+) \/ (\d+) M$/, 'STREAMING $1 / $2 M'], [/^EINHOLEN (\d+) \/ (\d+) M$/, 'RECOVERING $1 / $2 M'], [/^Schlepp aus (\d+) m$/, 'Streaming $1 m'], [/^Schlepp ein (\d+) m$/, 'Recovering $1 m'],
   [/^MAST FÄHRT AUS · (\d+) %$/, 'MAST GOING UP · $1 %'], [/^MAST FÄHRT EIN · (\d+) %$/, 'MAST GOING DOWN · $1 %'], [/^MAST FÄHRT AUS$/, 'MAST GOING UP'], [/^MAST FÄHRT EIN$/, 'MAST GOING DOWN'],
   [/^SCHNORCHEL FÄHRT AUS (\d+) %$/, 'SNORKEL GOING UP $1 %'], [/^E-MASCHINE · SCHNORCHEL FÄHRT EIN$/, 'E-MOTOR · SNORKEL GOING DOWN'],
   [/^VERLOREN (\d+) %$/, 'LOST $1 %'], [/^SICHER (\d+) %$/, 'SAFE $1 %'], [/^VERSENKT (\d+) %$/, 'SUNK $1 %'], [/^ENTKOMMEN (\d+) %$/, 'ESCAPED $1 %'],

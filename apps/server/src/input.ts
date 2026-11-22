@@ -121,8 +121,8 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'towed': {
       const max = spec.towed?.maxLength ?? 0;
       if (!max) return 'Kein Schleppsonar';
-      s.towedLength = Math.min(m.length, max);
-      s.lastTurnAt = w.time;
+      // The winch streams or recovers the array over minutes (kinematics)
+      s.towedOrder = Math.min(m.length, max);
       return;
     }
     case 'fire': {

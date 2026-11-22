@@ -51,7 +51,7 @@ export function subSonarStation(): Station {
   el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelector<HTMLButtonElement>('#tow')!.onclick = () => {
     const o = store.snap?.own;
-    if (o) net.send({ t: 'towed', length: o.towedLength > 0 ? 0 : (CLASSES[o.cls].towed?.maxLength ?? 0) });
+    if (o) net.send({ t: 'towed', length: (o.towedOrder ?? o.towedLength) > 0 ? 0 : (CLASSES[o.cls].towed?.maxLength ?? 0) });
   };
 
   return {
@@ -66,8 +66,9 @@ export function subSonarStation(): Station {
       el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
       const tow = el.querySelector<HTMLButtonElement>('#tow')!;
       tow.style.display = CLASSES[o.cls].towed ? '' : 'none';
-      tow.classList.toggle('on', o.towedLength > 0);
-      tow.textContent = o.towedLength > 0 ? (o.towedReady ? 'Schlepp ausgebracht' : 'Schlepp stabilisiert…') : 'Schleppsonar';
+      const tgt = o.towedOrder ?? o.towedLength;
+      tow.classList.toggle('on', tgt > 0);
+      tow.textContent = tgt !== o.towedLength ? `Schlepp ${tgt > o.towedLength ? 'aus' : 'ein'} ${o.towedLength} m` : o.towedLength > 0 ? (o.towedReady ? 'Schlepp ausgebracht' : 'Schlepp stabilisiert…') : 'Schleppsonar';
       el.querySelector('#lab')!.textContent = store.selected ?? '';
       analysis.update();
     },

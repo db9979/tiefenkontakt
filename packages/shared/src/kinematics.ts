@@ -60,6 +60,12 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     s.snorkelExt = approach(s.snorkelExt ?? 0, snorkelOut ? 1 : 0, (snorkelOut ? 1 / 15 : 1 / 6) * dt);
   }
 
+  // Towed array winch: streaming 900 m takes almost 4 minutes; a moving array is not settled
+  if (s.towedOrder !== undefined && s.towedOrder !== s.towedLength) {
+    s.towedLength = approach(s.towedLength, s.towedOrder, (s.towedOrder > s.towedLength ? 4 : 3) * dt);
+    s.lastTurnAt = now;
+  }
+
   // Position
   const v = headingVec(s.heading);
   s.pos.x += v.x * s.speed * dt;

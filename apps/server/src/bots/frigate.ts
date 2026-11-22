@@ -69,7 +69,8 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
   const bottom = depthAt(w.env.seabed, s.pos.x, s.pos.y);
   // Array above the layer (where boats listen) by default; deep when a contact went quiet below it
   const hunting = now < m.alertUntil && s.btLayer !== undefined && bottom > 400;
-  s.towedLength = s.speed / KN > 14 ? 0 : hunting && Math.floor(now / 300) % 2 === 1 ? 1200 : 600;
+  // The winch takes minutes: stream once and keep it out (deaf above its speed limit), go deep only on a long hunt
+  s.towedOrder = hunting && Math.floor(now / 900) % 2 === 1 ? 1200 : 900;
   s.pulse = bottom < 300 ? 'lfm' : 'cw';
 
   const merchants = w.ships.filter((x) => x.team === s.team && x.cls === 'merchant' && x.alive);

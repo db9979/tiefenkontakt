@@ -87,9 +87,17 @@ function wake(g: THREE.Group, len: number, beam: number, bowZ: number, sternZ: n
   g.add(w, b);
 }
 
+/** Merchant hull colours seen in Cold War convoys: black, grey, rust brown, dark green. */
+const HULLS = [0x26292b, 0x4a5156, 0x4a2e24, 0x2b3a31].map((c) => mat(c));
+const FUNNELS = [0x1c1f21, 0x7a2a22, 0xb08a3a, 0x2a3f5a].map((c) => mat(c));
+
 function merchant(g: THREE.Group): void {
-  hull(g, 130, 20, 11, 2, M.hullDark, M.red);
-  box(g, 18, 0.6, 110, 0, 9.2, 4, M.deck);
+  const v = Math.floor(Math.random() * 4);
+  hull(g, 130, 20, 11, 2, HULLS[v]!, M.red);
+  deckCap(g, 130, 20, 9, M.deck);
+  // Raised forecastle with a bulwark, foremast
+  box(g, 17, 2.4, 16, 0, 10.2, 55, HULLS[v]!);
+  cyl(g, 0.45, 14, 0, 17, 52, M.black);
   for (const z of [-22, 2, 26, 46]) box(g, 13, 2.2, 16, 0, 10.6, z, M.cargo);
   // Derrick posts and booms between the holds
   for (const z of [-10, 14, 36]) {
@@ -97,11 +105,15 @@ function merchant(g: THREE.Group): void {
     const boom = cyl(g, 0.25, 14, 0, 14, z + 5, M.black);
     boom.rotation.x = 0.9;
   }
-  // Superstructure aft with a bridge window band, funnel behind it
+  // Superstructure aft: two decks, bridge with wings and a window band, lifeboats, funnel with company colours
   box(g, 17, 8, 15, 0, 13.5, -44, M.white);
-  box(g, 18, 3, 7, 0, 19, -40, M.white);
-  box(g, 18.2, 1, 7.2, 0, 19.6, -40, M.glass);
-  cyl(g, 2.6, 9, 0, 21, -52, M.black, 3);
+  box(g, 14, 3, 10, 0, 19, -42, M.white);
+  box(g, 24, 0.8, 4, 0, 20.4, -38, M.white);
+  box(g, 14.2, 1, 10.2, 0, 19.6, -42, M.glass);
+  for (const x of [-9.2, 9.2]) box(g, 1.6, 1.6, 6, x, 14, -48, mat(0xd8732e));
+  cyl(g, 0.3, 10, 0, 26, -44, M.black);
+  cyl(g, 2.6, 9, 0, 21, -52, FUNNELS[v]!, 3);
+  cyl(g, 2.65, 1.6, 0, 25, -52, M.black, 2.65);
   smoke(g, 0, 26, -52, 7);
   wake(g, 200, 20, 64, -64);
 }
@@ -123,20 +135,36 @@ function warship(g: THREE.Group, len: number, beam: number, frigate: boolean): v
   g.userData.radar = radar;
   box(g, beam * 0.55, 7, 9 * k, 0, 9.5, -4 * k, M.grey).rotation.x = -0.12;
   smoke(g, 0, 14, -6 * k, 5, 0x4a4c4e);
+  // ASW rocket launcher (box with cells) between gun and bridge; hull number area; boats
+  box(g, 4 * k, 2.2, 6 * k, 0, 7.4, 30 * k, M.grey);
+  box(g, 3.4 * k, 0.4, 5.4 * k, 0, 8.6, 30 * k, M.black);
+  for (const x of [-1, 1]) box(g, 1.2, 1.2, 5 * k, x * beam * 0.42, 10, 4 * k, mat(0xd8732e));
   if (frigate) {
     box(g, beam * 0.8, 6, 16 * k, 0, 9, -26 * k, M.grey);
     box(g, beam * 0.86, 0.3, 22 * k, 0, 6.6, -48 * k, M.deck);
+    // Point-defence missile launcher on the hangar roof, flight deck marking
+    box(g, 2.5, 1.4, 3, 0, 12.7, -30 * k, M.grey);
+    box(g, 0.4, 0.05, 18 * k, 0, 6.8, -48 * k, mat(0xd9d9d0));
   } else box(g, beam * 0.5, 3, 10 * k, 0, 8, -24 * k, M.grey);
   wake(g, frigate ? 190 : 140, beam, len / 2, -len / 2);
 }
 
 function surfacedBoat(g: THREE.Group, len: number): void {
-  const body = cyl(g, 4.2, len, 0, -2.4, 0, M.sub);
+  const r = Math.max(3, len / 17);
+  const body = cyl(g, r, len, 0, -r * 0.55, 0, M.sub);
   body.rotation.x = Math.PI / 2;
-  const bow = add(g, new THREE.SphereGeometry(4.2, 10, 8), M.sub, 0, -2.4, len / 2);
+  const bow = add(g, new THREE.SphereGeometry(r, 12, 8), M.sub, 0, -r * 0.55, len / 2);
   bow.scale.set(1, 1, 1.6);
+  // Tapered stern, cruciform rudders, flat casing on top
+  const tail = add(g, new THREE.ConeGeometry(r, len * 0.18, 12), M.sub, 0, -r * 0.55, -len / 2 - len * 0.09);
+  tail.rotation.x = -Math.PI / 2;
+  box(g, 0.4, r * 2.2, len * 0.06, 0, -r * 0.55, -len * 0.56, M.sub);
+  box(g, r * 2.4, 0.4, len * 0.06, 0, -r * 0.55, -len * 0.56, M.sub);
+  box(g, r * 0.9, 0.4, len * 0.7, 0, r * 0.4, 0.05 * len, M.sub);
+  // Sail with fairwater planes and the mast heads on top
   box(g, 3, 7.5, 11, 0, 4, len * 0.12, M.sub);
   box(g, 7, 0.5, 2, 0, 5, len * 0.16, M.sub);
+  for (const x of [-0.6, 0.6]) cyl(g, 0.18, 2.4, x, 8.8, len * 0.13, M.black);
   wake(g, 90, 8, len / 2 + 4, -len / 2);
 }
 
