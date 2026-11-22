@@ -1,9 +1,10 @@
+import { lang } from '../i18n/index.js';
 import { net } from '../net.js';
 import { CLASS_NAME, esc, h } from '../widgets/format.js';
 import { post } from './account.js';
 
 type Cls = keyof typeof CLASS_NAME;
-interface Stock { torpedoes: number; rockets: number; depthCharges: number; noisemakers: number }
+interface Stock { torpedoes: number; rockets: number; depthCharges: number; noisemakers: number; mines?: number }
 interface LogEntry { n: number; day: number; title: string; cls: Cls; won: boolean; lost: boolean; reason: string; kills: number; tonnage: number; hullAfter: number; points: number }
 interface Run {
   status: 'dock' | 'ready' | 'sea' | 'complete' | 'lost';
@@ -59,6 +60,7 @@ export function campaignPanel(): HTMLElement {
           <div class="row"><span class="dim">TORPEDOS</span><span>${s.stock.torpedoes} / ${full.torpedoes}</span></div>
           ${full.rockets ? `<div class="row"><span class="dim">RAKETEN · WABOS</span><span>${s.stock.rockets} / ${full.rockets} · ${s.stock.depthCharges} / ${full.depthCharges}</span></div>` : ''}
           ${full.noisemakers ? `<div class="row"><span class="dim">TÄUSCHKÖRPER</span><span>${s.stock.noisemakers} / ${full.noisemakers}</span></div>` : ''}
+          ${full.mines ? `<div class="row"><span class="dim">MINEN</span><span>${s.stock.mines ?? full.mines} / ${full.mines}</span></div>` : ''}
         </div>
         <div>
           <div class="row"><span class="dim">BESATZUNG</span><span><span>${esc((v.crewLevel ?? '').toUpperCase())}</span> ${bar(r.crew.xp, 'var(--amber)')}</span></div>
@@ -95,7 +97,7 @@ export function campaignPanel(): HTMLElement {
   };
 
   const pastRuns = (v: View) => v.past.length
-    ? `<div class="dim" style="margin-top:8px">FRÜHERE FELDZÜGE</div>${v.past.map((p) => `<div class="row dim"><span>${new Date(p.startedAt).toLocaleDateString('de-DE')} · ${esc(CLASS_NAME[p.cls]?.title ?? p.cls)}</span><span>${p.missions} EINSÄTZE · ${p.points} PKT · ${esc(STATUS[p.status as Run['status']] ?? p.status)}</span></div>`).join('')}`
+    ? `<div class="dim" style="margin-top:8px">FRÜHERE FELDZÜGE</div>${v.past.map((p) => `<div class="row dim"><span>${new Date(p.startedAt).toLocaleDateString(lang === 'en' ? 'en-GB' : 'de-DE')} · ${esc(CLASS_NAME[p.cls]?.title ?? p.cls)}</span><span>${p.missions} EINSÄTZE · ${p.points} PKT · ${esc(STATUS[p.status as Run['status']] ?? p.status)}</span></div>`).join('')}`
     : '';
 
   const act = async (url: string, body: unknown) => {

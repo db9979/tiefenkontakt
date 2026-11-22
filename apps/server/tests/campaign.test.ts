@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, emptyDamage, type ServerMsg } from '@tk/shared';
+import { CLASSES, createShip, createWorld, installWeapons, emptyDamage, type ServerMsg } from '@tk/shared';
 import { AuthStore } from '../src/auth.js';
 import {
   CAMPAIGN_MISSIONS, afterMission, crewLevel, dockDays, dockyard, enemySkill, fullStock, missionSettings, newRun,
   type CampaignRun, type MissionOutcome,
 } from '../src/campaign-state.js';
 import { CampaignStore } from '../src/campaign-store.js';
-import { CampaignService } from '../src/campaign-match.js';
+import { CampaignService, applyCarry, stockOf } from '../src/campaign-match.js';
 import { Lobby } from '../src/lobby.js';
 import type { Conn } from '../src/match.js';
 
@@ -40,6 +40,25 @@ describe('campaign state transitions', () => {
     expect(r.crew.xp).toBeGreaterThan(0.1);
     expect(r.history).toHaveLength(1);
     expect(r.history[0]).toMatchObject({ won: true, lost: false, kills: 1 });
+  });
+
+  it('mines carry over into the next mission (old runs without a count start full)', () => {
+    expect(fullStock('ssk').mines).toBe(4);
+    expect(fullStock('ffg').mines).toBe(0);
+    const r = afterMission({ ...newRun('ssk'), status: 'sea' }, outcome({ stock: { ...outcome().stock, mines: 1 } }));
+    expect(r.ship.stock.mines).toBe(1);
+    const boat = () => createShip({ id: 'u1', cls: 'ssk', name: 'U1', pos: { x: 0, y: 0 }, heading: 0 });
+    const sub = boat();
+    const w = createWorld([sub], 3);
+    installWeapons(w);
+    applyCarry(w, sub, r);
+    expect(w.weapons!.loadouts.get('u1')!.mines).toBe(1);
+    expect(stockOf(w, sub).mines).toBe(1);
+    const old = { ...r, ship: { ...r.ship, stock: { ...r.ship.stock, mines: undefined } } };
+    const w2 = createWorld([boat()], 3);
+    installWeapons(w2);
+    applyCarry(w2, w2.ships[0]!, old);
+    expect(w2.weapons!.loadouts.get('u1')!.mines).toBe(4);
   });
 
   it('a lost mission keeps the stage; the next mission needs a dockyard decision first', () => {

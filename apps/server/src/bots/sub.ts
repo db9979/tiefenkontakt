@@ -89,7 +89,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const duel = !w.ships.some(isConvoyShip);
   const wanted = duel ? 'submarine' : 'merchant';
   const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
-  if (!duel) considerMine(w, m, s, threatNear, target);
+  // A mine barrage across the convoy track takes the helm while it runs
+  if (!duel && considerMine(w, m, s, threatNear, target)) return;
 
   // Depth: listen above the layer, hide below it (or deep) when hunted, peek at periscope depth
   const layer = s.btLayer;

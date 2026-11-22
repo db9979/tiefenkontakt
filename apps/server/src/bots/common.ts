@@ -61,6 +61,8 @@ export interface BotMemory {
   /** Mines: last laid, and the convoy's track from the air reconnaissance report. */
   mineAt?: number;
   convoyLine?: { x: number; y: number; course: number; speedKn: number; t: number };
+  /** Mine barrage in progress: from which side of the convoy track the boat crosses. */
+  mineRun?: { side: number };
 }
 
 export function newMemory(shipId: string, passive = false): BotMemory {

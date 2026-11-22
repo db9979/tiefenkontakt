@@ -132,5 +132,11 @@ export const EN_UX_PHRASES: [RegExp, string][] = [
   [/^Ankerplatz: Peilung (\d+), (\d+) km, (\d+) Frachter$/, 'Anchorage: bearing $1, $2 km, $3 merchants'],
   [/^Bedrohung: (\d+) U-Boot\(e\), vermutlich voraus des Konvois$/, 'Threat: $1 submarine(s), probably ahead of the convoy'],
   [/Atom-U-Boot Projekt 9/, 'Nuclear submarine Project 9'], [/Diesel-U-Boot Projekt 4/, 'Diesel submarine Project 4'], [/Küsten-U-Boot Projekt 2/, 'Coastal submarine Project 2'], [/^Korvette K-7/, 'Corvette K-7'], [/^Fregatte F-12/, 'Frigate F-12'], [/^Sprechen \((.+)\)$/, 'Talk ($1)'], [/Leertaste/, 'Space'],
+  // Campaign: briefing lines, logbook and dockyard with numbers
+  [/^Gegner: KI LEICHT/, 'Enemy: AI EASY'], [/^Gegner: KI NORMAL/, 'Enemy: AI NORMAL'], [/^Gegner: KI SCHWER/, 'Enemy: AI HARD'], [/ \(verstärkt während der langen Werftliegezeit\)$/, ' (reinforced during the long dockyard stay)'],
+  [/^Rumpf nur (\d+) % – ein weiterer Treffer kann das Ende sein\.$/, 'Hull only $1 % – one more hit may be the end.'], [/^(\d+) Posten unbesetzt – das Boot arbeitet langsamer\.$/, '$1 posts unmanned – the boat works more slowly.'],
+  [/^Torpedos: (\d+) von (\d+)$/, 'Torpedoes: $1 of $2'], [/^Minen: (\d+) von (\d+)$/, 'Mines: $1 of $2'], [/^Schäden: /, 'Damage: '], [/^(Damage: .*)ANTRIEB/, '$1PROPULSION'], [/^(Damage: .*)WAFFEN/, '$1WEAPONS'], [/^(Damage: .*)LECK/, '$1LEAK'],
+  [/ · (\d+) T\.$/, ' · $1 D.'], [/^(\d+) · TAG (\d+) · /, '$1 · DAY $2 · '], [/(\d+) VERS\./, '$1 SUNK'], [/RUMPF (\d+) %/, 'HULL $1 %'], [/([+-]?\d+) PKT\b/, '$1 PTS'], [/(\d+) EINSÄTZE\b/, '$1 MISSIONS'],
+  [/^Kampagne: /, 'Campaign: '],
   [/^AN BORD: /, 'ABOARD: '], [/ · WERTUNG (\d+)/, ' · RATING $1'], [/ UHR\b/, ''], [/AKTIVSONAR/g, 'ACTIVE SONAR'],
 ];

@@ -25,14 +25,15 @@ export function applyCarry(w: World, ship: Ship, run: CampaignRun): void {
   l.rockets = s.stock.rockets;
   l.depthCharges = s.stock.depthCharges;
   l.noisemakers = s.stock.noisemakers;
+  if (s.stock.mines !== undefined && l.mines !== undefined) l.mines = Math.min(l.mines, s.stock.mines);
 }
 
 /** Magazines left aboard: storage plus loaded tubes plus tubes being reloaded. */
 export function stockOf(w: World, ship: Ship): CampStock {
   const l = w.weapons?.loadouts.get(ship.id);
-  if (!l) return { torpedoes: 0, rockets: 0, depthCharges: 0, noisemakers: 0 };
+  if (!l) return { torpedoes: 0, rockets: 0, depthCharges: 0, noisemakers: 0, mines: 0 };
   const inTubes = l.tubes.filter((t) => t.loaded || t.reloadDoneAt > 0).length;
-  return { torpedoes: (CLASSES[ship.cls].submarine ? l.heavy : l.light) + inTubes, rockets: l.rockets, depthCharges: l.depthCharges, noisemakers: l.noisemakers };
+  return { torpedoes: (CLASSES[ship.cls].submarine ? l.heavy : l.light) + inTubes, rockets: l.rockets, depthCharges: l.depthCharges, noisemakers: l.noisemakers, mines: l.mines ?? 0 };
 }
 
 /** Read the mission's consequences for one ship from the world (and its debrief line). */
