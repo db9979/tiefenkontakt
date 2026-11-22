@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { ClassId } from '@tk/shared';
 import { shipModel } from './models.js';
+import { mergeStatic } from './merge.js';
 import { dprGl } from '../perf.js';
 
 /**
@@ -64,7 +65,7 @@ export class UnderwaterScene {
     for (const h of this.halves) this.scene.remove(h);
     this.halves = [];
     for (const side of [1, -1]) {
-      const g = shipModel(cls);
+      const g = mergeStatic(shipModel(cls));
       g.getObjectByName('wake')?.removeFromParent();
       g.getObjectByName('bow')?.removeFromParent();
       const plane = new THREE.Plane(new THREE.Vector3(0, 0, side), 0);

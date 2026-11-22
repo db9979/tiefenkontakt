@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { ClassId, PlaneKind, Sighting } from '@tk/shared';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
+import { mergeStatic } from './sea3d/merge.js';
 import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { dprGl, oceanSegments } from './perf.js';
@@ -118,7 +119,7 @@ export class Periscope3D {
     this.scene.add(this.camera);
     if (opts.own) {
       // Foredeck, gun and bridge front in the lower part of the picture: the eye sits on the bridge roof
-      const g = shipModel(opts.own);
+      const g = mergeStatic(shipModel(opts.own));
       for (const n of ['wake']) g.getObjectByName(n)?.removeFromParent();
       this.own = { g, bridgeZ: opts.own === 'kor' ? 14 : opts.own === 'ffv' ? 22 : 24 };
       this.scene.add(g);
@@ -300,7 +301,7 @@ export class Periscope3D {
       let s = this.ships.get(tg.label);
       if (!s || s.key !== key) {
         if (s) this.scene.remove(s.g);
-        s = { g: tg.plane ? aircraftModel(tg.plane) : tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls), key, bearing: tg.bearing };
+        s = { g: mergeStatic(tg.plane ? aircraftModel(tg.plane) : tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls)), key, bearing: tg.bearing };
         this.ships.set(tg.label, s);
         this.scene.add(s.g);
       }
