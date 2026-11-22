@@ -42,6 +42,10 @@ export interface Environment {
   threatAt?: number;
   /** What each side's AI learned about the other side's players' habits. */
   adapt?: { west?: { pd?: boolean; above?: boolean; fast?: boolean }; east?: { ping?: boolean; fast?: boolean } };
+  /** FLASH orders from fleet command (orders.ts). */
+  orders?: import('./orders.js').OrdersState;
+  /** AI escorts' shared hunt: team datum and roles per side (shown on the plot). */
+  hunt?: Partial<Record<'west' | 'east', import('./orders.js').HuntPlan>>;
 }
 
 export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaState: 3 };

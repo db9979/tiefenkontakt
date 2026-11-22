@@ -9,6 +9,7 @@ export * from './lookout.js';
 export * from './crew.js';
 export * from './boat.js';
 export * from './command-radio.js';
+export * from './orders.js';
 export * from './incidents.js';
 export * from './traffic.js';
 export * from './voice.js';

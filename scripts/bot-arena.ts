@@ -5,6 +5,7 @@
  */
 import { ArenaGame, DEFAULT_ARENA, type ArenaSetup } from '../apps/server/src/arena.js';
 import { seriesStats } from '../apps/server/src/series.js';
+import { orderResults } from '../packages/shared/src/index.js';
 import type { ScenarioSettings } from '../apps/server/src/scenario.js';
 
 const games = Number(process.argv[2] ?? 6);
@@ -13,11 +14,17 @@ const missions = (process.env.ARENA_MISSIONS?.split(',') ?? ['groenland', 'schel
 // ARENA_MIX=1: the newer classes (VDS frigate, AIP boat) take the second slot of each side
 const mix = !!process.env.ARENA_MIX;
 const results = [];
+const ordersTally = { west: [0, 0], east: [0, 0] };
 for (let g = 0; g < games; g++) {
   const setup: ArenaSetup = { ...DEFAULT_ARENA, mission: missions[g % missions.length]!, botSkill: skill, west: ['ffg', mix ? 'ffv' : 'ffg'], east: [mix ? 'ssa' : 'ssk', 'ssn'] };
   const t0 = Date.now();
   const game = new ArenaGame(setup, 1000 + g);
+  // ARENA_NO_ORDERS=1: without fleet command's FLASH orders (to measure them separately)
+  if (process.env.ARENA_NO_ORDERS) game.world.env.orders = undefined;
   while (!game.step(1000));
+  const ol = orderResults(game.world).list;
+  for (const o of ol) ordersTally[o.team as 'west' | 'east'][o.status === 'done' ? 0 : 1]++;
+  const of = (team: string) => `${ol.filter((o) => o.team === team && o.status === 'done').length}/${ol.filter((o) => o.team === team).length}`;
   const r = game.summary();
   results.push(r);
   const shots = (what: string) => game.world.events.filter((e) => e.kind === 'weapon' && e.what === what).length;
@@ -27,4 +34,4 @@ for (let g = 0; g < games; g++) {
   );
 }
 const st = seriesStats(results);
-console.log(`Bilanz: Westbund ${st.westWins} · Ostpakt ${st.eastWins} · Ø Ortung West ${st.avgDetectWest ?? '—'} m, Ost ${st.avgDetectEast ?? '—'} m`);
+console.log(`Bilanz: Westbund ${st.westWins} · Ostpakt ${st.eastWins} · Ø Ortung West ${st.avgDetectWest ?? '—'} m, Ost ${st.avgDetectEast ?? '—'} m | Befehle erfüllt/nicht: W ${ordersTally.west.join('/')} O ${ordersTally.east.join('/')}`);

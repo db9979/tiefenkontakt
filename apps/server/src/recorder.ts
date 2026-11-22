@@ -1,4 +1,4 @@
-import { CLASSES, KN, NM, type Debrief, type Habits, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
+import { CLASSES, KN, NM, orderResults, type Debrief, type Habits, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
 import type { MatchResult } from './rules.js';
 
 const FRAME_EVERY = 15; // sim s
@@ -51,6 +51,7 @@ export class Recorder {
       else if (e.kind === 'arrived') events.push({ t: Math.round(e.time), kind: 'arrived', shipId: e.shipId });
       else if (e.kind === 'weapon') events.push({ t: Math.round(e.time), kind: 'shot', shipId: e.sourceId, what: e.what });
     }
+    const orders = orderResults(w);
     const stats: PlayerStats[] = slots.map((p) => {
       const shipId = `p_${p.crewOf ?? p.playerId}`;
       const ship = w.ships.find((x) => x.id === shipId);
@@ -74,6 +75,7 @@ export class Recorder {
         distanceNm: Math.round(((this.s.distance[shipId] ?? 0) / NM) * 10) / 10,
         won: p.team === result.winner,
         habits: habitsOf(this.s.habits?.[shipId]),
+        orderPoints: orders.list.some((o) => o.team === p.team) ? orders.points[p.team] : undefined,
       };
     });
     return {
@@ -85,6 +87,7 @@ export class Recorder {
       winner: result.winner,
       reason: result.reason,
       duration: Math.round(w.time),
+      orders: orders.list.length ? orders.list : undefined,
     };
   }
 }

@@ -21,6 +21,7 @@ import {
   crewOf,
   emergencyBlow,
   sendMad,
+  executeOrder,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -80,6 +81,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('training'), lesson: z.enum(['klassifizieren', 'tma', 'angriff', 'ujagd']) }),
   z.object({ t: z.literal('crew'), captainId: z.string().max(64).nullable() }),
   z.object({ t: z.literal('repair'), system: z.enum(['antrieb', 'sonar', 'waffen', 'leck']) }),
+  z.object({ t: z.literal('execute_order'), id: z.string().max(16) }),
   z.object({ t: z.literal('buoy'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean(), active: z.boolean().optional() }),
   z.object({ t: z.literal('dip'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
   z.object({ t: z.literal('helotorp'), bearing: deg, range: z.number().finite().min(500).max(30_000) }),
@@ -109,7 +111,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -211,6 +213,10 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'buoy': {
       const v = headingVec(m.bearing);
       const r = sendBuoy(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range }, m.deep, m.active ?? false);
+      return r === true ? undefined : r;
+    }
+    case 'execute_order': {
+      const r = executeOrder(w, s, m.id);
       return r === true ? undefined : r;
     }
     case 'noisemaker': {

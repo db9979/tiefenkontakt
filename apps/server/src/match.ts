@@ -433,7 +433,7 @@ export class Match {
   private processEvents(w: World): void {
     const fresh = w.events.slice(this.eventCursor);
     this.eventCursor = w.events.length;
-    alertsFor(w, fresh, { slots: this.slots, shipOf: (id) => this.shipOf(id), aboard: (id) => this.aboard(id), alert: (id, a) => this.alert(id, a) });
+    alertsFor(w, fresh, { slots: this.slots, shipOf: (id) => this.shipOf(id), aboard: (id) => this.aboard(id), alert: (id, a) => this.alert(id, a), radio: (id, r) => this.extras.get(id)?.radio.push(r) });
   }
 
   tick(): void {

@@ -2,6 +2,8 @@ import { CLASSES, bearing, launchNoisemaker, setTowedDecoy, wrap360, type World 
 import { SKILL, heardBearing, newMemory, recordTrack, type BotMemory, type BotSkill } from './common.js';
 import { thinkFrigate } from './frigate.js';
 import { thinkSub, type PackReport } from './sub.js';
+import { planSide, type EscortTask } from './escort-team.js';
+import { obeySub } from './orders-ai.js';
 
 export type { BotSkill } from './common.js';
 /** Kept for save files written before the AI rewrite. */
@@ -19,6 +21,9 @@ const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 
 export class BotCrew {
   private bots: BotMemory[] = [];
   private pack: PackReport[] = [];
+  /** Escort teamwork: tasks from the last plan (rebuilt every think interval). */
+  private tasks = new Map<string, EscortTask>();
+  private planAt = -1e9;
 
   constructor(private skill: BotSkill = 'normal') {}
 
@@ -50,6 +55,11 @@ export class BotCrew {
 
   step(w: World): void {
     const k = SKILL[this.skill];
+    if (w.time - this.planAt >= k.think) {
+      this.planAt = w.time;
+      const mems = new Map(this.bots.map((b) => [b.shipId, b]));
+      this.tasks = new Map([...planSide(w, 'west', mems), ...planSide(w, 'east', mems)]);
+    }
     for (const m of this.bots) {
       const ship = w.ships.find((s) => s.id === m.shipId);
       if (!ship?.alive) continue;
@@ -58,9 +68,11 @@ export class BotCrew {
       if (w.time < m.nextThink) continue;
       const sub = CLASSES[ship.cls].submarine;
       m.nextThink = w.time + (sub ? k.subThink : k.think);
-      if (sub) thinkSub(w, m, ship, this.skill, this.pack);
-      else {
-        thinkFrigate(w, m, ship, this.skill);
+      if (sub) {
+        thinkSub(w, m, ship, this.skill, this.pack);
+        obeySub(w, m, ship);
+      } else {
+        thinkFrigate(w, m, ship, this.skill, this.tasks.get(ship.id));
         // VDS frigates hunt with the body under the layer whenever they are slow enough
         const vds = CLASSES[ship.cls].vds;
         if (vds) {

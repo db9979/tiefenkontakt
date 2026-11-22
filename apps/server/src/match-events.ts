@@ -10,6 +10,7 @@ import {
   type AlertView,
   type GameEvent,
   type PlayerSlot,
+  type RadioMsg,
   type Ship,
   type World,
   isConvoyShip,
@@ -29,6 +30,8 @@ export interface AlertContext {
   shipOf(playerId: string): Ship | undefined;
   aboard(shipId: string): PlayerSlot[];
   alert(playerId: string, a: AlertView): void;
+  /** Team radio line for a player (AI escorts announcing their roles). */
+  radio?(playerId: string, r: RadioMsg): void;
 }
 
 export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void {
@@ -42,6 +45,13 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
     } else if (e.kind === 'boat') {
       const kind = e.what === 'command' ? 'command' : 'boat';
       for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind, text: e.text });
+    } else if (e.kind === 'flash') {
+      // FLASH orders read aboard (priority) and fleet command's verdict on them
+      for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind: e.status ? 'command' : 'flash', text: e.text });
+    } else if (e.kind === 'teamradio') {
+      const from = shipById(w, e.senderId);
+      if (!from) continue;
+      for (const s of ctx.slots) if (s.team === from.team) ctx.radio?.(s.playerId, { time: e.time, from: from.name, text: e.text });
     } else if (e.kind === 'sighting') {
       const b = e.bearing.toFixed(0).padStart(3, '0');
       const r = (Math.round(e.range / 100) / 10).toFixed(1).replace('.', ',');

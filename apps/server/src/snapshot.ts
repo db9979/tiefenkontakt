@@ -23,9 +23,11 @@ import {
   crewPerformance,
   mastRaised,
   nextBroadcastIn,
+  ordersFor,
   broadcastAt,
   canCopy,
 } from '@tk/shared';
+import { huntFor } from './bots/escort-team.js';
 
 export interface PlayerExtras {
   /** Briefing already delivered on this connection. */
@@ -160,6 +162,8 @@ export function buildSnapshot(
   }
   return {
     planes: planesFor(w, own),
+    orders: ordersFor(w, own),
+    hunt: huntFor(w, own),
     air,
     time: w.time,
     timeScale: x.timeScale ?? 1,

@@ -44,6 +44,8 @@ export type ClientMsg =
   | { t: 'helotorp'; bearing: number; range: number }
   | { t: 'mpa'; bearing: number; range: number }
   | { t: 'repair'; system: ShipSystem }
+  /** Pass a FLASH order on (convoy turn) to the commodore. */
+  | { t: 'execute_order'; id: string }
   | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
   | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' }
@@ -244,7 +246,7 @@ export interface RadioMsg {
 
 export interface AlertView {
   time: number;
-  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient' | 'sighting' | 'boat' | 'splash' | 'command';
+  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient' | 'sighting' | 'boat' | 'splash' | 'command' | 'flash';
   /** Intercepted ping: received level (dB over threshold) and the kind of source. */
   level?: number;
   source?: 'hull' | 'dip' | 'buoy';
@@ -312,6 +314,10 @@ export interface Snapshot {
     clock?: number;
   };
   score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
+  /** FLASH orders from fleet command read aboard (orders.ts). */
+  orders?: import('./orders.js').OrderView[];
+  /** Surface ships: the AI escorts' team datum and hunter-killer roles (ship names), via datalink. */
+  hunt?: { datum?: { x: number; y: number; t: number; q: number }; director?: string; attacker?: string };
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
     buoys: { id: string; x: number; y: number; depth: number; leftS: number; active?: boolean }[];
@@ -337,6 +343,8 @@ export interface Debrief {
   duration: number;
   /** What the AI adapted to from this player's earlier matches (shown in the debrief). */
   learned?: string[];
+  /** FLASH orders of both sides and how they ended. */
+  orders?: import('./orders.js').OrderSummary[];
 }
 
 export interface PlayerStats {
@@ -355,6 +363,8 @@ export interface PlayerStats {
   won: boolean;
   /** Share of the match spent at periscope depth, above the layer, above 12 kn, pinging (0..1). */
   habits?: Habits;
+  /** Bonus/penalty for the side's FLASH orders (counts in the service points). */
+  orderPoints?: number;
 }
 
 export interface Habits {

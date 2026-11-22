@@ -338,3 +338,10 @@ a.btnlink:hover { background: #12302a; }
 .sandbox-panel .sb-grid select { grid-column: span 2; }
 .sandbox-panel .sb-grid label { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
 .sandbox-panel .sb-grid input { width: 64px; }
+/* FLASH orders from fleet command */
+.flash-banner { position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 39; padding: 6px 18px; max-width: 70vw;
+  border: 1px solid var(--amber); background: #1f1606; color: var(--amber); letter-spacing: 0.06em; font-size: 12px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-row { padding: 5px 0; border-bottom: 1px solid #16221f; }
+.order-row.done, .order-row.missed { opacity: 0.75; }
+.order-row .steps { margin-top: 4px; }

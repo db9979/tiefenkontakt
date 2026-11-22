@@ -15,6 +15,7 @@ import {
   initMet,
   type SeabedKind,
   installIncidents,
+  installOrders,
 } from '@tk/shared';
 import type { LessonId } from './lessons.js';
 
@@ -176,5 +177,6 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   installAir(w);
   installBoats(w);
   installIncidents(w);
+  installOrders(w, simTimeLimit(settings));
   return w;
 }

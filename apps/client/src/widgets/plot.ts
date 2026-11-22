@@ -1,4 +1,4 @@
-import { CLASSES, KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
+import { CLASSES, KN, NM, bearing, depthAt, distance, evaluateSolution, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { drawAir } from './air-symbols.js';
 import { drawMet } from './met-overlay.js';
@@ -9,7 +9,7 @@ import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
 import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
-import { evaluateSolution } from '@tk/shared';
+import { drawOrderMarks } from './order-marks.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -279,6 +279,7 @@ export class Plot {
     }
     this.drawContacts(ctx, s, P, w, height);
     this.drawFriendlies(ctx, s, P);
+    drawOrderMarks(ctx, s, P, this.scale);
     // Aircraft with a position (datalink, radar, eye) and ESM strobes on aircraft radars
     const meA = P(ownNow());
     drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120);

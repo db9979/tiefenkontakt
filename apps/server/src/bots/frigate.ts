@@ -23,6 +23,7 @@ import {
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
+import { commitHelo, directorCourse, heloCovered, type EscortTask } from './escort-team.js';
 
 const ROCKET_COOLDOWN = 90;
 const PROSECUTE_MAX = 16_000; // m from the convoy: beyond that, return to the screen
@@ -58,7 +59,7 @@ function fixFromBuoy(t: ContactTrack, s: Ship, track: { t: number; x: number; y:
  * array where the boats are, prosecutes submarine contacts and leads (ESM, transients)
  * with sprint, buoys and active sonar, and fires on active fixes or buoy cross-fixes.
  */
-export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): void {
+export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, task?: EscortTask): void {
   const now = w.time;
   const tr = TRAITS[commanderTrait(s.id, w.env.seed ?? 0)];
   if (now < m.evadeUntil) return;
@@ -94,9 +95,13 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
   if (esm && (!m.lead || now - m.lead.t > 120)) m.lead = { x: s.pos.x, y: s.pos.y, b: esm.bearing, t: now };
   const target = subs[0];
   const leadB = target ? target.bearing : m.lead && now - m.lead.t < 900 ? m.lead.b : undefined;
-  const prosecuting = leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
+  // Team datum and role (escort-team.ts); without a task the ship acts alone
+  const plan = w.env.hunt?.[s.team as 'west' | 'east'];
+  const datum = plan?.datum && now - plan.datum.t < 600 ? plan.datum : undefined;
+  const role = task?.role;
+  const prosecuting = task ? role !== 'screen' && (leadB !== undefined || !!datum) : leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
   const learned = w.env.adapt?.west;
-  s.activeSonar = now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? 0.5 : 1);
+  s.activeSonar = role === 'attacker' ? false : role === 'director' || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? 0.5 : 1);
   // Learned: boats that like periscope depth get radar sweeps a third of the time
   if (learned?.pd) s.radarOn = now % 600 < 200;
 
@@ -107,23 +112,35 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
       ? target.range
       : solved && solved.q > 40 ? distance(s.pos, targetPosAt(solved.sol, now)) : 7000;
     // Buoy down the bearing; the helicopter is the fastest sensor
-    const v = headingVec(leadB!);
-    const drop = { x: s.pos.x + v.x * Math.min(est, 20_000), y: s.pos.y + v.y * Math.min(est, 20_000) };
-    // Helicopter: alternate dipping sonar and buoys along the bearing
+    const v = headingVec(leadB ?? bearing(s.pos, datum!));
+    // The team's best datum first; otherwise down the own bearing
+    const drop = datum && task ? { x: datum.x, y: datum.y } : { x: s.pos.x + v.x * Math.min(est, 20_000), y: s.pos.y + v.y * Math.min(est, 20_000) };
+    // Helicopter: alternate dipping sonar and buoys; never two helicopters on the same datum,
+    // and the silent attacker keeps its helicopter for the torpedo
     const deep = (s.btLayer ?? 0) > 0 && !w.env.adapt?.west?.above;
-    if (SKILL[skill].air && Math.floor(now / 400) % 2 === 0) sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1);
-    else if (w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) {
+    const helo = role !== 'attacker' && !heloCovered(w, s, drop);
+    if (helo && SKILL[skill].air && Math.floor(now / 400) % 2 === 0) {
+      if (sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1) === true) commitHelo(w, s, drop, 500);
+    } else if (helo && w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) {
       // Shallow water or a quiet boat that passive buoys can't hold: an active (DICASS) buoy
       const shallow = depthAt(w.env.seabed, drop.x, drop.y) < 300;
-      sendBuoy(w, s, drop, deep, shallow || Math.floor(now / 600) % 2 === 1);
+      if (sendBuoy(w, s, drop, deep, shallow || Math.floor(now / 600) % 2 === 1) === true) commitHelo(w, s, drop, 200);
     }
-    // A radio/transient lead far out: ask the patrol aircraft for a buoy line across it
-    if (SKILL[skill].air && !target && m.lead && now - m.lead.t < 300) {
+    // A radio/transient lead far out and nothing better: ask the patrol aircraft for a buoy line across it
+    if (SKILL[skill].air && !target && !datum && m.lead && now - m.lead.t < 300 && now - (plan?.mpaAt ?? -1e9) > 1800) {
       const lv = headingVec(m.lead.b);
-      callMpa(w, s, { x: m.lead.x + lv.x * 15_000, y: m.lead.y + lv.y * 15_000 }, m.lead.b);
+      if (callMpa(w, s, { x: m.lead.x + lv.x * 15_000, y: m.lead.y + lv.y * 15_000 }, m.lead.b) === true && plan) plan.mpaAt = now;
     }
-    s.order.heading = wrap360(leadB! + (est < 4000 ? 30 * m.legSign : 0));
-    s.order.speedKn = est > 9000 ? 20 : 10;
+    if (role === 'director' && datum) Object.assign(s.order, directorCourse(s, datum, m.legSign));
+    else if (role === 'attacker' && datum) {
+      // Creeping attack: slow and silent on the director's datum, towed array streamed
+      const r = distance(s.pos, datum);
+      s.order.heading = bearing(s.pos, datum);
+      s.order.speedKn = r > 9000 ? 14 : 6;
+    } else {
+      s.order.heading = wrap360((leadB ?? bearing(s.pos, datum!)) + (est < 4000 ? 30 * m.legSign : 0));
+      s.order.speedKn = est > 9000 ? 20 : 10;
+    }
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
       m.legUntil = now + 240;
@@ -132,7 +149,10 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     // Screen ahead on a flank (escorts split left/right), weaving to clear the baffles
     const ahead = w.convoy ? headingVec(w.convoy.guideHeading) : { x: 0, y: 1 };
     const side = flankOf(w, s);
-    const station = { x: center.x + ahead.x * 3000 + ahead.y * side * 3500, y: center.y + ahead.y * 3000 - ahead.x * side * 3500 };
+    const station = task?.station ?? { x: center.x + ahead.x * 3000 + ahead.y * side * 3500, y: center.y + ahead.y * 3000 - ahead.x * side * 3500 };
+    // Fleet command's sector: the helicopter dips it when the ship stays with the convoy
+    const sector = task?.search;
+    if (sector && SKILL[skill].air && !heloCovered(w, s, sector) && sendDip(w, s, sector, false) === true) commitHelo(w, s, sector, 600);
     const to = bearing(s.pos, station);
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
@@ -144,6 +164,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
   } else if (w.env.mission === 'meerenge') {
     // Guard the narrows: long legs across the channel around the guard line
     const station = { x: flankOf(w, s) * 1200, y: STRAIT_GUARD_Y };
+    if (task?.search && SKILL[skill].air && !heloCovered(w, s, task.search) && sendDip(w, s, task.search, false) === true) commitHelo(w, s, task.search, 600);
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
       m.legUntil = now + 360;
@@ -165,6 +186,11 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     m.lastShot = now;
     return true;
   };
+  // Hunter-killer: the attacker fires on the director's fresh echo datum; the director holds
+  // fire while an attacker with rockets is on the team
+  if (role === 'attacker' && datum && datum.by !== s.id && now - datum.t < 40 && datum.q >= 85 && shoot(datum)) return;
+  const att = plan?.attacker && w.ships.find((x) => x.id === plan.attacker && x.alive);
+  if (role === 'director' && att && (w.weapons?.loadouts.get(att.id)?.rockets ?? 0) > 0 && distance(att.pos, datum ?? att.pos) < 18_000) return;
   for (const t of tracks) {
     const cls = voted(m, t);
     if (cls !== 'submarine' || isFriendly(w, s, t, m)) continue;
