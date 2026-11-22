@@ -1,4 +1,4 @@
-import { CLASSES, KN, NM, orderResults, type Debrief, type Habits, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
+import { CLASSES, KN, NM, mastExposed, orderResults, type ClassId, type Debrief, type PhotoRecord, type Habits, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
 import type { MatchResult } from './rules.js';
 
 const FRAME_EVERY = 15; // sim s
@@ -11,6 +11,12 @@ export interface RecorderState {
   lastPos: Record<string, [number, number]>;
   /** Habit samples per player ship: n samples, and counts at PD / above layer / fast / pinging. */
   habits?: Record<string, [number, number, number, number, number]>;
+  /** Periscope and bridge photos, graded when taken. */
+  photos?: PhotoRecord[];
+  /** Since when each submarine's mast (or snorkel) has been showing (sim s). */
+  mastSince?: Record<string, number>;
+  /** Exact classes assigned from the recognition book, per classification group and target id. */
+  ident?: Record<string, Record<string, ClassId>>;
 }
 
 function habitsOf(h?: [number, number, number, number, number]): Habits | undefined {
@@ -24,6 +30,12 @@ export class Recorder {
   s: RecorderState = { frames: [], torpedoes: [], lastFrame: -1e9, distance: {}, lastPos: {} };
 
   step(w: World): void {
+    const ms = (this.s.mastSince ??= {});
+    for (const x of w.ships) {
+      if (!CLASSES[x.cls].submarine) continue;
+      if (x.alive && mastExposed(x)) ms[x.id] ??= w.time;
+      else delete ms[x.id];
+    }
     if (w.time - this.s.lastFrame < FRAME_EVERY) return;
     this.s.lastFrame = w.time;
     const r = (v: number) => Math.round(v);
@@ -42,6 +54,13 @@ export class Recorder {
       if (x.speed / KN > 12) h[3]++;
       if (x.activeSonar) h[4]++;
     }
+  }
+
+  /** Remember (or clear) the exact class a group assigned to a target from the recognition book. */
+  ident(group: string, targetId: string, cls?: ClassId): void {
+    const g = ((this.s.ident ??= {})[group] ??= {});
+    if (cls) g[targetId] = cls;
+    else delete g[targetId];
   }
 
   debrief(w: World, slots: PlayerSlot[], result: MatchResult): Debrief {
@@ -88,6 +107,7 @@ export class Recorder {
       reason: result.reason,
       duration: Math.round(w.time),
       orders: orders.list.length ? orders.list : undefined,
+      photos: this.s.photos?.length ? this.s.photos : undefined,
     };
   }
 }

@@ -37,7 +37,9 @@ export type ClientMsg =
   | { t: 'lobby_chat'; text: string }
   /** Report the sender of a radio message (ship name as shown) to the moderators. */
   | { t: 'report'; from: string; reason: string }
-  | { t: 'classify'; label: string; choice: ClassChoice }
+  | { t: 'classify'; label: string; choice: ClassChoice; cls?: ClassId }
+  /** Periscope or bridge photo: where the camera looked; the server grades it from the truth. */
+  | { t: 'photo'; id: string; bearing: number; fov: number; vfov: number; pitch: number; label?: string }
   | { t: 'pulse'; pulse: 'cw' | 'lfm' }
   | { t: 'bt' }
   | { t: 'buoy'; bearing: number; range: number; deep: boolean; active?: boolean }
@@ -315,6 +317,8 @@ export interface Snapshot {
     wreck?: WreckView;
     /** The player's (or datalink group's) own classification decision. */
     assigned?: ClassChoice;
+    /** Exact class assigned from the recognition book. */
+    assignedCls?: ClassId;
   })[];
   friendlies: FriendlyView[];
   torpedoes: TorpedoView[];
@@ -367,6 +371,8 @@ export interface Debrief {
   learned?: string[];
   /** FLASH orders of both sides and how they ended. */
   orders?: import('./orders.js').OrderSummary[];
+  /** Periscope and bridge photos with their grades. */
+  photos?: import('./recognition.js').PhotoRecord[];
 }
 
 export interface PlayerStats {

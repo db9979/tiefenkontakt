@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { ClientMsg, Debrief, ServerMsg } from '@tk/shared';
+import { choiceOfClass, type ClientMsg, type Debrief, type ServerMsg } from '@tk/shared';
 import { LESSONS, lessonSlot, type LessonId } from './lessons.js';
 import { MAX_PER_TEAM, Match, type Conn } from './match.js';
 import { VoiceHub } from './voice.js';
 import { SandboxHub } from './sandbox.js';
 import type { CampaignPlan } from './campaign-match.js';
+import { takePhoto } from './photos.js';
 
 const MAX_MATCHES = 50;
 /** A running match with nobody connected stays (paused) this long before it is dropped. */
@@ -297,9 +298,11 @@ export class Lobby {
       case 'crew':
         return void err(m.setCrew(conn.playerId, msg.captainId));
       case 'classify':
-        return void err(m.classify(conn.playerId, msg.label, msg.choice));
+        return void err(m.classify(conn.playerId, msg.label, msg.cls ? choiceOfClass(msg.cls) : msg.choice, msg.cls));
       case 'sandbox':
         return void err(this.sandbox.handle(conn, m, msg));
+      case 'photo':
+        return void err(takePhoto(m, conn.playerId, msg));
       default:
         return void err(m.command(conn.playerId, msg));
     }

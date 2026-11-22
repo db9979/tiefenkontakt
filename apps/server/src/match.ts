@@ -86,7 +86,7 @@ export class Match {
   private extras = new Map<string, PlayerExtras>();
   private eventCursor = 0;
   private bots = new BotCrew();
-  private recorder = new Recorder();
+  readonly recorder = new Recorder();
   private spectators = new Map<string, Conn>();
   /** Kept after the end so players reconnecting later still get the debrief. */
   private finished?: { result: MatchResult; debrief: Debrief };
@@ -371,7 +371,7 @@ export class Match {
   }
 
   /** Record the player's classification of one of their (or their datalink's) contacts. */
-  classify(playerId: string, label: string, choice: ClassChoice): string | undefined {
+  classify(playerId: string, label: string, choice: ClassChoice, cls?: ClassId): string | undefined {
     const w = this.world;
     const ship = this.shipOf(playerId);
     if (!w || !ship) return 'Keine laufende Partie';
@@ -387,9 +387,8 @@ export class Match {
     const key = classGroupKey(ship);
     let map = this.classes.get(key);
     if (!map) this.classes.set(key, (map = new Map()));
-    if (choice === 'unknown') map.delete(tid);
-    else map.set(tid, choice);
-    return undefined;
+    this.recorder.ident(key, tid, choice === 'unknown' ? undefined : cls);
+    return void (choice === 'unknown' ? map.delete(tid) : map.set(tid, choice));
   }
 
   /** Team radio. Submarines must be at periscope depth with the mast up, and are DF'd. */
@@ -466,7 +465,7 @@ export class Match {
         const c = this.conns.get(s.playerId);
         if (ship && x && c) {
           const full = !x.histSent;
-          const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)));
+          const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)]);
           snap.full = full;
           snap.crew = this.aboard(ship.id).map((a) => a.callsign);
           snap.lesson = this.settings.lesson;

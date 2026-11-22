@@ -33,6 +33,7 @@ import { callouts } from '../widgets/callouts.js';
 import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { ordersPanel } from '../widgets/orders-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
+import { resetPhotoCounter } from '../widgets/photo.js';
 
 export interface Station {
   title: string;
@@ -48,6 +49,7 @@ export interface Station {
 
 export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   store.reset();
+  resetPhotoCounter();
   store.loadLocal();
   const saver = setInterval(() => store.saveLocal(), 2000);
   const el = h(`<div class="game">

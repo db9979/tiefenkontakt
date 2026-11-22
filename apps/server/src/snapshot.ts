@@ -16,6 +16,7 @@ import {
   type AlertView,
   type ContactTrack,
   type ClassChoice,
+  type ClassId,
   type World as W,
   type FriendlyView,
   type RadioMsg,
@@ -118,7 +119,7 @@ export function classGroupKey(s: Ship): string {
 }
 
 export function buildSnapshot(
-  w: World, own: Ship, x: PlayerExtras, score: ScoreInfo, classes?: ReadonlyMap<string, ClassChoice>,
+  w: World, own: Ship, x: PlayerExtras, score: ScoreInfo, classes?: ReadonlyMap<string, ClassChoice>, idents?: Readonly<Record<string, ClassId>>,
 ): Snapshot {
   const l = w.weapons?.loadouts.get(own.id);
   const contacts: Snapshot['contacts'] = [];
@@ -126,7 +127,7 @@ export function buildSnapshot(
   const seen = new Set<string>();
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
     seen.add(tid);
-    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid), wreck: tr.sensors.includes('periscope') ? wreckOf(w, tid) : undefined });
+    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: tr.sensors.includes('periscope') ? wreckOf(w, tid) : undefined });
   }
 
   const friendlies: FriendlyView[] = [];
@@ -138,7 +139,7 @@ export function buildSnapshot(
         if (seen.has(tid)) continue;
         seen.add(tid);
         contacts.push({
-          ...tr, label: `L${i + 1}-${tr.label}`, evidence: newEvidence(x, `L${i + 1}-${tr.label}`, tr), history: newSamples(x, `L${i + 1}-${tr.label}`, tr.history, 30), via: 'datalink', assigned: classes?.get(tid),
+          ...tr, label: `L${i + 1}-${tr.label}`, evidence: newEvidence(x, `L${i + 1}-${tr.label}`, tr), history: newSamples(x, `L${i + 1}-${tr.label}`, tr.history, 30), via: 'datalink', assigned: classes?.get(tid), assignedCls: idents?.[tid],
         });
       }
     });
