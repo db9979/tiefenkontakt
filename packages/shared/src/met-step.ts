@@ -2,7 +2,7 @@ import { CLASSES } from './classes.js';
 import { applyHitDamage } from './damage.js';
 import type { Ship } from './entities.js';
 import { KN, angleDiff, bearing, distance, headingVec, type Vec2 } from './math.js';
-import { iceCover, type FogBank, type MetState, type SquallCell } from './met.js';
+import { FOG_SPEED, SQUALL_SPEED, iceCover, type FogBank, type MetState, type SquallCell } from './met.js';
 import { Rng } from './rng.js';
 import type { World } from './world.js';
 
@@ -20,8 +20,6 @@ export interface MetOptions {
   fogBanks: number;
 }
 
-const SQUALL_SPEED = 1.3; // × wind
-const FOG_SPEED = 0.6; // × wind
 /** Ships closer than this to a berg's waterline radius touch it (m). */
 const HULL_R = 35;
 
@@ -38,11 +36,13 @@ const unit = (v: Vec2): Vec2 => {
   return { x: v.x / l, y: v.y / l };
 };
 
-/** A point well clear (by `gap` m) of every ship, inside the area; best effort after 20 tries. */
-function clearSpot(m: MetState, r: Rng, ships: readonly Ship[], gap: number, at?: () => Vec2): Vec2 {
+interface Box { x0: number; x1: number; y0: number; y1: number }
+
+/** A point well clear (by `gap` m) of every ship, inside the box; best effort after 20 tries. */
+function clearSpot(box: Box, r: Rng, ships: readonly Ship[], gap: number, at?: () => Vec2): Vec2 {
   let p: Vec2 = { x: 0, y: 0 };
   for (let i = 0; i < 20; i++) {
-    p = at ? at() : { x: m.area.x + r.range(-1, 1) * m.area.half, y: m.area.y + r.range(-1, 1) * m.area.half };
+    p = at ? at() : { x: r.range(box.x0, box.x1), y: r.range(box.y0, box.y1) };
     if (ships.every((s) => distance(s.pos, p) > gap)) break;
   }
   return p;
@@ -61,9 +61,11 @@ function newSquall(m: MetState, r: Rng, time: number, at: Vec2): SquallCell {
 
 /** Set up the cells for a match, deterministic from the seed. */
 export function initMet(ships: readonly Ship[], seed: number, o: MetOptions): MetState {
-  const cx = ships.reduce((a, s) => a + s.pos.x, 0) / Math.max(1, ships.length);
-  const cy = ships.reduce((a, s) => a + s.pos.y, 0) / Math.max(1, ships.length);
-  const half = Math.max(15_000, ...ships.map((s) => Math.max(Math.abs(s.pos.x - cx), Math.abs(s.pos.y - cy)) + 8000));
+  // Where the ships are (convoy start to the waiting boats) and a margin: the cells start there
+  const xs = ships.map((s) => s.pos.x), ys = ships.map((s) => s.pos.y);
+  const box: Box = { x0: Math.min(0, ...xs) - 8000, x1: Math.max(0, ...xs) + 8000, y0: Math.min(0, ...ys) - 4000, y1: Math.max(0, ...ys) + 8000 };
+  const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+  const half = Math.max(15_000, (box.x1 - box.x0) / 2 + 6000, (box.y1 - box.y0) / 2 + 6000);
   const m: MetState = {
     wind: { x: 0, y: 0 }, drift: { x: 0, y: 0 }, fog: [], squalls: [], floes: [], bergs: [],
     rng: (seed * 2654435761) >>> 0 || 1, nextId: 1, dynamic: o.dynamic, area: { x: cx, y: cy, half }, next: 0, hits: {},
@@ -75,19 +77,19 @@ export function initMet(ships: readonly Ship[], seed: number, o: MetOptions): Me
     m.drift = { x: Math.sin(da) * ds, y: Math.cos(da) * ds };
     for (let i = 0; i < o.fogBanks; i++) {
       const rad = r.range(1500, 4000);
-      const p = clearSpot(m, r, ships, rad + 1500);
+      const p = clearSpot(box, r, ships, rad + 1500);
       m.fog.push({ id: m.nextId++, x: p.x, y: p.y, r: rad, d: r.range(0.75, 1) });
     }
-    if (o.dynamic) for (let i = 0; i < 2; i++) m.squalls.push(newSquall(m, r, 0, clearSpot(m, r, ships, 5000)));
+    if (o.dynamic) for (let i = 0; i < 2; i++) m.squalls.push(newSquall(m, r, 0, clearSpot(box, r, ships, 5000)));
     if (o.ice) {
       for (let i = 0; i < 4; i++) {
         const rad = r.range(2500, 5000);
-        const p = clearSpot(m, r, ships, rad + 2000);
+        const p = clearSpot(box, r, ships, rad + 2000);
         m.floes.push({ id: m.nextId++, x: p.x, y: p.y, r: rad, cover: r.range(0.35, 0.75) });
       }
       for (let i = 0; i < 7; i++) {
         const f = i < 4 ? m.floes[i % m.floes.length] : undefined;
-        const p = clearSpot(m, r, ships, 1500, f ? () => ({ x: f.x + r.range(-0.7, 0.7) * f.r, y: f.y + r.range(-0.7, 0.7) * f.r }) : undefined);
+        const p = clearSpot(box, r, ships, 1500, f ? () => ({ x: f.x + r.range(-0.7, 0.7) * f.r, y: f.y + r.range(-0.7, 0.7) * f.r }) : undefined);
         const h = r.range(12, 45);
         m.bergs.push({ id: m.nextId++, x: p.x, y: p.y, r: r.range(30, 110), h, draft: Math.min(220, h * 5) });
       }

@@ -37,6 +37,9 @@ export interface MetState extends MetCells {
   hits: Record<string, number>;
 }
 
+/** Drift speeds as multiples of the wind: fog creeps, showers run ahead of it. */
+export const FOG_SPEED = 0.6;
+export const SQUALL_SPEED = 1.3;
 /** Fog bank edge (m): density rises from 0 to the core value over this distance. */
 const FOG_EDGE = 300;
 /** Extra effective distance a line of sight pays per meter of dense fog / rain curtain. */

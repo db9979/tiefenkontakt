@@ -1,6 +1,7 @@
 import { CLASSES, KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { drawAir } from './air-symbols.js';
+import { drawMet } from './met-overlay.js';
 import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { lastFix } from './contact-pos.js';
@@ -232,7 +233,7 @@ export class Plot {
     const c = this.center();
 
     this.drawDepth(ctx, s, w, height);
-
+    drawMet(ctx, s.env.met, P, this.scale);
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
     ctx.lineWidth = 1;

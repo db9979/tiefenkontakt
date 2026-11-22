@@ -142,4 +142,5 @@ export const EN_UI: [string, string][] = [
   ['Kurs hierher', 'Course here'], ['Torpedo hierher', 'Torpedo here'], ['U-Jagd-Rakete hierher', 'ASW rocket here'], ['TMA-Lösung hierher', 'TMA solution here'],
   ['Sonarboje flach hierher', 'Shallow sonobuoy here'], ['Hubschrauber-Torpedo hierher', 'Helicopter torpedo here'],
   ['STATIONEN', 'STATIONS'], ['TASTEN', 'KEYS'], ['Sprache', 'Language'],
+  ['NEBEL', 'FOG'], ['EIS', 'ICE'], ['SCHAUER', 'SHOWER'], ['EISBERG', 'ICEBERG'], ['KOLLISION MIT EISBERG', 'COLLISION WITH ICEBERG'], ['SCHÄDEN', 'DAMAGE'],
 ];

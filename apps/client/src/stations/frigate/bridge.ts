@@ -1,4 +1,4 @@
-import { angleDiff, lookoutRanges, type Sighting } from '@tk/shared';
+import { angleDiff, fogAt, lookoutRanges, type Sighting } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from '../../widgets/periscope3d.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -178,11 +178,12 @@ export function bridgeStation(): Station {
     snap() {
       const s = store.snap!;
       const env = { layerDepth: 0, layerLoss: 0, seaState: s.env.seaState, light: s.env.light, rain: s.env.rain };
-      const r = lookoutRanges(env);
+      const fog = fogAt(s.env.met, s.own);
+      const r = lookoutRanges(env, fog);
       const quality = r.mast > 1500 ? 'GUT' : r.mast > 600 ? 'MÄSSIG' : 'SCHLECHT';
       const reports = s.alerts.filter((a) => a.kind === 'sighting').slice(-6).reverse();
       setHtml(el.querySelector('#b-data')!, `
-        <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
+        <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${fog > 0.3 ? ' · NEBEL' : ''}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
         <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>

@@ -13,6 +13,16 @@ const R = 262;
 const TAU = Math.PI * 2;
 const toRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
 
+/** Ranges [near, far] where a beam from p along unit v runs through a circle, within maxR; undefined if it misses. */
+function through(p: { x: number; y: number }, v: { x: number; y: number }, c: { x: number; y: number }, r: number, maxR: number): [number, number] | undefined {
+  const t = (c.x - p.x) * v.x + (c.y - p.y) * v.y;
+  const d2 = (c.x - p.x) ** 2 + (c.y - p.y) ** 2 - t * t;
+  if (d2 >= r * r) return undefined;
+  const h = Math.sqrt(r * r - d2);
+  const a = Math.max(0, t - h), b = Math.min(maxR, t + h);
+  return b > a ? [a, b] : undefined;
+}
+
 export class RadarScope {
   private phos = document.createElement('canvas');
   private pc: CanvasRenderingContext2D;
@@ -60,7 +70,17 @@ export class RadarScope {
         pc.fillStyle = `rgba(110,220,180,${0.18 + Math.random() * 0.35})`;
         pc.fillRect(C + ca * rr, C + sa * rr, 1.4, 1.4);
       }
-      if (s.env.rain) {
+      // Rain clutter: each shower paints a speckled patch where the beam runs through it
+      const v = headingVec(brg);
+      for (const q of s.env.met?.squalls ?? []) {
+        const seg = through(s.own, v, q, q.r, rangeM);
+        for (let i = 0; seg && i < 4; i++) {
+          const rr = (seg[0] + Math.random() * (seg[1] - seg[0])) * scale;
+          pc.fillStyle = `rgba(93,202,165,${0.08 + Math.random() * 0.25})`;
+          pc.fillRect(C + ca * rr, C + sa * rr, 2, 2);
+        }
+      }
+      if (s.env.rain && !s.env.met) {
         for (let i = 0; i < 3; i++) {
           const rr = R * (0.25 + Math.random() * 0.5);
           pc.fillStyle = `rgba(93,202,165,${Math.random() * 0.22})`;
@@ -69,7 +89,6 @@ export class RadarScope {
       }
       // Coastline and islands from the public chart
       if (s.env.seabed && s.env.seabed.kind === 'fjord') {
-        const v = headingVec(brg);
         for (let i = 4; i < 60; i++) {
           const r = (i / 60) * rangeM;
           if (depthAt(s.env.seabed, s.own.x + v.x * r, s.own.y + v.y * r) < 0) {
@@ -86,6 +105,16 @@ export class RadarScope {
         pc.fillStyle = `rgba(93,202,165,${Math.random() * 0.18})`;
         pc.fillRect(C + ca * rr, C + sa * rr, 1, 1);
       }
+    }
+    // Icebergs: strong, steady returns
+    for (const b of s.env.met?.bergs ?? []) {
+      const brg = (Math.atan2(b.x - s.own.x, b.y - s.own.y) * 180) / Math.PI;
+      if ((brg - prev + 720) % 360 > span) continue;
+      const r = Math.hypot(b.x - s.own.x, b.y - s.own.y) * scale;
+      if (r > R) continue;
+      const a = toRad(brg);
+      pc.fillStyle = 'rgba(200,250,225,0.85)';
+      pc.beginPath(); pc.arc(C + Math.cos(a) * r, C + Math.sin(a) * r, 2.5 + b.r / 60, 0, TAU); pc.fill();
     }
     // Contacts painted by this sweep segment
     for (const c of s.contacts) {

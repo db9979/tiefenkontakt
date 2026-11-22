@@ -1,4 +1,4 @@
-import { CLASSES, type ServerMsg, type Snapshot } from '@tk/shared';
+import { CLASSES, fogAt, iceCover, type ServerMsg, type Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -268,7 +268,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   function renderSide(): void {
     const s = store.snap!;
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
-    const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}`;
+    const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}${fogAt(s.env.met, s.own) > 0.3 ? ' · NEBEL' : ''}${iceCover(s.env.met, s.own) > 0.1 ? ' · EIS' : ''}`;
     q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${clock(s.score.timeLeftS)}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
