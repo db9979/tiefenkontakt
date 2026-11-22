@@ -11,7 +11,8 @@
     "test": "vitest run",
     "serve": "npm run build && NODE_ENV=production npm -w @tk/server run start",
     "arena": "tsx scripts/bot-arena.ts",
-    "loadtest": "tsx scripts/net-load-test.ts"
+    "loadtest": "tsx scripts/net-load-test.ts",
+    "e2e": "node scripts/e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

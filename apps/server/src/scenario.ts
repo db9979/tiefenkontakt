@@ -79,6 +79,10 @@ export interface ScenarioSettings {
   lesson?: LessonId;
   /** Invite-only: hidden from the match list and quick match. */
   private?: boolean;
+  /** Training sandbox: truth view, time controls, spawning; no time limit. */
+  sandbox?: boolean;
+  /** A mission of a player's campaign run (ship state carried over). */
+  campaign?: boolean;
 }
 
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */
@@ -86,12 +90,15 @@ export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOf
 
 /** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
 export function routeLength(s: ScenarioSettings): number {
-  return 9 * 0.514444 * simTimeLimit(s) * 0.85;
+  return 9 * 0.514444 * s.timeLimitMin * 60 * DEFAULT_SETTINGS.timeScale * 0.85;
 }
+
+/** Sandbox matches run without a time limit (the time scale changes while they run). */
+export const SANDBOX_LIMIT_S = 1e9;
 
 /** Match time limit in sim seconds. */
 export function simTimeLimit(s: ScenarioSettings): number {
-  return s.timeLimitMin * 60 * s.timeScale;
+  return s.sandbox ? SANDBOX_LIMIT_S : s.timeLimitMin * 60 * s.timeScale;
 }
 
 /**

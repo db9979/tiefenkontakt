@@ -17,6 +17,7 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
     <div class="row"><span class="dim">ERMÜDUNG</span><span class="bar"><i id="cp-fat"></i></span></div>
     <div class="row"><span class="dim">MORAL</span><span class="bar"><i id="cp-mor"></i></span></div>
     <div class="row" id="cp-wnd-row"><span class="dim">VERWUNDETE</span><span id="cp-wnd"></span></div>
+    <div class="row" id="cp-xp-row" title="Erfahrung aus dem Feldzug: etwas besseres Gehör, schnellere Reparaturen, weniger Störungen"><span class="dim">ERFAHRUNG</span><span class="bar"><i id="cp-xp"></i></span></div>
     <div class="steps" style="margin:4px 0">
       <button data-cp="battle" title="+10 % Leistung, ermüdet die Crew in etwa 90 Minuten">Gefechtsstationen</button>
       <button data-cp="silent" title="−3 dB, weniger Missgeschicke; Reparaturen und Nachladen halb so schnell">Ruhe im Boot</button>
@@ -71,6 +72,8 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       const mor = c?.morale ?? 0.7;
       q<HTMLElement>('#cp-mor').style.cssText = `width:${Math.round(mor * 100)}%;background:${mor < 0.35 ? '#f09595' : mor < 0.55 ? '#fac775' : '#5dcaa5'}`;
       q('#cp-wnd-row').style.display = c?.wounded ? '' : 'none';
+      q('#cp-xp-row').style.display = c?.xp ? '' : 'none';
+      q<HTMLElement>('#cp-xp').style.cssText = `width:${Math.round((c?.xp ?? 0) * 100)}%;background:#fac775`;
       setText(q('#cp-wnd'), c?.wounded ? `${c.wounded} · SANITÄTER` : '');
       el.querySelector('[data-cp="battle"]')!.classList.toggle('on', !!c?.battle);
       el.querySelector('[data-cp="silent"]')!.classList.toggle('on', !!c?.silent);

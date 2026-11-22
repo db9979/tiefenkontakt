@@ -328,3 +328,13 @@ a.btnlink:hover { background: #12302a; }
 .voice .ptt { flex: 2; min-height: 40px; font-size: 12px; letter-spacing: 0.1em; touch-action: none; user-select: none; -webkit-user-select: none; }
 .voice .ptt.live { background: #3a1010; border-color: var(--red); color: #ffd0d0; }
 .green { color: #5dcaa5; }
+
+/* Campaign screen: small state bars */
+.cbar { display: inline-block; width: 70px; height: 7px; background: #132320; vertical-align: middle; margin-left: 6px; }
+.cbar i { display: block; height: 7px; }
+/* Sandbox panel (training mode only) */
+.sandbox-panel { position: fixed; left: 8px; bottom: 8px; width: 290px; z-index: 40; font-size: 11px; }
+.sandbox-panel .sb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin: 3px 0; align-items: center; }
+.sandbox-panel .sb-grid select { grid-column: span 2; }
+.sandbox-panel .sb-grid label { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+.sandbox-panel .sb-grid input { width: 64px; }

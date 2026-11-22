@@ -16,6 +16,8 @@ export interface CrewState {
   wounded: number;
   battle: boolean;
   silent: boolean;
+  /** Experience of a campaign crew, 0 green … 1 veteran (absent = ordinary crew). */
+  xp?: number;
 }
 
 /** Air in a non-nuclear boat (nuclear boats make their own oxygen and scrub CO2 indefinitely). */
@@ -57,14 +59,25 @@ export function crewPerformance(s: Ship): number {
   return Math.max(0.5, Math.min(1.12, p));
 }
 
+/** Experience bonuses (small and capped): sonar up to +1 dB, repairs and reloads up to +15 %, mishaps up to −50 %. */
+export const XP_SONAR_DB = 1;
+export const XP_WORK = 0.15;
+export const XP_MISHAP = 0.5;
+const xpOf = (s: Ship): number => Math.max(0, Math.min(1, s.crew?.xp ?? 0));
+
 /** Sonar operators' effectiveness in dB of signal excess. */
 export function crewSonarDb(s: Ship): number {
-  return 10 * Math.log10(crewPerformance(s));
+  return 10 * Math.log10(crewPerformance(s)) + XP_SONAR_DB * xpOf(s);
 }
 
 /** Repairs and reloads: crew performance, halved under silent running (no hammering). */
 export function crewWorkRate(s: Ship): number {
-  return crewPerformance(s) * (s.crew?.silent ? 0.5 : 1);
+  return crewPerformance(s) * (s.crew?.silent ? 0.5 : 1) * (1 + XP_WORK * xpOf(s));
+}
+
+/** Chance that an experienced crew catches a mechanical mishap before it happens (0 … 0.5). */
+export function crewAvertsMishap(s: Ship): number {
+  return XP_MISHAP * xpOf(s);
 }
 
 /** Radiated noise change from the crew's conduct: silent running −3 dB, trim pumps +3 dB, blowing tanks +25 dB. */
