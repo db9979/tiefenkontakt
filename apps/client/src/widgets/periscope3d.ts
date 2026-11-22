@@ -45,6 +45,13 @@ function cullNear(g: THREE.Group, eye: THREE.Vector3, r: number): void {
   for (const o of drop) o.removeFromParent();
 }
 
+/** Stable 0…2π phase from a label, so every ship keeps its own rhythm. */
+function phaseOf(label: string): number {
+  let h = 0;
+  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) >>> 0;
+  return (h % 6283) / 1000;
+}
+
 export interface PeriscopeTarget {
   label: string;
   cls: ClassId;
@@ -344,7 +351,8 @@ export class Periscope3D {
         const drop = (tg.range * tg.range) / (2 * EARTH_R);
         s.g.position.set(Math.sin(b) * tg.range, (tg.alt ?? 300) - drop, -Math.cos(b) * tg.range);
         s.g.rotation.y = Math.PI - ((tg.course ?? 0) * Math.PI) / 180;
-        s.g.rotation.z = tg.plane === 'helo' ? 0 : Math.sin(t * 0.2 + tg.range) * 0.03;
+        // Gentle banking with a fixed phase per aircraft (not tied to range, which changes every frame)
+        s.g.rotation.z = tg.plane === 'helo' ? 0 : Math.sin(t * 0.2 + phaseOf(tg.label)) * 0.03;
         animateAircraft(s.g, t, light < 0.6);
         const navA = s.g.getObjectByName('navlights');
         if (navA) navA.visible = !!tg.lit && light < 0.6;
@@ -364,11 +372,19 @@ export class Periscope3D {
       const b = (tg.bearing * Math.PI) / 180;
       // Earth curvature; the small lift keeps hulls from sinking into the wave crests at periscope height
       const drop = (tg.range * tg.range) / (2 * EARTH_R) - 2;
-      const bob = Math.sin(t * 0.5 + tg.label.length) * amp * 0.4;
+      // Ship motion: fixed phase per ship; roll period and amplitude follow its size and the sea state
+      const ph = phaseOf(tg.label);
+      const len = (s.g.userData.len as number | undefined) ?? (s.g.userData.len = new THREE.Box3().setFromObject(s.g).getSize(new THREE.Vector3()).z);
+      const rollT = 5 + len / 20;
+      const small = 60 / (len + 60);
+      const bob = Math.sin((t * 2 * Math.PI) / (rollT * 0.8) + ph) * amp * 0.4 * (0.5 + small);
       s.g.position.set(Math.sin(b) * tg.range, bob - drop, -Math.cos(b) * tg.range);
       // Models are built bow toward +z; turn them so the bow points along the course (north = −z)
       s.g.rotation.y = Math.PI - ((tg.course ?? tg.bearing + 90) * Math.PI) / 180;
-      s.g.rotation.z = Math.sin(t * 0.45 + tg.range) * 0.02 * (1 + sea * 0.5);
+      // Heading first, then pitch about the ship's own beam axis, then roll about its keel
+      s.g.rotation.order = 'YXZ';
+      s.g.rotation.z = Math.sin((t * 2 * Math.PI) / rollT + ph) * (0.03 + sea * 0.03) * small;
+      s.g.rotation.x = Math.sin((t * 2 * Math.PI) / (rollT * 0.7) + ph * 1.7) * (0.008 + sea * 0.01) * small;
       s.g.visible = tg.alpha > 0.05;
       const nav = s.g.getObjectByName('navlights');
       if (nav) nav.visible = !!tg.lit && light < 0.6;
