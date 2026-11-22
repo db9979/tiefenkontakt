@@ -272,24 +272,56 @@ function mpa(g: THREE.Group): void {
   lights(g, [15.2, 0.6, 1.1], [0, 0.78, -20.9], [0, 1.8, 2]);
 }
 
+/**
+ * Glazing that lies on a pod's skin: the part of the lofted surface between z0…z1 and ring
+ * angles a0…a1 (radians, 0 = starboard side +x… π/2 = top), lifted a hair off the skin.
+ */
+function skin(g: THREE.Group, rs: Ring[], z0: number, z1: number, a0: number, a1: number, m: THREE.Material, nz = 6, na = 10): void {
+  const ring = (z: number): Ring => {
+    const i = Math.max(0, Math.min(rs.length - 2, rs.findIndex((q) => q.z >= z) - 1));
+    const p = rs[i]!, q = rs[i + 1]!;
+    const f = Math.max(0, Math.min(1, (z - p.z) / (q.z - p.z)));
+    const l = (u: number, v: number) => u + (v - u) * f;
+    return { z, w: l(p.w, q.w), h: l(p.h, q.h), y: l(p.y ?? 0, q.y ?? 0), n: l(p.n ?? 2, q.n ?? 2) };
+  };
+  const pos: number[] = [];
+  const pt = (z: number, a: number): P3 => {
+    const R = ring(z);
+    const e = 2 / (R.n ?? 2);
+    const c = Math.cos(a), s = Math.sin(a);
+    const k = 1 + 0.015 / Math.min(R.w, R.h);
+    return [k * R.w * Math.sign(c) * Math.abs(c) ** e, (R.y ?? 0) + k * R.h * Math.sign(s) * Math.abs(s) ** e, z];
+  };
+  for (let i = 0; i < nz; i++) {
+    for (let j = 0; j < na; j++) {
+      const za = z0 + ((z1 - z0) * i) / nz, zb = z0 + ((z1 - z0) * (i + 1)) / nz;
+      const aa = a0 + ((a1 - a0) * j) / na, ab = a0 + ((a1 - a0) * (j + 1)) / na;
+      pos.push(...pt(za, aa), ...pt(zb, ab), ...pt(zb, aa), ...pt(za, aa), ...pt(za, ab), ...pt(zb, ab));
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  g.add(new THREE.Mesh(geo, m));
+}
+
 function helo(g: THREE.Group): void {
   // Naval ASW helicopter: boat-hull cabin, engine housing, five-blade rotor, tail pylon with tail rotor, sponsons
-  pod(g, [
+  const cabin: Ring[] = [
     { z: -9.4, w: 0.02, h: 0.1, y: 1.6 }, { z: -9.0, w: 0.28, h: 0.45, y: 1.6 }, { z: -8.2, w: 0.3, h: 0.45, y: 1.55 }, { z: -6, w: 0.45, h: 0.6, y: 1.3, n: 2.6 },
     { z: -4, w: 0.8, h: 0.95, y: 0.95, n: 3 }, { z: -2.5, w: 1.1, h: 1.35, y: 0.65, n: 3.2 }, { z: 0, w: 1.15, h: 1.5, y: 0.55, n: 3.5 }, { z: 4.5, w: 1.15, h: 1.45, y: 0.55, n: 3.5 },
     { z: 6, w: 1.1, h: 1.25, y: 0.45, n: 3 }, { z: 7.1, w: 0.9, h: 0.95, y: 0.3, n: 2.5 }, { z: 7.6, w: 0.3, h: 0.4, y: 0.2 },
-  ], NAVY, 18);
+  ];
+  pod(g, cabin, NAVY, 18);
+  // Windscreen panes in the nose skin either side of a centre post, cockpit side windows, cabin windows
+  for (const sx of [-1, 1]) {
+    const [a0, a1] = sx > 0 ? [0.62, 1.5] : [1.64, 2.52];
+    skin(g, cabin, 6.08, 7.3, a0, a1, K.glass);
+    skin(g, cabin, 5.0, 6.0, sx > 0 ? 0.1 : Math.PI - 0.62, sx > 0 ? 0.62 : Math.PI - 0.1, K.glass, 4, 4);
+    skin(g, cabin, 2.6, 4.2, sx > 0 ? 0.25 : Math.PI - 0.55, sx > 0 ? 0.55 : Math.PI - 0.25, K.glass, 2, 3);
+  }
   pod(g, [{ z: -3.8, w: 0.05, h: 0.05, y: 2.0 }, { z: -3.2, w: 0.35, h: 0.3, y: 2.0 }, { z: -1.5, w: 0.8, h: 0.55, y: 2.0, n: 3 }, { z: 2.6, w: 0.75, h: 0.55, y: 2.0, n: 3 }, { z: 3.4, w: 0.05, h: 0.05, y: 2.0 }], NAVY, 14);
   for (const sx of [-1, 1]) {
-    const ws = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.9), K.glass);
-    ws.position.set(sx * 0.36, 1.48, 6.55);
-    ws.rotation.x = 0.39;
-    g.add(ws);
-  }
-  for (const sx of [-1, 1]) {
-    const w = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 1.5), K.glass);
-    w.position.set(sx * 1.12, 1.15, 5.1);
-    g.add(w);
     // Sponson with the main wheel below it
     const sp = pod(g, [{ z: -1.9, w: 0.08, h: 0.08, y: -0.45 }, { z: -1.2, w: 0.45, h: 0.35, y: -0.45 }, { z: 0.6, w: 0.38, h: 0.3, y: -0.45 }, { z: 1.2, w: 0.05, h: 0.05, y: -0.45 }], NAVY, 12);
     sp.position.x = sx * 1.3;

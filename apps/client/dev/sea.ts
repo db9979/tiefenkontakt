@@ -2,7 +2,7 @@
  * Dev-only page: the 3D sea view with local weather (?wx=fog|fogin|squall|squallin|ice&b=bearing&light=1&eye=20).
  * For render checks of fog banks, squalls and ice. Not part of the build.
  */
-import type { MetCells } from '@tk/shared';
+import type { ClassId, MetCells } from '@tk/shared';
 import { Periscope3D } from '../src/widgets/periscope3d.js';
 
 const p = new URLSearchParams(location.search);
@@ -23,7 +23,7 @@ const v = new Periscope3D(canvas, { eye });
 const ship = p.get('ship');
 v.render({
   bearing: Number(p.get('b') ?? 0), fovDeg: Number(p.get('fov') ?? 50), t: 10, sea: Number(p.get('sea') ?? 3), light: Number(p.get('light') ?? 1),
-  targets: ship ? [{ label: 'S1', cls: 'merchant', bearing: Number(p.get('b') ?? 0), range: Number(ship), course: 90, alpha: 1 }] : [],
+  targets: ship ? [{ label: 'S1', cls: (p.get('cls') ?? 'merchant') as ClassId, bearing: Number(p.get('b') ?? 0), range: Number(ship), course: Number(p.get('course') ?? 90), alpha: 1 }] : [],
   rain: wx === 'squallin', hour: 11, met, own, pitchDeg: Number(p.get('pitch') ?? 0),
 });
 document.title = 'ready';
