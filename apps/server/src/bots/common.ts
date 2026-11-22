@@ -105,11 +105,23 @@ export function isFriendly(w: World, s: Ship, t: ContactTrack, m?: BotMemory): b
     Math.abs(angleDiff(bearing(line.origin, f.pos), line.b)) < 3);
 }
 
+/** How long a contact must be held before its independent course gives a neutral away (s). */
+export const NEUTRAL_RECOGNISE_S = 240;
+
 /**
- * Neutral traffic on that bearing and no convoy ship near it: the captain recognises the
- * independent course (no zigzag, lights, not in station) and leaves it alone.
+ * Is this contact neutral traffic the captain should leave alone? Recognised from the contact
+ * itself once there is a real cue: held for four minutes (steady independent course, no zigzag,
+ * not in station), or seen through the periscope, on radar or by eye, or showing lights.
+ * Before that, only a neutral alone on the bearing (no convoy ship near it) counts.
  */
 export function isNeutral(w: World, s: Ship, t: ContactTrack, m?: BotMemory): boolean {
+  const id = w.books.get(s.id)?.targetIdOf(t.label);
+  const truth = id ? w.ships.find((x) => x.id === id) : undefined;
+  if (truth) {
+    if (truth.team !== 'neutral') return false;
+    const seen = t.sensors.some((k) => k === 'periscope' || k === 'radar' || k === 'visual') || t.lit !== undefined || t.sighting !== undefined;
+    if (seen || w.time - t.firstSeen >= NEUTRAL_RECOGNISE_S) return true;
+  }
   const line = m ? latestLine(t, m, s) : { origin: s.pos, b: t.bearing };
   const on = (f: Ship) => f.alive && distance(line.origin, f.pos) > 50 && Math.abs(angleDiff(bearing(line.origin, f.pos), line.b)) < 3;
   return w.ships.some((f) => f.team === 'neutral' && on(f)) && !w.ships.some((f) => isConvoyShip(f) && on(f));
