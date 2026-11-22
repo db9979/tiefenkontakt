@@ -78,7 +78,7 @@ export interface ScoreInfo {
 function friendlyOf(s: Ship, now: number): FriendlyView {
   return {
     id: s.id, name: s.name, cls: s.cls, x: s.pos.x, y: s.pos.y, heading: s.heading,
-    speedKn: s.speed / KN, reportedAt: now, alive: s.alive,
+    speedKn: s.speed / KN, reportedAt: now, alive: s.alive, lit: s.lights,
   };
 }
 

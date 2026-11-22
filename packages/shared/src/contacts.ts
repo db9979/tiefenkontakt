@@ -27,6 +27,8 @@ export interface ContactTrack {
   sensors: SensorKind[];
   /** Visual identification only (periscope). */
   classified?: ClassId;
+  /** Last periscope look showed navigation lights. */
+  lit?: boolean;
   /** Latest bridge-lookout sighting and when it was made. */
   sighting?: Sighting;
   sightedAt?: number;
@@ -117,6 +119,7 @@ export class ContactBook {
     }
     if (!tr.sensors.includes(d.sensor)) tr.sensors.push(d.sensor);
     if (d.classified) tr.classified = d.classified;
+    if (d.sensor === 'periscope') tr.lit = d.lit;
     if (d.sighting) {
       if (tr.sightedAt === undefined || d.time - tr.sightedAt > 60) tr.sightingSince = d.time;
       tr.sighting = d.sighting;

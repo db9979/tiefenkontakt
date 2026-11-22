@@ -41,6 +41,8 @@ export interface Detection {
   sighting?: Sighting;
   /** Intercepted ping: whose sonar it was (frequency tells hull sonar from a dipping sonar). */
   source?: 'hull' | 'dip';
+  /** Seen through the periscope with navigation lights burning. */
+  lit?: boolean;
   /** Narrowband/DEMON measurements for passive sonar looks. */
   evidence?: Evidence;
   /** CW active echo: target closing speed in kn (positive = approaching). */
@@ -288,11 +290,13 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive || CLASSES[tgt.cls].submarine) continue;
     const range = distance(obs.pos, tgt.pos);
-    if (range > horizonRange(1.5, 30) * vis) continue;
+    // Navigation lights carry far at night: a lit ship is seen almost as well as by day
+    const seen = tgt.lights ? Math.max(vis, (1 - ctx.env.seaState * 0.08) * 0.85 * (ctx.env.rain ? 0.6 : 1)) : vis;
+    if (range > horizonRange(1.5, 30) * seen) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'periscope', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.3)),
-      range: range * (1 + ctx.rng.gauss(0, 0.05)), se: 20, classified: tgt.cls,
+      range: range * (1 + ctx.rng.gauss(0, 0.05)), se: 20, classified: tgt.cls, lit: tgt.lights,
     });
   }
 }

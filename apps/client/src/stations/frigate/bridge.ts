@@ -119,7 +119,7 @@ export function bridgeStation(): Station {
       const dy = fp.y - me.y;
       const r = Math.hypot(dx, dy);
       if (r > reach || r < 50) continue;
-      out.push({ label: f.id, cls: f.cls, bearing: (Math.atan2(dx, dy) * 180) / Math.PI, range: r, course: f.heading, speedKn: f.speedKn, alpha: 1 });
+      out.push({ label: f.id, cls: f.cls, bearing: (Math.atan2(dx, dy) * 180) / Math.PI, range: r, course: f.heading, speedKn: f.speedKn, alpha: 1, lit: f.lit });
     }
     const now = simNow();
     for (const c of s.contacts) {

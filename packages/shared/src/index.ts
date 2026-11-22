@@ -11,6 +11,7 @@ export * from './boat.js';
 export * from './command-radio.js';
 export * from './incidents.js';
 export * from './traits.js';
+export * from './lights.js';
 export * from './contacts.js';
 export * from './convoy-ai.js';
 export * from './world.js';

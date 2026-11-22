@@ -33,6 +33,8 @@ export interface Environment {
   /** Reconnaissance: when and by whom the enemy report went out. */
   reportAt?: number;
   reportBy?: string;
+  /** Last threat the convoy noticed (lights go out for 30 min). */
+  threatAt?: number;
   /** What each side's AI learned about the other side's players' habits. */
   adapt?: { west?: { pd?: boolean; above?: boolean; fast?: boolean }; east?: { ping?: boolean; fast?: boolean } };
 }

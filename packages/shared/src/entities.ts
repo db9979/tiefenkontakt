@@ -58,6 +58,8 @@ export interface Ship {
   rudderJamUntil?: number;
   /** Towed array torn off and not usable until this time (driftnet). */
   towedLostUntil?: number;
+  /** Navigation lights burning (lights.ts). */
+  lights?: boolean;
   /** Fouled in a driftnet until this time: crawling and noisy. */
   snagUntil?: number;
   snagged?: boolean;

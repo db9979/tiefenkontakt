@@ -61,7 +61,7 @@ void main() {
   // Moonlight path at night
   float md = max(dot(r, normalize(uMoon)), 0.0);
   col += vec3(0.75, 0.8, 0.9) * pow(md, 160.0) * (1.0 - uSunUp) * 0.9;
-  col *= 0.35 + 0.65 * uLight;
+  col *= 0.12 + 0.88 * uLight * uLight;
   // Whitecaps on the crests as the sea builds, streaked by the wind
   if (uFoam > 0.0 && vH > 0.1) {
     float streak = fbm(vPos.xz * vec2(0.08, 0.025) + vec2(uTime * 0.05, 0.0));

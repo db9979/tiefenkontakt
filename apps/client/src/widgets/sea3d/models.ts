@@ -87,6 +87,44 @@ function wake(g: THREE.Group, len: number, beam: number, bowZ: number, sternZ: n
   g.add(w, b);
 }
 
+let glowTex: THREE.Texture | undefined;
+/** Soft round glow for light points (shared texture). */
+function glow(): THREE.Texture {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.25, 'rgba(255,255,255,0.8)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return (glowTex = new THREE.CanvasTexture(c));
+}
+
+/**
+ * Navigation lights: masthead (white) over the bridge, sidelights red to port and green to
+ * starboard, stern light (white). Screen-sized glows so they show for miles at night.
+ * Bow is +z, so port (left looking forward) is +x.
+ */
+function navLights(g: THREE.Group, len: number, beam: number, mastY: number, bridgeZ: number, deckY: number): void {
+  const n = new THREE.Group();
+  n.name = 'navlights';
+  n.visible = false;
+  const lamp = (color: number, x: number, y: number, z: number, size: number) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow(), color, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false, transparent: true }));
+    sp.scale.setScalar(size);
+    sp.position.set(x, y, z);
+    n.add(sp);
+  };
+  lamp(0xfff6e0, 0, mastY, bridgeZ, 0.009);
+  lamp(0xff3b30, beam / 2, deckY + 2, bridgeZ, 0.007);
+  lamp(0x3dff7a, -beam / 2, deckY + 2, bridgeZ, 0.007);
+  lamp(0xfff6e0, 0, deckY + 1, -len / 2 + 2, 0.006);
+  g.add(n);
+}
+
 /** Merchant hull colours seen in Cold War convoys: black, grey, rust brown, dark green. */
 const HULLS = [0x26292b, 0x4a5156, 0x4a2e24, 0x2b3a31].map((c) => mat(c));
 const FUNNELS = [0x1c1f21, 0x7a2a22, 0xb08a3a, 0x2a3f5a].map((c) => mat(c));
@@ -115,6 +153,7 @@ function merchant(g: THREE.Group): void {
   cyl(g, 2.6, 9, 0, 21, -52, FUNNELS[v]!, 3);
   cyl(g, 2.65, 1.6, 0, 25, -52, M.black, 2.65);
   smoke(g, 0, 26, -52, 7);
+  navLights(g, 130, 20, 25, -40, 10);
   wake(g, 200, 20, 64, -64);
 }
 
@@ -146,6 +185,7 @@ function warship(g: THREE.Group, len: number, beam: number, frigate: boolean): v
     box(g, 2.5, 1.4, 3, 0, 12.7, -30 * k, M.grey);
     box(g, 0.4, 0.05, 18 * k, 0, 6.8, -48 * k, mat(0xd9d9d0));
   } else box(g, beam * 0.5, 3, 10 * k, 0, 8, -24 * k, M.grey);
+  navLights(g, len, beam, 34 * k, 12 * k, 7);
   wake(g, frigate ? 190 : 140, beam, len / 2, -len / 2);
 }
 

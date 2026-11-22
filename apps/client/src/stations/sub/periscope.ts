@@ -130,14 +130,14 @@ export function periscopeStation(): Station {
     const s = store.snap;
     if (!s || !mastState(s.own).raised) return [];
     const now = simNow();
-    const out: { label: string; cls: ClassId; bearing: number; range: number; alpha: number }[] = [];
+    const out: { label: string; cls: ClassId; bearing: number; range: number; alpha: number; lit?: boolean }[] = [];
     for (const c of s.contacts) {
       if (!c.sensors.includes('periscope')) continue;
       const age = now - c.lastSeen;
       if (age > 6) continue;
       const est = filters.get(c.label)?.at(now);
       if (!est) continue;
-      out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)) });
+      out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit });
     }
     return out;
   }

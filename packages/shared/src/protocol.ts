@@ -185,6 +185,8 @@ export interface FriendlyView {
   speedKn: number;
   reportedAt: number;
   alive: boolean;
+  /** Navigation lights on. */
+  lit?: boolean;
 }
 
 export interface TorpedoView {

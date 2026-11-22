@@ -24,6 +24,8 @@ export interface PeriscopeTarget {
   alpha: number;
   /** Lookout sighting of a submerged boat: draw what is visible of it (feather, snorkel). */
   sighting?: Sighting;
+  /** Navigation lights burning (shown at dusk and night). */
+  lit?: boolean;
 }
 
 /** A detonation seen through the optic (from a hit/sunk report): water column, smoke, fire. */
@@ -236,14 +238,15 @@ export class Periscope3D {
     u.uAmp!.value = amp;
     u.uLight!.value = o.light;
     u.uFoam!.value = Math.max(0, Math.min(1, (o.sea - 2) / 4));
-    const haze = new THREE.Color(0x7f939b).multiplyScalar(0.25 + 0.75 * o.light);
+    const haze = new THREE.Color(0x7f939b).multiplyScalar(0.06 + 0.94 * o.light * o.light);
     u.uFog!.value = haze;
     // Dusk and dawn tint the horizon orange; the sun stands low in the west or east
     const dusk = o.light > 0.15 && o.light < 0.9 ? 1 - Math.abs(o.light - 0.5) * 2 : 0;
-    const horizon = new THREE.Color(0x8fa3ab).lerp(new THREE.Color(0xd08a5a), dusk * 0.7).multiplyScalar(0.2 + 0.8 * o.light);
+    // Night: a dark sky with only a faint glow at the horizon
+    const horizon = new THREE.Color(0x8fa3ab).lerp(new THREE.Color(0xd08a5a), dusk * 0.7).multiplyScalar(0.06 + 0.94 * o.light * o.light);
     const su = this.sky.material.uniforms;
     su.uHorizon!.value = o.rain ? horizon.clone().lerp(new THREE.Color(0x5c666a), 0.6) : horizon;
-    su.uTop!.value = new THREE.Color(0x3d5560).multiplyScalar((0.15 + 0.85 * o.light) * (o.rain ? 0.7 : 1));
+    su.uTop!.value = new THREE.Color(0x3d5560).multiplyScalar((0.05 + 0.95 * o.light * o.light) * (o.rain ? 0.7 : 1));
     const hour = o.hour ?? 12;
     const sunAz = ((hour - 6) / 12) * Math.PI; // east at 6 h, south at noon, west at 18 h
     const sunEl = Math.sin(((hour - 6) / 12) * Math.PI) * 0.8;
@@ -270,7 +273,7 @@ export class Periscope3D {
     this.rain.visible = !!o.rain;
     if (o.rain) this.rain.position.y = -((o.t * 22) % 30);
     this.updateEffects(o.effects ?? [], o.light);
-    this.place(o.targets, o.t, o.sea, amp);
+    this.place(o.targets, o.t, o.sea, amp, o.light);
     if (this.own) {
       // Keep the own hull under the camera: the bridge point sits below the eye, the ship heaves and rolls with it
       const c = ((o.ownHeading ?? 0) * Math.PI) / 180;
@@ -285,7 +288,7 @@ export class Periscope3D {
     this.renderer.render(this.scene, this.camera);
   }
 
-  private place(targets: PeriscopeTarget[], t: number, sea: number, amp: number): void {
+  private place(targets: PeriscopeTarget[], t: number, sea: number, amp: number, light: number): void {
     const seen = new Set<string>();
     for (const tg of targets) {
       seen.add(tg.label);
@@ -317,6 +320,8 @@ export class Periscope3D {
       s.g.rotation.y = Math.PI - ((tg.course ?? tg.bearing + 90) * Math.PI) / 180;
       s.g.rotation.z = Math.sin(t * 0.45 + tg.range) * 0.02 * (1 + sea * 0.5);
       s.g.visible = tg.alpha > 0.05;
+      const nav = s.g.getObjectByName('navlights');
+      if (nav) nav.visible = !!tg.lit && light < 0.6;
     }
     for (const [label, s] of this.ships) {
       if (!seen.has(label)) {

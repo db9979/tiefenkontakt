@@ -6,6 +6,7 @@ import { KN, NM, headingVec } from './math.js';
 import type { World } from './world.js';
 import { stepCommandRadio } from './command-radio.js';
 import { stepIncidents } from './incidents.js';
+import { stepLights } from './lights.js';
 
 /**
  * Boat and crew systems, run every tick: watches and fatigue, morale and wounded, air in
@@ -191,6 +192,7 @@ function stepKnuckles(w: World, s: Ship): void {
 
 export function boatSystem(w: World, dt: number): void {
   reactToEvents(w);
+  if (Math.floor(w.time) !== Math.floor(w.time - dt)) stepLights(w);
   stepCommandRadio(w, dt);
   stepIncidents(w, dt);
   for (const s of w.ships) {
