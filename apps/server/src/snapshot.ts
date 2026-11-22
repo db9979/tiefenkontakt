@@ -1,5 +1,7 @@
 import {
   planesFor,
+  inSquall,
+  metView,
   CLASSES,
   KN,
   batteryEndurance,
@@ -202,7 +204,7 @@ export function buildSnapshot(
       return d.items;
     })(),
     env: {
-      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light, rain: w.env.rain, clock: w.env.weather?.clock,
+      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light, rain: w.env.rain || inSquall(w.env.met, own.pos), clock: w.env.weather?.clock, met: metView(w.env.met),
       bottom: w.env.seabed ? Math.round(depthAt(w.env.seabed, own.pos.x, own.pos.y)) : undefined, seabed: w.env.seabed,
     },
     score,

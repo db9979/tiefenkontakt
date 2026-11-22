@@ -22,6 +22,7 @@ import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
 import { KN, NM, angleDiff, bearing, dbSum, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
+import { ICE_MASK_DB, iceCover, inSquall, sightPenalty } from './met.js';
 
 export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual' | 'mad';
 
@@ -180,7 +181,8 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   const trueB = bearing(obs.pos, tgt.pos);
   const rel = angleDiff(obs.heading, trueB);
   // Operators: fresh, alert crews hear more; knuckles in the path swallow sound
-  const adj = crewSonarDb(obs) - knuckleLoss(obs.pos, tgt.pos, ctx.knuckles);
+  // A boat under or among floes hides in the crackling of the ice
+  const adj = crewSonarDb(obs) - knuckleLoss(obs.pos, tgt.pos, ctx.knuckles) - ICE_MASK_DB * iceCover(ctx.env.met, tgt.pos);
   let cache = heardCache.get(obs);
   if (!cache || cache.t !== ctx.time) heardCache.set(obs, (cache = { t: ctx.time, heard: heardSources(obs, ctx) }));
   const heard = cache.heard;
@@ -299,7 +301,7 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
     const range = distance(obs.pos, tgt.pos);
     // Navigation lights carry far at night: a lit ship is seen almost as well as by day
     const seen = tgt.lights ? Math.max(vis, (1 - ctx.env.seaState * 0.08) * 0.85 * (ctx.env.rain ? 0.6 : 1)) : vis;
-    if (range > horizonRange(1.5, 30) * seen) continue;
+    if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > horizonRange(1.5, 30) * seen) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'periscope', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.3)),
@@ -315,7 +317,8 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
     const sub = CLASSES[tgt.cls].submarine;
     if (sub) {
       if (!mastExposed(tgt) || range > RADAR_MAST_RANGE) continue;
-      const pDetect = 0.35 * (1 - ctx.env.seaState * 0.1);
+      // Rain clutter swallows a small mast return inside a shower
+      const pDetect = 0.35 * (1 - ctx.env.seaState * 0.1) * (inSquall(ctx.env.met, tgt.pos) ? 0.25 : 1);
       if (ctx.rng.next() > pDetect) continue;
     } else if (range > RADAR_RANGE) continue;
     out.push({

@@ -12,6 +12,7 @@ import {
   CLASSES,
   depthAt,
   initWeather,
+  initMet,
   type SeabedKind,
   installIncidents,
 } from '@tk/shared';
@@ -155,6 +156,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   if (mission === 'meerenge') w.env.exitY = STRAIT_EXIT_Y;
   w.env.weather = initWeather(w.env, START_HOUR[settings.timeOfDay], settings.weather !== 'stabil');
   w.env.light = daylight(START_HOUR[settings.timeOfDay]);
+  w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: mission === 'groenland', fogBanks: mission === 'groenland' ? 3 : 1 + (seed % 2) });
   // Subs start safely above the bottom in shallow missions
   for (const s of ships) {
     if (s.depth > 10 && s.cls !== 'merchant') {

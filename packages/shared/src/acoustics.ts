@@ -7,6 +7,7 @@ import type { IncidentState } from './incidents.js';
 import { KN, angleDiff, bearing, dbSum, distance, type Vec2 } from './math.js';
 import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
 import { RAIN_NOISE_DB, type WeatherState } from './weather.js';
+import { localNoiseDb } from './met.js';
 
 export interface Environment {
   layerDepth: number; // m, thermocline; 0 = no layer
@@ -19,6 +20,8 @@ export interface Environment {
   /** Rain squall: louder ambient noise, poorer visibility. */
   rain?: boolean;
   weather?: WeatherState;
+  /** Local cells: fog banks, rain squalls, ice (see met.ts). */
+  met?: import('./met.js').MetState;
   /** Set (current) in m/s; moves submerged boats' dead reckoning off. */
   current?: { x: number; y: number };
   /** Incidents at sea (driftnets, whales, fronts); present only in full matches. */
@@ -156,8 +159,9 @@ export function transmissionLoss(
   return spread + absorb + layer + bottomLoss - cz - duct;
 }
 
-export function ambientNoise(env: Environment): number {
-  return 60 + 3 * env.seaState + (env.rain ? RAIN_NOISE_DB : 0);
+/** Ambient noise; at a position it adds a rain squall overhead and ice (floes crackling). */
+export function ambientNoise(env: Environment, at?: Vec2): number {
+  return 60 + 3 * env.seaState + (env.rain ? RAIN_NOISE_DB : 0) + (at ? localNoiseDb(env.met, at, !!env.rain) : 0);
 }
 
 /** Self noise of the hull array of a receiver at its current speed. */
@@ -187,7 +191,7 @@ export function beamNoise(receiver: Ship, array: 'hull' | 'towed', env: Environm
   const spec = CLASSES[receiver.cls];
   const di = array === 'hull' ? spec.hull.di : (spec.towed?.di ?? 0);
   const self = array === 'hull' ? hullSelfNoise(receiver) : towedSelfNoise(receiver);
-  return dbSum(ambientNoise(env), self) - di;
+  return dbSum(ambientNoise(env, receiver.pos), self) - di;
 }
 
 /** Signal excess for passive detection of target by receiver on the given array. */
@@ -217,7 +221,7 @@ export function passiveExcessFrom(
   const spec = CLASSES[receiver.cls];
   const di = array === 'hull' ? spec.hull.di : (spec.towed?.di ?? 0);
   const self = array === 'hull' ? hullSelfNoise(receiver) : towedSelfNoise(receiver);
-  const nl = dbSum(ambientNoise(env), self);
+  const nl = dbSum(ambientNoise(env, receiver.pos), self);
   const tl = transmissionLoss(range, sourceDepth, receiverDepth, env, undefined, bottom);
   return sl - tl - (nl - di) - DT_PASSIVE;
 }
@@ -250,7 +254,7 @@ export function activeSignalExcess(target: Ship, pinger: Ship, range: number, en
   const sl = spec.hull.activeSl;
   if (sl === undefined) return -Infinity;
   const tl = transmissionLoss(range, sonarDepth(pinger), target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
-  const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
+  const nl = dbSum(ambientNoise(env, pinger.pos), hullSelfNoise(pinger));
   const ts = targetStrengthToward(target, pinger.pos);
   return sl - 2 * tl + ts - dbSum(nl - spec.hull.di, reverbLevel(sl, range, env, bottom, o)) - DT_ACTIVE;
 }
@@ -261,7 +265,7 @@ export function pointEchoExcess(pinger: Ship, range: number, depth: number, ts: 
   const sl = spec.hull.activeSl;
   if (sl === undefined) return -Infinity;
   const tl = transmissionLoss(range, pinger.depth, depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
-  const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
+  const nl = dbSum(ambientNoise(env, pinger.pos), hullSelfNoise(pinger));
   return sl - 2 * tl + ts - dbSum(nl - spec.hull.di, reverbLevel(sl, range, env, bottom, { lfm: pinger.pulse === 'lfm' })) - DT_ACTIVE;
 }
 
@@ -270,7 +274,7 @@ export function pingInterceptExcess(pinger: Ship, listener: Ship, range: number,
   const sl = CLASSES[pinger.cls].hull.activeSl;
   if (sl === undefined) return -Infinity;
   const tl = transmissionLoss(range, sonarDepth(pinger), listener.depth, env, ALPHA_ACTIVE);
-  const nl = dbSum(ambientNoise(env), hullSelfNoise(listener));
+  const nl = dbSum(ambientNoise(env, listener.pos), hullSelfNoise(listener));
   return sl - tl - nl - DT_PASSIVE;
 }
 

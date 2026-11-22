@@ -45,7 +45,8 @@ export function stepWeather(env: Environment & { weather?: WeatherState; rain?: 
     // Sea state drifts by one step, biased toward the middle
     const drift = rng.next() < 0.5 ? -1 : 1;
     env.seaState = Math.max(1, Math.min(6, env.seaState + (env.seaState >= 5 ? -1 : env.seaState <= 1 ? 1 : drift)));
-    if (rng.next() < 0.35) wx.rainUntil = time + 600 + rng.next() * 900;
+    // With local squalls on the map (met.ts) showers come from those instead of map-wide rain
+    if (rng.next() < 0.35 && !env.met) wx.rainUntil = time + 600 + rng.next() * 900;
   }
   // Strong wind mixes the layer deeper; calm lets it rise slowly back
   if (wx.baseLayer > 0) wx.baseLayer = Math.max(40, Math.min(220, wx.baseLayer + (env.seaState >= 5 ? 1 : env.seaState <= 2 ? -0.5 : 0)));

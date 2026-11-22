@@ -1,4 +1,5 @@
 import { aircraftPosition, type Sortie } from './aviation.js';
+import { fogAt, inSquall } from './met.js';
 import { CLASSES } from './classes.js';
 import { canCopy } from './command-radio.js';
 import { isConvoyShip, mastRaised, type Ship } from './entities.js';
@@ -183,7 +184,7 @@ export function planesFor(w: World, own: Ship): PlaneView[] {
     // Own aircraft over the datalink: surface ships always, boats only with the mast up
     if (p.team === own.team && (!sub || mastRaised(own))) via.push('datalink');
     if (radarOn && d < Math.min(110_000, radarHorizon(30, p.alt))) via.push('radar');
-    if (eyeUp && d < Math.min(eyeRange(p, light, !!w.env.rain), radarHorizon(sub ? 2 : 20, p.alt))) via.push('visual');
+    if (eyeUp && d < Math.min(eyeRange(p, light, !!w.env.rain || inSquall(w.env.met, own.pos)) * (1 - 0.9 * fogAt(w.env.met, own.pos)), radarHorizon(sub ? 2 : 20, p.alt))) via.push('visual');
     if (esmUp && p.radar && p.team !== own.team && d < AIR_RADAR_M * 2) via.push('esm');
     if (!via.length) continue;
     const fix = via.some((v) => v !== 'esm');

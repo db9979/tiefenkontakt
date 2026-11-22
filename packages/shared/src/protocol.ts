@@ -274,6 +274,8 @@ export interface Snapshot {
     bottom?: number;
     seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number };
     rain?: boolean;
+    /** Met forecast: fog banks, rain squalls, ice floes and icebergs (public). */
+    met?: import('./met.js').MetCells;
     /** Ship's clock, hour of day. */
     clock?: number;
   };
