@@ -43,6 +43,10 @@ export interface Decoy {
   sl: number;
   expiresAt: number;
   towedBy?: string;
+  /** Active echo strength (dB); default 20 for decoys. */
+  ts?: number;
+  /** Knuckle (bubble field from a hard turn): a weak active echo, silent to passive seekers. */
+  knuckle?: boolean;
 }
 
 export interface DelayedEffect {
@@ -252,7 +256,7 @@ function seek(w: World, t: Torpedo): Candidate | undefined {
   for (const d of st.decoys) {
     if (t.rejected?.includes(d.id)) continue;
     const tower = d.towedBy ? w.ships.find((s) => s.id === d.towedBy) : undefined;
-    consider(d.id, d.pos, tower ? velocityOf(tower) : { x: 0, y: 0 }, d.depth, d.sl, 20, 1.3, true);
+    consider(d.id, d.pos, tower ? velocityOf(tower) : { x: 0, y: 0 }, d.depth, d.sl, d.ts ?? 20, d.knuckle ? 1 : 1.3, true);
   }
   return best;
 }

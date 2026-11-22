@@ -17,6 +17,9 @@ import {
   type ClientMsg,
   type Ship,
   type World,
+  crewOf,
+  emergencyBlow,
+  sendMad,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -30,8 +33,10 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('leave') }),
   z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ffg', 'kor']) }),
   z.object({ t: z.literal('ready'), ready: z.boolean() }),
-  z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(500).optional() }),
-  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy']), on: z.boolean() }),
+  z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
+  z.object({ t: z.literal('blow') }),
+  z.object({ t: z.literal('mad'), bearing: deg, range: z.number().finite().min(200).max(30_000) }),
+  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant']), on: z.boolean() }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
     t: z.literal('fire'), heading: deg, enableAfter: z.number().finite().min(0).max(30_000),
@@ -86,7 +91,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -114,6 +119,13 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       } else if (m.what === 'active') {
         if (spec.hull.activeSl === undefined) return 'Kein Aktivsonar';
         s.activeSonar = m.on;
+      } else if (m.what === 'silent') {
+        crewOf(s).silent = m.on;
+      } else if (m.what === 'battle') {
+        crewOf(s).battle = m.on;
+      } else if (m.what === 'buoyant') {
+        if (!spec.submarine) return 'Nur für U-Boote';
+        s.buoyAntenna = m.on;
       } else {
         setTowedDecoy(w, s, m.on);
       }
@@ -152,6 +164,15 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'repair':
       s.repair = m.system;
       return;
+    case 'blow': {
+      const r = emergencyBlow(w, s);
+      return r === true ? undefined : r;
+    }
+    case 'mad': {
+      const v = headingVec(m.bearing);
+      const r = sendMad(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range });
+      return r === true ? undefined : r;
+    }
     case 'dip':
     case 'helotorp':
     case 'mpa': {

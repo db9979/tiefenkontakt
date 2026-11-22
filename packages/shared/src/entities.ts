@@ -1,5 +1,6 @@
 import type { ClassId, Team } from './classes.js';
 import type { DamageState, ShipSystem } from './damage.js';
+import type { AtmoState, CrewState } from './crew.js';
 import { CLASSES } from './classes.js';
 import type { Vec2 } from './math.js';
 
@@ -34,6 +35,27 @@ export interface Ship {
   snorkelExt?: number;
   /** Current rate of turn (deg/s, + = starboard); builds up and dies away with rudder and hull inertia. */
   yawRate?: number;
+  /** People aboard: fatigue, morale, wounded, battle stations, silent running (crew.ts). */
+  crew?: CrewState;
+  /** Air quality in diesel and coastal boats (crew.ts). */
+  air?: AtmoState;
+  /** Trim error in tonnes (+ light, − heavy); torpedo shots make the boat light, flooding heavy. */
+  trim?: number;
+  /** High-pressure air for emergency blows (bottles); refilled by the compressors when snorkeling or surfaced. */
+  hpAir?: number;
+  /** Emergency blow in progress until this time. */
+  blowUntil?: number;
+  blowing?: boolean;
+  /** Dead-reckoning error of a submerged boat (m); the crew believes it is at pos + this. */
+  drErr?: { x: number; y: number };
+  /** Time of the last navigation fix (mast raised or surfaced). */
+  lastFixAt?: number;
+  /** Floating wire / buoy antenna streamed (receive only). */
+  buoyAntenna?: boolean;
+  /** Rudder jammed until this time (incident). */
+  rudderJamUntil?: number;
+  /** Towed array torn off and not usable until this time (driftnet). */
+  towedLostUntil?: number;
   radarOn: boolean;
   towedLength: number; // m deployed, 0 = stowed
   /** Ordered array length; the winch pays out about 4 m/s and recovers about 3 m/s. */

@@ -21,7 +21,10 @@ export type ClientMsg =
   | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant'> }
   | { t: 'ready'; ready: boolean }
   | { t: 'order'; heading?: number; speedKn?: number; depth?: number }
-  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy'; on: boolean }
+  /** silent = "Ruhe im Boot", battle = Gefechtsstationen, buoyant = Schleppantenne (receive-only). */
+  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant'; on: boolean }
+  | { t: 'blow' }
+  | { t: 'mad'; bearing: number; range: number }
   | { t: 'towed'; length: number }
   | { t: 'fire'; heading: number; enableAfter: number; mode: SeekerMode; searchDepth: number; speedKn: number }
   | { t: 'steer'; torpId: string; heading: number }
@@ -142,6 +145,17 @@ export interface OwnShipView {
   towedLength: number;
   towedOrder?: number;
   towedReady: boolean;
+  /** People aboard, air (diesel boats), trim, high-pressure air, blow, buoy antenna (crew.ts, boat.ts). */
+  crew?: { fatigue: number; morale: number; wounded: number; battle: boolean; silent: boolean; performance: number };
+  air?: { co2: number; o2: number; scrubbers: number; candles: number };
+  trim?: number;
+  hpAir?: number;
+  blowing?: boolean;
+  buoyAntenna?: boolean;
+  /** Submerged boats: estimated position uncertainty (m) since the last fix; x/y are the dead-reckoned position. */
+  navUncertainty?: number;
+  rudderJam?: boolean;
+  towedLost?: boolean;
   noiseDb: number;
   cavitationKn: number;
   damage: DamageState;
@@ -190,7 +204,10 @@ export interface RadioMsg {
 
 export interface AlertView {
   time: number;
-  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient' | 'sighting';
+  kind: 'torpedo' | 'esm' | 'ping' | 'sunk' | 'hit' | 'transient' | 'sighting' | 'boat' | 'splash' | 'command';
+  /** Intercepted ping: received level (dB over threshold) and the kind of source. */
+  level?: number;
+  source?: 'hull' | 'dip';
   /** Lookout sightings: what, rough range and the contact label. */
   what?: 'mast' | 'snorkel' | 'surfaced';
   range?: number;
@@ -254,7 +271,7 @@ export interface Snapshot {
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
     buoys: { id: string; x: number; y: number; depth: number; leftS: number }[];
-    helos: { x: number; y: number; kind: 'buoy' | 'dip' | 'torpedo' | 'mpa'; hovering: boolean }[];
+    helos: { x: number; y: number; kind: 'buoy' | 'dip' | 'torpedo' | 'mpa' | 'mad'; hovering: boolean }[];
     stock: number;
     heloReadyInS: number;
     heloTorps: number;

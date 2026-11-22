@@ -2,6 +2,9 @@ import { CLASSES } from './classes.js';
 import { speedFactor } from './damage.js';
 import type { Ship } from './entities.js';
 import { PERISCOPE_DEPTH, isAtPeriscopeDepth } from './entities.js';
+
+/** Rise rate during an emergency blow (m/s). */
+const BLOW_RISE_MS = 3.5;
 import { KN, angleDiff, approach, clamp, headingVec, wrap360 } from './math.js';
 
 /** Speed above which a snorkeling SSK floods the snorkel / can't charge. */
@@ -33,7 +36,8 @@ export function stepShip(s: Ship, dt: number, now: number): void {
   const speedMs = s.speed;
   const maxRate = speedMs < 0.15 ? 0 : Math.min(spec.turnRateDeg, ((speedMs / spec.turnRadius) * 180) / Math.PI);
   const yawAcc = Math.max(0.05, maxRate / 6); // about 6 s to full rate of turn
-  const diff = angleDiff(s.heading, s.order.heading);
+  // A jammed rudder holds whatever turn it had (incident)
+  const diff = (s.rudderJamUntil ?? 0) > now ? Math.sign(s.yawRate ?? 0) * 90 : angleDiff(s.heading, s.order.heading);
   const want = Math.sign(diff) * Math.min(maxRate, Math.sqrt(2 * yawAcc * Math.abs(diff)));
   s.yawRate = approach(s.yawRate ?? 0, want, yawAcc * dt);
   const step = s.yawRate * dt;
@@ -46,12 +50,15 @@ export function stepShip(s: Ship, dt: number, now: number): void {
 
   if (spec.submarine) {
     // Depth: planes give speed · sin(angle); trim and ballast a little more at any speed
-    const target = clamp(s.order.depth, 0, spec.maxDepth);
+    // Orders may go below the test depth (to the crush depth at 1.5×); boat.ts makes that dangerous
+    const target = clamp(s.order.depth, 0, spec.maxDepth * 1.5);
     const planes = speedMs * Math.sin(((spec.planeAngleDeg ?? 15) * Math.PI) / 180);
     const vmax = Math.min(spec.depthRate, 0.2 + planes);
     // Level off gently instead of stopping dead at the ordered depth
     const v = Math.min(vmax, 0.05 + Math.abs(target - s.depth) * 0.08);
-    s.depth = approach(s.depth, target, v * dt);
+    // Emergency blow: the tanks are blown dry, the boat rises fast regardless of speed
+    s.blowing = (s.blowUntil ?? 0) > now;
+    s.depth = s.blowing ? Math.max(0, s.depth - BLOW_RISE_MS * dt) : approach(s.depth, target, v * dt);
     // Masts: hoisting takes about 8 s, lowering 5 s; the snorkel head 15 s up, 6 s down
     const atPd = s.depth <= PERISCOPE_DEPTH + 0.5;
     if (!atPd) s.mastUp = false;

@@ -17,6 +17,8 @@ import {
   type Ship,
   type Snapshot,
   type World,
+  crewPerformance,
+  mastRaised,
 } from '@tk/shared';
 
 export interface PlayerExtras {
@@ -156,12 +158,18 @@ export function buildSnapshot(
     timeScale: x.timeScale ?? 1,
     crew: [own.name],
     own: {
-      id: own.id, cls: own.cls, team: own.team, name: own.name, x: own.pos.x, y: own.pos.y,
+      // Submerged boats see where they believe they are (dead reckoning), not the truth
+      id: own.id, cls: own.cls, team: own.team, name: own.name, x: own.pos.x + (own.drErr?.x ?? 0), y: own.pos.y + (own.drErr?.y ?? 0),
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, order: { ...own.order },
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
       snorkel: own.snorkel, mastUp: own.mastUp, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
       activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
+      crew: own.crew && { ...own.crew, performance: Math.round(crewPerformance(own) * 100) / 100 },
+      air: own.air && { ...own.air }, trim: own.trim, hpAir: own.hpAir, blowing: own.blowing, buoyAntenna: own.buoyAntenna,
+      navUncertainty: CLASSES[own.cls].submarine && own.lastFixAt !== undefined && !mastRaised(own) && own.depth > 0.5
+        ? Math.min(14_800, 60 + (w.time - own.lastFixAt) * 0.25 * KN * (own.cls === 'ssn' ? 0.3 : 1)) : undefined,
+      rudderJam: (own.rudderJamUntil ?? 0) > w.time, towedLost: (own.towedLostUntil ?? 0) > w.time,
       noiseDb: sourceLevel(own), cavitationKn: Number.isFinite(cavitationSpeedKn(own)) ? cavitationSpeedKn(own) : 99,
       loadout: {
         tubes: (l?.tubes ?? []).map((t) => ({ loaded: t.loaded, reloadLeft: t.reloadDoneAt ? Math.max(0, t.reloadDoneAt - w.time) : 0 })),

@@ -3,6 +3,7 @@ import {
   createShip,
   createWorld,
   installAir,
+  installBoats,
   installWeapons,
   type PlayerSlot,
   type Ship,
@@ -51,6 +52,7 @@ export function buildLesson(lesson: LessonId, slot: PlayerSlot, seed: number): {
   world.convoy.zigzag = false;
   installWeapons(world);
   installAir(world);
+  installBoats(world);
   return { world, passiveBots };
 }
 

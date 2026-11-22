@@ -2,6 +2,7 @@ import { CLASSES } from './classes.js';
 import { sonarPenaltyDb } from './damage.js';
 import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
+import { crewNoiseDb } from './crew.js';
 import { KN, angleDiff, bearing, dbSum, distance, type Vec2 } from './math.js';
 import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
 import { RAIN_NOISE_DB, type WeatherState } from './weather.js';
@@ -17,6 +18,8 @@ export interface Environment {
   /** Rain squall: louder ambient noise, poorer visibility. */
   rain?: boolean;
   weather?: WeatherState;
+  /** Set (current) in m/s; moves submerged boats' dead reckoning off. */
+  current?: { x: number; y: number };
 }
 
 export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaState: 3 };
@@ -50,6 +53,7 @@ export function sourceLevel(s: Ship): number {
   let sl = spec.slBase + spec.slSlope * Math.log10(kn / spec.slRefKn);
   if (isCavitating(s)) sl += CAVITATION_DB;
   if (isSnorkeling(s)) sl += SNORKEL_DB;
+  sl += crewNoiseDb(s);
   // Ships at anchor still run generators and pumps
   if (s.cls === 'merchant') sl = Math.max(sl, 132);
   return sl;
@@ -184,6 +188,16 @@ export function activeSignalExcess(target: Ship, pinger: Ship, range: number, en
   const tl = transmissionLoss(range, pinger.depth, target.depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
   const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
   const ts = targetStrengthToward(target, pinger.pos);
+  return sl - 2 * tl + ts - (nl - spec.hull.di) - DT_ACTIVE;
+}
+
+/** Echo excess from a point reflector (knuckle, wreck) with a fixed target strength. */
+export function pointEchoExcess(pinger: Ship, range: number, depth: number, ts: number, env: Environment, bottom = 3000): number {
+  const spec = CLASSES[pinger.cls];
+  const sl = spec.hull.activeSl;
+  if (sl === undefined) return -Infinity;
+  const tl = transmissionLoss(range, pinger.depth, depth, env, ALPHA_ACTIVE, Math.min(bottom, 2000));
+  const nl = dbSum(ambientNoise(env), hullSelfNoise(pinger));
   return sl - 2 * tl + ts - (nl - spec.hull.di) - DT_ACTIVE;
 }
 

@@ -1,4 +1,4 @@
-import {
+import { installBoats,
   createConvoy,
   createShip,
   createWorld,
@@ -142,5 +142,6 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, [{ x: 0, y: route * 0.5 }, { x: 0, y: route }], convoyKn);
   installWeapons(w);
   installAir(w);
+  installBoats(w);
   return w;
 }

@@ -1,5 +1,6 @@
 import type { AirState } from './aviation.js';
 import { airSystem } from './aviation.js';
+import { boatSystem } from './boat.js';
 import { ContactBook } from './contacts.js';
 import type { Loadout } from './loadout.js';
 import { Rng } from './rng.js';
@@ -21,6 +22,8 @@ export interface SavedWorld {
   sensorAccum: number;
   weapons?: Omit<WeaponsState, 'loadouts'> & { loadouts: [string, Loadout][] };
   air?: Omit<AirState, 'stock' | 'heloTorps'> & { stock: [string, number][]; heloTorps?: [string, number][] };
+  /** Boat and crew systems were running. */
+  boats?: boolean;
 }
 
 export function saveWorld(w: World): SavedWorld {
@@ -36,6 +39,7 @@ export function saveWorld(w: World): SavedWorld {
     sensorAccum: w.sensorAccum,
     weapons: w.weapons && { ...w.weapons, loadouts: [...w.weapons.loadouts] },
     air: w.air && { ...w.air, stock: [...w.air.stock], heloTorps: w.air.heloTorps && [...w.air.heloTorps] },
+    boats: w.systems.includes(boatSystem),
   });
 }
 
@@ -62,5 +66,7 @@ export function restoreWorld(d: SavedWorld): World {
     w.air = { ...d.air, stock: new Map(d.air.stock), heloTorps: d.air.heloTorps ? new Map(d.air.heloTorps) : undefined };
     w.systems.push(airSystem);
   }
+  // Boat and crew systems (their state lives on the ships), installed last like in the scenarios
+  if (d.boats) w.systems.push(boatSystem);
   return w;
 }

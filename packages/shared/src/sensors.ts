@@ -4,11 +4,13 @@ import {
   isCavitating,
   passiveExcessFrom,
   passiveSignalExcess,
+  pointEchoExcess,
   pingInterceptExcess,
   type Environment,
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
+import { crewSonarDb } from './crew.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
 import { SHALLOW_M, pathDepth } from './seabed.js';
 import { CLASSES, type ClassId } from './classes.js';
@@ -17,7 +19,7 @@ import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
 import { KN, NM, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
 
-export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual';
+export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual' | 'mad';
 
 /** A single sensor measurement. targetId never leaves the server. */
 export interface Detection {
@@ -34,6 +36,8 @@ export interface Detection {
   classified?: ClassId;
   /** Bridge lookout: what was seen (periscope feather, snorkel haze, conning tower). */
   sighting?: Sighting;
+  /** Intercepted ping: whose sonar it was (frequency tells hull sonar from a dipping sonar). */
+  source?: 'hull' | 'dip';
   /** Narrowband/DEMON measurements for passive sonar looks. */
   evidence?: Evidence;
   /** CW active echo: target closing speed in kn (positive = approaching). */
@@ -81,6 +85,25 @@ export interface SensorContext {
   env: Environment;
   time: number;
   rng: Rng;
+  /** Bubble fields from hard turns: they block sound passing through and return false echoes. */
+  knuckles?: readonly { id: string; pos: Vec2; depth: number }[];
+}
+
+const KNUCKLE_R = 70;
+const KNUCKLE_TS = 12;
+const KNUCKLE_LOSS_DB = 7;
+
+/** Extra loss where the sound path a→b runs through knuckles (at most two count). */
+export function knuckleLoss(a: Vec2, b: Vec2, knuckles: SensorContext['knuckles']): number {
+  if (!knuckles?.length) return 0;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy || 1;
+  let n = 0;
+  for (const k of knuckles) {
+    const t = Math.max(0, Math.min(1, ((k.pos.x - a.x) * dx + (k.pos.y - a.y) * dy) / len2));
+    if (Math.hypot(a.x + dx * t - k.pos.x, a.y + dy * t - k.pos.y) < KNUCKLE_R && ++n >= 2) break;
+  }
+  return n * KNUCKLE_LOSS_DB;
 }
 
 function noisyBearing(trueB: number, se: number, rng: Rng): number {
@@ -104,10 +127,12 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   const bottom = pathDepth(ctx.env.seabed, obs.pos, tgt.pos);
   const trueB = bearing(obs.pos, tgt.pos);
   const rel = angleDiff(obs.heading, trueB);
+  // Operators: fresh, alert crews hear more; knuckles in the path swallow sound
+  const adj = crewSonarDb(obs) - knuckleLoss(obs.pos, tgt.pos, ctx.knuckles);
 
   if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle) {
     const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, obs.depth, bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
-      ctx.rng.gauss(0, SE_FLUCTUATION);
+      ctx.rng.gauss(0, SE_FLUCTUATION) + adj;
     if (se > 0) {
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'hull', time: ctx.time,
@@ -122,7 +147,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
       passiveSignalExcess(tgt, obs, range, 'towed', ctx.env, Math.min(towedArrayDepth(obs), bottom - 10), bottom) -
       endfire +
       fading(`${obs.id}|${tgt.id}|t`, ctx.time) +
-      ctx.rng.gauss(0, SE_FLUCTUATION);
+      ctx.rng.gauss(0, SE_FLUCTUATION) + adj;
     if (se > 0) {
       // A line array measures only the angle to its axis: report starboard side first, port as mirror
       const measuredRel = Math.abs(rel + ctx.rng.gauss(0, bearingSigma(se)));
@@ -169,7 +194,8 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const slow = tgt.speed / KN < SLOW_TARGET_KN;
     const bottom = pathDepth(ctx.env.seabed, pinger.pos, tgt.pos);
     const shallowReverb = !lfm && bottom < SHALLOW_M ? 4 : 0;
-    const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom) - (!lfm && slow ? CW_REVERB_PENALTY : 0) - shallowReverb + ctx.rng.gauss(0, 2);
+    const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom) - (!lfm && slow ? CW_REVERB_PENALTY : 0) - shallowReverb + ctx.rng.gauss(0, 2) -
+      2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger);
     if (se > 0 && !inBaffles) {
       // Radial speed of the target toward the pinger (positive = closing), measured by CW Doppler
       const los = { x: (pinger.pos.x - tgt.pos.x) / Math.max(range, 1), y: (pinger.pos.y - tgt.pos.y) / Math.max(range, 1) };
@@ -187,10 +213,22 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
       if (ie > 0) {
         out.push({
           observerId: tgt.id, targetId: pinger.id, sensor: 'intercept', time: ctx.time,
-          bearing: noisyBearing(bearing(tgt.pos, pinger.pos), ie, ctx.rng), se: ie,
+          bearing: noisyBearing(bearing(tgt.pos, pinger.pos), ie, ctx.rng), se: ie, source: 'hull',
         });
       }
     }
+  }
+  // Knuckles answer like a stopped target: an echo with no Doppler that fades within minutes
+  for (const k of ctx.knuckles ?? []) {
+    const range = distance(pinger.pos, k.pos);
+    const trueB = bearing(pinger.pos, k.pos);
+    if (Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - CLASSES[pinger.cls].hull.baffleHalfAngle) continue;
+    const se = pointEchoExcess(pinger, range, k.depth, KNUCKLE_TS, ctx.env, pathDepth(ctx.env.seabed, pinger.pos, k.pos)) + ctx.rng.gauss(0, 2);
+    if (se <= 0) continue;
+    out.push({
+      observerId: pinger.id, targetId: k.id, sensor: 'active', time: ctx.time, bearing: noisyBearing(trueB, se + 10, ctx.rng),
+      range: Math.max(10, range + ctx.rng.gauss(0, pinger.pulse === 'lfm' ? 5 : 250)), se, dopplerKn: pinger.pulse === 'lfm' ? undefined : 0,
+    });
   }
 }
 

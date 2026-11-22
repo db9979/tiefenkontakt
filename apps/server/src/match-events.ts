@@ -4,8 +4,8 @@ import { KN, bearing, distance, scatterConvoy, shipById, type AlertView, type Ga
 
 const EXPLOSION_HEARING = 40_000;
 /** Hearing ranges of transients (U-Jagd: tube flooding ~8 NM, launch ~35 NM). */
-const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000 } as const;
-const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM' } as const;
+const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000 } as const;
+const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN' } as const;
 
 const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
 
@@ -24,6 +24,8 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       for (const slot of ctx.aboard(e.shipId)) {
         ctx.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${e.bearing.toFixed(0).padStart(3, '0')}` });
       }
+    } else if (e.kind === 'boat') {
+      for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind: 'boat', text: e.text, what: undefined });
     } else if (e.kind === 'sighting') {
       const b = e.bearing.toFixed(0).padStart(3, '0');
       const r = (Math.round(e.range / 100) / 10).toFixed(1).replace('.', ',');

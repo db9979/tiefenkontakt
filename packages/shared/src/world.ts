@@ -22,7 +22,9 @@ export type GameEvent =
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
-  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' }
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' }
+  /** Something the crew reports aboard (air, wounded, hull failure, incidents). */
+  | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
   | { kind: 'grounded'; time: number; shipId: string }
   /** Bridge lookout reports a new sighting (start of an episode, not every sweep). */
@@ -153,7 +155,8 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   w.sensorAccum += dt;
   if (w.sensorAccum >= SENSOR_INTERVAL - 1e-9) {
     w.sensorAccum = 0;
-    const ctx = { ships: w.ships, emitters: torpedoEmitters(w), env: w.env, time: w.time, rng: w.rng };
+    const knuckles = w.weapons?.decoys.filter((d) => d.knuckle);
+    const ctx = { ships: w.ships, emitters: torpedoEmitters(w), env: w.env, time: w.time, rng: w.rng, knuckles };
     w.lastDetections = runSensors(ctx);
     if (w.air) w.lastDetections.push(...buoySensors(w.air.buoys, ctx));
     ingest(w, w.lastDetections);

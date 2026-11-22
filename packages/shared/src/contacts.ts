@@ -67,7 +67,7 @@ function resolveTas(tr: ContactTrack): void {
 
 const HISTORY_MAX = 180;
 const PREFIX: Record<SensorKind, string> = {
-  hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S', visual: 'A',
+  hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S', visual: 'A', mad: 'M',
 };
 
 /** Per-observer contact bookkeeping. Keyed internally by target, labels are opaque. */

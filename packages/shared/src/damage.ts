@@ -1,4 +1,5 @@
 import { CLASSES } from './classes.js';
+import { crewWorkRate } from './crew.js';
 import type { Ship } from './entities.js';
 import type { Rng } from './rng.js';
 
@@ -34,7 +35,7 @@ export function stepDamage(s: Ship, dt: number): void {
   const prio = s.repair ?? (d.leck > 0 ? 'leck' : SYSTEMS.find((k) => d[k] > 0));
   for (const k of SYSTEMS) {
     if (d[k] <= 0) continue;
-    d[k] = Math.max(0, d[k] - (k === prio ? PRIORITY_RATE : BACKGROUND_RATE) * dt);
+    d[k] = Math.max(0, d[k] - (k === prio ? PRIORITY_RATE : BACKGROUND_RATE) * crewWorkRate(s) * dt);
   }
   if (d.leck > 0) s.hp -= LEAK_HP_PER_S * d.leck * dt;
   // A flooding submarine cannot hold great depth
@@ -51,5 +52,5 @@ export const speedFactor = (s: Ship): number => 1 - 0.8 * dmg(s, 'antrieb');
 /** Extra hull-sonar self noise (dB) from sonar damage. */
 export const sonarPenaltyDb = (s: Ship): number => 18 * dmg(s, 'sonar');
 /** Reload time factor from weapons damage. */
-export const reloadFactor = (s: Ship): number => 1 + 3 * dmg(s, 'waffen');
+export const reloadFactor = (s: Ship): number => (1 + 3 * dmg(s, 'waffen')) / crewWorkRate(s);
 export const weaponsBroken = (s: Ship): boolean => dmg(s, 'waffen') >= 0.9;

@@ -30,13 +30,15 @@ export interface Buoy {
   expiresAt: number;
 }
 
-export type SortieKind = 'buoy' | 'dip' | 'torpedo' | 'mpa';
+export type SortieKind = 'buoy' | 'dip' | 'torpedo' | 'mpa' | 'mad';
 
 export interface Sortie {
   kind?: SortieKind; // undefined = buoy (older saves)
   /** Dipping sonar: hover until this time, pinging every DIP_PING_S. */
   hoverUntil?: number;
   lastPing?: number;
+  /** MAD has already reported a contact on this sortie. */
+  madHit?: boolean;
   bearing?: number;
   shipId: string;
   from: Vec2;
@@ -61,6 +63,12 @@ export interface AirState {
 }
 
 export const DIP_HOVER_S = 300;
+/** MAD search: a cloverleaf at 30–60 m over the datum. */
+export const MAD_PATTERN_S = 360;
+const MAD_PETAL_M = 900;
+const MAD_ALT_M = 50;
+const MAD_SURE_M = 250;
+const MAD_MAX_M = 400;
 const DIP_PING_S = 20;
 const DIP_RANGE = 12_000;
 const MPA_SPEED = 300 * KN;
@@ -93,10 +101,10 @@ function heloCheck(w: World, ship: Ship, target: Vec2): string | undefined {
 
 function launchHelo(w: World, ship: Ship, target: Vec2, kind: SortieKind, deep: boolean): void {
   const flight = distance(ship.pos, target) / HELO_SPEED;
-  const hover = kind === 'dip' ? DIP_HOVER_S : 0;
+  const hover = kind === 'dip' ? DIP_HOVER_S : kind === 'mad' ? MAD_PATTERN_S : 0;
   w.air!.sorties.push({
     kind, shipId: ship.id, from: { ...ship.pos }, target: { ...target }, launchAt: w.time, dropAt: w.time + flight,
-    hoverUntil: kind === 'dip' ? w.time + flight + hover : undefined,
+    hoverUntil: kind === 'dip' || kind === 'mad' ? w.time + flight + hover : undefined,
     landAt: w.time + 2 * flight + hover, readyAt: w.time + 2 * flight + hover + HELO_TURNAROUND, deep, dropped: false,
   });
 }
@@ -107,6 +115,48 @@ export function sendDip(w: World, ship: Ship, target: Vec2, deep: boolean): true
   if (e) return e;
   launchHelo(w, ship, target, 'dip', deep);
   return true;
+}
+
+/** MAD search: the helicopter flies a low cloverleaf over a datum; a hull close below it is detected. */
+export function sendMad(w: World, ship: Ship, target: Vec2): true | string {
+  const e = heloCheck(w, ship, target);
+  if (e) return e;
+  launchHelo(w, ship, target, 'mad', false);
+  return true;
+}
+
+/** Four-petal rose around the datum, one petal per 90 s. */
+function cloverleaf(center: Vec2, t: number): Vec2 {
+  const th = (t / MAD_PATTERN_S) * Math.PI * 2;
+  const r = MAD_PETAL_M * Math.abs(Math.sin(2 * th));
+  return { x: center.x + r * Math.cos(th), y: center.y + r * Math.sin(th) };
+}
+
+/** Once a second: every low-flying MAD sortie and patrol aircraft checks for a hull below it. */
+function madSweep(w: World): void {
+  const air = w.air!;
+  for (const s of air.sorties) {
+    if (s.kind !== 'mad' && s.kind !== 'mpa') continue;
+    const owner = w.ships.find((x) => x.id === s.shipId);
+    if (!owner?.alive) continue;
+    const p = aircraftPosition(s, w.time, owner);
+    if (!p) continue;
+    for (const sub of w.ships) {
+      if (!sub.alive || !CLASSES[sub.cls].submarine || sub.team === owner.team) continue;
+      const horiz = distance(p, sub.pos);
+      const slant = Math.hypot(horiz, sub.depth + MAD_ALT_M);
+      if (slant > MAD_MAX_M || (slant > MAD_SURE_M && w.rng.next() > 0.3)) continue;
+      const det: Detection = {
+        observerId: owner.id, targetId: sub.id, sensor: 'mad', time: w.time,
+        bearing: wrap360(bearing(p, sub.pos) + w.rng.gauss(0, 4)), range: Math.max(20, horiz + w.rng.gauss(0, 40)), se: 15,
+        originX: p.x, originY: p.y,
+      };
+      w.lastDetections.push(det);
+      bookFor(w, owner.id).ingest(det);
+      if (!s.madHit) w.events.push({ kind: 'boat', time: w.time, shipId: owner.id, what: 'mad', text: 'MAD-KONTAKT · MAGNETISCHE ANOMALIE UNTER DEM HUBSCHRAUBER' });
+      s.madHit = true;
+    }
+  }
 }
 
 /** Helicopter drops a lightweight torpedo at a point. */
@@ -192,6 +242,7 @@ export function airSystem(w: World): void {
       }
     }
   }
+  if (Math.floor(w.time) !== Math.floor(w.time - 0.1)) madSweep(w);
   air.sorties = air.sorties.filter((s) => w.time < s.readyAt + 1);
   air.buoys = air.buoys.filter((b) => w.time < b.expiresAt && w.ships.some((s) => s.id === b.ownerId && s.alive));
 }
@@ -237,7 +288,7 @@ function dipPing(w: World, s: Sortie, owner: Ship, depth: number): Detection[] {
     const heard = 212 - tl - nl - DT_PASSIVE;
     if (heard > 0 && CLASSES[tgt.cls].hull.di > 0) {
       out.push({
-        observerId: tgt.id, targetId: `H-${owner.id}`, sensor: 'intercept', time: w.time,
+        observerId: tgt.id, targetId: `H-${owner.id}`, sensor: 'intercept', time: w.time, source: 'dip',
         bearing: wrap360(bearing(tgt.pos, s.target) + w.rng.gauss(0, 2)), se: heard,
       });
     }
@@ -252,7 +303,7 @@ export function aircraftPosition(s: Sortie, now: number, ship: Ship): Vec2 | und
     const f = (now - s.launchAt) / Math.max(1, s.dropAt - s.launchAt);
     return { x: s.from.x + (s.target.x - s.from.x) * f, y: s.from.y + (s.target.y - s.from.y) * f };
   }
-  if (s.hoverUntil !== undefined && now <= s.hoverUntil) return { ...s.target };
+  if (s.hoverUntil !== undefined && now <= s.hoverUntil) return s.kind === 'mad' ? cloverleaf(s.target, now - s.dropAt) : { ...s.target };
   const start = s.hoverUntil ?? s.dropAt;
   const home = s.kind === 'mpa' ? s.from : ship.pos;
   const f = (now - start) / Math.max(1, s.landAt - start);
