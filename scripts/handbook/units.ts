@@ -1,4 +1,4 @@
-import { CLASSES, SIGNATURES, createLoadout, type ClassId } from '@tk/shared';
+import { BIO_KINDS, BIO_SOURCE, CLASSES, SIGNATURES, createLoadout, type BioKind, type ClassId } from '@tk/shared';
 
 /**
  * Unit reference cards for the handbook, generated from the game's own class tables so the
@@ -15,7 +15,7 @@ const CARDS: Card[] = [
   },
   {
     cls: 'ffv', side: 'Westbund', role: 'U-Jagd-Fregatte mit Tiefensonar (VDS)',
-    text: 'Leiser dieselelektrischer Antrieb und ein Sonarkörper, der an einem Kabel unter die Sprungschicht gefiert wird. Damit hört und pingt sie dort, wo sich U-Boote verstecken. Kein Hubschrauber.',
+    text: 'Dampfturbinen-Fregatte älterer Bauart mit einem Sonarkörper, der an einem Kabel unter die Sprungschicht gefiert wird. Damit hört und pingt sie dort, wo sich U-Boote verstecken. Kein Hubschrauber.',
     tips: ['Im Sonarraum „VDS absenken“: der Körper geht 40 m unter die gemessene Schicht (vorher BT werfen).', 'Über 18 kn wird der VDS automatisch eingeholt.', 'Der VDS schließt den blinden Fleck unter dem eigenen Rumpf.'],
   },
   {
@@ -35,7 +35,7 @@ const CARDS: Card[] = [
   },
   {
     cls: 'ssc', side: 'Ostpakt', role: 'Küsten-U-Boot',
-    text: 'Sehr klein, extrem leise und wendig, nur 200 m Tauchtiefe und 4 Rohre. Ideal für flaches Wasser, Fjorde und Meerengen.',
+    text: 'Sehr klein, extrem leise und wendig, nur 200 m Tauchtiefe. Acht Bugrohre, aber keine Reservetorpedos: Was verschossen ist, ist weg. Ideal für flaches Wasser, Fjorde und Meerengen.',
     tips: ['Im Flachwasser nah am Grund bleiben – der Nachhall verdeckt das Echo.', 'Wenige Torpedos: nur auf gute Lösungen schießen.'],
   },
   {
@@ -50,8 +50,33 @@ const CARDS: Card[] = [
   },
   {
     cls: 'fischer', side: 'Neutral', role: 'Fischtrawler',
-    text: 'Neutraler Verkehr, der als Zwischenfall auftaucht: langsam, laut, mit drei- oder vierflügeliger Schraube und vielen Lichtern. Neutrale Schiffe nie angreifen.',
-    tips: ['Starke Linie bei 30 Hz, hohe Drehzahl für kleine Fahrt: schnell als Trawler zu erkennen.'],
+    text: 'Schleppt mit 4–6 kn ein Netz und wechselt alle Viertelstunde den Kurs. Laut für seine Größe, viele Lichter. Im Schelf oft zu mehreren.',
+    tips: ['Starke Linie bei 30 Hz, hohe Drehzahl für kleine Fahrt: schnell als Trawler zu erkennen.', 'Sein Netz kann Schleppsonare abreißen.'],
+  },
+  {
+    cls: 'tanker', side: 'Neutral', role: 'Supertanker (VLCC)',
+    text: 'Riesig, tiefgehend und träge: Wendekreis fast drei Kilometer, Brücke und Schornstein ganz achtern. Ein langsam drehender Zweitakt-Diesel treibt eine große Schraube – der lauteste Kontakt im Gebiet, sehr tiefe Linien.',
+    tips: ['Feuerrate des Diesels um 9 Hz, Blattfrequenz nur wenige Hertz: DEMON im 0–15-Hz-Band.', 'Ein U-Boot im Kielwasser eines Tankers ist fast nicht zu hören.'],
+  },
+  {
+    cls: 'container', side: 'Neutral', role: 'Containerschiff',
+    text: 'Schnell (um 20 kn) und laut, Brücke drei Viertel achtern, bunte Containerstapel. Fährt geradeaus auf einer Handelsroute und hält nicht an.',
+    tips: ['Hohe Fahrt bei niedriger Drehzahl: 6-Blatt-Schraube, Linien 12/60/120 Hz.', 'Schnell wandernde Peilung – nicht mit einem anlaufenden Kriegsschiff verwechseln.'],
+  },
+  {
+    cls: 'faehre', side: 'Neutral', role: 'RoRo-Fähre',
+    text: 'Weiß, hoch, mit zwei Schornsteinen und zwei Wellen. Pendelt zügig auf festen Linien zwischen Häfen, vor allem im Schelf und in Fjorden.',
+    tips: ['Zwei Wellen mit Mittelschnellläufern: viele Linien zwischen 30 und 70 Hz.', 'Nachts hell erleuchtet und weithin sichtbar.'],
+  },
+  {
+    cls: 'schlepper', side: 'Neutral', role: 'Hochseeschlepper',
+    text: 'Klein und kräftig, Brücke vorn, Schleppbogen achtern. Sehr laut für seine Größe, hohe Wellendrehzahl.',
+    tips: ['Starke Linie bei 40 Hz und hohe Drehzahl je Knoten.'],
+  },
+  {
+    cls: 'yacht', side: 'Neutral', role: 'Segelyacht',
+    text: 'Unter Segeln fast lautlos; nur der kleine Hilfsdiesel ist schwach zu hören. Im Sehrohr gut an den Segeln zu erkennen.',
+    tips: ['Leiser als jedes U-Boot – ein schwacher Kontakt mit 25-Hz-Linie und sehr hoher Drehzahl ist oft eine Yacht.'],
   },
 ];
 
@@ -79,7 +104,7 @@ export function unitCards(): string {
       k.towed ? `Schleppsonar ${fmt(k.towed.maxLength)} m (bis ${k.towed.maxSpeedKn} kn)` : '',
       k.vds ? `Tiefensonar bis ${k.vds.maxDepth} m (bis ${k.vds.maxSpeedKn} kn)` : '',
       c.cls === 'ffg' ? 'Bordhubschrauber' : '',
-      !k.submarine && c.cls !== 'merchant' && c.cls !== 'fischer' ? 'Radar, Funkpeilung, Ausguck' : '',
+      k.team === 'west' && c.cls !== 'merchant' ? 'Radar, Funkpeilung, Ausguck' : '',
       k.submarine ? 'Sehrohr, Funkpeilung (ESM)' : '',
     ].filter(Boolean).join(' · ') || '—';
     const rows: [string, string][] = [
@@ -104,6 +129,23 @@ export function unitCards(): string {
       </div>
     </section>`;
   }).join('\n');
+}
+
+const BIO_INFO: Record<BioKind, { where: string; hint: string }> = {
+  bio: { where: 'tiefes Wasser, Schelf', hint: 'Abwärts gleitende Pulse um 20 Hz in langen Folgen; keine Schraube.' },
+  blauwal: { where: 'tiefes Wasser', hint: 'Sehr tiefe, lange Rufe um 17 Hz mit Oberton bei 35 Hz.' },
+  buckelwal: { where: 'Schelf, tiefes Wasser', hint: 'Gesang mit wechselnden Tönen zwischen 100 und 300 Hz.' },
+  pottwal: { where: 'über tiefem Wasser, taucht 400 m und tiefer', hint: 'Laute Klicks; im DEMON eine langsame „Drehzahl“ um 1 Hz, keine Linien. Tiefer Kontakt – nicht mit einem U-Boot verwechseln.' },
+  orca: { where: 'überall, nahe der Oberfläche', hint: 'Pfiffe und Rufe am oberen Rand des LOFAR, schnelle Klickfolgen im DEMON.' },
+  delfine: { where: 'überall, Oberfläche', hint: 'Schwache hohe Pfiffe, sehr schnelle Klickfolgen; wandert schnell.' },
+  garnelen: { where: 'flacher Grund (unter 120 m)', hint: 'Breitbandiges Knistern ohne Linien und ohne Bewegung: ein ortsfester „Kontakt“ am Grund.' },
+};
+
+/** Biological contacts: what they sound like and where they live. */
+export function bioTable(): string {
+  return `<table class="grid"><tr><th>Quelle</th><th>Lebensraum</th><th>Lautstärke*</th><th>Erkennen</th></tr>${BIO_KINDS.map((k) =>
+    `<tr><td><b>${SIGNATURES[k].name}</b></td><td>${BIO_INFO[k].where}</td><td>${BIO_SOURCE[k].sl} dB</td><td>${BIO_INFO[k].hint}</td></tr>`).join('')}</table>
+  <p class="small">* Quellpegel im Spiel. Reale Werte (Wikipedia): Finnwal 155–186 dB, Blauwal bis 188 dB, Pottwal-Klicks bis 236 dB (vor allem im Kilohertzbereich), Knallkrebse 185–190 dB je Knall.</p>`;
 }
 
 /** Short comparison table of all playable classes. */

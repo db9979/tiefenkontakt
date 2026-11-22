@@ -29,13 +29,19 @@ ${MISSIONS.map(([a, b, c]) => `<tr><td><b>${a}</b></td><td>${b}</td><td>${c}</td
 
 export const chapterWorld = `
 <h1 id="k10">10 · Umwelt und Zwischenfälle</h1>
+<h2>Neutraler Verkehr</h2>
+<p>In jeder Mission fahren neutrale Schiffe durch das Gebiet: im offenen Ozean vor allem Tanker und Containerschiffe, im Schelf
+Fischer, Fähren und Schlepper, in Fjorden auch Yachten. Sie halten ihren eigenen Kurs, meiden Untiefen, fahren immer mit Lichtern
+und werden ersetzt, wenn sie das Gebiet verlassen. Sie sind laut, verdecken leisere Kontakte in derselben Peilung und sind
+<b>nie</b> ein Ziel. Typen und Erkennungsmerkmale stehen in der Einheitenreferenz.</p>
+<h2>Zwischenfälle</h2>
 <p>Alle 15 bis 30 Minuten passiert etwas, für beide Seiten gleich:</p>
 <table class="grid">
 <tr><th>Zwischenfall</th><th>Wirkung</th></tr>
 <tr><td>Treibnetz</td><td>Reißt Schleppsonare ab (Ersatz nach 15 Minuten) und verfängt flach fahrende Boote für 20 Sekunden – laut.</td></tr>
 <tr><td>Wetterfront</td><td>Angekündigt 20 Minuten vorher: Seegang steigt um zwei Stufen, Regen.</td></tr>
-<tr><td>Neutraler Verkehr</td><td>Ein Frachter ohne AIS oder ein Fischtrawler kreuzt das Gebiet. Laut, beleuchtet, kein Ziel.</td></tr>
-<tr><td>Wale</td><td>Ein Walschwarm erzeugt biologische Kontakte mit tiefen Tönen.</td></tr>
+<tr><td>Weiteres Schiff</td><td>Ein zusätzliches neutrales Schiff kreuzt das Gebiet.</td></tr>
+<tr><td>Meeresleben</td><td>Wale, Delfine oder eine Knallkrebsbank – je nach Wassertiefe. Siehe Biologische Kontakte.</td></tr>
 <tr><td>Ruderversager</td><td>Das Ruder klemmt eine Minute.</td></tr>
 <tr><td>Schnorchelventil</td><td>Klemmt: Der Schnorchel bleibt 45 Sekunden oben.</td></tr>
 <tr><td>Batteriegas</td><td>Fünf Minuten weiter schnorcheln und lüften, sonst verpufft das Gas und beschädigt den Antrieb.</td></tr>

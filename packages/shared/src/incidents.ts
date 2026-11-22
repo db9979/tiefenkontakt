@@ -1,8 +1,11 @@
 import { CLASSES } from './classes.js';
-import { createShip, isConvoyShip, type Ship } from './entities.js';
+import { type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Emitter } from './sensors.js';
+import type { BioKind } from './signatures.js';
+import { BIO_SOURCE, installTraffic, spawnBio, spawnNeutral, stepTraffic } from './traffic.js';
+import { depthAt } from './seabed.js';
 import type { World } from './world.js';
 
 /**
@@ -15,9 +18,12 @@ import type { World } from './world.js';
 export interface IncidentState {
   next: number;
   nets: { x: number; y: number; r: number; until: number }[];
-  whales: { id: string; x: number; y: number; heading: number; until: number }[];
+  whales: { id: string; x: number; y: number; heading: number; until: number; kind?: BioKind }[];
   frontAt?: number;
   neutrals: number;
+  /** Neutral ships kept in the area, and the next time traffic looks ahead. */
+  traffic?: number;
+  nextLook?: number;
 }
 
 const NET_R = 900;
@@ -53,23 +59,10 @@ function trigger(w: World, st: IncidentState): void {
       st.frontAt = w.time + 1200;
       for (const s of ships) say(w, s, 'front', 'WETTERWARNUNG · FRONT IN 20 MIN · SEEGANG STEIGT, REGEN');
     },
-    () => {
-      const convoy = w.ships.filter((s) => isConvoyShip(s) && s.alive);
-      const c = convoy.length ? convoy[0]!.pos : any.pos;
-      const across = wrap360((w.convoy?.guideHeading ?? 0) + (w.rng.next() < 0.5 ? 90 : -90));
-      const v = headingVec(across + 180);
-      // Either a merchant without AIS or a trawler working the area (noisy, slow, many lights)
-      const fisher = w.rng.next() < 0.5;
-      const n = createShip({
-        id: `n${++st.neutrals}`, cls: fisher ? 'fischer' : 'merchant', name: fisher ? 'Fischtrawler' : 'Frachter ohne AIS', team: 'neutral',
-        pos: { x: c.x + v.x * 16_000 + w.rng.gauss(0, 3000), y: c.y + v.y * 16_000 + w.rng.gauss(0, 3000) }, heading: across, speedKn: fisher ? 6 : 12,
-      });
-      w.ships.push(n);
-    },
-    () => {
-      const p = ahead(any, 6000 + w.rng.next() * 6000, w.rng.gauss(0, 60));
-      st.whales.push({ id: `W${w.time.toFixed(0)}`, x: p.x, y: p.y, heading: w.rng.next() * 360, until: w.time + WHALE_LIFE_S });
-    },
+    // A ship that wasn't expected: extra neutral traffic crossing the area
+    () => void spawnNeutral(w),
+    // Sea life: whales, dolphins or a snapping-shrimp bed, depending on the water
+    () => spawnBio(w, w.time + WHALE_LIFE_S),
     () => {
       any.rudderJamUntil = w.time + 60;
       sayRudder(w, any);
@@ -93,10 +86,14 @@ function sayRudder(w: World, s: Ship): void {
   say(w, s, 'rudder', 'RUDERVERSAGER · RUDER KLEMMT · NOTSTEUERUNG IN 60 S');
 }
 
-/** Whale pods as noise sources for passive sonar (no blades, low tonals). */
+/** Whales, dolphins and shrimp beds as noise sources for passive sonar. */
 export function whaleEmitters(w: World): Emitter[] {
   const st = w.env.incidents;
-  return (st?.whales ?? []).map((h) => ({ id: h.id, ownerId: '', pos: { x: h.x, y: h.y }, depth: 30, sl: 165, sig: 'bio' as const, speedKn: 3 }));
+  return (st?.whales ?? []).map((h) => {
+    const b = BIO_SOURCE[h.kind ?? 'bio'];
+    const depth = b.depth >= 0 ? b.depth : Math.max(5, (w.env.seabed ? depthAt(w.env.seabed, h.x, h.y) : 30) - 2);
+    return { id: h.id, ownerId: '', pos: { x: h.x, y: h.y }, depth, sl: b.sl, sig: h.kind ?? ('bio' as const), speedKn: b.kn };
+  });
 }
 
 export function stepIncidents(w: World, dt: number): void {
@@ -147,15 +144,17 @@ export function stepIncidents(w: World, dt: number): void {
   // Whales wander slowly
   st.whales = st.whales.filter((h) => h.until > w.time);
   for (const h of st.whales) {
+    const kn = BIO_SOURCE[h.kind ?? 'bio'].kn;
+    if (!kn) continue;
     h.heading = wrap360(h.heading + w.rng.gauss(0, 0.5));
     const v = headingVec(h.heading);
-    h.x += v.x * 1.5 * dt;
-    h.y += v.y * 1.5 * dt;
+    h.x += v.x * kn * 0.5144 * dt;
+    h.y += v.y * kn * 0.5144 * dt;
   }
-  // Neutral traffic just steams across
-  for (const s of w.ships) if (s.team === 'neutral' && s.alive) s.order.speedKn = s.cls === 'fischer' ? 6 : 12;
+  stepTraffic(w);
 }
 
 export function installIncidents(w: World): void {
   w.env.incidents = { next: w.time + 900 + w.rng.next() * 600, nets: [], whales: [], neutrals: 0 };
+  installTraffic(w);
 }

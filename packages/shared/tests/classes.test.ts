@@ -36,9 +36,11 @@ describe('corvette and coastal submarine', () => {
     expect(w.weapons!.decoys.some((d) => d.towedBy === 'k')).toBe(true);
   });
 
-  it('loadouts: corvette fires lightweights, the coastal boat has four loaded tubes', () => {
+  it('loadouts: corvette fires lightweights, the coastal boat has eight loaded tubes and no reloads', () => {
     expect(createLoadout('kor').tubes.every((t) => t.loaded)).toBe(true);
-    expect(createLoadout('ssc').tubes).toHaveLength(4);
-    expect(createLoadout('ssc').heavy).toBe(2);
+    expect(createLoadout('kor').light).toBe(2);
+    expect(createLoadout('ssc').tubes).toHaveLength(8);
+    expect(createLoadout('ssc').tubes.every((t) => t.loaded)).toBe(true);
+    expect(createLoadout('ssc').heavy).toBe(0);
   });
 });

@@ -17,7 +17,7 @@ import {
   commanderTrait,
   headingVec,
 } from '@tk/shared';
-import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
+import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
 export interface PackReport {
   t: number;
@@ -86,7 +86,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip);
   const wanted = duel ? 'submarine' : 'merchant';
-  const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
+  const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
 
   // Depth: listen above the layer, hide below it (or deep) when hunted, peek at periscope depth
   const layer = s.btLayer;

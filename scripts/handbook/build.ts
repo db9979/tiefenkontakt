@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { chapterIntro, chapterSea, chapterStart, chapterSymbols } from './chapters-a.js';
 import { chapterClassify, chapterEscort, chapterSub } from './chapters-b.js';
 import { chapterMissions, chapterReference, chapterTactics, chapterWorld } from './chapters-c.js';
-import { unitCards, unitTable } from './units.js';
+import { bioTable, unitCards, unitTable } from './units.js';
+import { figBio } from './figures.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = join(root, 'docs', 'handbuch');
@@ -82,6 +83,11 @@ ${chapterIntro}${chapterStart}${chapterSea}${chapterSymbols}${chapterSub}${chapt
 <p>Alle Werte stammen direkt aus der Simulation. Die Bilder zeigen die Modelle, wie sie im Sehrohr und auf der Brücke erscheinen.</p>
 ${unitTable()}
 ${unitCards()}
+<h2>Biologische Kontakte</h2>
+<p>Wale, Delfine und Knallkrebse erscheinen im Sonar als Kontakte ohne Schraube. Sie zu erkennen spart Torpedos und Nerven –
+ein Pottwal in 400 m Tiefe sieht im Wasserfall aus wie ein tief fahrendes U-Boot.</p>
+<figure>${figBio()}<figcaption>Abb. · Biologische Kontakte im Größenvergleich.</figcaption></figure>
+${bioTable()}
 ${chapterMissions}${chapterWorld}${chapterTactics}${chapterReference}
 </body></html>`;
 }

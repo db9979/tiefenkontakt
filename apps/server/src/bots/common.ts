@@ -9,6 +9,7 @@ import {
   type ClassChoice,
   type ContactTrack,
   type OwnFix,
+  isConvoyShip,
   type Ship,
   type TmaSolution,
   type World,
@@ -93,6 +94,16 @@ export function isFriendly(w: World, s: Ship, t: ContactTrack, m?: BotMemory): b
   const line = m ? latestLine(t, m, s) : { origin: s.pos, b: t.bearing };
   return w.ships.some((f) => f.team === s.team && f.id !== s.id && f.alive && distance(line.origin, f.pos) > 50 &&
     Math.abs(angleDiff(bearing(line.origin, f.pos), line.b)) < 3);
+}
+
+/**
+ * Neutral traffic on that bearing and no convoy ship near it: the captain recognises the
+ * independent course (no zigzag, lights, not in station) and leaves it alone.
+ */
+export function isNeutral(w: World, s: Ship, t: ContactTrack, m?: BotMemory): boolean {
+  const line = m ? latestLine(t, m, s) : { origin: s.pos, b: t.bearing };
+  const on = (f: Ship) => f.alive && distance(line.origin, f.pos) > 50 && Math.abs(angleDiff(bearing(line.origin, f.pos), line.b)) < 3;
+  return w.ships.some((f) => f.team === 'neutral' && on(f)) && !w.ships.some((f) => isConvoyShip(f) && on(f));
 }
 
 /** Majority vote over the contact's looks, so a slow merchant isn't taken for a submarine once. */

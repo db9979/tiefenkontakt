@@ -81,3 +81,25 @@ describe('dipping sonar, helicopter torpedo, patrol aircraft', () => {
     expect(new Set(xs).size).toBe(6);
   });
 });
+
+import { BIO_SOURCE, DEFAULT_ENV, NEUTRAL_CLASSES, SIGNATURES, installIncidents, whaleEmitters } from '../src/index.js';
+
+describe('neutral traffic and sea life', () => {
+  it('a mission starts with neutral ships that keep steaming and stay in safe water; sea life is heard', () => {
+    const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 0, y: 0 }, heading: 0, speedKn: 12 });
+    const w = createWorld([ffg], 7, { ...DEFAULT_ENV, seabed: { kind: 'schelf', seed: 2 }, mission: 'schelf' });
+    installWeapons(w);
+    installIncidents(w);
+    const neutrals = () => w.ships.filter((s) => s.team === 'neutral');
+    expect(neutrals().length).toBeGreaterThanOrEqual(4);
+    expect(neutrals().every((s) => (NEUTRAL_CLASSES as readonly string[]).includes(s.cls))).toBe(true);
+    for (let i = 0; i < 3000; i++) stepWorld(w);
+    expect(neutrals().filter((s) => s.alive).length).toBeGreaterThanOrEqual(3);
+    expect(w.events.some((e) => e.kind === 'grounded' && neutrals().some((n) => n.id === e.shipId))).toBe(false);
+    w.env.incidents!.whales.push({ id: 'W1', x: 3000, y: 0, heading: 0, until: w.time + 600, kind: 'pottwal' });
+    const e = whaleEmitters(w).find((x) => x.id === 'W1')!;
+    expect(e.sig).toBe('pottwal');
+    expect(e.depth).toBe(BIO_SOURCE.pottwal.depth);
+    expect(SIGNATURES.pottwal.choice).toBe('bio');
+  });
+});

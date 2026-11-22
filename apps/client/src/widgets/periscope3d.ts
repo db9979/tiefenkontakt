@@ -116,7 +116,7 @@ export class Periscope3D {
       // Foredeck, gun and bridge front in the lower part of the picture: the eye sits on the bridge roof
       const g = shipModel(opts.own);
       for (const n of ['wake']) g.getObjectByName(n)?.removeFromParent();
-      this.own = { g, bridgeZ: opts.own === 'kor' ? 23 : opts.own === 'ffv' ? 33 : 31 };
+      this.own = { g, bridgeZ: opts.own === 'kor' ? 14 : opts.own === 'ffv' ? 22 : 24 };
       this.scene.add(g);
     }
   }

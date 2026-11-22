@@ -7,7 +7,10 @@ import type { Rng } from './rng.js';
  * the player's decision, helped by the class library below.
  */
 
-export type SigKey = 'merchant' | 'fischer' | 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'torpedo' | 'bio';
+export type SigKey = ClassId | 'torpedo' | BioKind;
+/** Biological sound sources: whales, dolphins and snapping shrimp beds. */
+export type BioKind = 'bio' | 'blauwal' | 'buckelwal' | 'pottwal' | 'orca' | 'delfine' | 'garnelen';
+export const BIO_KINDS: BioKind[] = ['bio', 'blauwal', 'buckelwal', 'pottwal', 'orca', 'delfine', 'garnelen'];
 export type ClassChoice = 'merchant' | 'warship' | 'submarine' | 'torpedo' | 'bio' | 'unknown';
 
 export interface Tonal {
@@ -54,7 +57,7 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     snorkelTonals: [{ hz: 24, level: 8 }, { hz: 48, level: 7 }, { hz: 72, level: 5 }],
   },
   kor: {
-    key: 'kor', name: 'Korvette K-7 (Diesel)', choice: 'warship', blades: [4],
+    key: 'kor', name: 'Korvette K-7 (Diesel, Gasturbine)', choice: 'warship', blades: [4],
     rpmPerKn: 9, rpmRange: [50, 230], tonalBand: [40, 220], maxSpeedKn: 26,
     tonals: [{ hz: 75, level: 6 }, { hz: 150, level: 4 }, { hz: 225, level: 2 }],
   },
@@ -72,9 +75,9 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     snorkelTonals: [{ hz: 27, level: 7 }, { hz: 54, level: 6 }, { hz: 81, level: 4 }],
   },
   ffv: {
-    key: 'ffv', name: 'Fregatte F-30 (Diesel-elektrisch)', choice: 'warship', blades: [5],
-    rpmPerKn: 6.5, rpmRange: [40, 190], tonalBand: [45, 260], maxSpeedKn: 29,
-    tonals: [{ hz: 50, level: 5 }, { hz: 100, level: 4 }, { hz: 250, level: 3 }],
+    key: 'ffv', name: 'Fregatte F-30 (Dampfturbine)', choice: 'warship', blades: [3],
+    rpmPerKn: 8, rpmRange: [40, 230], tonalBand: [45, 290], maxSpeedKn: 28,
+    tonals: [{ hz: 60, level: 4 }, { hz: 190, level: 5 }, { hz: 285, level: 3 }],
   },
   fischer: {
     // Old trawler: noisy diesel, winch and a strong blade line at low speed
@@ -82,11 +85,68 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     rpmPerKn: 22, rpmRange: [80, 260], tonalBand: [30, 300], maxSpeedKn: 11,
     tonals: [{ hz: 30, level: 9 }, { hz: 90, level: 6 }, { hz: 270, level: 4 }],
   },
+  // Civil traffic. Slow two-stroke diesels turn a big screw slowly: firing rate = rpm × cylinders / 60
+  tanker: {
+    key: 'tanker', name: 'Supertanker (Zweitakt-Diesel)', choice: 'merchant', blades: [5, 4],
+    rpmPerKn: 5.5, rpmRange: [30, 90], tonalBand: [5, 120], maxSpeedKn: 15,
+    tonals: [{ hz: 9, level: 9 }, { hz: 50, level: 6 }, { hz: 100, level: 4 }],
+  },
+  container: {
+    key: 'container', name: 'Containerschiff (Zweitakt-Diesel)', choice: 'merchant', blades: [6, 5],
+    rpmPerKn: 4.6, rpmRange: [40, 110], tonalBand: [8, 180], maxSpeedKn: 23,
+    tonals: [{ hz: 12, level: 8 }, { hz: 60, level: 6 }, { hz: 120, level: 4 }, { hz: 180, level: 2 }],
+  },
+  faehre: {
+    key: 'faehre', name: 'RoRo-Fähre (Mittelschnellläufer, zwei Wellen)', choice: 'merchant', blades: [4],
+    rpmPerKn: 8.5, rpmRange: [60, 180], tonalBand: [20, 260], maxSpeedKn: 21,
+    tonals: [{ hz: 33, level: 7 }, { hz: 50, level: 6 }, { hz: 67, level: 5 }, { hz: 250, level: 3 }],
+  },
+  schlepper: {
+    key: 'schlepper', name: 'Schlepper (Diesel, Düsenpropeller)', choice: 'merchant', blades: [4],
+    rpmPerKn: 16, rpmRange: [80, 250], tonalBand: [25, 280], maxSpeedKn: 15,
+    tonals: [{ hz: 40, level: 9 }, { hz: 80, level: 6 }, { hz: 120, level: 5 }],
+  },
+  yacht: {
+    key: 'yacht', name: 'Segelyacht (Hilfsdiesel)', choice: 'merchant', blades: [2, 3],
+    rpmPerKn: 110, rpmRange: [300, 900], tonalBand: [20, 120], maxSpeedKn: 8,
+    tonals: [{ hz: 25, level: 4 }, { hz: 50, level: 2 }],
+  },
+  // Biology: no shaft or blades. Fin whales pulse at 20 Hz, blue whales lower still; humpbacks sing;
+  // sperm whales, orcas and dolphins click (the click rate shows on DEMON like a slow shaft)
   bio: {
-    // Whales: no shaft or blades, but pulsed low tones (fin whale 20 Hz) and song in the low hundreds
-    key: 'bio', name: 'Biologisch (Wale)', choice: 'bio', blades: [1],
-    rpmPerKn: 0, rpmRange: [0, 0], tonalBand: [15, 400], maxSpeedKn: 8,
-    tonals: [{ hz: 20, level: 6 }, { hz: 180, level: 3 }, { hz: 310, level: 1 }],
+    key: 'bio', name: 'Finnwal', choice: 'bio', blades: [1],
+    rpmPerKn: 0, rpmRange: [0, 0], tonalBand: [15, 40], maxSpeedKn: 12,
+    tonals: [{ hz: 20, level: 7 }, { hz: 40, level: 2 }],
+  },
+  blauwal: {
+    key: 'blauwal', name: 'Blauwal', choice: 'bio', blades: [1],
+    rpmPerKn: 0, rpmRange: [0, 0], tonalBand: [8, 75], maxSpeedKn: 10,
+    tonals: [{ hz: 17, level: 8 }, { hz: 35, level: 4 }, { hz: 70, level: 2 }],
+  },
+  buckelwal: {
+    key: 'buckelwal', name: 'Buckelwal (Gesang)', choice: 'bio', blades: [1],
+    rpmPerKn: 0, rpmRange: [0, 0], tonalBand: [80, 300], maxSpeedKn: 8,
+    tonals: [{ hz: 110, level: 5 }, { hz: 180, level: 4 }, { hz: 260, level: 3 }],
+  },
+  pottwal: {
+    key: 'pottwal', name: 'Pottwal (Klicks)', choice: 'bio', blades: [1],
+    rpmPerKn: 20, rpmRange: [20, 120], tonalBand: [0, 0], maxSpeedKn: 8,
+    tonals: [],
+  },
+  orca: {
+    key: 'orca', name: 'Schwertwale (Orcas)', choice: 'bio', blades: [1],
+    rpmPerKn: 40, rpmRange: [60, 400], tonalBand: [200, 300], maxSpeedKn: 15,
+    tonals: [{ hz: 230, level: 3 }, { hz: 285, level: 2 }],
+  },
+  delfine: {
+    key: 'delfine', name: 'Delfinschule', choice: 'bio', blades: [1],
+    rpmPerKn: 60, rpmRange: [120, 900], tonalBand: [260, 300], maxSpeedKn: 15,
+    tonals: [{ hz: 290, level: 2 }],
+  },
+  garnelen: {
+    key: 'garnelen', name: 'Knallkrebse (Garnelenbank)', choice: 'bio', blades: [1],
+    rpmPerKn: 0, rpmRange: [0, 0], tonalBand: [0, 0], maxSpeedKn: 0,
+    tonals: [],
   },
   torpedo: {
     key: 'torpedo', name: 'Schwergewichtstorpedo', choice: 'torpedo', blades: [9, 11],
@@ -205,5 +265,5 @@ export function rankClasses(m: Marks): { sig: Signature; fit: number }[] {
 }
 
 export const CHOICE_MAX_KN: Record<ClassChoice, number> = {
-  merchant: 14, warship: 30, submarine: 30, torpedo: 50, bio: 10, unknown: 30,
+  merchant: 23, warship: 30, submarine: 30, torpedo: 50, bio: 15, unknown: 30,
 };

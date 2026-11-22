@@ -1,4 +1,4 @@
-import type { ClassId, Team } from './classes.js';
+import type { ClassId, NeutralClass, Team } from './classes.js';
 import type { ContactTrack } from './contacts.js';
 import type { DamageState, ShipSystem } from './damage.js';
 import type { ClassChoice } from './signatures.js';
@@ -18,7 +18,7 @@ export type ClientMsg =
   | { t: 'join_code'; matchId: string }
   | { t: 'join'; matchId: string; team: Exclude<Team, 'neutral'> }
   | { t: 'leave' }
-  | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant' | 'fischer'> }
+  | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant' | NeutralClass> }
   | { t: 'ready'; ready: boolean }
   | { t: 'order'; heading?: number; speedKn?: number; depth?: number }
   /** silent = "Ruhe im Boot", battle = Gefechtsstationen, buoyant = Schleppantenne (receive-only). */
@@ -66,7 +66,7 @@ export interface PlayerSlot {
   playerId: string;
   callsign: string;
   team: Exclude<Team, 'neutral'>;
-  cls: Exclude<ClassId, 'merchant' | 'fischer'>;
+  cls: Exclude<ClassId, 'merchant' | NeutralClass>;
   ready: boolean;
   /** AI captain filling an empty team. */
   bot?: boolean;

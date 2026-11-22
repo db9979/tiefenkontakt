@@ -118,6 +118,28 @@ export function figNato(): string {
   ].join(''));
 }
 
+/** Silhouettes of the biological contacts, roughly to scale (body lengths in metres). */
+export function figBio(): string {
+  const animal = (x: number, y: number, len: number, label: string, fin: 'dorsal' | 'tall' | 'none', head: 'blunt' | 'pointed' | 'beak') => {
+    const s = len * 9;
+    const h = s * (head === 'blunt' ? 0.2 : 0.14);
+    const nose = head === 'blunt' ? `C ${x + s * 0.55} ${y - h} ${x + s * 0.55} ${y + h * 0.8} ${x + s * 0.4} ${y + h * 0.7}`
+      : head === 'beak' ? `L ${x + s * 0.56} ${y - h * 0.05} L ${x + s * 0.42} ${y + h * 0.4}` : `Q ${x + s * 0.55} ${y} ${x + s * 0.4} ${y + h * 0.6}`;
+    const finPath = fin === 'none' ? '' : fin === 'tall'
+      ? `<path d="M${x - s * 0.02} ${y - h * 0.9} L${x + s * 0.02} ${y - h * 2.6} L${x + s * 0.1} ${y - h * 0.9} Z" fill="${INK}" stroke="none"/>`
+      : `<path d="M${x - s * 0.18} ${y - h * 0.7} L${x - s * 0.12} ${y - h * 1.4} L${x - s * 0.06} ${y - h * 0.8} Z" fill="${INK}" stroke="none"/>`;
+    return `<path d="M${x - s * 0.5} ${y} Q ${x - s * 0.1} ${y - h * 1.1} ${x + s * 0.4} ${y - h * 0.8} ${nose} Q ${x - s * 0.1} ${y + h * 1.1} ${x - s * 0.5} ${y} Z" fill="${INK}" stroke="none"/>
+      <path d="M${x - s * 0.5} ${y} l ${-s * 0.06} ${-h * 0.7} l ${s * 0.02} ${h * 0.7} l ${-s * 0.02} ${h * 0.7} Z" fill="${INK}" stroke="none"/>${finPath}
+      ${text(x, y + h + 18, label, { anchor: 'middle', size: 11 })}`;
+  };
+  return svg(700, 170, `
+    ${animal(120, 60, 22, 'Finnwal · 20 m', 'dorsal', 'pointed')}
+    ${animal(380, 60, 16, 'Pottwal · 16 m', 'none', 'blunt')}
+    ${animal(560, 60, 8, 'Orca · 8 m', 'tall', 'pointed')}
+    ${animal(660, 60, 2.5, 'Delfin', 'dorsal', 'beak')}
+    <line x1="20" y1="150" x2="218" y2="150" stroke="${GREY}"/>${text(20, 165, '0', { size: 10, fill: GREY })}${text(218, 165, '22 m', { size: 10, fill: GREY, anchor: 'end' })}`);
+}
+
 /** Sonar equation as a level ladder. */
 export function figSonarEq(): string {
   const bar = (x: number, h: number, label: string, sub: string, col: string) =>
