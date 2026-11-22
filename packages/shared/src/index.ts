@@ -29,3 +29,4 @@ export * from './filters.js';
 export * from './persist.js';
 export * from './seabed.js';
 export * from './weather.js';
+export * from './recognition.js';

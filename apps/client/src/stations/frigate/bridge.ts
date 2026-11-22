@@ -5,7 +5,9 @@ import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
 import { easeAngle, moverNow, ownNow, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
-import { deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
+import { CLASS_LABEL, deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
+import { toggleRecogBook } from '../../widgets/recog-book.js';
+import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
 const H = 380;
 const WIDE_FOV = 75;
@@ -23,6 +25,7 @@ export function bridgeStation(): Station {
         <button id="glass">Fernglas 7×</button>
         <button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button>
         <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button>
+        <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button>
         <span class="kbd" style="align-self:center">ZIEHEN DREHT · A / D</span>
       </div>
     </div>
@@ -54,6 +57,8 @@ export function bridgeStation(): Station {
   let glass = false;
   let last = performance.now();
   const t0 = performance.now();
+  let photoReq = false;
+  let flashAt = -1e9;
   /** Smoothed screen positions per target (bearing, range), so 1 Hz updates glide. */
   const shown = new Map<string, { b: number; r: number }>();
 
@@ -102,11 +107,24 @@ export function bridgeStation(): Station {
     const i = air.findIndex((p) => p.label === airTrack);
     airTrack = air[(i + 1) % air.length]!.label;
   };
+  el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Brücke', el);
+  el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   for (const id of ['#left', '#right', '#ahead', '#report']) el.querySelector(id)!.addEventListener('click', () => (airTrack = undefined));
   let dragX: number | undefined;
   view.style.cursor = 'ew-resize';
   view.style.touchAction = 'none';
-  view.addEventListener('pointerdown', (e) => (dragX = e.clientX));
+  let downX = 0;
+  view.addEventListener('pointerdown', (e) => (dragX = downX = e.clientX));
+  // A click (no drag) on a sighting selects that contact, e.g. to assign its class
+  view.addEventListener('click', (e) => {
+    const s = store.snap;
+    if (!s || Math.abs(e.clientX - downX) > 3) return;
+    const r = view.getBoundingClientRect();
+    const f = fov();
+    const b = (s.own.heading + rel + ((e.clientX - r.left - r.width / 2) / (r.width / 2)) * (f / 2) + 360) % 360;
+    const hit = s.contacts.filter((c) => c.sighting && Math.abs(angleDiff(c.bearing, b)) < f / 12).sort((x, y) => Math.abs(angleDiff(x.bearing, b)) - Math.abs(angleDiff(y.bearing, b)))[0];
+    if (hit) store.selected = hit.label;
+  });
   window.addEventListener('pointerup', () => (dragX = undefined));
   view.addEventListener('pointermove', (e) => {
     if (dragX === undefined) return;
@@ -166,6 +184,12 @@ export function bridgeStation(): Station {
     return `<div class="row"><span class="dim">LUFT IN SICHT</span><span>${air.length || '—'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${deg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
   };
 
+  /** Selected contact with its assigned class (from the recognition book) and the photo counter. */
+  const selLine = () => {
+    const c = store.selectedContact();
+    return `${c ? `<div class="row"><span class="dim">KONTAKT · ${c.label}</span><span class="${c.assignedCls ? '' : 'amber'}">${c.assignedCls ? CLASS_LABEL[c.assignedCls] : 'KLASSE ZUWEISEN'}</span></div>` : ''}<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>`;
+  };
+
   return {
     title: 'Brücke',
     el,
@@ -187,6 +211,7 @@ export function bridgeStation(): Station {
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
         <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>
         ${airLine(s)}
+        ${selLine()}
         <div class="dim" style="margin:8px 0 4px">MELDUNGEN</div>
         ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${deg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
         <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`);
@@ -310,6 +335,13 @@ export function bridgeStation(): Station {
         ctx.fillStyle = '#e8c37a';
         ctx.beginPath(); ctx.moveTo(bx, 1); ctx.lineTo(bx - 5, 9); ctx.lineTo(bx + 5, 9); ctx.fill();
       }
+      if (photoReq) {
+        photoReq = false;
+        const vfov = (2 * Math.atan(Math.tan((f * Math.PI) / 360) * (H / w)) * 180) / Math.PI;
+        snapPhoto({ layers: [glCanvas, view], crop: { x: 0, y: 0, w, h: H }, bearing: look, fov: f, vfov, pitch, label: store.selected });
+        flashAt = nowMs;
+      }
+      shutterFlash(ctx, 0, 0, w, H, nowMs - flashAt);
     },
   };
 }

@@ -31,6 +31,7 @@ import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
 import { callouts } from '../widgets/callouts.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
+import { resetPhotoCounter } from '../widgets/photo.js';
 
 export interface Station {
   title: string;
@@ -46,6 +47,7 @@ export interface Station {
 
 export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   store.reset();
+  resetPhotoCounter();
   store.loadLocal();
   const saver = setInterval(() => store.saveLocal(), 2000);
   const el = h(`<div class="game">

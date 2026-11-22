@@ -1,4 +1,4 @@
-import { angleDiff, PERISCOPE_DEPTH, type ClassId } from '@tk/shared';
+import { angleDiff, PERISCOPE_DEPTH, RECOG, stadimeterRange, type ClassId } from '@tk/shared';
 import { BearingRangeFilter, easeAngle, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
 import type { Periscope3D, PeriscopeEffect } from '../../widgets/periscope3d.js';
@@ -6,9 +6,10 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
-import { CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km, mastState } from '../../widgets/format.js';
-
-const MAST_HEIGHT: Record<ClassId, number> = { merchant: 28, ffg: 32, kor: 24, ssn: 8, ssk: 7, ssc: 5, ssa: 6, ffv: 33, fischer: 14, tanker: 45, container: 50, faehre: 38, schlepper: 18, yacht: 16 };
+import { CHOICE_LABEL, CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km, mastState } from '../../widgets/format.js';
+import { SkySearch } from '../../widgets/sky-search.js';
+import { toggleRecogBook } from '../../widgets/recog-book.js';
+import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
 interface Wave {
   x: number;
@@ -42,12 +43,15 @@ export function periscopeStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
       <div style="position:relative"><canvas id="gl" style="position:absolute;inset:0;width:100%;height:380px"></canvas><canvas id="view" style="position:relative"></canvas></div>
-      <div style="display:flex;gap:6px;margin-top:6px">
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button id="up">Mast ausfahren</button><button id="zoom">Vergr 6×</button>
         <button id="peri">Auf Sehrohrtiefe</button>
         <button id="left" title="Sehrohr nach links drehen">◀</button><button id="right" title="Sehrohr nach rechts drehen">▶</button>
         <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button>
-        <span class="kbd" style="align-self:center">ZIEHEN DREHT · KLICK WÄHLT</span>
+        <button id="elup" title="Sehrohrprisma anheben (Himmel)">▲</button><button id="eldn" title="Sehrohrprisma absenken">▼</button>
+        <button id="sky" title="Prisma anheben und einmal rundum nach Flugzeugen suchen">Himmel absuchen</button>
+        <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Sehrohrfoto (wird in der Nachbesprechung bewertet)">Foto</button>
+        <span class="kbd" style="align-self:center">ZIEHEN DREHT UND HEBT · KLICK WÄHLT</span>
       </div>
     </div>
     <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
@@ -83,36 +87,52 @@ export function periscopeStation(): Station {
     x: Math.random() * 900, y: Math.pow(Math.random(), 1.6) * 160 + 2, s: 0.3 + Math.random(), a: 0.1 + Math.random() * 0.35,
   }));
   const t0 = performance.now();
+  const sky = new SkySearch();
+  let photoReq = false;
+  let flashAt = -1e9;
 
   el.querySelector<HTMLButtonElement>('#up')!.onclick = () => net.send({ t: 'toggle', what: 'mast', on: !store.snap?.own.mastUp });
-  el.querySelector<HTMLButtonElement>('#zoom')!.onclick = (e) => {
-    zoom6 = !zoom6;
-    (e.target as HTMLButtonElement).textContent = zoom6 ? 'Vergr 6×' : 'Vergr 1,5×';
+  const setZoom = (on: boolean) => {
+    zoom6 = on;
+    el.querySelector('#zoom')!.textContent = zoom6 ? 'Vergr 6×' : 'Vergr 1,5×';
   };
+  el.querySelector<HTMLButtonElement>('#zoom')!.onclick = () => setZoom(!zoom6);
   el.querySelector<HTMLButtonElement>('#peri')!.onclick = () => net.send({ t: 'order', depth: PERISCOPE_DEPTH });
   const train = (d: number) => (periTarget = (periTarget + d + 360) % 360);
   el.querySelector<HTMLButtonElement>('#left')!.onclick = () => train(zoom6 ? -2 : -8);
   el.querySelector<HTMLButtonElement>('#right')!.onclick = () => train(zoom6 ? 2 : 8);
+  el.querySelector<HTMLButtonElement>('#elup')!.onclick = () => sky.nudge(zoom6 ? 2 : 6);
+  el.querySelector<HTMLButtonElement>('#eldn')!.onclick = () => sky.nudge(zoom6 ? -2 : -6);
+  el.querySelector<HTMLButtonElement>('#sky')!.onclick = () => (sky.sweeping ? sky.cancel() : (sky.startSweep(performance.now(), periTarget), setZoom(false)));
+  el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Sehrohr', el);
+  el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
+    sky.level();
     const c = store.selectedContact();
     if (c) periTarget = filters.get(c.label)?.at(simNow())?.bearing ?? c.bearing;
   };
   let dragX: number | undefined;
+  let dragY = 0;
   let dragged = false;
-  view.style.cursor = 'ew-resize';
+  view.style.cursor = 'move';
   view.style.touchAction = 'none';
   view.addEventListener('pointerdown', (e) => {
     dragX = e.clientX;
+    dragY = e.clientY;
     dragged = false;
   });
   window.addEventListener('pointerup', () => (dragX = undefined));
   view.addEventListener('pointermove', (e) => {
     if (dragX === undefined) return;
     const dx = e.clientX - dragX;
-    if (Math.abs(dx) > 2) dragged = true;
+    const dy = e.clientY - dragY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragged = true;
     dragX = e.clientX;
+    dragY = e.clientY;
     const fov = zoom6 ? 8 : 32;
-    train((-dx / (view.clientWidth * 0.84)) * fov);
+    if (dx) train((-dx / (view.clientWidth * 0.84)) * fov);
+    // Drag down: the picture follows the hand, the prism looks up
+    if (dy) sky.nudge((dy / (view.clientHeight * 0.84)) * fov);
     periBearing = periTarget;
   });
   view.onclick = (e) => {
@@ -178,15 +198,20 @@ export function periscopeStation(): Station {
       mast.className = ms.moving ? 'amber blink' : o.mastUp ? (since > 20 ? 'red' : 'amber') : 'dim';
       mast.textContent = ms.moving ? `MAST FÄHRT ${ms.moving === 'aus' ? 'AUS' : 'EIN'} · ${Math.round(ms.ext * 100)} %` : o.mastUp ? `MAST OBEN ${since.toFixed(0)} S` : atDepth ? 'MAST UNTEN' : `TIEFE ${o.depth.toFixed(0)} M · ZU TIEF`;
       const esm = s.alerts.filter((a) => a.kind === 'esm' && s.time - a.time < 10);
+      const skyNow = sky.readout(planeTargets(s, s.own, simNow()), simNow(), ms.raised);
+      el.querySelector<HTMLButtonElement>('#foto')!.disabled = !ms.raised;
+      el.querySelector('#sky')!.classList.toggle('on', sky.sweeping);
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
       el.querySelector('#data')!.innerHTML = `
         <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${deg1(periBearing)}°</span></div>
         <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : '—'}</span></div>
-        <div class="row"><span class="dim">KLASSE</span><span>${target?.classified ? CLASS_LABEL[target.classified] : '—'}</span></div>
+        <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : target ? 'ERKENNUNG ÖFFNEN' : '—'}</span></div>
         <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? deg1(target.bearing) + '°' : '—'}</span></div>
-        <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.classified ? MAST_HEIGHT[target.classified] + ' M' : '—'}</span></div>
-        <div class="row"><span class="dim">ENTFERNUNG (MESSUNG)</span><span>${target?.range ? km(target.range) : '—'}</span></div>
+        <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
+        <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${target?.range && target.assignedCls && target.classified ? km(stadimeterRange(target.range, target.classified, target.assignedCls)) : '—'}</span></div>
+        <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${skyNow.text}</span></div>
+        <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>
         ${esm.map((a) => `<div class="row red blink"><span>ESM · RADAR</span><span>${deg3(a.bearing ?? 0)}°</span></div>`).join('')}
         ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`;
@@ -210,6 +235,10 @@ export function periscopeStation(): Station {
       const w = view.clientWidth;
       const nowMs = performance.now();
       const t = (nowMs - t0) / 1000;
+      const air = s && mastState(s.own).raised ? planeTargets(s, s.own, simNow()) : [];
+      const sweepTo = sky.frame(nowMs, (nowMs - lastFrame) / 1000, periBearing, zoom6 ? 8 : 32, air, simNow());
+      if (sweepTo !== undefined) periTarget = periBearing = ((sweepTo % 360) + 360) % 360;
+      if (s && !mastState(s.own).raised) sky.cancel();
       periBearing = easeAngle(periBearing, periTarget, (nowMs - lastFrame) / 1000, 0.15);
       lastFrame = nowMs;
       const cx = w / 2;
@@ -225,8 +254,8 @@ export function periscopeStation(): Station {
         const vis = visible();
         gl!.render({
           bearing: periBearing, fovDeg: (fov * w) / (2 * R), t, sea: s.env.seaState, light: s.env.light ?? 1,
-          targets: [...vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })), ...planeTargets(s, s.own, simNow())],
-          rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs),
+          targets: [...vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })), ...air],
+          rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs), pitchDeg: sky.elev,
         });
         // Overlay: black mask outside the optic, reticle drawn below
         ctx.clearRect(0, 0, w, H);
@@ -274,7 +303,7 @@ export function periscopeStation(): Station {
       } else if (s && mst.raised) {
         const sea = s.env.seaState;
         // Slow, swell-like pitch and roll (no fast jitter)
-        const hy = cy + Math.sin(t * 0.55) * (1.5 + sea * 1.1) + Math.sin(t * 0.23 + 1.3) * sea * 0.6;
+        const hy = cy + Math.sin(t * 0.55) * (1.5 + sea * 1.1) + Math.sin(t * 0.23 + 1.3) * sea * 0.6 + (sky.elev * 2 * R) / (zoom6 ? 8 : 32);
         ctx.translate(cx, hy);
         ctx.rotate(Math.sin(t * 0.4) * 0.004 * (1 + sea * 0.6));
         ctx.fillStyle = '#24343b'; ctx.fillRect(-w, -H, 2 * w, H);
@@ -340,6 +369,16 @@ export function periscopeStation(): Station {
       ctx.fillText('BB', 10, cy + 4);
       ctx.textAlign = 'right';
       ctx.fillText('STB', w - 10, cy + 4);
+      if (s && mst.raised) sky.draw(ctx, cx, cy, R, sky.readout(air, simNow(), true), t);
+      if (photoReq) {
+        photoReq = false;
+        if (s && mst.raised) {
+          const fov = zoom6 ? 8 : 32;
+          snapPhoto({ layers: [glCanvas, view], crop: { x: cx - R, y: cy - R, w: 2 * R, h: 2 * R }, bearing: periBearing, fov, vfov: fov, pitch: sky.elev, label: store.selected });
+          flashAt = nowMs;
+        }
+      }
+      shutterFlash(ctx, cx - R, cy - R, 2 * R, 2 * R, nowMs - flashAt);
     },
   };
 }

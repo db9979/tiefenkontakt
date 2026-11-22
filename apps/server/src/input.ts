@@ -78,6 +78,11 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('classify'), label: z.string().min(1).max(24),
     choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
+    cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ffg', 'kor', 'ffv', 'merchant', 'fischer', 'tanker', 'container', 'faehre', 'schlepper', 'yacht']).optional(),
+  }),
+  z.object({
+    t: z.literal('photo'), id: z.string().regex(/^[a-z0-9-]{4,24}$/), bearing: deg, fov: z.number().finite().min(1).max(120),
+    vfov: z.number().finite().min(1).max(120), pitch: z.number().finite().min(-30).max(90), label: z.string().min(1).max(24).optional(),
   }),  // Voice radio: join/leave, WebRTC signalling to a team mate (size-limited), push-to-talk
   z.object({
     t: z.literal('voice'), op: z.enum(['join', 'leave', 'signal', 'ptt']),
