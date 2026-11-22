@@ -5,7 +5,7 @@
  */
 import { ArenaGame, DEFAULT_ARENA, type ArenaSetup } from '../apps/server/src/arena.js';
 import { seriesStats } from '../apps/server/src/series.js';
-import { orderResults } from '../packages/shared/src/index.js';
+import { isConvoyShip, orderResults } from '../packages/shared/src/index.js';
 import type { ScenarioSettings } from '../apps/server/src/scenario.js';
 
 const games = Number(process.argv[2] ?? 6);
@@ -15,6 +15,8 @@ const missions = (process.env.ARENA_MISSIONS?.split(',') ?? ['groenland', 'schel
 const mix = !!process.env.ARENA_MIX;
 const results = [];
 const ordersTally = { west: [0, 0], east: [0, 0] };
+/** Per mission: wins West/East and mines that hit convoy merchants. */
+const perMission = new Map<string, { w: number; e: number; mineHits: number }>();
 for (let g = 0; g < games; g++) {
   const setup: ArenaSetup = { ...DEFAULT_ARENA, mission: missions[g % missions.length]!, botSkill: skill, west: ['ffg', mix ? 'ffv' : 'ffg'], east: [mix ? 'ssa' : 'ssk', 'ssn'] };
   const t0 = Date.now();
@@ -27,15 +29,23 @@ for (let g = 0; g < games; g++) {
   const of = (team: string) => `${ol.filter((o) => o.team === team && o.status === 'done').length}/${ol.filter((o) => o.team === team).length}`;
   const r = game.summary();
   results.push(r);
+  const convoyHit = (id: string | undefined) => { const s = game.world.ships.find((x) => x.id === id); return !!s && isConvoyShip(s); };
+  // events accumulate over the game; a Set counts each event object once
+  const mineHits = new Set(game.world.events.filter((e) => e.kind === 'mine' && e.what === 'detonated' && convoyHit(e.shipId))).size;
+  const pm = perMission.get(setup.mission) ?? { w: 0, e: 0, mineHits: 0 };
+  pm[r.winner === 'west' ? 'w' : 'e']++;
+  pm.mineHits += mineHits;
+  perMission.set(setup.mission, pm);
   const shots = (what: string) => game.world.events.filter((e) => e.kind === 'weapon' && e.what === what).length;
   console.log(
     `${setup.mission.padEnd(9)} ${r.winner.padEnd(4)} ${String(r.minutes).padStart(4)} min | Frachter ${r.merchantsSunk} | U-Boote ${r.subsLost} | Eskorten ${r.escortsLost}` +
       ` | Torpedos ${r.torpedoes} Raketen ${shots('rocket')} Bojen ${shots('buoy')} Funk ${game.world.events.filter((e) => e.kind === 'transmission').length}` +
-      ` | FK ${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'launch').length}/${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'kill').length} Minen ${game.world.env.mines?.mines.length ?? 0}/${game.world.events.filter((e) => e.kind === 'mine' && e.what === 'detonated').length} | Befehle W ${of('west')} O ${of('east')} | ${r.reason} | ${Date.now() - t0} ms`,
+      ` | FK ${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'launch').length}/${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'kill').length} Minen ${game.world.env.mines?.mines.length ?? 0}/${game.world.events.filter((e) => e.kind === 'mine' && e.what === 'detonated').length}/F${mineHits} | Befehle W ${of('west')} O ${of('east')} | ${r.reason} | ${Date.now() - t0} ms`,
   );
 }
 const st = seriesStats(results);
 console.log(`Bilanz: Westbund ${st.westWins} · Ostpakt ${st.eastWins} · Ø Ortung West ${st.avgDetectWest ?? '—'} m, Ost ${st.avgDetectEast ?? '—'} m | Befehle erfüllt/nicht: W ${ordersTally.west.join('/')} O ${ordersTally.east.join('/')}`);
+console.log(`Missionen: ${[...perMission].map(([m, p]) => `${m} ${p.w}:${p.e} (Minentreffer Frachter ${p.mineHits})`).join(' · ')}`);
 // ARENA_BAND=0.35: fail (exit 1) when the West's share of wins leaves [band, 1 − band] — for the nightly CI run
 const band = Number(process.env.ARENA_BAND ?? 0);
 const share = results.length ? st.westWins / results.length : 0.5;

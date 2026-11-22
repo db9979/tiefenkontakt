@@ -19,6 +19,8 @@ export interface ConvoyState {
   hazards?: Vec2[];
   /** Detour ordered by the escort: the track is shifted sideways by this much (m, + = starboard of the leg). */
   offset?: number;
+  /** Where the first leg starts (the detour's parallel track is measured from the leg line). */
+  origin?: Vec2;
 }
 
 const ZIG_PERIOD = 480; // s per leg
@@ -35,7 +37,7 @@ export function createConvoy(merchants: Ship[], waypoints: Vec2[], baseSpeedKn: 
   const start = merchants.length ? centroid(merchants.map((m) => m.pos)) : { x: 0, y: 0 };
   const first = waypoints[0] ?? start;
   return {
-    waypoints, wpIndex: 0, baseSpeedKn, guide: start, guideHeading: bearing(start, first),
+    waypoints, wpIndex: 0, baseSpeedKn, guide: start, origin: { ...start }, guideHeading: bearing(start, first),
     zigzag: true, stations, scatterUntil: -1, arrived: [], arriveRadius: 3000,
   };
 }
@@ -84,7 +86,9 @@ export function scatterConvoy(c: ConvoyState, from: Vec2, now: number, duration 
 export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: number): void {
   const wp = c.waypoints[c.wpIndex];
   if (wp) {
-    const prev = c.waypoints[c.wpIndex - 1] ?? c.guide;
+    // The leg line runs from the previous waypoint (first leg: from the start, not from the
+    // moving guide, or a detour would keep pushing the track sideways)
+    const prev = c.waypoints[c.wpIndex - 1] ?? c.origin ?? c.guide;
     if (distance(c.guide, legTarget(c, wp, prev)) < 1500 && c.wpIndex < c.waypoints.length - 1) c.wpIndex++;
     const cur = c.waypoints[c.wpIndex] ?? wp;
     const leg = bearing(c.guide, legTarget(c, cur, c.waypoints[c.wpIndex - 1] ?? prev));

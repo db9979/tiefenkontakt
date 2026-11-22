@@ -18,6 +18,7 @@ import {
 } from '@tk/shared';
 import { classify, isFriendly, latestLine, votedPeek, type BotMemory } from './common.js';
 import { crossFix } from './frigate.js';
+import { leadDetour, sweepStation } from './mine-cm.js';
 
 /**
  * Escort teamwork. Once every few seconds the AI escorts of a side pool what their sensors
@@ -191,6 +192,10 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
     const ahead = w.convoy?.guideHeading ?? 0;
     const threat = d && now - d.t < DATUM_MAX_AGE ? bearing(center, d) : undefined;
     const st = stations(center, threat ?? ahead, screens.length, threat !== undefined);
+    // In mine water one screen sweeps the track close ahead with its mine-avoidance sonar (the
+    // barrage-laying boat is ahead on the track too)
+    const sweep = sweepStation(w, center);
+    if (sweep) st[0] = sweep;
     const free = [...st];
     for (const s of [...screens].sort((a, b) => a.id.localeCompare(b.id))) {
       const i = free.reduce((bi, p, j) => (distance(s.pos, p) < distance(s.pos, free[bi]!) ? j : bi), 0);
@@ -200,6 +205,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
     }
   }
   obeyEscortOrders(w, team, ai, tasks, center);
+  leadDetour(w, team, ai);
   return tasks;
 }
 

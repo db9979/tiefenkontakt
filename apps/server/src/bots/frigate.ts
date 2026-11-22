@@ -20,10 +20,13 @@ import {
   type World,
   TRAITS,
   commanderTrait,
+  knownMines,
+  steerClear,
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 import { commitHelo, directorCourse, heloCovered, type EscortTask } from './escort-team.js';
+import { wantMineAvoid } from './mine-cm.js';
 
 const ROCKET_COOLDOWN = 90;
 const PROSECUTE_MAX = 16_000; // m from the convoy: beyond that, return to the screen
@@ -172,6 +175,12 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     s.order.heading = distance(s.pos, station) > 3000 ? bearing(s.pos, station) : m.legSign > 0 ? 80 : 260;
     s.order.speedKn = 8;
   }
+
+  // Mine-avoidance sonar wherever mines can lie, unless sprinting (it only hears up to 15 kn)
+  s.mineAvoid = wantMineAvoid(w, s);
+  // Known mines close ahead: turn clear of them (the escort sets them off like any hull)
+  const mines = knownMines(w, s.team);
+  if (mines.length) s.order.heading = steerClear(s.pos, s.order.heading, mines, 1500, 300);
 
   if (now - m.lastShot < ROCKET_COOLDOWN / SKILL[skill].fireRate) return;
   const friends = w.ships.filter((f) => f.team === s.team && f.alive);
