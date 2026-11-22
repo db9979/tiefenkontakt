@@ -20,7 +20,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { COL, deg1, deg3, fitCanvas, h, km } from '../../widgets/format.js';
+import { COL, deg1, deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 
@@ -193,13 +193,13 @@ export function fireControlStation(): Station {
       const legs = c ? c.history.length : 0;
       const fitQ = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
       const step = (done: boolean, text: string) => `<div class="${done ? '' : 'amber'}">${done ? '✓' : '▸'} ${text}</div>`;
-      q('#steps').innerHTML = [
+      setHtml(q('#steps'), [
         step(!!c, 'Kontakt wählen (Liste, Karte oder Wasserfall)'),
         step(legs > 40, 'Peilungen sammeln, dabei einmal den Kurs um 30–60° ändern'),
         step(!!sol, 'Auto-TMA oder gelben Kreis auf der Karte ziehen'),
         step(fitQ > 60, 'Güte über 60 % bringen'),
         step(s.torpedoes.length > 0, 'Lösung übernehmen und Feuer'),
-      ].join('');
+      ].join(''));
       if (c && sol) {
         const fit = evaluateSolution(sol, c.history, store.ownTrack);
         const now = targetPosAt(sol, s.time);
@@ -211,7 +211,7 @@ export function fireControlStation(): Station {
         shownQ = shownQ === undefined || shownLabel !== c.label ? fit.quality : shownQ + (fit.quality - shownQ) * 0.2;
         shownRms = shownRms === undefined || shownLabel !== c.label ? fit.rmsDeg : shownRms + (fit.rmsDeg - shownRms) * 0.2;
         shownLabel = c.label;
-        q('#v-q').innerHTML = `<span class="${shownQ > 60 ? '' : 'amber'}">${Math.round(shownQ)} %</span> / ${shownRms.toFixed(1)}°`;
+        setHtml(q('#v-q'), `<span class="${shownQ > 60 ? '' : 'amber'}">${Math.round(shownQ)} %</span> / ${shownRms.toFixed(1)}°`);
         const last = c.history[c.history.length - 1];
         const own = last ? ownPosAt(store.ownTrack, last.t) ?? s.own : s.own;
         // Move the sliders only when the solution itself changed (not on every update)
@@ -229,23 +229,23 @@ export function fireControlStation(): Station {
         const seen = solSeen.get(c.label);
         if (!seen || seen.ref !== sol) solSeen.set(c.label, { ref: sol, at: s.time });
         const age = s.time - (solSeen.get(c.label)?.at ?? s.time);
-        q('#v-age').innerHTML = age > FIX_MAX_AGE ? `<span class="amber">${Math.round(age)} S · VERALTET, NEU ANPASSEN</span>` : `${Math.round(age)} S`;
+        setHtml(q('#v-age'), age > FIX_MAX_AGE ? `<span class="amber">${Math.round(age)} S · VERALTET, NEU ANPASSEN</span>` : `${Math.round(age)} S`);
       } else {
         for (const id of ['#v-rng', '#v-crs', '#v-spd', '#v-q', '#v-age']) q(id).textContent = '—';
         drawResiduals(q<HTMLCanvasElement>('#res'), [{ label: '', res: [] }]);
       }
       el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => b.classList.toggle('on', b.dataset.method === method));
       const leg = c ? ownLegChange(c.history, store.ownTrack) : 0;
-      q('#v-obs').innerHTML = !c ? '—' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="red">NEIN · EIGENEN KURS ÄNDERN</span>';
+      setHtml(q('#v-obs'), !c ? '—' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="red">NEIN · EIGENEN KURS ÄNDERN</span>');
       const ek = method === 'ekelund' && c ? ekelundRange(c.history, store.ownTrack) : undefined;
       q('#ekel-row').style.display = method === 'ekelund' ? '' : 'none';
       q('#ekel-take').style.display = method === 'ekelund' && ek ? '' : 'none';
-      q('#v-ekel').innerHTML = ek ? `${km(ek.range)} BEIM SCHLAGWECHSEL (${ek.courseChange.toFixed(0)}°)` : '<span class="amber">ZWEI SCHLÄGE JE 90 S, MIND. 30° KURSWECHSEL</span>';
+      setHtml(q('#v-ekel'), ek ? `${km(ek.range)} BEIM SCHLAGWECHSEL (${ek.courseChange.toFixed(0)}°)` : '<span class="amber">ZWEI SCHLÄGE JE 90 S, MIND. 30° KURSWECHSEL</span>');
       const tubes = s.own.loadout.tubes;
-      q('#tubes').innerHTML = tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`;
-      q('#wires').innerHTML = s.torpedoes.map((t) => `
+      setHtml(q('#tubes'), tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`);
+      setHtml(q('#wires'), s.torpedoes.map((t) => `
         <div class="row"><span>${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-        <span>${deg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join('');
+        <span>${deg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
     },
     frame() {
       plot.draw(Math.max(320, window.innerHeight - 300));

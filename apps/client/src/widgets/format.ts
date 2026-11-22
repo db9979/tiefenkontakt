@@ -65,3 +65,16 @@ export function mastState(o: { mastUp: boolean; mastExt?: number }): { ext: numb
   const moving = o.mastUp && ext < 1 ? 'aus' : !o.mastUp && ext > 0 ? 'ein' : undefined;
   return { ext, raised: ext >= 1, moving };
 }
+
+const written = new WeakMap<Element, string>();
+/** Set innerHTML only when the markup changed: no DOM churn (and no re-translation) for identical updates. */
+export function setHtml(el: Element, html: string): void {
+  if (written.get(el) === html) return;
+  written.set(el, html);
+  el.innerHTML = html;
+}
+
+/** Set textContent only when it changed. */
+export function setText(el: Element, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}

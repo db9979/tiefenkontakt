@@ -1,7 +1,7 @@
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { h } from '../../widgets/format.js';
+import { h, setHtml } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { buoyAction, courseAction, mpaAction, rocketAction } from '../../widgets/actions.js';
 
@@ -27,7 +27,7 @@ export function opsCenterStation(): Station {
       renderContactList(el.querySelector('#list')!);
       const merchants = s.friendlies.filter((f) => f.cls === 'merchant');
       const escorts = s.friendlies.filter((f) => f.cls !== 'merchant');
-      el.querySelector('#group')!.innerHTML = `
+      setHtml(el.querySelector('#group')!, `
         <div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>
         <div class="row"><span class="dim">DATALINK-TEILNEHMER</span><span>${escorts.length}</span></div>
         <div class="row"><span class="dim">WASSERTIEFE</span><span class="${(s.env.bottom ?? 999) < 30 ? 'red' : ''}">${s.env.bottom !== undefined ? s.env.bottom + ' M' : '—'}</span></div>
@@ -37,7 +37,7 @@ export function opsCenterStation(): Station {
         <div class="row"><span class="dim">HUBSCHRAUBER-TORPEDOS</span><span>${s.air?.heloTorps ?? 0}</span></div>
         <div class="row"><span class="dim">SEEFERNAUFKLÄRER</span><span>${!s.air ? '—' : s.air.mpaReadyInS > 0 ? `BEREIT IN ${Math.ceil(s.air.mpaReadyInS / 60)} MIN` : `BEREIT · ${s.air.mpaBuoys} BOJEN`}</span></div>
         <div class="dim" style="margin-top:4px">RECHTSKLICK AUF DIE KARTE: SONARBOJE ABWERFEN</div>
-        ${escorts.map((e) => `<div class="row"><span>${e.name}</span><span class="${e.alive ? '' : 'red'}">${e.alive ? `${e.speedKn.toFixed(0)} KN` : 'GESUNKEN'}</span></div>`).join('')}`;
+        ${escorts.map((e) => `<div class="row"><span>${e.name}</span><span class="${e.alive ? '' : 'red'}">${e.alive ? `${e.speedKn.toFixed(0)} KN` : 'GESUNKEN'}</span></div>`).join('')}`);
     },
     frame() {
       plot.draw(Math.max(360, window.innerHeight - 90));

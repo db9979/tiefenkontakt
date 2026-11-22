@@ -4,7 +4,7 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
 import { easeAngle, moverNow, ownNow, simNow } from '../../widgets/smooth.js';
-import { deg3, fitCanvas, h, km } from '../../widgets/format.js';
+import { deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
 
 const H = 380;
 const WIDE_FOV = 75;
@@ -158,14 +158,14 @@ export function bridgeStation(): Station {
       const r = lookoutRanges(env);
       const quality = r.mast > 1500 ? 'GUT' : r.mast > 600 ? 'MÄSSIG' : 'SCHLECHT';
       const reports = s.alerts.filter((a) => a.kind === 'sighting').slice(-6).reverse();
-      el.querySelector('#b-data')!.innerHTML = `
+      setHtml(el.querySelector('#b-data')!, `
         <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
         <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>
         <div class="dim" style="margin:8px 0 4px">MELDUNGEN</div>
         ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${deg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
-        <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`;
+        <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`);
     },
     hide() {
       freeTimer = setTimeout(() => {

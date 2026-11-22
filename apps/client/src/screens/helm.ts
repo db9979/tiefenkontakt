@@ -1,7 +1,7 @@
 import { CLASSES, PERISCOPE_DEPTH, headingVec, wrap360 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { COL, deg3, fitCanvas, kn } from '../widgets/format.js';
+import { COL, deg3, fitCanvas, kn, setHtml } from '../widgets/format.js';
 import { isFriendlyContact } from '../widgets/friendly.js';
 import { isKey } from '../widgets/keys.js';
 import { touchable } from '../widgets/touch.js';
@@ -133,8 +133,8 @@ export function mountHelm(el: HTMLElement) {
       if (!s) return;
       const o = s.own;
       const spec = CLASSES[o.cls];
-      q('#h-hdg').innerHTML = `${deg3(o.heading)}° <span class="amber">→ ${deg3(o.order.heading)}°</span>`;
-      q('#h-spd').innerHTML = `${kn(o.speedKn)} <span class="amber">→ ${kn(o.order.speedKn)}</span>${o.speedKn > o.cavitationKn ? ' <span class="red">KAVITATION</span>' : ''}`;
+      setHtml(q('#h-hdg'), `${deg3(o.heading)}° <span class="amber">→ ${deg3(o.order.heading)}°</span>`);
+      setHtml(q('#h-spd'), `${kn(o.speedKn)} <span class="amber">→ ${kn(o.order.speedKn)}</span>${o.speedKn > o.cavitationKn ? ' <span class="red">KAVITATION</span>' : ''}`);
       el.querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) => {
         const k = Math.min(SPEEDS[Number(b.dataset.s)]!.kn, spec.maxSpeedKn);
         b.classList.toggle('on', Math.abs(o.order.speedKn - k) < 0.5);
@@ -144,7 +144,7 @@ export function mountHelm(el: HTMLElement) {
       if (document.activeElement !== sp) sp.value = String(o.order.speedKn);
       q('#depth-box').style.display = spec.submarine ? '' : 'none';
       if (spec.submarine) {
-        q('#h-dep').innerHTML = `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>`;
+        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>`);
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
         q('#h-dep').innerHTML += s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';

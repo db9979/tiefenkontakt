@@ -1,7 +1,7 @@
 import { evaluateSolution, ownLegChange, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { esc, h } from './format.js';
+import { esc, h, setHtml } from './format.js';
 
 interface Step {
   text: string;
@@ -83,11 +83,11 @@ export function mountTutorial(lesson: string): { el: HTMLElement; update(): void
         reported = true;
         net.send({ t: 'lesson_done' });
       }
-      el.querySelector('#tut-body')!.innerHTML = def.steps.map((st, i) => `
+      setHtml(el.querySelector('#tut-body')!, def.steps.map((st, i) => `
         <div class="row ${i === current ? 'amber' : done.has(i) ? 'dim' : ''}" style="display:block">
           <span>${done.has(i) ? '✓' : i === current ? '▸' : '·'} <span class="dim">${esc(st.where)}</span></span>
           ${i === current || !done.has(i) ? `<div>${esc(st.text)}</div>` : ''}
-        </div>`).join('') + (current < 0 ? '<div class="row">LEKTION GESCHAFFT. ÜBER „?“ GEHT ES ZUR HILFE, ÜBER DIE LOBBY ZUR NÄCHSTEN LEKTION.</div>' : '');
+        </div>`).join('') + (current < 0 ? '<div class="row">LEKTION GESCHAFFT. ÜBER „?“ GEHT ES ZUR HILFE, ÜBER DIE LOBBY ZUR NÄCHSTEN LEKTION.</div>' : ''));
     },
   };
 }

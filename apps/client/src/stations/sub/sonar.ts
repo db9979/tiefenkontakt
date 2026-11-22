@@ -5,7 +5,7 @@ import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { threatPanel } from '../../widgets/threat-panel.js';
-import { h } from '../../widgets/format.js';
+import { h, setText } from '../../widgets/format.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 
 /** Pick the contact nearest to a clicked bearing on a waterfall. */
@@ -69,14 +69,14 @@ export function subSonarStation(): Station {
       threat.update(s);
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       const o = s.own;
-      el.querySelector('#own')!.textContent = `EIGENGERÄUSCH ${o.noiseDb.toFixed(0)} DB`;
+      setText(el.querySelector('#own')!, `EIGENGERÄUSCH ${o.noiseDb.toFixed(0)} DB`);
       el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
       const tow = el.querySelector<HTMLButtonElement>('#tow')!;
       tow.style.display = CLASSES[o.cls].towed ? '' : 'none';
       const tgt = o.towedOrder ?? o.towedLength;
       tow.classList.toggle('on', tgt > 0);
       tow.textContent = tgt !== o.towedLength ? `Schlepp ${tgt > o.towedLength ? 'aus' : 'ein'} ${o.towedLength} m` : o.towedLength > 0 ? (o.towedReady ? 'Schlepp ausgebracht' : 'Schlepp stabilisiert…') : 'Schleppsonar';
-      el.querySelector('#lab')!.textContent = store.selected ?? '';
+      setText(el.querySelector('#lab')!, store.selected ?? '');
       analysis.update();
     },
     frame() {

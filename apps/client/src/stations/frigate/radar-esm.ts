@@ -2,7 +2,7 @@ import { NM, angleDiff, headingVec } from '@tk/shared';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { deg3, esc, fitCanvas, h } from '../../widgets/format.js';
+import { deg3, esc, fitCanvas, h, setHtml } from '../../widgets/format.js';
 import { RadarScope, SCOPE } from '../../widgets/radar-scope.js';
 import { onTap } from '../../widgets/touch.js';
 
@@ -119,24 +119,24 @@ export function radarEsmStation(): Station {
         const v = headingVec(c.bearing);
         return Math.hypot(f.x - (s.own.x + v.x * (c.range ?? 0)), f.y - (s.own.y + v.y * (c.range ?? 0))) < 600;
       }));
-      el.querySelector('#status')!.innerHTML = `
+      setHtml(el.querySelector('#status')!, `
         <div class="row"><span class="dim">SENDER</span><span class="${on ? 'red' : ''}">${on ? 'EIN · SENDET' : 'AUS · STANDBY'}</span></div>
         <div class="row"><span class="dim">BEREICH / ANTENNE</span><span>${rangeNm} SM · ${RPM} U/MIN</span></div>
         <div class="row"><span class="dim">ECHOS</span><span>${radar.length} · DAVON EIGENE ${friends.length}</span></div>
         <div class="row"><span class="dim">SEEGANG-STÖRUNG</span><span>${['GERING', 'GERING', 'MÄSSIG', 'MÄSSIG', 'STARK', 'STARK', 'SEHR STARK'][s.env.seaState] ?? '—'}${s.env.rain ? ' · REGEN' : ''}</span></div>
         <div class="row"><span class="dim">GEGNER-ESM HÖRT UNS</span><span class="${on ? 'amber' : 'dim'}">${on ? `BIS ${ESM_HEARS_NM} SM` : '—'}</span></div>
-        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? 'Jede U-Boot-Funkpeilantenne in 40 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.' : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`;
-      tracksEl.innerHTML = radar.length
+        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? 'Jede U-Boot-Funkpeilantenne in 40 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.' : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`);
+      setHtml(tracksEl, radar.length
         ? radar.map((c) => {
           const fr = friends.includes(c);
           const rel = angleDiff(s.own.heading, c.bearing);
           return `<div class="row clickable ${c.label === store.selected ? 'amber selrow' : fr ? 'dim' : ''}" data-c="${esc(c.label)}"><span>${esc(c.label)}${fr ? ' · EIGEN' : ''}</span><span>${deg3(c.bearing)}° ${c.range ? (c.range / NM).toFixed(1) + ' SM' : ''}</span><span class="dim">${rel >= 0 ? 'STB' : 'BB'} ${Math.abs(Math.round(rel))}° · ${s.time - c.lastSeen > 5 ? 'KURZ' : 'SPUR'}</span></div>`;
         }).join('')
-        : `<div class="dim">${on ? 'KEINE SPUREN' : 'RADAR AUS · KEINE SPUREN'}</div>`;
+        : `<div class="dim">${on ? 'KEINE SPUREN' : 'RADAR AUS · KEINE SPUREN'}</div>`);
       const esm = s.contacts.filter((c) => c.sensors.includes('esm')).sort((a, b) => b.lastSeen - a.lastSeen);
-      el.querySelector('#esm')!.innerHTML = esm.length
+      setHtml(el.querySelector('#esm')!, esm.length
         ? esm.map((c) => `<div class="row ${s.time - c.lastSeen < 60 ? 'red' : 'dim'}"><span>${esc(c.label)}</span><span>${deg3(c.bearing)}°</span><span class="dim">VOR ${Math.round(s.time - c.lastSeen)} S</span></div>`).join('')
-        : '<div class="dim">KEINE FUNKPEILUNGEN · ALLES STILL</div>';
+        : '<div class="dim">KEINE FUNKPEILUNGEN · ALLES STILL</div>');
     },
     frame() {
       const s = store.snap;

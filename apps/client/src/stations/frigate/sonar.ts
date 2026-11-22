@@ -3,7 +3,7 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { h } from '../../widgets/format.js';
+import { h, setHtml } from '../../widgets/format.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 import { pickByBearing } from '../sub/sonar.js';
 
@@ -76,8 +76,8 @@ export function frigateSonarStation(): Station {
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));
-      el.querySelector('#tas-hint')!.innerHTML = !c ? 'KONTAKT WÄHLEN' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
-        : c.tas?.resolved ? 'DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">MEHRDEUTIG · 20° WENDEN UND SPUREN VERGLEICHEN</span>' : 'EINDEUTIG';
+      setHtml(el.querySelector('#tas-hint')!, !c ? 'KONTAKT WÄHLEN' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
+        : c.tas?.resolved ? 'DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">MEHRDEUTIG · 20° WENDEN UND SPUREN VERGLEICHEN</span>' : 'EINDEUTIG');
       analysis.update();
     },
     frame() {

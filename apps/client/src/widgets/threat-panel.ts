@@ -1,6 +1,6 @@
 import { angleDiff, wrap360, type AlertView, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
-import { deg3, h } from './format.js';
+import { deg3, h, setHtml, setText } from './format.js';
 import { onTap } from './touch.js';
 
 /**
@@ -59,16 +59,16 @@ export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       const loud = pings.reduce<AlertView | undefined>((m, a) => ((a.level ?? 0) > (m?.level ?? -1) ? a : m), undefined);
       const last2 = pings.slice(-2);
       const trend = last2.length === 2 ? (last2[1]!.level ?? 0) - (last2[0]!.level ?? 0) : 0;
-      q('#th-sum').textContent = torp ? 'TORPEDO!' : pings.length ? `${pings.length} PINGS / 5 MIN` : 'RUHIG';
+      setText(q('#th-sum'), torp ? 'TORPEDO!' : pings.length ? `${pings.length} PINGS / 5 MIN` : 'RUHIG');
       q('#th-sum').className = torp ? 'red blink' : pings.length ? 'amber' : 'dim';
-      q('#th-rows').innerHTML = [
+      setHtml(q('#th-rows'), [
         `<div class="row"><span class="dim">BORDSONAR · TAUCHSONAR</span><span>${hull.length} · ${dip.length}</span></div>`,
         loud ? `<div class="row"><span class="dim">LAUTESTER</span><span class="${(loud.level ?? 0) >= ECHO_LIKELY ? 'red' : ''}">${deg3(loud.bearing ?? 0)}° · ${loud.level ?? 0} DB${(loud.level ?? 0) >= ECHO_LIKELY ? ' · ER HAT VERMUTLICH EIN ECHO' : ''}</span></div>` : '',
         last2.length === 2 ? `<div class="row"><span class="dim">TREND</span><span class="${trend > 1 ? 'red' : ''}">${trend > 1 ? 'STEIGEND · ER KOMMT NÄHER' : trend < -1 ? 'FALLEND' : 'GLEICH'}</span></div>` : '',
         `<div class="row"><span class="dim">BOJENEINSCHLÄGE (4 SM)</span><span class="${splashes.length ? 'amber' : ''}">${splashes.length}${splashes.length ? ` · ZULETZT ${deg3(splashes[splashes.length - 1]!.bearing ?? 0)}°` : ''}</span></div>`,
-      ].join('');
+      ].join(''));
       current = plan(s, torp, pings[pings.length - 1]);
-      q('#th-plan').textContent = current ? `VORSCHLAG: ${current.text}` : '';
+      setText(q('#th-plan'), current ? `VORSCHLAG: ${current.text}` : '');
       q<HTMLButtonElement>('#th-go').disabled = !current;
     },
   };

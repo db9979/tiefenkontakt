@@ -1,6 +1,6 @@
 import { BAD_CO2, BAD_O2, CLASSES, NM, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
-import { clock, h } from './format.js';
+import { clock, h, setHtml, setText } from './format.js';
 import { onTap } from './touch.js';
 
 /**
@@ -64,38 +64,38 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       const o = s.own;
       const c = o.crew;
       const sub = CLASSES[o.cls].submarine;
-      q('#cp-perf').textContent = c ? `LEISTUNG ${Math.round(c.performance * 100)} %` : '';
+      setText(q('#cp-perf'), c ? `LEISTUNG ${Math.round(c.performance * 100)} %` : '');
       q('#cp-perf').className = c && c.performance < 0.85 ? 'amber' : 'dim';
       const fat = c?.fatigue ?? 0;
       q<HTMLElement>('#cp-fat').style.cssText = `width:${Math.round(fat * 100)}%;background:${fat > 0.7 ? '#f09595' : fat > 0.4 ? '#fac775' : '#5dcaa5'}`;
       const mor = c?.morale ?? 0.7;
       q<HTMLElement>('#cp-mor').style.cssText = `width:${Math.round(mor * 100)}%;background:${mor < 0.35 ? '#f09595' : mor < 0.55 ? '#fac775' : '#5dcaa5'}`;
       q('#cp-wnd-row').style.display = c?.wounded ? '' : 'none';
-      q('#cp-wnd').textContent = c?.wounded ? `${c.wounded} · SANITÄTER` : '';
+      setText(q('#cp-wnd'), c?.wounded ? `${c.wounded} · SANITÄTER` : '');
       el.querySelector('[data-cp="battle"]')!.classList.toggle('on', !!c?.battle);
       el.querySelector('[data-cp="silent"]')!.classList.toggle('on', !!c?.silent);
       q('#cp-sub').style.display = sub ? '' : 'none';
       if (sub) {
         const a = o.air;
         const bad = a && (a.co2 > BAD_CO2 || a.o2 < BAD_O2);
-        q('#cp-air').innerHTML = a
+        setHtml(q('#cp-air'), a
           ? `<span class="${bad ? 'red' : a.co2 > 2 ? 'amber' : ''}">CO₂ ${dec(a.co2)} % · O₂ ${dec(a.o2)} %</span> <span class="dim">· ${a.scrubbers}/${a.candles}</span>`
-          : '<span class="dim">REAKTOR · UNBEGRENZT</span>';
+          : '<span class="dim">REAKTOR · UNBEGRENZT</span>');
         const trim = o.trim ?? 0;
-        q('#cp-trim').innerHTML = `<span class="${Math.abs(trim) > 0.2 ? 'amber' : ''}">${Math.abs(trim) < 0.05 ? 'AUSGETRIMMT' : `${trim > 0 ? '+' : '−'}${dec(Math.abs(trim))} T`}</span> · ${'●'.repeat(o.hpAir ?? 3)}${'○'.repeat(Math.max(0, 3 - (o.hpAir ?? 3)))}${o.blowing ? ' <span class="red blink">ANBLASEN</span>' : ''}`;
+        setHtml(q('#cp-trim'), `<span class="${Math.abs(trim) > 0.2 ? 'amber' : ''}">${Math.abs(trim) < 0.05 ? 'AUSGETRIMMT' : `${trim > 0 ? '+' : '−'}${dec(Math.abs(trim))} T`}</span> · ${'●'.repeat(o.hpAir ?? 3)}${'○'.repeat(Math.max(0, 3 - (o.hpAir ?? 3)))}${o.blowing ? ' <span class="red blink">ANBLASEN</span>' : ''}`);
         const cmd = o.command;
-        q('#cp-cmd').innerHTML = !cmd ? '—'
+        setHtml(q('#cp-cmd'), !cmd ? '—'
           : cmd.done ? '<span>EMPFANGEN</span>'
           : cmd.nextS > 0 ? `<span class="dim">IN ${clock(cmd.nextS)}</span>`
-          : `<span class="${cmd.via ? 'amber' : 'red blink'}">${cmd.via ? `EMPFANG ${Math.round(cmd.progress * 100)} % · ${cmd.via === 'vlf' ? 'VLF' : 'BOJE'}` : 'SENDET · ZU TIEF ODER ZU SCHNELL'}</span>`;
-        q('#cp-nav').innerHTML = o.navUncertainty !== undefined
+          : `<span class="${cmd.via ? 'amber' : 'red blink'}">${cmd.via ? `EMPFANG ${Math.round(cmd.progress * 100)} % · ${cmd.via === 'vlf' ? 'VLF' : 'BOJE'}` : 'SENDET · ZU TIEF ODER ZU SCHNELL'}</span>`);
+        setHtml(q('#cp-nav'), o.navUncertainty !== undefined
           ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM</span> <span class="dim">· FIX AM MAST</span>`
-          : '<span>FIX</span>';
+          : '<span>FIX</span>');
         el.querySelector('[data-cp="buoyant"]')!.classList.toggle('on', !!o.buoyAntenna);
       }
       const notes = [o.rudderJam ? 'RUDER KLEMMT' : '', o.towedLost ? 'SCHLEPPSONAR VERLOREN' : '',
         sub && o.depth > CLASSES[o.cls].maxDepth ? `UNTER TESTTIEFE (${CLASSES[o.cls].maxDepth} M)` : ''].filter(Boolean);
-      q('#cp-note').textContent = notes.join(' · ');
+      setText(q('#cp-note'), notes.join(' · '));
     },
   };
 }

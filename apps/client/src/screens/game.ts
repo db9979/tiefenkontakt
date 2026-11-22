@@ -270,6 +270,38 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     }
   }
 
+  // Panels and lists redraw at most 4× a second: data still arrives at 10 Hz, but phones
+  // stay free to react to taps instead of rebuilding the same lists over and over
+  const UI_MS = 250;
+  let uiAt = 0;
+  let uiTimer: ReturnType<typeof setTimeout> | undefined;
+  const renderUi = () => {
+    uiTimer = undefined;
+    uiAt = performance.now();
+    const s = store.snap;
+    if (!s) return;
+    stations[current]?.snap?.();
+    helm.update();
+    tutorial?.update();
+    assistant.update();
+    // Crew: show who mans which station
+    if (s.crew.length > 1) {
+      tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
+        const who = (s.stations ?? []).filter((x) => x.station === j).map((x) => x.callsign);
+        const t = `${j + 1} · ${stations[j]?.title ?? ''}${who.length ? ` (${who.join(', ')})` : ''}`;
+        if (b.textContent !== t) b.textContent = t;
+      });
+    }
+    renderDamage(q('#damage'));
+    crew.update(s);
+    renderSide();
+  };
+  const scheduleUi = (now = false) => {
+    if (now) return renderUi();
+    if (uiTimer) return;
+    uiTimer = setTimeout(renderUi, Math.max(0, UI_MS - (performance.now() - uiAt)));
+  };
+
   const off = net.on((m: ServerMsg) => {
     if (m.t === 'snap') {
       const first = !store.snap;
@@ -284,25 +316,12 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       }
       callouts.update(m.s);
       cam.snap(m.s);
-      stations[current]?.snap?.();
-      helm.update();
-      tutorial?.update();
-      assistant.update();
+      audio.update(m.s, CLASSES[m.s.own.cls].submarine);
       if (m.s.briefing) {
         store.briefing = m.s.briefing;
         showBriefing(m.s.briefing);
       }
-      // Crew: show who mans which station
-      if (m.s.crew.length > 1) {
-        tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
-          const who = (m.s.stations ?? []).filter((x) => x.station === j).map((x) => x.callsign);
-          b.textContent = `${j + 1} · ${stations[j]?.title ?? ''}${who.length ? ` (${who.join(', ')})` : ''}`;
-        });
-      }
-      renderDamage(q('#damage'));
-      crew.update(m.s);
-      renderSide();
-      audio.update(m.s, CLASSES[m.s.own.cls].submarine);
+      scheduleUi(first);
     } else if (m.t === 'error') {
       store.lastError = m.msg;
       setTimeout(() => (store.lastError = store.lastError === m.msg ? '' : store.lastError), 4000);
@@ -342,6 +361,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   raf = requestAnimationFrame(loop);
 
   return () => {
+    clearTimeout(uiTimer);
     clearInterval(saver);
     if (store.ended) store.clearLocal();
     else store.saveLocal();

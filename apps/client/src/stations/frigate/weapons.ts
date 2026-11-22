@@ -3,7 +3,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { deg1, h, km } from '../../widgets/format.js';
+import { deg1, h, km, setHtml } from '../../widgets/format.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
 import { buoyAction, courseAction, mpaAction, rocketAction } from '../../widgets/actions.js';
@@ -76,11 +76,11 @@ export function weaponsStation(): Station {
       const c = store.selectedContact();
       const a = aim();
       q('#src').textContent = a ? a.source : c ? 'NUR PEILUNG' : '';
-      q('#target').innerHTML = c
+      setHtml(q('#target'), c
         ? `<div class="row"><span class="dim">KONTAKT</span><span class="amber">${c.label}</span></div>
            <div class="row"><span class="dim">PEILUNG</span><span>${deg1(a?.bearing ?? c.bearing)}°</span></div>
            <div class="row"><span class="dim">ENTFERNUNG</span><span>${a ? km(a.range) : 'UNBEKANNT · PINGEN ODER TMA'}</span></div>`
-        : '<div class="dim">KONTAKT IN DER LISTE WÄHLEN</div>';
+        : '<div class="dim">KONTAKT IN DER LISTE WÄHLEN</div>');
       q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
       q('#tb').textContent = l.tubes.map((t, i) => `R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}`).join(' ') + ` · VORRAT ${l.light}`;
       q('#dcn').textContent = `${l.depthCharges} VERFÜGBAR`;

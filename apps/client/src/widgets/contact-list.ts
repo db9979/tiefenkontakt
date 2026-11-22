@@ -1,5 +1,5 @@
 import { onTap } from './touch.js';
-import { CHOICE_LABEL, CLASS_LABEL, deg1, esc, km } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, deg1, esc, km, setHtml } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
@@ -64,7 +64,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
     { key: 'g:visual', label: sub ? 'OPTIK' : 'SICHT' },
   ]).replace('</div>', `<span class="dim chipcount">${rows.length}/${all.length}</span></div>`);
   const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${sortHead(ID, 'range', 'ENTF.', DEF)}${sortHead(ID, 'sensor', 'SENSOR', DEF)}${sortHead(ID, 'cls', 'KLASSE', DEF)}</div>`;
-  el.innerHTML = chips + (rows.length
+  setHtml(el, chips + (rows.length
 
     ? head + rows.map(({ c, own }) => {
       const age = s.time - c.lastSeen;
@@ -87,7 +87,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
         <span class="${color}">${what}</span>
       </div>`;
     }).join('')
-    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>`);
+    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>`));
   if (!el.dataset.bound) {
     // Delegated mousedown: rows are rebuilt on every snapshot, so per-row handlers would lose clicks
     el.dataset.bound = '1';

@@ -2,7 +2,7 @@ import { CLASSES, PERISCOPE_DEPTH } from '@tk/shared';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { COL, clock, fitCanvas, h } from '../../widgets/format.js';
+import { COL, clock, fitCanvas, h, setHtml } from '../../widgets/format.js';
 
 const STEPS = [
   { label: 'Schleich', kn: 3 }, { label: 'Langsam', kn: 6 }, { label: 'Halbe', kn: 12 }, { label: 'Volle', kn: 99 },
@@ -28,7 +28,7 @@ export function diveEngineStation(): Station {
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const depthHist: { t: number; d: number }[] = [];
 
-  q('#steps').innerHTML = STEPS.map((s, i) => `<button data-step="${i}">${s.label}</button>`).join('');
+  setHtml(q('#steps'), STEPS.map((s, i) => `<button data-step="${i}">${s.label}</button>`).join(''));
   el.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => {
     b.onclick = () => {
       const o = store.snap?.own;
@@ -83,7 +83,7 @@ export function diveEngineStation(): Station {
       });
       const pct = spec.battery && o.battery !== undefined ? (100 * o.battery) / spec.battery.capacityKnH : undefined;
       const cav = o.speedKn > o.cavitationKn;
-      q('#stat').innerHTML = `
+      setHtml(q('#stat'), `
         <div class="row"><span class="dim">ANTRIEB</span><span>${spec.battery ? (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 ? ((o.snorkelExt ?? 1) >= 1 ? 'DIESEL / SCHNORCHEL' : `SCHNORCHEL FÄHRT AUS ${Math.round((o.snorkelExt ?? 0) * 100)} %`) : (o.snorkelExt ?? 0) > 0 ? `E-MASCHINE · SCHNORCHEL FÄHRT EIN` : 'E-MASCHINE') : 'REAKTOR'}</span></div>
         <div class="row"><span class="dim">EIGENGERÄUSCH</span><span class="${o.noiseDb > 135 ? 'red' : o.noiseDb > 122 ? 'amber' : ''}">${o.noiseDb.toFixed(0)} DB</span></div>
         <div class="row"><span class="dim">KAVITATION AB</span><span class="${cav ? 'red' : ''}">${o.cavitationKn.toFixed(1)} KN${cav ? ' · KAVITIERT' : ''}</span></div>
@@ -91,7 +91,7 @@ export function diveEngineStation(): Station {
         <div class="row"><span class="dim">RESTZEIT BEI FAHRT</span><span>${o.batteryEnduranceS !== undefined ? clock(o.batteryEnduranceS) : '—'}</span></div>` : ''}
         <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN) · ${o.depth > s.env.layerDepth ? 'DARUNTER' : 'DARÜBER'}` : '<span class="amber">UNBEKANNT · DURCHTAUCHEN MISST SIE</span>'}</span></div>
         <div class="row"><span class="dim">TÄUSCHKÖRPER</span><span>${o.loadout.noisemakers}</span></div>
-        <div class="row"><span class="dim">ZUSTAND</span><span class="${o.hp < spec.hp / 2 ? 'red' : ''}">${Math.max(0, (100 * o.hp) / spec.hp).toFixed(0)} %</span></div>`;
+        <div class="row"><span class="dim">ZUSTAND</span><span class="${o.hp < spec.hp / 2 ? 'red' : ''}">${Math.max(0, (100 * o.hp) / spec.hp).toFixed(0)} %</span></div>`);
     },
     frame() {
       const s = store.snap;
