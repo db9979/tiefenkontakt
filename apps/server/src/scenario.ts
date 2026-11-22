@@ -31,10 +31,16 @@ export const SHADOW_RANGE_M = 12_000;
 
 export type TimeOfDay = 'tag' | 'daemmerung' | 'nacht';
 
-export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; subSpread: number }> = {
+/**
+ * subSpread: how far off the convoy route the boats wait (m); convoyKn: the convoy's speed
+ * (default 9 kn); escortY: where the escorts start along the route (default 2500 m, ahead of
+ * the columns). Balanced per mission with the bot arena (scripts/bot-arena.ts).
+ */
+export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; subSpread: number; convoyKn?: number; escortY?: number }> = {
   groenland: { title: 'Grönland-Lücke', info: 'Tiefes Wasser, Konvergenzzonen, ausgeprägte Sprungschicht', seabed: 'tief', subSpread: 4000 },
-  schelf: { title: 'Schelfmeer', info: 'Flach (110–270 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', subSpread: 4000 },
-  fjord: { title: 'Fjordausfahrt', info: 'Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', seabed: 'fjord', subSpread: 2200 },
+  schelf: { title: 'Schelfmeer', info: 'Flach (110–270 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', subSpread: 5000 },
+  // A slow convoy whose escorts start level with its head: in the narrow channel the boats were found too early
+  fjord: { title: 'Fjordausfahrt', info: 'Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', seabed: 'fjord', subSpread: 4500, convoyKn: 8, escortY: -1000 },
   duell: { title: 'U-Boot-Duell', info: 'U-Boote gegen U-Boote, kein Konvoi: wer zuerst hört, gewinnt', seabed: 'tief', subSpread: 3000 },
   hafen: { title: 'Hafenangriff', info: 'Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt', seabed: 'fjord', subSpread: 2000 },
   fuehlung: { title: 'Fühlung halten', info: 'Waffen gesperrt: Kontakt zum Konvoi 25 Minuten aus höchstens 12 km halten', seabed: 'tief', subSpread: 4000 },
@@ -98,9 +104,11 @@ export function routeLength(s: ScenarioSettings): number {
 
 /**
  * Grönland-Lücke: a shallow bank (150–250 m) crosses the convoy route about here (fraction of
- * the route), in the boats' waiting area. The only water shallow enough for mines.
+ * the route), just short of the boats' waiting area (45–75 %): the convoy crosses it as the
+ * boats close in. The only water shallow enough for mines. At 0.5 the boats waited on the
+ * bank itself and the Ostpakt won two games in three; at 0.4 the arena is about even.
  */
-export const GROENLAND_BANK_FRAC = 0.5;
+export const GROENLAND_BANK_FRAC = 0.4;
 
 /** Sandbox matches run without a time limit (the time scale changes while they run). */
 export const SANDBOX_LIMIT_S = 1e9;
@@ -121,7 +129,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const route = routeLength(settings);
   const merchants: Ship[] = [];
   const nMerchants = mission === 'duell' || mission === 'meerenge' ? 0 : settings.merchants;
-  const convoyKn = custom?.convoyKn ?? 9;
+  const convoyKn = custom?.convoyKn ?? MISSIONS[mission].convoyKn ?? 9;
   for (let i = 0; i < nMerchants; i++) {
     const anchored = mission === 'hafen';
     const m = createShip({
@@ -142,7 +150,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'west', playerId: p.playerId,
       // Strait: the escorts guard the narrows halfway up the channel
-      pos: { x: mission === 'meerenge' ? x * 0.5 : x, y: mission === 'hafen' ? 6500 : mission === 'meerenge' ? STRAIT_GUARD_Y : 2500 }, heading: 0,
+      pos: { x: mission === 'meerenge' ? x * 0.5 : x, y: mission === 'hafen' ? 6500 : mission === 'meerenge' ? STRAIT_GUARD_Y : MISSIONS[mission].escortY ?? 2500 }, heading: 0,
       speedKn: sub ? 5 : mission === 'hafen' || mission === 'meerenge' ? 8 : 12, depth: sub ? 80 : undefined,
     }));
   });
