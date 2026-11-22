@@ -79,7 +79,9 @@ void main() {
   }
   if (icec > 0.0) {
     float pat = noise(iceL * 0.045) * 0.65 + noise(iceL * 0.13) * 0.35;
-    float floe = smoothstep(1.0 - icec - 0.05, 1.0 - icec + 0.05, pat) * smoothstep(1700.0, 2600.0, dist);
+    float floe = smoothstep(1.0 - icec - 0.05, 1.0 - icec + 0.05, pat);
+    // Far off the pattern would only flicker: blend to the mean cover
+    floe = mix(floe, icec * 0.85, smoothstep(3500.0, 8000.0, dist)) * smoothstep(1700.0, 2600.0, dist);
     col = mix(col, vec3(0.84, 0.9, 0.94) * (0.12 + 0.88 * uLight * uLight), floe);
   }
   float d = length(cameraPosition - vPos);

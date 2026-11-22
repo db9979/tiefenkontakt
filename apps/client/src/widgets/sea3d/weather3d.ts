@@ -124,15 +124,16 @@ function volume(rain: boolean): THREE.Mesh<THREE.CylinderGeometry, THREE.ShaderM
 
 /** Iceberg: a lumpy dome or tabular block above water and a wider bulk below (bow +z irrelevant). */
 function bergMesh(id: number, r: number, h: number, draft: number): THREE.Mesh {
-  const g = new THREE.IcosahedronGeometry(1, 3);
+  const g = new THREE.IcosahedronGeometry(1, 4);
   const pos = g.getAttribute('position') as THREE.BufferAttribute;
   const col: number[] = [];
   const tabular = hash(id, 1) > 0.5;
-  const top = new THREE.Color(0xeef5fa), shade = new THREE.Color(0x9fc8d8), under = new THREE.Color(0x3f8fa0);
+  const top = new THREE.Color(0xf2f8fb), shade = new THREE.Color(0xb3d7e6), under = new THREE.Color(0x4f9fb0);
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    const n = hash(Math.round(x * 6), Math.round(y * 6), Math.round(z * 6) + id);
-    const lump = 1 + (n - 0.5) * 0.35;
+    // Smooth lumps and gullies (neighbouring vertices move together), a little fine roughness
+    const n = 0.5 + 0.3 * Math.sin(x * 3.1 + id) * Math.sin(z * 2.6 + id * 1.7) + 0.2 * Math.sin(y * 5 + x * 2 + id);
+    const lump = 1 + (n - 0.5) * 0.4 + (hash(Math.round(x * 9), Math.round(y * 9), Math.round(z * 9) + id) - 0.5) * 0.05;
     if (y >= 0) {
       const yy = tabular ? Math.min(1, y * 2.2) : Math.pow(y, 0.8);
       pos.setXYZ(i, x * r * lump * (tabular ? 1 : 1 - y * 0.3), yy * h * (0.85 + n * 0.3), z * r * lump);
@@ -147,7 +148,7 @@ function bergMesh(id: number, r: number, h: number, draft: number): THREE.Mesh {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.55, metalness: 0, flatShading: true, emissive: new THREE.Color(0x1c3440), emissiveIntensity: 0.6,
+    vertexColors: true, roughness: 0.55, metalness: 0, flatShading: true, emissive: new THREE.Color(0x3a6070), emissiveIntensity: 0.5,
   }));
   m.rotation.y = hash(id, 2) * Math.PI * 2;
   return m;
