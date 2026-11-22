@@ -228,6 +228,7 @@ export function bridgeStation(): Station {
         gl!.render({
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
           rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn,
+          missiles: { list: s!.airdef?.missiles ?? [], me: ownNow() },
         });
       }
       ctx.clearRect(0, 0, w, H);

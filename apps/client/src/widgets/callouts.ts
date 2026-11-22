@@ -211,6 +211,13 @@ function boatCall(text: string): string {
     [/RUDER/, 'Ruderversager!', 'Rudder failure!'],
     [/SCHNORCHEL/, 'Schnorchelventil klemmt!', 'Snorkel valve stuck!'],
     [/BATTERIE/, 'Batteriegas!', 'Battery gas!'],
+    [/FLUGKÖRPER ABGEFEUERT/, 'Flugkörper abgefeuert!', 'Missile away!'],
+    [/ZIEL ABGESCHOSSEN|AUFKLÄRER ABGESCHOSSEN/, 'Luftziel abgeschossen!', 'Splash one! Air target down!'],
+    [/ZIEL VERFEHLT/, 'Flugkörper hat verfehlt.', 'Missile missed.'],
+    [/RAKETENSTART/, 'Raketenstart in Sicht!', 'Missile launch in sight!'],
+    [/ABFANGJÄGER ANGEFORDERT/, 'Abfangjäger sind angefordert.', 'Interceptors requested.'],
+    [/KEIN ZIEL GEFUNDEN/, 'Abfangjäger ohne Ziel, Rückflug.', 'Interceptors found nothing, returning.'],
+    [/MINENWARNUNG/, 'Mine voraus! Mine im Sonar!', 'Mine ahead! Mine on sonar!'],
   ];
   const hit = t.find(([re]) => re.test(text));
   return hit ? (en ? hit[2] : hit[1]) : en ? 'Report from the boat.' : 'Meldung aus dem Boot.';

@@ -227,6 +227,7 @@ export function periscopeStation(): Station {
           bearing: periBearing, fovDeg: (fov * w) / (2 * R), t, sea: s.env.seaState, light: s.env.light ?? 1,
           targets: [...vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })), ...planeTargets(s, s.own, simNow())],
           rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs),
+          missiles: { list: s.airdef?.missiles ?? [], me: s.own },
         });
         // Overlay: black mask outside the optic, reticle drawn below
         ctx.clearRect(0, 0, w, H);

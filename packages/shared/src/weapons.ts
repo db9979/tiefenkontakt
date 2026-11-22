@@ -272,6 +272,9 @@ function damage(w: World, target: Ship, amount: number, byId: string): void {
   }
 }
 
+/** The common hit entry point for other weapons (mines): hull damage, system damage, sinking. */
+export { damage as weaponHit };
+
 function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   const sp = SPEC[t.kind];
   const owner = w.ships.find((s) => s.id === t.ownerId);

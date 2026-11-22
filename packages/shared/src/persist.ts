@@ -6,6 +6,7 @@ import type { Loadout } from './loadout.js';
 import { Rng } from './rng.js';
 import type { WeaponsState } from './weapons.js';
 import { weaponsSystem } from './weapons.js';
+import { mineSystem } from './mines.js';
 import type { World } from './world.js';
 
 /** Save and restore a whole simulation (JSON-safe), so matches survive server restarts. */
@@ -60,7 +61,7 @@ export function restoreWorld(d: SavedWorld): World {
   };
   if (d.weapons) {
     w.weapons = { ...d.weapons, loadouts: new Map(d.weapons.loadouts) };
-    w.systems.push(weaponsSystem);
+    w.systems.push(weaponsSystem, mineSystem);
   }
   if (d.air) {
     w.air = { ...d.air, stock: new Map(d.air.stock), heloTorps: d.air.heloTorps ? new Map(d.air.heloTorps) : undefined };

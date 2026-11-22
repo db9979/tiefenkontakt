@@ -14,6 +14,7 @@ import {
   initWeather,
   type SeabedKind,
   installIncidents,
+  mineSystem,
 } from '@tk/shared';
 import type { LessonId } from './lessons.js';
 
@@ -164,6 +165,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   }
   if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, [{ x: 0, y: route * 0.5 }, { x: 0, y: route }], convoyKn);
   installWeapons(w);
+  w.systems.push(mineSystem);
   installAir(w);
   installBoats(w);
   installIncidents(w);

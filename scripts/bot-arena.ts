@@ -26,11 +26,12 @@ for (let g = 0; g < games; g++) {
   const limit = simTimeLimit(settings);
   let result;
   const t0 = Date.now();
-  while (!(result = evaluate(w, limit))) {
+  while (!(result = evaluate(w, limit, settings.mission))) {
     stepWorld(w);
     crew.step(w);
   }
   const ev = (k: string) => w.events.filter((e) => e.kind === k).length;
+  const air = (what: string) => w.events.filter((e) => e.kind === 'airdef' && e.what === what).length;
   const subsSunk = w.ships.filter((s) => s.team === 'east' && !s.alive).length;
   const escortsSunk = w.ships.filter((s) => s.cls === 'ffg' && !s.alive).length;
   const merchSunk = w.ships.filter((s) => s.cls === 'merchant' && !s.alive).length;
@@ -39,7 +40,10 @@ for (let g = 0; g < games; g++) {
   console.log(
     `${settings.mission.padEnd(9)} ${result.winner.padEnd(4)} ${(w.time / 60).toFixed(0).padStart(4)} min | Frachter ${merchSunk} | U-Boote ${subsSunk} | Eskorten ${escortsSunk}` +
       ` | Torpedos ${shots.filter((e) => e.kind === 'weapon' && e.what === 'torpedo').length} Raketen ${shots.filter((e) => e.kind === 'weapon' && e.what === 'rocket').length}` +
-      ` Bojen ${shots.filter((e) => e.kind === 'weapon' && e.what === 'buoy').length} Funk ${ev('transmission')} | ${result.reason} | ${Date.now() - t0} ms`,
+      ` Bojen ${shots.filter((e) => e.kind === 'weapon' && e.what === 'buoy').length} Funk ${ev('transmission')}` +
+      ` | Aufkl ${ev('recon')} SAM ${air('launch')}/${air('kill')} Jäger ${air('fighter_out')}/${air('fighter_kill')}` +
+      ` Minen ${(w.env.mines?.nextId ?? 1) - 1}/${w.events.filter((e) => e.kind === 'mine' && e.what === 'detonated').length}` +
+      ` | ${result.reason} | ${Date.now() - t0} ms`,
   );
 }
 console.log(`Bilanz: Westbund ${tally.west} · Ostpakt ${tally.east}`);

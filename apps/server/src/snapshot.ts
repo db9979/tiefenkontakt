@@ -1,5 +1,7 @@
 import {
   planesFor,
+  airDefFor,
+  minesFor,
   CLASSES,
   KN,
   batteryEndurance,
@@ -158,6 +160,8 @@ export function buildSnapshot(
   }
   return {
     planes: planesFor(w, own),
+    airdef: airDefFor(w, own),
+    mines: minesFor(w, own),
     air,
     time: w.time,
     timeScale: x.timeScale ?? 1,
@@ -184,7 +188,7 @@ export function buildSnapshot(
       loadout: {
         tubes: (l?.tubes ?? []).map((t) => ({ loaded: t.loaded, reloadLeft: t.reloadDoneAt ? Math.max(0, t.reloadDoneAt - w.time) : 0 })),
         heavy: l?.heavy ?? 0, light: l?.light ?? 0, rockets: l?.rockets ?? 0,
-        depthCharges: l?.depthCharges ?? 0, noisemakers: l?.noisemakers ?? 0, towedDecoy: l?.towedDecoy ?? false, xbt: l?.xbt ?? 0,
+        depthCharges: l?.depthCharges ?? 0, noisemakers: l?.noisemakers ?? 0, towedDecoy: l?.towedDecoy ?? false, xbt: l?.xbt ?? 0, mines: l?.mines,
       },
     },
     contacts,

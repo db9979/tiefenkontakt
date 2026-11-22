@@ -15,17 +15,23 @@ export interface Loadout {
   reloadTime: number; // s
   towedDecoy: boolean; // frigate towed torpedo decoy streamed
   xbt: number; // expendable bathythermographs
+  /** Naval mines (laid through the tubes, carried instead of some torpedoes). */
+  mines?: number;
+  /** Surface-to-air missiles left (escorts; undefined = full magazine, airdef.ts). */
+  sams?: number;
 }
 
 const NONE = { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 };
 const TEMPLATES: Record<ClassId, Omit<Loadout, 'tubes'> & { tubeCount: number }> = {
   ssn: { heavy: 16, light: 0, rockets: 0, depthCharges: 0, noisemakers: 8, tubeCount: 4, reloadTime: 90, towedDecoy: false, xbt: 0 },
-  ssk: { heavy: 12, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 6, reloadTime: 120, towedDecoy: false, xbt: 0 },
+  // Kilo-type: two torpedo stowages hold four mines instead
+  ssk: { heavy: 10, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 6, reloadTime: 120, towedDecoy: false, xbt: 0, mines: 4 },
   // Coastal boat: eight bow tubes and no reloads (Type-206 style)
-  ssc: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 4, tubeCount: 8, reloadTime: 150, towedDecoy: false, xbt: 0 },
+  // ... and an external mine belt around the hull (laid without using a tube)
+  ssc: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 4, tubeCount: 8, reloadTime: 150, towedDecoy: false, xbt: 0, mines: 4 },
   kor: { heavy: 0, light: 4, rockets: 4, depthCharges: 16, noisemakers: 0, tubeCount: 2, reloadTime: 50, towedDecoy: false, xbt: 6 },
   ffv: { heavy: 0, light: 8, rockets: 8, depthCharges: 8, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
-  ssa: { heavy: 10, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 4, reloadTime: 120, towedDecoy: false, xbt: 0 },
+  ssa: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 4, reloadTime: 120, towedDecoy: false, xbt: 0, mines: 4 },
   fischer: NONE, tanker: NONE, container: NONE, faehre: NONE, schlepper: NONE, yacht: NONE,
   ffg: { heavy: 0, light: 6, rockets: 8, depthCharges: 12, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
   merchant: { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 },

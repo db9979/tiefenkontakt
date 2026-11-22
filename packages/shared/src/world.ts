@@ -24,7 +24,7 @@ export type GameEvent =
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
-  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' }
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' | 'sam' | 'mine' }
   /** Something the crew reports aboard (air, wounded, hull failure, incidents). */
   | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
@@ -32,7 +32,11 @@ export type GameEvent =
   /** Bridge lookout reports a new sighting (start of an episode, not every sweep). */
   | { kind: 'sighting'; time: number; shipId: string; label: string; bearing: number; range: number; what: Sighting }
   /** The Ostpakt's reconnaissance aircraft reports the convoy (fleet command passes it to the boats). */
-  | { kind: 'recon'; time: number; x: number; y: number; course: number; speedKn: number };
+  | { kind: 'recon'; time: number; x: number; y: number; course: number; speedKn: number }
+  /** Air defence: missile launched / hit / missed, interceptor fighters out, kill or no target. */
+  | { kind: 'airdef'; time: number; what: 'launch' | 'kill' | 'miss' | 'fighter_out' | 'fighter_kill' | 'fighter_none'; team: 'west' | 'east'; shipId?: string; x: number; y: number }
+  /** Naval mines: detected by an escort's sonar, or detonated under a ship. */
+  | { kind: 'mine'; time: number; what: 'detected' | 'detonated'; mineId: string; team: 'west' | 'east'; shipId: string; x: number; y: number };
 
 export interface World {
   time: number;

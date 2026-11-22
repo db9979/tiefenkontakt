@@ -5,6 +5,8 @@ import type { Station } from '../../screens/game.js';
 import { deg3, esc, fitCanvas, h, setHtml } from '../../widgets/format.js';
 import { RadarScope, SCOPE } from '../../widgets/radar-scope.js';
 import { onTap } from '../../widgets/touch.js';
+import { samAction } from '../../widgets/airdef-panel.js';
+import { openMenu } from '../../widgets/menu.js';
 
 const RPM = 24;
 // 48 SM: air search – aircraft at height show far beyond the surface horizon
@@ -61,6 +63,17 @@ export function radarEsmStation(): Station {
       if (d < bd) [best, bd] = [c.label, d];
     }
     if (best) store.selected = best;
+  });
+  // Right-click on an air track: air defence (fire, interceptors)
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const s = store.snap;
+    if (!s) return;
+    const r = canvas.getBoundingClientRect();
+    const k = (rangeNm * NM) / SCOPE.R;
+    const p = { x: s.own.x + ((e.clientX - r.left - geo.ox) / geo.k - SCOPE.C) * k, y: s.own.y + (SCOPE.C - (e.clientY - r.top - geo.oy) / geo.k) * k };
+    const items = samAction(p, 16 * k / geo.k);
+    if (items.length) openMenu(e.clientX, e.clientY, items, 'LUFTZIEL');
   });
   const tracksEl = el.querySelector<HTMLElement>('#tracks')!;
   onTap(tracksEl, '[data-c]', (row) => (store.selected = row.dataset.c));

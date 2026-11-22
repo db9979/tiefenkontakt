@@ -43,6 +43,10 @@ export type ClientMsg =
   | { t: 'dip'; bearing: number; range: number; deep: boolean }
   | { t: 'helotorp'; bearing: number; range: number }
   | { t: 'mpa'; bearing: number; range: number }
+  /** Air defence: missile at an air track (own radar), interceptors from land; submarines lay a mine. */
+  | { t: 'sam'; planeId: string }
+  | { t: 'fighter' }
+  | { t: 'mine' }
   | { t: 'repair'; system: ShipSystem }
   | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
@@ -175,6 +179,7 @@ export interface OwnShipView {
     noisemakers: number;
     towedDecoy: boolean;
     xbt: number;
+    mines?: number;
   };
 }
 
@@ -239,6 +244,9 @@ export interface Briefing {
 export interface Snapshot {
   /** Aircraft this ship knows of (datalink, radar, eye, ESM). */
   planes?: import('./airspace.js').PlaneView[];
+  /** Own air defence, interceptors and missiles in sight; mines on the plot. */
+  airdef?: import('./airdef.js').AirDefView;
+  mines?: import('./mines.js').MineView[];
   time: number;
   /** Sim seconds per real second (for echo travel times and clocks). */
   timeScale: number;

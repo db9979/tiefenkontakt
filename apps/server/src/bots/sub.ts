@@ -17,6 +17,7 @@ import {
   commanderTrait,
   headingVec,
 } from '@tk/shared';
+import { considerMine } from './mines.js';
 import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
 export interface PackReport {
@@ -81,12 +82,14 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     s.order.heading = wrap360(best);
     s.order.speedKn = threatNear ? 4 : 7;
     s.order.depth = Math.max(25, Math.min(maxSafe, (s.btLayer ?? 80) + 30, bestDepth - 30));
+    considerMine(w, m, s, threatNear);
     return;
   }
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip);
   const wanted = duel ? 'submarine' : 'merchant';
   const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
+  if (!duel) considerMine(w, m, s, threatNear, target);
 
   // Depth: listen above the layer, hide below it (or deep) when hunted, peek at periscope depth
   const layer = s.btLayer;

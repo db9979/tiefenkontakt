@@ -55,6 +55,12 @@ export interface BotMemory {
   xbtDone?: boolean;
   /** Classification votes per contact label (a single look can mislead). */
   votes?: Record<string, Partial<Record<ClassChoice, number>>>;
+  /** Air defence: radar brought up for an air contact; interceptors asked for this aircraft. */
+  airRadar?: boolean;
+  fighterFor?: string;
+  /** Mines: last laid, and the convoy's track from the air reconnaissance report. */
+  mineAt?: number;
+  convoyLine?: { x: number; y: number; course: number; speedKn: number; t: number };
 }
 
 export function newMemory(shipId: string, passive = false): BotMemory {
