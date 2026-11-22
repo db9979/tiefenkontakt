@@ -47,7 +47,10 @@ function translate(de: string): string {
   const tail = /^(.+?)( [▲▼])$/.exec(de);
   if (tail) return translate(tail[1]!) + tail[2]!;
   // Composite labels like "1 · OPZ" or "Westbund · Geleitschutz": translate each part
-  let out = de.includes(' · ') ? de.split(' · ').map((p) => dict.get(p) ?? p).join(' · ') : de;
+  const parts = de.includes(' · ') ? de.split(' · ') : undefined;
+  // Every part known: done (the phrase rules below are for German text, not for our English)
+  if (parts?.every((p) => dict.has(p))) return parts.map((p) => dict.get(p)!).join(' · ');
+  let out = parts ? parts.map((p) => dict.get(p) ?? p).join(' · ') : de;
   for (const [re, rep] of PHRASES) out = out.replace(re, rep);
   out = out.replace(/^(\d+ · )(.+)$/, (_m, n: string, rest: string) => n + (dict.get(rest) ?? rest));
   return out;
@@ -58,9 +61,20 @@ function translateText(node: Text): void {
   const s = raw.trim();
   if (!s || !(/[A-Za-zÄÖÜäöü]{2}/.test(s) || /\d,\d/.test(s))) return;
   const norm = s.replace(/\s+/g, ' ');
+  // Our own output comes back through the observer: translating it again would undo e.g.
+  // "50,000" (English thousands) as if it were a German decimal comma
+  if (produced.has(norm)) return;
   const en = t(norm);
-  if (en !== norm) node.data = raw.replace(s, en);
+  if (en !== norm) node.data = raw.replace(s, mark(en));
 }
+
+/** Texts this module wrote into the page. */
+const produced = new Set<string>();
+const mark = (en: string): string => {
+  if (produced.size > 5000) produced.clear();
+  produced.add(en);
+  return en;
+};
 
 const ATTRS = ['title', 'placeholder'] as const;
 const SKIP = '.radio, input, textarea, [data-noi18n]';
@@ -73,18 +87,18 @@ function translateTree(root: Node): void {
   if (!(root instanceof Element) || root.closest(SKIP)) return;
   for (const a of ATTRS) {
     const v = root.getAttribute(a);
-    if (v) {
+    if (v && !produced.has(v)) {
       const en = t(v);
-      if (en !== v) root.setAttribute(a, en);
+      if (en !== v) root.setAttribute(a, mark(en));
     }
   }
   for (const el of root.querySelectorAll(`[title],[placeholder]`)) {
     if (el.closest(SKIP) && el.tagName !== 'INPUT') continue;
     for (const a of ATTRS) {
       const v = el.getAttribute(a);
-      if (v) {
+      if (v && !produced.has(v)) {
         const en = t(v);
-        if (en !== v) el.setAttribute(a, en);
+        if (en !== v) el.setAttribute(a, mark(en));
       }
     }
   }
