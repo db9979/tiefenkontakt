@@ -1,4 +1,5 @@
-import { mastRaised,
+import {
+  mastRaised,
   CLASSES,
   PERISCOPE_DEPTH,
   depthAt,
@@ -10,6 +11,7 @@ import { mastRaised,
   wrap360,
   type Ship,
   type World,
+  isConvoyShip,
 } from '@tk/shared';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
@@ -53,7 +55,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Escorts are loud from far away: only a strong signal (close) or a ping counts as a threat
   const threatNear = pinged || warships.some((t) => t.se > 24 || (t.range !== undefined && t.range < 6000));
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
-  const duel = !w.ships.some((x) => x.cls === 'merchant');
+  const duel = !w.ships.some(isConvoyShip);
   const wanted = duel ? 'submarine' : 'merchant';
   const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
 

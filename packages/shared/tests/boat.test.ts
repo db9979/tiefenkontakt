@@ -109,3 +109,21 @@ describe('crew and boat systems', () => {
     expect(sourceLevel(b)).toBeLessThan(sourceLevel(a) - 2);
   });
 });
+
+describe('fleet command broadcasts', () => {
+  const copy = (depth: number, kn: number, buoy: boolean) => {
+    const { w, u } = world(depth);
+    u.order.depth = depth;
+    u.order.speedKn = kn;
+    u.speed = kn * KN;
+    u.buoyAntenna = buoy;
+    run(w, 800);
+    return w.events.filter((e) => e.kind === 'boat' && e.shipId === 'u').map((e) => (e as { what: string }).what);
+  };
+  it('are copied shallow on VLF', () => expect(copy(20, 4, false)).toContain('command'));
+  it('are missed deep without the buoy antenna', () => expect(copy(100, 4, false)).toContain('command-missed'));
+  it('reach the buoy antenna down to 60 m, but only slow', () => {
+    expect(copy(50, 4, true)).toContain('command');
+    expect(copy(50, 10, true)).toContain('command-missed');
+  });
+});

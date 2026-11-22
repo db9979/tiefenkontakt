@@ -111,6 +111,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
         s.mastUp = m.on;
       } else if (m.what === 'snorkel') {
         if (!spec.battery) return 'Nur für Diesel-U-Boote';
+        if (!m.on && (s.snorkelStuckUntil ?? 0) > w.time) return 'Schnorchelventil klemmt noch';
         s.snorkel = m.on;
         if (m.on) s.order.depth = PERISCOPE_DEPTH;
       } else if (m.what === 'radar') {
@@ -133,6 +134,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'towed': {
       const max = spec.towed?.maxLength ?? 0;
       if (!max) return 'Kein Schleppsonar';
+      if ((s.towedLostUntil ?? 0) > w.time && m.length > 0) return 'Schleppsonar verloren · Ersatz wird klargemacht';
       // The winch streams or recovers the array over minutes (kinematics)
       s.towedOrder = Math.min(m.length, max);
       return;

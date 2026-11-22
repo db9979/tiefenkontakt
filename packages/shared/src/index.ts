@@ -8,6 +8,8 @@ export * from './sensors.js';
 export * from './lookout.js';
 export * from './crew.js';
 export * from './boat.js';
+export * from './command-radio.js';
+export * from './incidents.js';
 export * from './contacts.js';
 export * from './convoy-ai.js';
 export * from './world.js';

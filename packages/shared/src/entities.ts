@@ -52,10 +52,19 @@ export interface Ship {
   lastFixAt?: number;
   /** Floating wire / buoy antenna streamed (receive only). */
   buoyAntenna?: boolean;
+  /** Copying the current fleet-command broadcast: window index, seconds of steady reception. */
+  cmdRx?: { k: number; secs: number; done: boolean };
   /** Rudder jammed until this time (incident). */
   rudderJamUntil?: number;
   /** Towed array torn off and not usable until this time (driftnet). */
   towedLostUntil?: number;
+  /** Fouled in a driftnet until this time: crawling and noisy. */
+  snagUntil?: number;
+  snagged?: boolean;
+  /** Snorkel head valve stuck open until this time. */
+  snorkelStuckUntil?: number;
+  /** Hydrogen in the battery while charging: must keep ventilating (snorkel) until this time. */
+  batteryGasUntil?: number;
   radarOn: boolean;
   towedLength: number; // m deployed, 0 = stowed
   /** Ordered array length; the winch pays out about 4 m/s and recovers about 3 m/s. */
@@ -114,6 +123,11 @@ export function createShip(init: ShipInit): Ship {
     lastPingAt: -1e9,
     pulse: 'cw',
   };
+}
+
+/** A merchant of the convoy (neutral traffic is not part of it). */
+export function isConvoyShip(s: Ship): boolean {
+  return s.cls === 'merchant' && s.team !== 'neutral';
 }
 
 export function isAtPeriscopeDepth(s: Ship): boolean {

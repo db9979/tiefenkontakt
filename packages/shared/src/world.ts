@@ -1,3 +1,4 @@
+import { isConvoyShip } from './entities.js';
 import { DEFAULT_ENV, torpedoSourceLevel, type Environment } from './acoustics.js';
 import { ContactBook } from './contacts.js';
 import { applyHitDamage, stepDamage } from './damage.js';
@@ -11,6 +12,7 @@ import { stepShip } from './kinematics.js';
 import { Rng } from './rng.js';
 import { interceptTransmission, runSensors, type Detection, type Emitter } from './sensors.js';
 import type { Sighting } from './lookout.js';
+import { whaleEmitters } from './incidents.js';
 import type { WeaponsState } from './weapons.js';
 import { buoySensors, type AirState } from './aviation.js';
 
@@ -133,7 +135,7 @@ function torpedoEmitters(w: World): Emitter[] {
 export function stepWorld(w: World, dt = SIM_DT): void {
   w.time += dt;
   if (w.convoy) {
-    const merchants = w.ships.filter((s) => s.cls === 'merchant');
+    const merchants = w.ships.filter(isConvoyShip);
     const before = w.convoy.arrived.length;
     stepConvoy(w.convoy, merchants, dt, w.time);
     for (const id of w.convoy.arrived.slice(before)) w.events.push({ kind: 'arrived', time: w.time, shipId: id });
@@ -156,7 +158,7 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   if (w.sensorAccum >= SENSOR_INTERVAL - 1e-9) {
     w.sensorAccum = 0;
     const knuckles = w.weapons?.decoys.filter((d) => d.knuckle);
-    const ctx = { ships: w.ships, emitters: torpedoEmitters(w), env: w.env, time: w.time, rng: w.rng, knuckles };
+    const ctx = { ships: w.ships, emitters: [...torpedoEmitters(w), ...whaleEmitters(w)], env: w.env, time: w.time, rng: w.rng, knuckles };
     w.lastDetections = runSensors(ctx);
     if (w.air) w.lastDetections.push(...buoySensors(w.air.buoys, ctx));
     ingest(w, w.lastDetections);

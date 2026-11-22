@@ -1,4 +1,13 @@
-import { CLASSES, KN, bearing, distance, type Briefing, type Ship, type World } from '@tk/shared';
+import {
+  CLASSES,
+  KN,
+  bearing,
+  distance,
+  type Briefing,
+  type Ship,
+  type World,
+  isConvoyShip,
+} from '@tk/shared';
 import { MISSIONS, type ScenarioSettings } from './scenario.js';
 
 const deg3 = (d: number) => String(Math.round(((d % 360) + 360) % 360)).padStart(3, '0');
@@ -11,7 +20,7 @@ const km = (m: number) => `${Math.round(m / 1000)} km`;
 export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, rnd: () => number): Briefing {
   const m = MISSIONS[settings.mission];
   const sub = CLASSES[ship.cls].submarine;
-  const merchants = w.ships.filter((s) => s.cls === 'merchant' && s.alive);
+  const merchants = w.ships.filter((s) => isConvoyShip(s) && s.alive);
   const enemies = w.ships.filter((s) => s.team !== ship.team && s.team !== 'neutral' && s.cls !== 'merchant');
   const centre = merchants.length
     ? { x: merchants.reduce((a, s) => a + s.pos.x, 0) / merchants.length, y: merchants.reduce((a, s) => a + s.pos.y, 0) / merchants.length }

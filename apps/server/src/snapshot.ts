@@ -19,6 +19,9 @@ import {
   type World,
   crewPerformance,
   mastRaised,
+  nextBroadcastIn,
+  broadcastAt,
+  canCopy,
 } from '@tk/shared';
 
 export interface PlayerExtras {
@@ -170,6 +173,11 @@ export function buildSnapshot(
       navUncertainty: CLASSES[own.cls].submarine && own.lastFixAt !== undefined && !mastRaised(own) && own.depth > 0.5
         ? Math.min(14_800, 60 + (w.time - own.lastFixAt) * 0.25 * KN * (own.cls === 'ssn' ? 0.3 : 1)) : undefined,
       rudderJam: (own.rudderJamUntil ?? 0) > w.time, towedLost: (own.towedLostUntil ?? 0) > w.time,
+      command: CLASSES[own.cls].submarine ? {
+        nextS: nextBroadcastIn(w.time),
+        progress: own.cmdRx && broadcastAt(w.time) === own.cmdRx.k ? Math.min(1, own.cmdRx.secs / 60) : 0,
+        done: !!own.cmdRx?.done && broadcastAt(w.time) === own.cmdRx.k, via: canCopy(own),
+      } : undefined,
       noiseDb: sourceLevel(own), cavitationKn: Number.isFinite(cavitationSpeedKn(own)) ? cavitationSpeedKn(own) : 99,
       loadout: {
         tubes: (l?.tubes ?? []).map((t) => ({ loaded: t.loaded, reloadLeft: t.reloadDoneAt ? Math.max(0, t.reloadDoneAt - w.time) : 0 })),

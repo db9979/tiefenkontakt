@@ -1,4 +1,5 @@
-import { installBoats,
+import {
+  installBoats,
   createConvoy,
   createShip,
   createWorld,
@@ -12,6 +13,7 @@ import { installBoats,
   depthAt,
   initWeather,
   type SeabedKind,
+  installIncidents,
 } from '@tk/shared';
 import type { LessonId } from './lessons.js';
 
@@ -143,5 +145,6 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   installWeapons(w);
   installAir(w);
   installBoats(w);
+  installIncidents(w);
   return w;
 }

@@ -4,6 +4,8 @@ import { PERISCOPE_DEPTH, mastRaised, type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, NM, headingVec } from './math.js';
 import type { World } from './world.js';
+import { stepCommandRadio } from './command-radio.js';
+import { stepIncidents } from './incidents.js';
 
 /**
  * Boat and crew systems, run every tick: watches and fatigue, morale and wounded, air in
@@ -189,6 +191,8 @@ function stepKnuckles(w: World, s: Ship): void {
 
 export function boatSystem(w: World, dt: number): void {
   reactToEvents(w);
+  stepCommandRadio(w, dt);
+  stepIncidents(w, dt);
   for (const s of w.ships) {
     if (!s.alive || s.cls === 'merchant' || s.team === 'neutral') continue;
     stepCrew(w, s, dt);

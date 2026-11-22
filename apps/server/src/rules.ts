@@ -1,4 +1,8 @@
-import { CLASSES, type World } from '@tk/shared';
+import {
+  CLASSES,
+  type World,
+  isConvoyShip,
+} from '@tk/shared';
 
 export interface Score {
   sunkTons: number;
@@ -12,7 +16,7 @@ export interface MatchResult {
 }
 
 export function computeScore(w: World): Score {
-  const merchants = w.ships.filter((s) => s.cls === 'merchant');
+  const merchants = w.ships.filter(isConvoyShip);
   const tons = (ids: string[]) => ids.length * CLASSES.merchant.tonnage;
   return {
     sunkTons: tons(merchants.filter((m) => !m.alive).map((m) => m.id)),

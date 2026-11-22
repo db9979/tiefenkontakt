@@ -72,5 +72,6 @@ export function crewNoiseDb(s: Ship): number {
   let db = s.crew?.silent ? -3 : 0;
   if (Math.abs(s.trim ?? 0) > 0.2) db += 3;
   if (s.blowing) db += 25;
+  if (s.snagged) db += 15;
   return db;
 }

@@ -3,6 +3,7 @@ import { sonarPenaltyDb } from './damage.js';
 import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { crewNoiseDb } from './crew.js';
+import type { IncidentState } from './incidents.js';
 import { KN, angleDiff, bearing, dbSum, distance, type Vec2 } from './math.js';
 import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
 import { RAIN_NOISE_DB, type WeatherState } from './weather.js';
@@ -20,6 +21,8 @@ export interface Environment {
   weather?: WeatherState;
   /** Set (current) in m/s; moves submerged boats' dead reckoning off. */
   current?: { x: number; y: number };
+  /** Incidents at sea (driftnets, whales, fronts); present only in full matches. */
+  incidents?: IncidentState;
 }
 
 export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaState: 3 };

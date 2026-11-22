@@ -7,7 +7,7 @@ import type { Rng } from './rng.js';
  * the player's decision, helped by the class library below.
  */
 
-export type SigKey = 'merchant' | 'ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc' | 'torpedo';
+export type SigKey = 'merchant' | 'ffg' | 'kor' | 'ssn' | 'ssk' | 'ssc' | 'torpedo' | 'bio';
 export type ClassChoice = 'merchant' | 'warship' | 'submarine' | 'torpedo' | 'bio' | 'unknown';
 
 export interface Tonal {
@@ -63,6 +63,12 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     rpmPerKn: 12, rpmRange: [30, 170], tonalBand: [20, 80], maxSpeedKn: 14,
     tonals: [{ hz: 60, level: -4 }],
     snorkelTonals: [{ hz: 30, level: 7 }, { hz: 60, level: 6 }, { hz: 90, level: 4 }],
+  },
+  bio: {
+    // Whales: no shaft or blades, but pulsed low tones (fin whale 20 Hz) and song in the low hundreds
+    key: 'bio', name: 'Biologisch (Wale)', choice: 'bio', blades: [1],
+    rpmPerKn: 0, rpmRange: [0, 0], tonalBand: [15, 400], maxSpeedKn: 8,
+    tonals: [{ hz: 20, level: 6 }, { hz: 180, level: 3 }, { hz: 310, level: 1 }],
   },
   torpedo: {
     key: 'torpedo', name: 'Schwergewichtstorpedo', choice: 'torpedo', blades: [9, 11],

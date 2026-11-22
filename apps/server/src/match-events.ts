@@ -1,4 +1,16 @@
-import { KN, bearing, distance, scatterConvoy, shipById, type AlertView, type GameEvent, type PlayerSlot, type Ship, type World } from '@tk/shared';
+import {
+  KN,
+  bearing,
+  distance,
+  scatterConvoy,
+  shipById,
+  type AlertView,
+  type GameEvent,
+  type PlayerSlot,
+  type Ship,
+  type World,
+  isConvoyShip,
+} from '@tk/shared';
 
 /** Turning simulation events into per-player alerts (what each crew can hear or is told). */
 
@@ -25,7 +37,8 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
         ctx.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${e.bearing.toFixed(0).padStart(3, '0')}` });
       }
     } else if (e.kind === 'boat') {
-      for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind: 'boat', text: e.text, what: undefined });
+      const kind = e.what === 'command' ? 'command' : 'boat';
+      for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind, text: e.text });
     } else if (e.kind === 'sighting') {
       const b = e.bearing.toFixed(0).padStart(3, '0');
       const r = (Math.round(e.range / 100) / 10).toFixed(1).replace('.', ',');
@@ -35,7 +48,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
     } else if (e.kind === 'sunk') {
       const victim = shipById(w, e.shipId);
       if (!victim) continue;
-      if (victim.cls === 'merchant' && w.convoy) scatterConvoy(w.convoy, victim.pos, w.time);
+      if (isConvoyShip(victim) && w.convoy) scatterConvoy(w.convoy, victim.pos, w.time);
       for (const s of ctx.slots) {
         const own = ctx.shipOf(s.playerId);
         if (!own) continue;

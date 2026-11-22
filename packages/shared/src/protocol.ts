@@ -156,6 +156,8 @@ export interface OwnShipView {
   navUncertainty?: number;
   rudderJam?: boolean;
   towedLost?: boolean;
+  /** Fleet-command broadcasts: seconds to the next window (0 = open), copy progress 0..1, how. */
+  command?: { nextS: number; progress: number; done: boolean; via?: 'vlf' | 'buoy' };
   noiseDb: number;
   cavitationKn: number;
   damage: DamageState;
