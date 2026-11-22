@@ -26,6 +26,8 @@ export * from './tma.js';
 export * from './signatures.js';
 export * from './aviation.js';
 export * from './damage.js';
+export * from './compartments.js';
+export * from './flooding.js';
 export * from './filters.js';
 export * from './persist.js';
 export * from './seabed.js';

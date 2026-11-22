@@ -281,4 +281,18 @@ export const EN_UI: [string, string][] = [
   ['U-Jagd im Verband', 'Team ASW hunt'], ['DATALINK', 'DATALINK'], ['FLASH', 'FLASH'],
   ['Kursänderung an den Kommodore weitergeben: der Konvoi dreht für zehn Minuten auf den befohlenen Kurs', 'Pass the course change to the commodore: the convoy steers the ordered course for ten minutes'],
   ['KONVOI', 'CONVOY'], ['ANGREIFEN', 'ATTACK'], ['FUNKSTILLE', 'RADIO SILENCE'],
+  // Damage control: compartments, bulkheads, cutaway
+  ['BUGRAUM', 'BOW ROOM'], ['TORPEDORAUM', 'TORPEDO ROOM'], ['ZENTRALE', 'CONTROL ROOM'], ['REAKTORRAUM', 'REACTOR ROOM'], ['WOHNRAUM', 'ACCOMMODATION'],
+  ['MASCHINENRAUM', 'ENGINE ROOM'], ['HECKRAUM', 'STERN ROOM'], ['BUG-/TORPEDORAUM', 'BOW/TORPEDO ROOM'], ['VORSCHIFF', 'FORE SECTION'], ['MAGAZIN', 'MAGAZINE'],
+  ['BRÜCKE/OPZ', 'BRIDGE/CIC'], ['MASCHINE', 'MACHINERY'], ['HANGAR/ACHTERSCHIFF', 'HANGAR/AFT SECTION'], ['ACHTERSCHIFF/VDS', 'AFT SECTION/VDS'], ['ACHTERSCHIFF', 'AFT SECTION'],
+  ['LADERAUM 1', 'HOLD 1'], ['LADERAUM 2', 'HOLD 2'], ['RUMPF', 'HULL'], ['WASSER IM SCHIFF', 'WATER ABOARD'], ['TRUPP', 'PARTY'], ['KLAR', 'CLEAR'],
+  ['ABGESCHOTTET', 'SEALED OFF'], ['LECK', 'LEAK'], ['FEUER', 'FIRE'], ['Trupp hierhin', 'Send party here'], ['Schott schließen', 'Close bulkhead'], ['Schott öffnen', 'Open bulkhead'],
+  ['ABTEILUNG ANKLICKEN = TRUPP DORTHIN', 'CLICK A COMPARTMENT = SEND THE PARTY'], ['Klick: Abteilung wählen, Schadenstrupp dorthin', 'Click: pick a compartment, send the damage-control party'],
+  ['Den Schadenstrupp in diese Abteilung schicken: Lecks dichten, lenzen, Brand löschen, reparieren', 'Send the damage-control party to this compartment: plug leaks, pump, fight fire, repair'],
+  ['Schotten der Abteilung schließen: kein Wasser und kein Feuer gehen weiter, aber ihre Stationen und Systeme fallen aus', 'Close the compartment\'s bulkheads: no water or fire passes, but its stations and systems are lost'],
+  ['Anteil der Reserveverdrängung, der vollgelaufen ist: bei 100 % sinkt das Schiff', 'Share of the reserve buoyancy that has flooded: at 100 % the ship sinks'],
+  ['SCHOTT GESCHLOSSEN', 'BULKHEAD CLOSED'], ['SCHOTT GEÖFFNET', 'BULKHEAD OPENED'], ['FEUER GREIFT ÜBER', 'FIRE SPREADING'], ['AUFTRIEB FAST VERLOREN', 'BUOYANCY ALMOST GONE'],
+  ['SCHIFF SINKT', 'SHIP IS SINKING'], ['BOOT WIRD SCHWER', 'BOAT GETTING HEAVY'], ['FAHRT AUFNEHMEN ODER ANBLASEN', 'SPEED UP OR BLOW'], ['SCHWERE SCHLAGSEITE', 'HEAVY LIST'],
+  ['BOOT SACKT DURCH', 'BOAT DROPPING'], ['LI BLÄST AUF EIGENE FAUST AN', 'CHIEF BLOWS THE TANKS ON HIS OWN'], ['AUFTRIEB VERLOREN', 'BUOYANCY LOST'], ['ALLE MANN VON BORD', 'ABANDON SHIP'],
+  ['Keine solche Abteilung', 'No such compartment'], ['Abteilung ist abgeschottet', 'Compartment is sealed off'],
 ];

@@ -2,6 +2,8 @@ import { CLASSES } from './classes.js';
 import { crewAvertsMishap } from './crew.js';
 import { type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
+import { compartmentTagged, compsOf, igniteCompartment } from './compartments.js';
+import { deriveSystems } from './damage.js';
 import { KN, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Emitter } from './sensors.js';
 import type { BioKind } from './signatures.js';
@@ -147,8 +149,11 @@ export function stepIncidents(w: World, dt: number): void {
       else if (!isSnorkeling(s) && s.depth > 0.5) {
         s.batteryGasUntil = undefined;
         s.hp -= 8;
-        const d = (s.damage ??= { antrieb: 0, sonar: 0, waffen: 0, leck: 0 });
-        d.antrieb = Math.min(1, d.antrieb + 0.35);
+        const bat = compartmentTagged(s.cls, 'battery') ?? 0;
+        const c = compsOf(s)[bat]!;
+        c.dmg = Math.min(1, c.dmg + 0.5);
+        igniteCompartment(s, bat, 0.3);
+        deriveSystems(s);
         say(w, s, 'gas', 'BATTERIEGAS VERPUFFT · BRAND IM BATTERIERAUM · ANTRIEB BESCHÄDIGT');
       }
     }

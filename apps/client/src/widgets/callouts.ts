@@ -116,7 +116,7 @@ export class Callouts {
       } else if (a.kind === 'command') {
         this.report(s, { level: 'info', text: a.text, station: 3 }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
       } else if (a.kind === 'boat') {
-        const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND/.test(a.text);
+        const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND|WASSEREINBRUCH|^FEUER (IM|IN|GREIFT)|MUNITION|AUFTRIEB|SINKT|SACKT/.test(a.text);
         this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined }, boatCall(a.text));
       } else if (a.kind === 'ping') {
         this.report(s, { level: 'warn', text: a.text }, en ? `Active sonar, bearing ${b}. We are being pinged.` : `Aktivsonar, Peilung ${b}. Wir werden angepingt.`);
@@ -198,8 +198,35 @@ function sightingCall(a: AlertView, heading: number): string {
   return en ? `${what}, ${side} ${sector}! Bearing ${b}, about ${m} meters!` : `${what} ${side} ${sector}! Peilung ${b}, etwa ${m} Meter!`;
 }
 
+/** "IM MASCHINENRAUM" → "im Maschinenraum" (German), "in the engine room" (English via the UI dictionary). */
+function spokenPlace(dat: string): string {
+  return dat.split(' ').map((w, i) => (i === 0 || w === 'DER' ? w.toLowerCase() : w.length <= 3 ? w : w[0] + w.slice(1).toLowerCase())).join(' ');
+}
+
+/** Damage-control reports from the compartments, spoken grammatically. */
+function damageCall(text: string): string | undefined {
+  const m = /^(WASSEREINBRUCH|FEUER|FEUER GELÖSCHT|LECK ABGEDICHTET|MUNITION DETONIERT) ((?:IM|IN DER) .+)$/.exec(text);
+  if (m) {
+    const place = spokenPlace(m[2]!);
+    const de: Record<string, string> = { WASSEREINBRUCH: 'Wassereinbruch', FEUER: 'Feuer', 'FEUER GELÖSCHT': 'Feuer gelöscht', 'LECK ABGEDICHTET': 'Leck abgedichtet', 'MUNITION DETONIERT': 'Munition detoniert' };
+    const enw: Record<string, string> = { WASSEREINBRUCH: 'Flooding', FEUER: 'Fire', 'FEUER GELÖSCHT': 'Fire out', 'LECK ABGEDICHTET': 'Leak plugged', 'MUNITION DETONIERT': 'Ammunition exploded' };
+    return en ? `${enw[m[1]!]}: ${m[2]!.replace(/^(IM|IN DER) /, '').toLowerCase()}!` : `${de[m[1]!]} ${place}!`;
+  }
+  const b = /^SCHOTT (GESCHLOSSEN|GEÖFFNET) · (.+)$/.exec(text);
+  if (b) {
+    const name = b[2]!.length <= 3 ? b[2]! : b[2]![0] + b[2]!.slice(1).toLowerCase();
+    if (b[1] === 'GESCHLOSSEN') return en ? `Bulkheads closed, ${b[2]!.toLowerCase()} sealed off.` : `Schotten dicht, ${name} abgeschottet.`;
+    return en ? `Bulkhead open, ${b[2]!.toLowerCase()}.` : `Schott offen, ${name}.`;
+  }
+  const f = /^FEUER GREIFT ÜBER · (.+)$/.exec(text);
+  if (f) return en ? `Fire spreading to ${f[1]!.toLowerCase()}!` : `Feuer greift über auf ${f[1]![0] + f[1]!.slice(1).toLowerCase()}!`;
+  return undefined;
+}
+
 /** Short spoken version of a crew report from the boat (the full text goes to the log). */
 function boatCall(text: string): string {
+  const dc = damageCall(text);
+  if (dc) return dc;
   const t: [RegExp, string, string][] = [
     [/SCHLECHTE LUFT/, 'Schlechte Luft im Boot!', 'Foul air in the boat!'],
     [/VERWUNDETE/, 'Verwundete! Sanitäter!', 'Wounded! Medic!'],
@@ -212,6 +239,11 @@ function boatCall(text: string): string {
     [/RUDER/, 'Ruderversager!', 'Rudder failure!'],
     [/SCHNORCHEL/, 'Schnorchelventil klemmt!', 'Snorkel valve stuck!'],
     [/BATTERIE/, 'Batteriegas!', 'Battery gas!'],
+    [/AUFTRIEB FAST VERLOREN/, 'Wir sinken! Alle Mann klar zum Aussteigen!', 'We are sinking! Stand by to abandon!'],
+    [/AUFTRIEB VERLOREN/, 'Alle Mann von Bord!', 'Abandon ship!'],
+    [/BOOT WIRD SCHWER/, 'Boot wird schwer! Fahrt aufnehmen oder anblasen!', 'Boat is getting heavy! Speed up or blow!'],
+    [/SCHWERE SCHLAGSEITE/, 'Schwere Schlagseite!', 'Heavy list!'],
+    [/LI BLÄST/, 'LI bläst an!', 'Chief is blowing the tanks!'],
   ];
   const hit = t.find(([re]) => re.test(text));
   return hit ? (en ? hit[2] : hit[1]) : en ? 'Report from the boat.' : 'Meldung aus dem Boot.';

@@ -15,6 +15,7 @@ import {
   launchNoisemaker,
   setTowedDecoy,
   steerTorpedo,
+  compartmentOrder,
   type ClientMsg,
   type Ship,
   type World,
@@ -82,6 +83,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('crew'), captainId: z.string().max(64).nullable() }),
   z.object({ t: z.literal('repair'), system: z.enum(['antrieb', 'sonar', 'waffen', 'leck']) }),
   z.object({ t: z.literal('execute_order'), id: z.string().max(16) }),
+  z.object({ t: z.literal('compartment'), index: z.number().int().min(0).max(9), action: z.enum(['priority', 'seal', 'open']) }),
   z.object({ t: z.literal('buoy'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean(), active: z.boolean().optional() }),
   z.object({ t: z.literal('dip'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
   z.object({ t: z.literal('helotorp'), bearing: deg, range: z.number().finite().min(500).max(30_000) }),
@@ -111,7 +113,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -192,7 +194,10 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     }
     case 'repair':
       s.repair = m.system;
+      s.dcComp = undefined;
       return;
+    case 'compartment':
+      return compartmentOrder(w, s, m.index, m.action);
     case 'blow': {
       const r = emergencyBlow(w, s);
       return r === true ? undefined : r;

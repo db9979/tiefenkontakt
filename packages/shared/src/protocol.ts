@@ -2,6 +2,7 @@ import type { ClassId, NeutralClass, Team } from './classes.js';
 import type { VoiceClientMsg, VoiceServerMsg } from './voice.js';
 import type { ContactTrack } from './contacts.js';
 import type { DamageState, ShipSystem } from './damage.js';
+import type { CompartmentView, WreckView } from './compartments.js';
 import type { ClassChoice } from './signatures.js';
 
 export type MissionKey = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
@@ -46,6 +47,8 @@ export type ClientMsg =
   | { t: 'repair'; system: ShipSystem }
   /** Pass a FLASH order on (convoy turn) to the commodore. */
   | { t: 'execute_order'; id: string }
+  /** Damage control: send the party to a compartment, or close / open its bulkheads. */
+  | { t: 'compartment'; index: number; action: 'priority' | 'seal' | 'open' }
   | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
   | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' }
@@ -200,6 +203,11 @@ export interface OwnShipView {
   cavitationKn: number;
   damage: DamageState;
   repair?: ShipSystem;
+  /** Compartments bow first (compartmentLayout(cls) names them), where the party works, trim/list/settling. */
+  comps?: CompartmentView[];
+  dcComp?: number;
+  dcAt?: number;
+  wreck?: WreckView;
   loadout: {
     tubes: { loaded: boolean; reloadLeft: number }[];
     heavy: number;
@@ -225,6 +233,8 @@ export interface FriendlyView {
   alive: boolean;
   /** Navigation lights on. */
   lit?: boolean;
+  /** Visible damage: list, trim, fire, settling. */
+  wreck?: WreckView;
 }
 
 export interface TorpedoView {
@@ -255,6 +265,8 @@ export interface AlertView {
   range?: number;
   label?: string;
   bearing?: number;
+  /** Sinking noises of a ship that was already reported hit (no new detonation). */
+  sink?: boolean;
   text: string;
 }
 
@@ -291,6 +303,8 @@ export interface Snapshot {
     /** Delta: only samples newer than the previous snapshot (all of them when `full`). */
     history: ContactTrack['history'];
     via: 'own' | 'datalink';
+    /** What the periscope shows of the target's damage. */
+    wreck?: WreckView;
     /** The player's (or datalink group's) own classification decision. */
     assigned?: ClassChoice;
   })[];

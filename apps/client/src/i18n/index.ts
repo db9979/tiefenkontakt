@@ -2,6 +2,7 @@ import { EN_HELP, EN_PHRASES } from './en-help.js';
 import { EN_CANVAS, EN_MORE, EN_MORE_PHRASES } from './en-more.js';
 import { EN_UI } from './en-ui.js';
 import { EN_UX, EN_UX_PHRASES } from './en-ux.js';
+import { EN_DAMAGE_PHRASES } from './en-damage.js';
 
 /**
  * Language switch. The UI is written in German; for English, rendered text nodes and
@@ -15,7 +16,7 @@ export const lang: Lang = (localStorage.getItem('tk_lang') as Lang | null) ?? (n
 
 const dict = new Map<string, string>([...EN_UI, ...EN_HELP, ...EN_MORE, ...EN_UX]);
 const canvasDict = new Map<string, string>(EN_CANVAS);
-const PHRASES = [...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
+const PHRASES = [...EN_DAMAGE_PHRASES, ...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
 const memo = new Map<string, string>();
 
 /** Translate one string for the current language (German passes through). */

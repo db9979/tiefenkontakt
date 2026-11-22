@@ -26,6 +26,9 @@ import {
   ordersFor,
   broadcastAt,
   canCopy,
+  compartmentView,
+  dcTarget,
+  wreckView,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
 
@@ -73,6 +76,12 @@ function newSamples(x: PlayerExtras, label: string, hist: ContactTrack['history'
   return fresh;
 }
 
+/** What the periscope shows of a target's damage (list, fire): the eye sees it, no sensor needed. */
+function wreckOf(w: World, id: string): ReturnType<typeof wreckView> {
+  const t = w.ships.find((s) => s.id === id);
+  return t ? wreckView(t) : undefined;
+}
+
 export interface ScoreInfo {
   sunkTons: number;
   arrivedTons: number;
@@ -83,7 +92,7 @@ export interface ScoreInfo {
 function friendlyOf(s: Ship, now: number): FriendlyView {
   return {
     id: s.id, name: s.name, cls: s.cls, x: s.pos.x, y: s.pos.y, heading: s.heading,
-    speedKn: s.speed / KN, reportedAt: now, alive: s.alive, lit: s.lights,
+    speedKn: s.speed / KN, reportedAt: now, alive: s.alive, lit: s.lights, wreck: wreckView(s),
   };
 }
 
@@ -115,7 +124,7 @@ export function buildSnapshot(
   const seen = new Set<string>();
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
     seen.add(tid);
-    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid) });
+    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid), wreck: tr.sensors.includes('periscope') ? wreckOf(w, tid) : undefined });
   }
 
   const friendlies: FriendlyView[] = [];
@@ -176,6 +185,7 @@ export function buildSnapshot(
       snorkel: own.snorkel, mastUp: own.mastUp, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
       activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
+      comps: own.comps && compartmentView(own), dcComp: own.dcComp, dcAt: own.comps && dcTarget(own), wreck: wreckView(own),
       crew: own.crew && { ...own.crew, performance: Math.round(crewPerformance(own) * 100) / 100 },
       air: own.air && { ...own.air }, trim: own.trim, hpAir: own.hpAir, blowing: own.blowing, buoyAntenna: own.buoyAntenna,
       navUncertainty: CLASSES[own.cls].submarine && own.lastFixAt !== undefined && !mastRaised(own) && own.depth > 0.5

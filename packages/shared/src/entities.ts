@@ -1,6 +1,7 @@
 import type { ClassId, Team } from './classes.js';
 import type { DamageState, ShipSystem } from './damage.js';
 import type { AtmoState, CrewState } from './crew.js';
+import type { CompState } from './compartments.js';
 import { CLASSES } from './classes.js';
 import type { Vec2 } from './math.js';
 
@@ -85,6 +86,17 @@ export interface Ship {
   /** System damage 0..1 and the crew's repair priority. */
   damage?: DamageState;
   repair?: ShipSystem;
+  /** Watertight compartments, bow first (compartments.ts), and where damage control works. */
+  comps?: CompState[];
+  dcComp?: number;
+  /** Side a hit came from (+1 starboard, −1 port): the ship lists that way. */
+  heelSide?: number;
+  /** Derived from the water aboard: bow-down trim (deg), list (deg, + starboard), share of reserve buoyancy used. */
+  trimDeg?: number;
+  listDeg?: number;
+  settle?: number;
+  /** Who hit her last (credited when she sinks later from flooding or fire). */
+  lastHitBy?: string;
 }
 
 export const PERISCOPE_DEPTH = 18;

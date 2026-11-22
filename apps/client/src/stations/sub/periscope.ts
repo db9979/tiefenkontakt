@@ -1,7 +1,8 @@
-import { angleDiff, PERISCOPE_DEPTH, type ClassId } from '@tk/shared';
+import { angleDiff, PERISCOPE_DEPTH, type ClassId, type WreckView } from '@tk/shared';
 import { BearingRangeFilter, easeAngle, ownNow, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
-import type { Periscope3D, PeriscopeEffect } from '../../widgets/periscope3d.js';
+import type { Periscope3D } from '../../widgets/periscope3d.js';
+import { blasts } from '../../widgets/blasts.js';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -131,14 +132,14 @@ export function periscopeStation(): Station {
     const s = store.snap;
     if (!s || !mastState(s.own).raised) return [];
     const now = simNow();
-    const out: { label: string; cls: ClassId; bearing: number; range: number; alpha: number; lit?: boolean }[] = [];
+    const out: { label: string; cls: ClassId; bearing: number; range: number; alpha: number; lit?: boolean; wreck?: WreckView }[] = [];
     for (const c of s.contacts) {
       if (!c.sensors.includes('periscope')) continue;
       const age = now - c.lastSeen;
       if (age > 6) continue;
       const est = filters.get(c.label)?.at(now);
       if (!est) continue;
-      out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit });
+      out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit, wreck: c.wreck });
     }
     return out;
   }
@@ -386,20 +387,6 @@ function underwater(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: nu
     const y = cy + R - ((i * 31.7 + t * (2 + (i % 3))) % (2 * R));
     ctx.fillRect(x, y, 1.5, 1.5);
   }
-}
-
-const blastSeen = new Map<string, number>();
-/** Hits reported as explosions within the last two minutes, placed at the nearest seen ship on that bearing. */
-function blasts(s: import('@tk/shared').Snapshot, vis: { bearing: number; range: number }[], nowMs: number): PeriscopeEffect[] {
-  const out: PeriscopeEffect[] = [];
-  for (const a of s.alerts) {
-    if (a.kind !== 'hit' || a.bearing === undefined || s.time - a.time > 120) continue;
-    const id = `${a.time}|${a.bearing}`;
-    if (!blastSeen.has(id)) blastSeen.set(id, nowMs);
-    const near = vis.filter((c) => Math.abs(angleDiff(c.bearing, a.bearing!)) < 5).sort((x, y) => Math.abs(angleDiff(x.bearing, a.bearing!)) - Math.abs(angleDiff(y.bearing, a.bearing!)))[0];
-    out.push({ id, bearing: a.bearing, range: near?.range ?? 6000, age: (nowMs - blastSeen.get(id)!) / 1000 });
-  }
-  return out;
 }
 
 /** Water sheeting off the head window just after it breaks the surface: a falling waterline and runs. */

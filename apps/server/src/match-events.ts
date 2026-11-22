@@ -25,6 +25,9 @@ const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRAN
 
 const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
 
+/** When each surface ship was last reported hit (to tell sinking noises from a new detonation). */
+const lastHit = new WeakMap<Ship, number>();
+
 export interface AlertContext {
   slots: PlayerSlot[];
   shipOf(playerId: string): Ship | undefined;
@@ -58,9 +61,22 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       for (const slot of ctx.aboard(e.shipId)) {
         ctx.alert(slot.playerId, { time: e.time, kind: 'sighting', bearing: e.bearing, range: e.range, what: e.what, label: e.label, text: `AUSGUCK · ${SIGHTING_TEXT[e.what]} PEILUNG ${b} · CA. ${r} KM` });
       }
+    } else if (e.kind === 'hit') {
+      // A warhead on a surface ship: a detonation everyone around hears and lookouts may see
+      const victim = shipById(w, e.shipId);
+      if (!victim?.alive || (CLASSES[victim.cls].submarine && victim.depth > 1)) continue;
+      lastHit.set(victim, e.time);
+      for (const s of ctx.slots) {
+        const own = ctx.shipOf(s.playerId);
+        if (!own || own.id === victim.id || distance(own.pos, e) > EXPLOSION_HEARING) continue;
+        const b = bearing(own.pos, e);
+        ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, text: `EXPLOSION PEILUNG ${b.toFixed(0).padStart(3, '0')}` });
+      }
     } else if (e.kind === 'sunk') {
       const victim = shipById(w, e.shipId);
       if (!victim) continue;
+      // Already reported hit: now only her sinking noises (no new detonation in the picture)
+      const sink = e.time - (lastHit.get(victim) ?? -1e9) < 1200 && e.time - (lastHit.get(victim) ?? 0) > 1 ? true : undefined;
       if (isConvoyShip(victim) && w.convoy) scatterConvoy(w.convoy, victim.pos, w.time);
       for (const s of ctx.slots) {
         const own = ctx.shipOf(s.playerId);
@@ -68,7 +84,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
         if (own.id === victim.id) ctx.alert(s.playerId, { time: e.time, kind: 'sunk', text: 'SCHIFF SINKT' });
         else if (distance(own.pos, victim.pos) < EXPLOSION_HEARING) {
           const b = bearing(own.pos, victim.pos);
-          ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, text: `EXPLOSION / SINKGERÄUSCHE PEILUNG ${b.toFixed(0).padStart(3, '0')}` });
+          ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, sink, text: `${sink ? 'SINKGERÄUSCHE' : 'EXPLOSION / SINKGERÄUSCHE'} PEILUNG ${b.toFixed(0).padStart(3, '0')}` });
         }
       }
     }

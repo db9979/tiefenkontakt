@@ -30,6 +30,8 @@ export type GameEvent =
   | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
   | { kind: 'grounded'; time: number; shipId: string }
+  /** A warhead struck a ship (torpedo or depth charge) at x, y. */
+  | { kind: 'hit'; time: number; shipId: string; byId?: string; x: number; y: number }
   /** Bridge lookout reports a new sighting (start of an episode, not every sweep). */
   | { kind: 'sighting'; time: number; shipId: string; label: string; bearing: number; range: number; what: Sighting }
   /** The Ostpakt's reconnaissance aircraft reports the convoy (fleet command passes it to the boats). */
@@ -120,7 +122,7 @@ function checkGround(w: World, s: Ship): void {
   if (w.time - last > 60 && (s.speed / KN > 2 || !sub)) {
     groundedAt.set(s, w.time);
     s.hp -= 8;
-    applyHitDamage(s, 25, w.rng);
+    applyHitDamage(s, 25, w.rng, { u: 0.03, fireChance: 0.05, w });
     w.events.push({ kind: 'grounded', time: w.time, shipId: s.id });
   }
 }
@@ -160,11 +162,11 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   for (const s of w.ships) {
     checkGround(w, s);
     learnLayer(w, s);
-    stepDamage(s, dt);
+    stepDamage(s, dt, w);
     if (s.alive && s.hp <= 0) {
       s.alive = false;
       s.order.speedKn = 0;
-      w.events.push({ kind: 'sunk', time: w.time, shipId: s.id });
+      w.events.push({ kind: 'sunk', time: w.time, shipId: s.id, byId: s.lastHitBy });
     }
   }
   for (const sys of w.systems) sys(w, dt);
