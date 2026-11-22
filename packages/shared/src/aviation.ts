@@ -231,6 +231,8 @@ export function airSystem(w: World): void {
     if (s.dropped || w.time < s.dropAt) continue;
     s.dropped = true;
     const kind = s.kind ?? 'buoy';
+    // A buoy hitting the water is a sharp transient that boats nearby can hear
+    if (kind === 'buoy' || kind === 'torpedo') w.events.push({ kind: 'transient', time: w.time, sourceId: s.shipId, x: s.target.x, y: s.target.y, what: 'splash' });
     if (kind === 'buoy') air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: s.target, depth: buoyDepth(s.target, s.deep), expiresAt: w.time + BUOY_LIFE });
     else if (kind === 'torpedo') dropLightweight(w, s.shipId, s.target);
     else if (kind === 'mpa') {

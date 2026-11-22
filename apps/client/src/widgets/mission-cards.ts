@@ -2,7 +2,7 @@ import { depthAt, type MissionKey, type SeabedKind } from '@tk/shared';
 import { esc } from './format.js';
 import { drawSymbol } from './symbols.js';
 
-interface Card { key: MissionKey; title: string; info: string; seabed: SeabedKind; kind: 'convoy' | 'duel' | 'harbour' | 'custom' }
+interface Card { key: MissionKey; title: string; info: string; seabed: SeabedKind; kind: 'convoy' | 'duel' | 'harbour' | 'custom' | 'shadow' | 'strait' | 'recon' }
 
 const CARDS: Card[] = [
   { key: 'groenland', title: 'Grönland-Lücke', info: 'Tiefwasser · Konvergenzzonen', seabed: 'tief', kind: 'convoy' },
@@ -10,6 +10,9 @@ const CARDS: Card[] = [
   { key: 'fjord', title: 'Fjordausfahrt', info: 'Enger Kanal', seabed: 'fjord', kind: 'convoy' },
   { key: 'duell', title: 'U-Boot-Duell', info: 'Boot gegen Boot', seabed: 'tief', kind: 'duel' },
   { key: 'hafen', title: 'Hafenangriff', info: 'Ankerplatz in der Bucht', seabed: 'fjord', kind: 'harbour' },
+  { key: 'fuehlung', title: 'Fühlung halten', info: 'Waffen gesperrt · melden', seabed: 'tief', kind: 'shadow' },
+  { key: 'meerenge', title: 'Meerengen-Durchbruch', info: 'Durch die Enge nach Norden', seabed: 'fjord', kind: 'strait' },
+  { key: 'aufklaerung', title: 'Aufklärung', info: 'Erkennen, melden, entkommen', seabed: 'schelf', kind: 'recon' },
   { key: 'eigene', title: 'Eigene Mission', info: 'Frei einstellbar', seabed: 'tief', kind: 'custom' },
 ];
 
@@ -209,6 +212,67 @@ function harbourScene(ctx: CanvasRenderingContext2D, v: View): void {
   label(ctx, 'ANGRIFF', px(v, 3_200), py(v, 20_000), RED);
 }
 
+/** Shadowing: a boat trails the convoy at the edge of its sonar range and keeps reporting. */
+function shadowScene(ctx: CanvasRenderingContext2D, v: View): void {
+  const x = px(v, 0);
+  ctx.strokeStyle = BLUE;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([7, 5]);
+  ctx.beginPath(); ctx.moveTo(x, py(v, 0)); ctx.lineTo(x, py(v, ROUTE)); ctx.stroke();
+  ctx.setLineDash([]);
+  const cy = py(v, 14_000);
+  for (let i = 0; i < 6; i++) sym(ctx, x + ((i % 3) - 1) * 22, cy - 8 + Math.floor(i / 3) * 16, 'neutral', 'surface', 5);
+  for (const ex of [-1, 1]) sym(ctx, x + ex * 48, cy - 34, 'friend', 'surface', 6);
+  const sx = px(v, 9_000);
+  const sy = py(v, 9_500);
+  sym(ctx, sx, sy, 'hostile', 'subsurface', 6);
+  ctx.strokeStyle = 'rgba(240,149,149,0.7)';
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(x + 30, cy); ctx.stroke();
+  ctx.setLineDash([]);
+  label(ctx, 'FÜHLUNG', sx + 12, sy + 6, RED);
+  label(ctx, '((( FUNK', sx + 12, sy + 24, '#e8c37a');
+  label(ctx, 'WAFFEN GESPERRT', 10, 36, '#e8c37a');
+}
+
+/** Strait: escorts across the narrows, boats coming up from the south to the exit line. */
+function straitScene(ctx: CanvasRenderingContext2D, v: View): void {
+  const guard = py(v, 7_000);
+  const exit = py(v, 15_000);
+  ctx.strokeStyle = BLUE;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(px(v, -3_500), guard); ctx.lineTo(px(v, 3_500), guard); ctx.stroke();
+  ctx.setLineDash([]);
+  for (const ex of [-1_200, 1_200]) sym(ctx, px(v, ex), guard, 'friend', 'surface', 6);
+  label(ctx, 'SPERRE', px(v, 4_000), guard, BLUE);
+  ctx.strokeStyle = '#e8c37a';
+  ctx.beginPath(); ctx.moveTo(px(v, -6_000), exit); ctx.lineTo(px(v, 6_000), exit); ctx.stroke();
+  label(ctx, 'AUSGANG', px(v, 6_500), exit, '#e8c37a');
+  for (const sx of [-600, 600]) {
+    const y = py(v, -1_000);
+    sym(ctx, px(v, sx), y, 'hostile', 'subsurface', 6);
+    arrow(ctx, px(v, sx), y - 12, 0, -30, RED);
+  }
+  label(ctx, 'DURCHBRUCH', px(v, 1_500), py(v, 1_500), RED);
+}
+
+/** Reconnaissance: a boat close to an escort with the periscope up, then away on the DF bearing. */
+function reconScene(ctx: CanvasRenderingContext2D, v: View): void {
+  convoyScene(ctx, v);
+  const ex = px(v, 0) + 48;
+  const ey = py(v, 3_600);
+  const sx = px(v, 6_000);
+  const sy = py(v, 7_500);
+  ctx.strokeStyle = '#e8c37a';
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(ex, ey, 11, 0, 7); ctx.stroke();
+  label(ctx, '≤ 4 KM · SEHROHR', sx + 10, sy - 4, '#e8c37a');
+  label(ctx, 'MELDEN + 20 MIN ENTKOMMEN', 10, 36, '#e8c37a');
+}
+
 /** Draw the chart canvases rendered by missionCards (sea area cached per mission). */
 export function paintMissionCharts(root: HTMLElement, customSeabed?: SeabedKind): void {
   root.querySelectorAll<HTMLCanvasElement>('canvas[data-chart]').forEach((cv) => {
@@ -226,6 +290,9 @@ export function paintMissionCharts(root: HTMLElement, customSeabed?: SeabedKind)
     label(ctx, `TIEFE ~${deep}`, 10, 16, '#cfe8e0');
     if (card.kind === 'duel') duelScene(ctx, v);
     else if (card.kind === 'harbour') harbourScene(ctx, v);
+    else if (card.kind === 'strait') straitScene(ctx, v);
+    else if (card.kind === 'shadow') shadowScene(ctx, v);
+    else if (card.kind === 'recon') reconScene(ctx, v);
     else {
       convoyScene(ctx, v);
       if (card.kind === 'custom') label(ctx, '⚙ FREI', 10, 36, '#e8c37a');

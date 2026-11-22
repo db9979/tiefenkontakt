@@ -4,6 +4,7 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
+import { threatPanel } from '../../widgets/threat-panel.js';
 import { h } from '../../widgets/format.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 
@@ -36,8 +37,13 @@ export function subSonarStation(): Station {
       </div>
       <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
     </div>
-    <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
+      <div id="threat-slot"></div>
+    </div>
   </div>`);
+  const threat = threatPanel();
+  el.querySelector('#threat-slot')!.replaceWith(threat.el);
   const wf = new Waterfall();
   const wfCanvas = el.querySelector<HTMLCanvasElement>('#wf')!;
   const analysis = new AcousticAnalysis(250);
@@ -60,6 +66,7 @@ export function subSonarStation(): Station {
     snap() {
       const s = store.snap!;
       wf.push(s);
+      threat.update(s);
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       const o = s.own;
       el.querySelector('#own')!.textContent = `EIGENGERÄUSCH ${o.noiseDb.toFixed(0)} DB`;

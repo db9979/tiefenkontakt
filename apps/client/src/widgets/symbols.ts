@@ -75,3 +75,17 @@ export function drawEllipse(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.stroke();
   ctx.restore();
 }
+
+/** Dead-reckoning uncertainty around the own boat since the last fix (radius in px and m). */
+export function drawNavUncertainty(ctx: CanvasRenderingContext2D, o: { x: number; y: number }, rPx: number, rM: number): void {
+  if (rPx < 6) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(250,199,117,0.55)';
+  ctx.setLineDash([3, 4]);
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(o.x, o.y, rPx, 0, 7); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(250,199,117,0.8)';
+  ctx.fillText(`KOPPELORT ±${(rM / 1852).toFixed(1).replace('.', ',')} SM`, o.x + rPx * 0.72, o.y - rPx * 0.72);
+  ctx.restore();
+}

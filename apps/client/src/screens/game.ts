@@ -21,6 +21,7 @@ import { radioLog } from '../widgets/radio-log.js';
 import { isKey, stationKey } from '../widgets/keys.js';
 import { bindSortable, filterChips, getFilters } from '../widgets/sortable.js';
 import { hitCam } from '../widgets/hit-cam.js';
+import { crewPanel } from '../widgets/crew-panel.js';
 import { frameIntervalMs } from '../widgets/perf.js';
 import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
@@ -61,6 +62,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     <div class="side">
       <div class="panel helm" id="helm"></div>
       <div class="panel" id="damage"></div>
+      <div id="crew-slot"></div>
       <div class="panel alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alert-chips"></div><div id="alerts"></div></div>
       <div class="panel"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
@@ -73,6 +75,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const showRadio = radioLog(q('#radio'));
   const cam = hitCam(el);
+  const crew = crewPanel();
+  q('#crew-slot').replaceWith(crew.el);
   // Alert log with level filter chips (none on = everything)
   const LOG_ID = 'alerts';
   const logChips = () => (q('#alert-chips').innerHTML = filterChips(LOG_ID, [
@@ -296,6 +300,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         });
       }
       renderDamage(q('#damage'));
+      crew.update(m.s);
       renderSide();
       audio.update(m.s, CLASSES[m.s.own.cls].submarine);
     } else if (m.t === 'error') {

@@ -16,8 +16,8 @@ import {
 
 const EXPLOSION_HEARING = 40_000;
 /** Hearing ranges of transients (U-Jagd: tube flooding ~8 NM, launch ~35 NM). */
-const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000 } as const;
-const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN' } as const;
+const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400 } as const;
+const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN', splash: 'TRANSIENT · BOJENEINSCHLAG' } as const;
 
 const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
 
@@ -76,7 +76,10 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
     const kind = d.sensor === 'intercept' ? 'ping' : 'esm';
     const b = d.bearing.toFixed(0).padStart(3, '0');
     for (const slot of ctx.aboard(d.observerId)) {
-      ctx.alert(slot.playerId, { time: d.time, kind, bearing: d.bearing, text: kind === 'ping' ? `AKTIVSONAR PEILUNG ${b}` : `ESM PEILUNG ${b}` });
+      ctx.alert(slot.playerId, {
+        time: d.time, kind, bearing: d.bearing, level: Math.round(d.se), source: d.source,
+        text: kind === 'ping' ? `${d.source === 'dip' ? 'TAUCHSONAR' : 'AKTIVSONAR'} PEILUNG ${b}` : `ESM PEILUNG ${b}`,
+      });
     }
   }
 }

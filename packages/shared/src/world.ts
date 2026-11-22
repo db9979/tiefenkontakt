@@ -24,7 +24,7 @@ export type GameEvent =
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
-  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' }
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' }
   /** Something the crew reports aboard (air, wounded, hull failure, incidents). */
   | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }

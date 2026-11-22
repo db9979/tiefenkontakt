@@ -41,6 +41,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
       ${live ? '<div class="hd"><span>Zuschauer</span><span class="amber">LIVE · VERZÖGERT</span></div><div class="dim">DU SIEHST DIE WAHRE LAGE MIT EINIGEN MINUTEN VERZÖGERUNG, DAMIT NIEMAND SEINEM TEAM HELFEN KANN.</div>'
         : `<div class="hd"><span>Ergebnis</span><span class="${d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
       ${live ? '' : debriefTips(d.stats.find((s) => s.playerId === store.playerId))}
+      ${!live && d.learned?.length ? `<div class="panel" style="margin:6px 0;border-color:#6b4a1a"><div class="hd"><span class="amber">Der Gegner lernt</span></div>${d.learned.map((l) => `<div class="row" style="display:block">${esc(l)}</div>`).join('')}</div>` : ''}
       <div id="db-stats"></div>
       <div class="hd" style="margin-top:10px"><span>Ereignisse</span><span class="dim">KLICK SPRINGT HIN</span></div>
       <div id="db-events"></div>

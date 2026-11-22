@@ -6,7 +6,7 @@ import { lastFix } from './contact-pos.js';
 import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
 import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
-import { drawEllipse, drawSymbol, drawWake, type Affiliation } from './symbols.js';
+import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
 import { evaluateSolution } from '@tk/shared';
 
 export interface PlotOptions {
@@ -266,13 +266,13 @@ export class Plot {
       const p = P(hp);
       ctx.strokeStyle = COL.blue;
       ctx.beginPath(); ctx.moveTo(p.x - 6, p.y); ctx.lineTo(p.x + 6, p.y); ctx.moveTo(p.x, p.y - 6); ctx.lineTo(p.x, p.y + 6); ctx.stroke();
-      if (hp.hovering) {
+      if (hp.hovering && hp.kind !== 'mad') {
         ctx.setLineDash([2, 4]);
         ctx.beginPath(); ctx.arc(p.x, p.y, 12_000 / this.scale, 0, 7); ctx.stroke();
         ctx.setLineDash([]);
       }
       ctx.fillStyle = COL.blue;
-      ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y - 4);
+      ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.kind === 'mad' ? 'MAD-SUCHE' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y - 4);
     }
     this.drawContacts(ctx, s, P, w, height);
     this.drawFriendlies(ctx, s, P);
@@ -303,6 +303,7 @@ export class Plot {
     const ownSub = CLASSES[s.own.cls].submarine && s.own.depth > 1;
     drawSymbol(ctx, o.x, o.y, 'friend', ownSub ? 'subsurface' : 'surface', 8, true);
     ctx.beginPath(); ctx.arc(o.x, o.y, 1.8, 0, 7); ctx.fill();
+    if (s.own.navUncertainty !== undefined) drawNavUncertainty(ctx, o, s.own.navUncertainty / this.scale, s.own.navUncertainty);
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y - v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 

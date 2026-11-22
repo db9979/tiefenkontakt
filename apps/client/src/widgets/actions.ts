@@ -50,6 +50,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
     ] : []),
     { label: 'Hubschrauber: Tauchsonar hier (flach)', run: () => net.send({ t: 'dip', bearing: b, range: d, deep: false }) },
     { label: 'Hubschrauber: Tauchsonar hier (unter Schicht)', run: () => net.send({ t: 'dip', bearing: b, range: d, deep: true }) },
+    { label: 'Hubschrauber: MAD-Suche hier (Kleeblatt, 6 min)', run: () => net.send({ t: 'mad', bearing: b, range: d }) },
     ...(s.air.heloTorps > 0 ? [{ label: `Hubschrauber: Torpedo hier (${s.air.heloTorps})`, danger: true, run: () => net.send({ t: 'helotorp', bearing: b, range: d }) }] : []),
   ];
 }

@@ -8,13 +8,13 @@ import { CLASSES, type SensorKind } from '@tk/shared';
 import { bindSortable, filterChips, getFilters, sortHead, sortRows, type SortState } from './sortable.js';
 
 const SENSOR_LABEL: Record<string, string> = {
-  hull: 'RUMPF', towed: 'SCHLEPP', active: 'AKTIV', intercept: 'PING', periscope: 'OPTIK', radar: 'RADAR', esm: 'ESM', buoy: 'BOJE', visual: 'AUSGUCK',
+  hull: 'RUMPF', towed: 'SCHLEPP', active: 'AKTIV', intercept: 'PING', periscope: 'OPTIK', radar: 'RADAR', esm: 'ESM', buoy: 'BOJE', visual: 'AUSGUCK', mad: 'MAD',
 };
 
 const ID = 'contacts';
 const DEF: SortState = { key: 'label', dir: 1 };
 const GROUPS: Record<string, SensorKind[]> = {
-  sonar: ['hull', 'towed', 'active', 'intercept', 'buoy'], radar: ['radar'], esm: ['esm'], visual: ['visual', 'periscope'],
+  sonar: ['hull', 'towed', 'active', 'intercept', 'buoy'], radar: ['radar', 'mad'], esm: ['esm'], visual: ['visual', 'periscope'],
 };
 const filters = new WeakMap<HTMLElement, (via: string) => boolean>();
 
