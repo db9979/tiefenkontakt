@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, join, resolve, sep } from 'node:path';
 import type { ServerMsg } from '@tk/shared';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { lkHttp, lkUpgrade } from './lk-proxy.js';
 import { AuthStore, RateLimiter, parseCookies, type User } from './auth.js';
 import { parseClientMsg } from './input.js';
 import { Lobby } from './lobby.js';
@@ -282,17 +283,22 @@ const server = createServer((req, res) => {
     handleApi(req, res).catch(() => json(res, 500, { error: 'Serverfehler' }));
     return;
   }
+  if (req.url?.startsWith('/lk/')) return lkHttp(req, res);
   if (CLIENT_DIST && req.method === 'GET') return serveStatic(req, res);
   res.writeHead(404).end();
 });
 
 // permessage-deflate: snapshots are repetitive JSON and shrink several-fold on the wire
 const wss = new WebSocketServer({
-  server, path: '/ws', maxPayload: MAX_MSG_BYTES,
+  noServer: true, path: '/ws', maxPayload: MAX_MSG_BYTES,
   perMessageDeflate: { threshold: 512, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false },
 });
-// The WebSocket server re-emits listen errors; the retry above handles them
 wss.on('error', () => undefined);
+// Upgrades: /ws is the game, /lk/ the voice server's signalling (when configured)
+server.on('upgrade', (req, socket, head) => {
+  if (req.url?.startsWith('/lk/')) return lkUpgrade(req, socket, head);
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+});
 
 const GUEST_TOKEN = /^[a-f0-9]{32}$/;
 

@@ -79,7 +79,7 @@ export const chapterTactics = `
 
 const KEYS: [string, string][] = [
   ['1 … 5', 'Stationen'], ['← →', 'Kurs 5° (mit ⇧ 1°)'], ['↑ ↓', 'Fahrt ± 1 kn'], ['Bild ↑ / Bild ↓', 'Tiefe ∓ 10 m'],
-  ['A / D', 'Sehrohr drehen'], ['H', 'Hilfe'], ['M', 'Ton an/aus'], ['Esc', 'Menüs und Fenster schließen'],
+  ['A / D', 'Sehrohr drehen'], ['V (halten)', 'Sprechfunk senden'], ['H', 'Hilfe'], ['M', 'Ton an/aus'], ['Esc', 'Menüs und Fenster schließen'],
 ];
 
 const GLOSSARY: [string, string][] = [
@@ -97,6 +97,7 @@ const GLOSSARY: [string, string][] = [
   ['MAD', 'Magnetanomalie-Detektor: findet ein getauchtes Boot nur direkt darunter.'],
   ['Schenkel', 'Ein gerades Stück eigener Kurs während der TMA.'],
   ['SE', 'Signalüberschuss: über 0 dB ist ein Kontakt da.'],
+  ['Sprechtaste', 'Taste zum Senden im Sprechfunk; nur solange sie gedrückt ist, geht die Stimme hinaus.'],
   ['TMA', 'Zielbewegungsanalyse: Kurs, Fahrt und Entfernung aus einer Folge von Peilungen.'],
   ['Toter Winkel', 'Sektor achtern, in dem das Rumpfsonar die eigene Schraube hört.'],
   ['VDS', 'Tiefensonar an einem Kabel: hört unter der Sprungschicht.'],

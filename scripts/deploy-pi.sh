@@ -14,8 +14,13 @@ rsync -az --delete \
   --exclude .env --exclude .claude --exclude .DS_Store --exclude backup-mirror \
   ./ "$HOST:~/$DIR/"
 
+echo "▸ Prüfe Funk-Schlüssel in .env (fehlende werden zufällig erzeugt, nie ausgegeben)"
+ssh "$HOST" "cd ~/$DIR && ( [ -f .env ] || cp .env.example .env ) && rnd() { od -An -tx1 -N\$1 /dev/urandom | tr -d ' \\n'; } && \
+  for k in TURN_SECRET LIVEKIT_SECRET; do grep -qE \"^\$k=.+\" .env || { sed -i \"/^\$k=/d\" .env; echo \"\$k=\$(rnd 24)\" >> .env; }; done && \
+  { grep -qE '^LIVEKIT_KEY=.+' .env || { sed -i '/^LIVEKIT_KEY=/d' .env; echo \"LIVEKIT_KEY=tk\$(rnd 4)\" >> .env; }; }"
+
 echo "▸ Baue und starte den Container (beim ersten Mal einige Minuten)"
-ssh "$HOST" "cd ~/$DIR && ( [ -f .env ] || cp .env.example .env ) && docker compose up -d --build"
+ssh "$HOST" "cd ~/$DIR && docker compose up -d --build"
 
 echo "▸ Warte auf den Server"
 for i in $(seq 1 60); do

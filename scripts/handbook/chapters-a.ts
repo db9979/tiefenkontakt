@@ -33,6 +33,16 @@ export const chapterStart = `
 </ol>
 ${shot('ui-lobby.jpg', 'Bild 1 · Lobby: Teams, Klassenwahl und Missionen mit Kartenvorschau.')}
 ${shot('ui-briefing.jpg', 'Bild 2 · Einsatzbesprechung vor dem Auslaufen.')}
+<h2>Sprechfunk</h2>
+<p>Im Reiter <b>Funk</b> schaltet „Sprechfunk an“ das Mikrofon frei (der Browser fragt einmal). Gesprochen wird nur, solange
+<b>Sprechen</b> gedrückt ist – mit der Maus, dem Finger oder der Taste <kbd>V</kbd>. Die Liste zeigt jeden Teamkameraden im
+Sprechfunk mit Verbindungsgüte; ein grüner Punkt heißt: er spricht gerade.</p>
+<table class="grid">
+<tr><td>Fregatten und Korvetten</td><td>Immer auf Sendung. Reichweite bis zum Horizont der Antennen (Fregatte zu Fregatte gut 40 km); zum Rand hin rauscht es.</td></tr>
+<tr><td>U-Boote</td><td>Nur aufgetaucht oder auf Sehrohrtiefe mit ausgefahrenem Funkmast. Getaucht kein Sprechfunk (Längstwelle und Schleppantenne tragen keine Sprache).</td></tr>
+<tr><td>Gleiches Schiff</td><td>Bordsprechanlage: immer, auch getaucht, ohne Rauschen und ohne Abstrahlung.</td></tr>
+<tr><td>Risiko</td><td>Jede Sendung über Funk gibt dem Gegner eine Funkpeilung, bei langem Sprechen alle paar Sekunden eine neue. Kurz fassen!</td></tr>
+</table>
 <h2>Lektionen</h2>
 <p>Die geführten Lektionen bringen jede Station Schritt für Schritt bei: Horchen, Peilen, TMA, Torpedoangriff, Schleppsonar, Hubschrauber und Ausweichen.
 Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Einsteiger“ beschriftet Linien und bietet Auto-Marken und Auto-TMA,

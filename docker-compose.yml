@@ -37,9 +37,60 @@ services:
       MATCH_SAVE_S: ${MATCH_SAVE_S:-5}
       # json = one JSON object per log line (for log collectors)
       LOG_FORMAT: ${LOG_FORMAT:-}
+      # ── Voice radio (see .env.example). Without these the browsers talk directly (LAN, open NAT).
+      # Own TURN/STUN relay (profile "turn"): turn:<host>:3478?transport=udp,turn:<host>:3478?transport=tcp
+      TURN_URLS: ${TURN_URLS:-}
+      TURN_SECRET: ${TURN_SECRET:-}
+      STUN_URLS: ${STUN_URLS:-}
+      # Voice server (profile "sfu"): browsers use /lk on this server, which passes on to LiveKit
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_KEY: ${LIVEKIT_KEY:-}
+      LIVEKIT_SECRET: ${LIVEKIT_SECRET:-}
+      LIVEKIT_API_URL: http://host.docker.internal:7880
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - tiefenkontakt-data:/data
       - ${BACKUP_MIRROR_HOST:-./backup-mirror}:/mirror
     stop_grace_period: 15s
+
+  # TURN/STUN relay for voice radio behind strict routers. Start with COMPOSE_PROFILES=turn.
+  # Router: forward UDP+TCP 3478 and UDP 49160–49200 to this host.
+  coturn:
+    image: coturn/coturn:4.6
+    profiles: ["turn"]
+    restart: unless-stopped
+    network_mode: host
+    command: >-
+      -n --log-file=stdout --no-cli --fingerprint
+      --use-auth-secret --static-auth-secret=${TURN_SECRET:-}
+      --realm=tiefenkontakt --listening-port=3478 --min-port=49160 --max-port=49200
+      --no-tls --no-dtls --no-multicast-peers --user-quota=8 --total-quota=200
+      --denied-peer-ip=0.0.0.0-0.255.255.255 --denied-peer-ip=10.0.0.0-10.255.255.255
+      --denied-peer-ip=100.64.0.0-100.127.255.255 --denied-peer-ip=127.0.0.0-127.255.255.255
+      --denied-peer-ip=169.254.0.0-169.254.255.255 --denied-peer-ip=172.16.0.0-172.31.255.255
+      --denied-peer-ip=192.168.0.0-192.168.255.255
+
+  # Voice server (selective forwarding): the game server grants talking and listening.
+  # Start with COMPOSE_PROFILES=sfu (or turn,sfu). Router: forward TCP 7881 and UDP 50000–50100.
+  livekit:
+    image: livekit/livekit-server:v1.8
+    profiles: ["sfu"]
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_KEY:-}: ${LIVEKIT_SECRET:-}"
+      LIVEKIT_CONFIG: |
+        port: 7880
+        log_level: warn
+        rtc:
+          tcp_port: 7881
+          port_range_start: 50000
+          port_range_end: 50100
+          use_external_ip: true
+        room:
+          empty_timeout: 300
+          max_participants: 12
+
 volumes:
   tiefenkontakt-data:
