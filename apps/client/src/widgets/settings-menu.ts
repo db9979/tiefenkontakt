@@ -23,6 +23,7 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
   const toggles: Toggle[] = [
     { id: 'snd', label: 'Ton', get: () => !audio.muted, set: (on) => audio.setMuted(!on) },
     { id: 'voice', label: 'Sprachmeldungen', ...flag('tk_voice', true) },
+    { id: 'engine', label: 'Maschinengeräusch', ...flag('tk_engine', true) },
     { id: 'assist', label: 'Nächster-Schritt-Hilfe', ...flag('tk_assist', true) },
     { id: 'real', label: 'Einsteiger-Modus', get: () => store.realism === 'einsteiger', set: (on) => { store.setRealism(on ? 'einsteiger' : 'profi'); opts.onRealism(); } },
     { id: 'crt', label: 'Röhren-Effekt', ...flag('tk_crt', true) },

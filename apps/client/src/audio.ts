@@ -33,6 +33,8 @@ class Audio {
   private lastTowed?: number;
   private lastDepth?: number;
   private nextCreak = 0;
+  private lastOrder?: number;
+  private engineChangedAt = 0;
   private seenAlerts = new Set<string>();
   private lastPing = -1;
   private lastTorps = 0;
@@ -96,9 +98,10 @@ class Audio {
     gain.gain.value = 0;
     const lp = c.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 180;
+    lp.frequency.value = 120;
     const osc = c.createOscillator();
-    osc.type = 'sawtooth';
+    // Soft machinery: a triangle through a low-pass, not a buzzing sawtooth
+    osc.type = 'triangle';
     osc.frequency.value = 50;
     const osc2 = c.createOscillator();
     osc2.type = 'sine';
@@ -351,10 +354,17 @@ class Audio {
     const h = this.hum!;
     const t = this.ctx.currentTime;
     const sp = s.own.alive ? s.own.speedKn : 0;
-    h.gain.gain.setTargetAtTime(Math.min(0.12, 0.02 + sp * (submarine ? 0.004 : 0.006)), t, 0.5);
+    // The ear gets used to a steady drone: loud only for a while after the engine order changes
+    const order = s.own.order.speedKn;
+    if (this.lastOrder === undefined || Math.abs(order - this.lastOrder) > 0.4) this.engineChangedAt = t;
+    this.lastOrder = order;
+    const swell = Math.exp(-(t - this.engineChangedAt) / 12);
+    const on = localStorage.getItem('tk_engine') !== '0';
+    const level = Math.min(0.05, 0.006 + sp * (submarine ? 0.0015 : 0.0025)) * (0.3 + 0.7 * swell);
+    h.gain.gain.setTargetAtTime(on ? level : 0, t, 0.8);
     h.osc.frequency.setTargetAtTime(38 + sp * 2.2, t, 0.8);
     h.osc2.frequency.setTargetAtTime(76 + sp * 4.4, t, 0.8);
-    h.flow.gain.setTargetAtTime(Math.min(0.25, sp * sp * 0.0006), t, 0.5);
+    h.flow.gain.setTargetAtTime(on ? Math.min(0.08, sp * sp * 0.0002) : 0, t, 0.8);
     h.flowFilter.frequency.setTargetAtTime(200 + sp * 25, t, 0.5);
 
     if (s.own.lastPingAt !== undefined && s.own.lastPingAt !== this.lastPing) {
