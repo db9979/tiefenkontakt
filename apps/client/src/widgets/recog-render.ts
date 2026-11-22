@@ -1,18 +1,44 @@
 import * as THREE from 'three';
-import type { ClassId } from '@tk/shared';
+import { RECOG_ORDER, type ClassId } from '@tk/shared';
 import { shipModel } from './sea3d/models.js';
 
 /**
  * Silhouettes for the recognition book, rendered once from the real 3D models: side (bow to
  * the right), bow-on and top view, only what shows above the waterline, flat grey-green on
  * the console background. One short-lived WebGL context renders all of them; the images
- * are cached as data URLs for the rest of the session.
+ * are cached as data URLs and kept in localStorage per build, so later visits skip the
+ * rendering altogether.
  */
 
 export type RecogView = 'side' | 'bow' | 'top';
 export const VIEW_SIZE: Record<RecogView, [number, number]> = { side: [300, 96], bow: [120, 96], top: [300, 70] };
 
-const cache = new Map<string, string>();
+/** Build id from vite (a new build may change the models, so old pictures are dropped). */
+declare const __BUILD_ID__: string;
+const STORE = `tk_recog_${typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'}`;
+const cache = new Map<string, string>(load());
+
+function load(): [string, string][] {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith('tk_recog_') && k !== STORE) localStorage.removeItem(k);
+    return Object.entries(JSON.parse(localStorage.getItem(STORE) ?? '{}') as Record<string, string>);
+  } catch {
+    return [];
+  }
+}
+
+function save(): void {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(Object.fromEntries(cache)));
+  } catch {
+    /* storage full or blocked: the session cache still works */
+  }
+}
+
+/** Render all silhouettes in the background (prefetch at the lobby). */
+export function prerender(): void {
+  renderRecog(RECOG_ORDER as ClassId[]);
+}
 
 /** Drop wakes, smoke, sprites and lights: only the hull and its fittings. */
 function clean(g: THREE.Group): void {
@@ -90,4 +116,5 @@ export function renderRecog(classes: ClassId[]): void {
   mat.dispose();
   renderer.dispose();
   renderer.forceContextLoss();
+  save();
 }

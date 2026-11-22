@@ -345,3 +345,6 @@ a.btnlink:hover { background: #12302a; }
 .order-row { padding: 5px 0; border-bottom: 1px solid #16221f; }
 .order-row.done, .order-row.missed { opacity: 0.75; }
 .order-row .steps { margin-top: 4px; }
+
+/* New build ready (service worker) */
+.update-banner { position: fixed; right: 12px; bottom: 12px; z-index: 80; padding: 8px 14px; border: 1px solid var(--g); background: #0f2a22; color: var(--g2); letter-spacing: 0.06em; }

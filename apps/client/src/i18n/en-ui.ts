@@ -120,7 +120,7 @@ export const EN_UI: [string, string][] = [
   ['Küsten-U-Boot Projekt 2', 'Coastal submarine Project 2'], ['Küsten-U-Boot', 'Coastal submarine'], ['Korvette K-7 (Diesel, Gasturbine)', 'Corvette K-7 (diesel, gas turbine)'],
   ['AIP-U-BOOT', 'AIP SUBMARINE'], ['VDS-FREGATTE', 'VDS FRIGATE'], ['FISCHTRAWLER', 'FISHING TRAWLER'], ['Fischtrawler', 'Fishing trawler'], ['Fischtrawler (Diesel)', 'Fishing trawler (diesel)'],
   ['U-Boot Projekt 6 (AIP)', 'Submarine Project 6 (AIP)'], ['Fregatte F-30 (VDS)', 'Frigate F-30 (VDS)'], ['Fregatte F-30 (Dampfturbine)', 'Frigate F-30 (steam turbine)'], ['AIP-U-Boot', 'AIP submarine'], ['VDS-Fregatte', 'VDS frigate'],
-  ['VDS absenken', 'Lower VDS'], ['Abmelden', 'Sign out'], ['Wirklich abmelden?', 'Really sign out?'],
+  ['VDS absenken', 'Lower VDS'], ['Neue Version · neu laden', 'New version · reload'], ['Die neue Version ist schon geladen', 'The new version is already downloaded'], ['Abmelden', 'Sign out'], ['Wirklich abmelden?', 'Really sign out?'],
   ['SPRECHFUNK', 'VOICE RADIO'], ['Sprechfunk an', 'Voice on'], ['Sprechfunk aus', 'Voice off'], ['Sprechen (V)', 'Talk (V)'], ['AUF SENDUNG', 'ON AIR'], ['Kein Sendebetrieb', 'Cannot transmit'], ['MIKRO', 'MIC'], ['LAUTSTÄRKE', 'VOLUME'],
   ['ÜBER SPRACHSERVER', 'VIA VOICE SERVER'], ['DIREKT', 'DIRECT'], ['BORDSPRECH', 'INTERCOM'], ['KEINE VERBINDUNG', 'NO LINK'], ['LEITUNG GESTÖRT', 'LINE FAILED'], ['VERBINDE …', 'CONNECTING …'], ['Mikrofon …', 'Microphone …'],
   ['Noch niemand aus dem Team im Sprechfunk', 'Nobody from the team on voice yet'], ['Mikrofon nicht freigegeben', 'Microphone not allowed'], ['Kein Mikrofon gefunden', 'No microphone found'], ['Sprachserver nicht erreichbar', 'Voice server unreachable'], ['Sprechfunk (halten)', 'Voice radio (hold)'],

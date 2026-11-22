@@ -278,7 +278,7 @@ function clientIp(req: IncomingMessage): string {
 const CLIENT_DIST = process.env.CLIENT_DIST ?? (process.env.NODE_ENV === 'production' ? resolve('../client/dist') : '');
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.pdf': 'application/pdf',
+  '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.pdf': 'application/pdf', '.webmanifest': 'application/manifest+json', '.jpg': 'image/jpeg',
 };
 
 /** Serve the built client (production): static files, index.html for everything else. */
@@ -291,8 +291,15 @@ function serveStatic(req: IncomingMessage, res: ServerResponse): void {
   if (!existsSync(file)) return void res.writeHead(404).end();
   const type = TYPES[extname(file)] ?? 'application/octet-stream';
   const cache = file.includes(`${sep}assets${sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache';
-  res.writeHead(200, { 'content-type': type, 'cache-control': cache, 'x-content-type-options': 'nosniff' });
-  createReadStream(file).pipe(res);
+  // Precompressed at build time (.br / .gz next to the file): no compression work on the Pi
+  const accept = String(req.headers['accept-encoding'] ?? '');
+  const enc = /\bbr\b/.test(accept) && existsSync(`${file}.br`) ? 'br' : /\bgzip\b/.test(accept) && existsSync(`${file}.gz`) ? 'gzip' : undefined;
+  res.writeHead(200, {
+    'content-type': type, 'cache-control': cache, 'x-content-type-options': 'nosniff', vary: 'accept-encoding',
+    ...(enc ? { 'content-encoding': enc } : {}),
+  });
+  if (req.method === 'HEAD') return void res.end();
+  createReadStream(enc ? `${file}.${enc === 'br' ? 'br' : 'gz'}` : file).pipe(res);
 }
 
 const server = createServer((req, res) => {
@@ -301,7 +308,7 @@ const server = createServer((req, res) => {
     return;
   }
   if (req.url?.startsWith('/lk/')) return lkHttp(req, res);
-  if (CLIENT_DIST && req.method === 'GET') return serveStatic(req, res);
+  if (CLIENT_DIST && (req.method === 'GET' || req.method === 'HEAD')) return serveStatic(req, res);
   res.writeHead(404).end();
 });
 

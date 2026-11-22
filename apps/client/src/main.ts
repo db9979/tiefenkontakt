@@ -10,8 +10,11 @@ import { debriefOverlay } from './screens/debrief.js';
 import { gameScreen } from './screens/game.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { store } from './store.js';
+import { warmUp } from './prefetch.js';
+import { registerServiceWorker } from './sw-register.js';
 
 installErrorReporting();
+registerServiceWorker(() => screen === 'game');
 initI18n();
 applyDisplayPrefs();
 const root = document.getElementById('app')!;
@@ -27,7 +30,11 @@ function go(name: typeof screen, open: () => (() => void) | void): void {
   cleanup = open() ?? undefined;
 }
 
-const toLobby = () => go('lobby', () => lobbyScreen(root, me!));
+const toLobby = () => {
+  go('lobby', () => lobbyScreen(root, me!));
+  // Fetch the 3D view, models and voice client and warm the shaders while the player is in the lobby
+  warmUp();
+};
 
 net.on((m: ServerMsg) => {
   if (m.t === 'welcome') {
