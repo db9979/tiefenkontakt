@@ -1,5 +1,6 @@
 import './style.css';
 import { initI18n } from './i18n/index.js';
+import { installErrorReporting } from './error-report.js';
 import { applyDisplayPrefs } from './widgets/settings-menu.js';
 import type { ServerMsg } from '@tk/shared';
 import { net, type LinkState } from './net.js';
@@ -10,6 +11,7 @@ import { gameScreen } from './screens/game.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { store } from './store.js';
 
+installErrorReporting();
 initI18n();
 applyDisplayPrefs();
 const root = document.getElementById('app')!;

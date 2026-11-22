@@ -18,6 +18,8 @@ export const EN_UX: [string, string][] = [
   ['RADAR AUS · KEINE SPUREN', 'RADAR OFF · NO TRACKS'], ['KEINE FUNKPEILUNGEN · ALLES STILL', 'NO INTERCEPTS · ALL QUIET'],
   ['Jede U-Boot-Funkpeilantenne in 40 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.', 'Every submarine DF antenna within 40 NM is taking our bearing now. Radar shows snorkels and periscopes only at short range.'],
   ['Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.', 'Without radar the frigate stays silent. Switch on briefly, take the picture, switch off again.'],
+  ['Grafik', 'Graphics'], ['Niedrig', 'Low'], ['Mittel', 'Medium'], ['Hoch', 'High'], ['Auto · Mittel', 'Auto · Medium'], ['Auto · Hoch', 'Auto · High'], ['Auto · Niedrig', 'Auto · Low'],
+  ['Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)', 'Auto: lighter on phones and small machines (battery, heat)'],
   ['LAGEBESPRECHUNG', 'BRIEFING'], ['AUFTRAG', 'ORDERS'], ['EIGENES SCHIFF', 'OWN SHIP'], ['LAGE', 'SITUATION'], ['ERSTE SCHRITTE', 'FIRST STEPS'],
   ['Auf Station', 'Man your station'], ['Schelfmeer', 'Shelf sea'], ['Fjordausfahrt', 'Fjord exit'],
   ['Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', 'Narrow channel between shoals; leave it and you run aground'],

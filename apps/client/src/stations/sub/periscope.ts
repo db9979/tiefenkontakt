@@ -52,16 +52,24 @@ export function periscopeStation(): Station {
     <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
-  const glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
+  let glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
   let gl: Periscope3D | undefined;
-  // three.js is loaded only when the periscope is first used; falls back to 2D without WebGL2
-  if (localStorage.getItem('tk_3d') !== '0') {
+  let glOff = localStorage.getItem('tk_3d') === '0';
+  let loading = false;
+  let freeTimer: ReturnType<typeof setTimeout> | undefined;
+  // three.js is loaded only when the periscope is used (falls back to 2D without WebGL2) and freed 20 s after leaving
+  const ensureGl = () => {
+    clearTimeout(freeTimer);
+    if (gl || loading || glOff) return;
+    loading = true;
     import('../../widgets/periscope3d.js')
       .then((m) => {
+        loading = false;
         if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas);
+        else glOff = true;
       })
-      .catch(() => undefined);
-  }
+      .catch(() => (glOff = true));
+  };
   let periBearing = 0;
   /** Where the operator trains the scope; the optic follows smoothly. */
   let periTarget = 0;
@@ -181,7 +189,19 @@ export function periscopeStation(): Station {
         ${esm.map((a) => `<div class="row red blink"><span>ESM · RADAR</span><span>${deg3(a.bearing ?? 0)}°</span></div>`).join('')}
         ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`;
     },
+    hide() {
+      freeTimer = setTimeout(() => {
+        if (!gl) return;
+        gl.dispose();
+        gl = undefined;
+        const fresh = glCanvas.cloneNode() as HTMLCanvasElement;
+        glCanvas.replaceWith(fresh);
+        glCanvas = fresh;
+      }, 20_000);
+    },
     frame() {
+      // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
+      if (store.snap?.own.mastUp) ensureGl();
       const s = store.snap;
       const H = 380;
       const ctx = fitCanvas(view, H);

@@ -73,6 +73,7 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 const authLimiter = new RateLimiter(10, 60_000);
+const errorLimiter = new RateLimiter(5, 60_000);
 const mailer = createMailer();
 if (mailer instanceof SmtpMailer) {
   const c = mailer.cfg;
@@ -162,6 +163,23 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     return json(res, 200, { summary: stats.summary(u.id), campaign: stats.campaign(u.id), rating: ratings.get(u.id) });
   }
   if (req.method !== 'POST') return json(res, 404, { error: 'Nicht gefunden' });
+  if (req.url === '/api/client-error') {
+    // Browser errors from players, so problems on their devices show up in the server log
+    if (!errorLimiter.allow(ip)) return json(res, 429, { ok: false });
+    let b: Record<string, unknown>;
+    try {
+      b = (await readBody(req)) as Record<string, unknown>;
+    } catch {
+      return json(res, 400, { ok: false });
+    }
+    const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : undefined);
+    metrics.clientErrors++;
+    log('warn', 'Client-Fehler', {
+      msg: str(b.msg, 300), stack: str(b.stack, 1200), where: str(b.where, 120), ua: str(req.headers['user-agent'], 160),
+      user: auth.userForToken(token)?.callsign,
+    });
+    return json(res, 200, { ok: true });
+  }
   if (req.url === '/api/logout') {
     auth.logout(token);
     return json(res, 200, { ok: true }, sessionCookie('', 0));

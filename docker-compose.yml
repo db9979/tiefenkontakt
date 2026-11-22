@@ -29,6 +29,8 @@ services:
       # Daily database copy in the data volume (/data/backups), newest 7 kept
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
       BACKUP_EVERY_H: ${BACKUP_EVERY_H:-24}
+      # Second copy of every backup, on the host (BACKUP_MIRROR_HOST: e.g. a NAS mount)
+      BACKUP_MIRROR_DIR: /mirror
       # Bearer token for GET /api/metrics (?format=prom for Prometheus); empty = moderators only
       METRICS_TOKEN: ${METRICS_TOKEN:-}
       # Seconds between saves of running matches (higher = fewer writes on SD cards)
@@ -37,6 +39,7 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-}
     volumes:
       - tiefenkontakt-data:/data
+      - ${BACKUP_MIRROR_HOST:-./backup-mirror}:/mirror
     stop_grace_period: 15s
 volumes:
   tiefenkontakt-data:

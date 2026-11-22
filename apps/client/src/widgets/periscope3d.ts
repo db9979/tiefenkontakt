@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { ClassId, Sighting } from '@tk/shared';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
+import { dprGl, oceanSegments } from './perf.js';
 
 /**
  * 3D sea view used by the periscope (eye 4 m) and the escorts' bridge (eye 20 m):
@@ -61,7 +62,7 @@ export class Periscope3D {
     this.renderer.setClearColor(0x24343b);
     this.camera.rotation.order = 'YXZ';
     this.ocean = new THREE.Mesh(
-      new THREE.PlaneGeometry(40_000, 40_000, 256, 256),
+      new THREE.PlaneGeometry(40_000, 40_000, oceanSegments(), oceanSegments()),
       new THREE.ShaderMaterial({
         vertexShader: OCEAN_VERT, fragmentShader: OCEAN_FRAG,
         uniforms: {
@@ -206,7 +207,7 @@ export class Periscope3D {
     const w = this.canvas.clientWidth || 400;
     const h = this.canvas.clientHeight || 400;
     // Full retina resolution costs four times the fill rate for little gain behind scanlines
-    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const dpr = dprGl();
     if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {
       this.renderer.setPixelRatio(dpr);
       this.renderer.setSize(w, h, false);
@@ -329,7 +330,15 @@ export class Periscope3D {
     });
   }
 
+  /** Free the GPU: geometry, materials and the WebGL context itself (browsers allow only a few). */
   dispose(): void {
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
+      for (const x of mats) x.dispose();
+    });
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 }

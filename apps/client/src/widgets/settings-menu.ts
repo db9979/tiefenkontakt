@@ -2,6 +2,7 @@ import { audio } from '../audio.js';
 import { lang, setLang } from '../i18n/index.js';
 import { store } from '../store.js';
 import { h } from './format.js';
+import { QUALITY_LABEL, quality, qualitySetting, setQuality, type QualitySetting } from './perf.js';
 
 /** Display preferences that apply outside a match too (font size, palette, red light). */
 export function applyDisplayPrefs(): void {
@@ -34,6 +35,7 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
       ${toggles.map((t) => `<label class="menu-row"><span>${t.label}</span><input type="checkbox" data-t="${t.id}" ${t.get() ? 'checked' : ''}></label>`).join('')}
       <div class="menu-row"><span>Lautstärke</span><input type="range" id="m-vol" min="0" max="1" step="0.05" value="${audio.volume}" style="width:110px"></div>
       <div class="menu-row"><span>Schriftgröße</span><span><button data-font="-1">A−</button> ${Math.round(font * 100)} % <button data-font="1">A+</button></span></div>
+      <div class="menu-row" title="Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)"><span>Grafik</span><button id="m-q">${QUALITY_LABEL[qualitySetting()]}${qualitySetting() === 'auto' ? ` · ${QUALITY_LABEL[quality()]}` : ''}</button></div>
       <div class="menu-row"><span>Sprache</span><button id="m-lang">${lang === 'de' ? 'English' : 'Deutsch'}</button></div>
       <div class="steps" style="margin-top:8px"><button id="m-brief">Lagebesprechung</button><button id="m-keys">Tasten</button></div>`;
   };
@@ -53,6 +55,10 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
       const f = Math.min(1.5, Math.max(0.85, Number(localStorage.getItem('tk_font') ?? '1') + Number(b.dataset.font) * 0.1));
       localStorage.setItem('tk_font', f.toFixed(2));
       applyDisplayPrefs();
+      render();
+    } else if (b.id === 'm-q') {
+      const order: QualitySetting[] = ['auto', 'niedrig', 'mittel', 'hoch'];
+      setQuality(order[(order.indexOf(qualitySetting()) + 1) % order.length]!);
       render();
     } else if (b.id === 'm-lang') setLang(lang === 'de' ? 'en' : 'de');
     else if (b.id === 'm-brief') { close(); opts.onBriefing(); }

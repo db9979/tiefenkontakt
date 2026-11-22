@@ -22,24 +22,38 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
   box.innerHTML = `<div class="hd"><span id="hc-t"></span><button id="hc-x" title="Schließen">×</button></div><canvas id="hc-gl"></canvas>`;
   box.style.display = 'none';
   root.appendChild(box);
-  const canvas = box.querySelector<HTMLCanvasElement>('#hc-gl')!;
+  let canvas = box.querySelector<HTMLCanvasElement>('#hc-gl')!;
   let gl: Periscope3D | undefined;
   let loading = false;
   let shot: Shot | undefined;
   let lastAlert = -1;
   box.querySelector<HTMLButtonElement>('#hc-x')!.onclick = () => close();
 
+  let freeTimer: ReturnType<typeof setTimeout> | undefined;
   function close(): void {
     shot = undefined;
     box.style.display = 'none';
+    // Free the extra WebGL context a while after the last hit
+    clearTimeout(freeTimer);
+    freeTimer = setTimeout(() => {
+      if (!gl || shot) return;
+      gl.dispose();
+      gl = undefined;
+      loading = false;
+      const fresh = canvas.cloneNode() as HTMLCanvasElement;
+      canvas.replaceWith(fresh);
+      canvas = fresh;
+    }, 30_000);
   }
 
   function ensureGl(): void {
+    clearTimeout(freeTimer);
     if (gl || loading || localStorage.getItem('tk_3d') === '0') return;
     loading = true;
     import('./periscope3d.js')
       .then((m) => {
         if (m.Periscope3D.supported()) gl = new m.Periscope3D(canvas, { eye: 18 });
+        loading = false;
       })
       .catch(() => undefined);
   }

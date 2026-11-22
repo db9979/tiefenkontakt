@@ -11,7 +11,7 @@ echo "▸ Kopiere Code nach $HOST:~/$DIR"
 ssh "$HOST" "mkdir -p ~/$DIR"
 rsync -az --delete \
   --exclude node_modules --exclude dist --exclude .git --exclude .matches --exclude '*.db' --exclude '*.db-journal' \
-  --exclude .env --exclude .claude --exclude .DS_Store \
+  --exclude .env --exclude .claude --exclude .DS_Store --exclude backup-mirror \
   ./ "$HOST:~/$DIR/"
 
 echo "▸ Baue und starte den Container (beim ersten Mal einige Minuten)"

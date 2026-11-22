@@ -28,17 +28,24 @@ export function bridgeStation(): Station {
     <div class="panel"><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
-  const glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
+  let glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
   let gl: Periscope3D | undefined;
-  let failed = false;
-  if (localStorage.getItem('tk_3d') !== '0') {
+  let failed = localStorage.getItem('tk_3d') === '0';
+  let loading = false;
+  let freeTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The 3D scene is created on first view and freed 20 s after the player leaves the bridge. */
+  const ensureGl = () => {
+    clearTimeout(freeTimer);
+    if (gl || loading || failed) return;
+    loading = true;
     import('../../widgets/periscope3d.js')
       .then((m) => {
+        loading = false;
         if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas, { eye: 20, own: store.snap?.own.cls === 'kor' ? 'kor' : 'ffg' });
         else failed = true;
       })
       .catch(() => (failed = true));
-  } else failed = true;
+  };
 
   /** Look direction relative to the bow, so the view turns with the ship like a real bridge wing. */
   let relTarget = 0;
@@ -160,7 +167,19 @@ export function bridgeStation(): Station {
         ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${deg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
         <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`;
     },
+    hide() {
+      freeTimer = setTimeout(() => {
+        if (!gl) return;
+        gl.dispose();
+        gl = undefined;
+        // A context that was given up cannot be reused: start the next scene on a fresh canvas
+        const fresh = glCanvas.cloneNode() as HTMLCanvasElement;
+        glCanvas.replaceWith(fresh);
+        glCanvas = fresh;
+      }, 20_000);
+    },
     frame() {
+      ensureGl();
       const s = store.snap;
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;

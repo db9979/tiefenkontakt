@@ -21,6 +21,7 @@ import { radioLog } from '../widgets/radio-log.js';
 import { isKey, stationKey } from '../widgets/keys.js';
 import { bindSortable, filterChips, getFilters } from '../widgets/sortable.js';
 import { hitCam } from '../widgets/hit-cam.js';
+import { frameIntervalMs } from '../widgets/perf.js';
 import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
@@ -35,6 +36,8 @@ export interface Station {
   /** Called on each new snapshot. */
   snap?(): void;
   key?(e: KeyboardEvent): boolean;
+  /** Called when the player switches away (free heavy resources such as 3D scenes). */
+  hide?(): void;
 }
 
 export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
@@ -182,6 +185,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
 
   function show(i: number): void {
     closeMenu();
+    if (i !== current) stations[current]?.hide?.();
     current = i;
     net.send({ t: 'station', index: i });
     stationEl.replaceChildren(stations[i]!.el);
@@ -320,11 +324,15 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   window.addEventListener('keydown', onKey);
 
   let raf = 0;
-  const loop = () => {
+  let drawnAt = 0;
+  const loop = (now: number) => {
+    raf = requestAnimationFrame(loop);
+    // Frame cap by graphics quality: phones draw 24–30 fps instead of 60 (battery, heat)
+    if (now - drawnAt < frameIntervalMs() - 2) return;
+    drawnAt = now;
     stations[current]?.frame();
     cam.frame(store.snap);
     helm.frame();
-    raf = requestAnimationFrame(loop);
   };
   raf = requestAnimationFrame(loop);
 

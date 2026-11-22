@@ -1,3 +1,4 @@
+import { dpr2d } from './perf.js';
 import type { ClassChoice, ClassId } from '@tk/shared';
 
 export const deg3 = (d: number) => Math.round(((d % 360) + 360) % 360).toString().padStart(3, '0');
@@ -41,7 +42,7 @@ export function esc(s: string): string {
 
 /** Size a canvas backing store to its CSS box (crisp at any DPR). */
 export function fitCanvas(c: HTMLCanvasElement, cssHeight: number): CanvasRenderingContext2D {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = dpr2d();
   const w = c.clientWidth || 600;
   if (c.width !== Math.round(w * dpr) || c.height !== Math.round(cssHeight * dpr)) {
     c.width = Math.round(w * dpr);

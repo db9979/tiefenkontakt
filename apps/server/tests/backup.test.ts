@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +16,15 @@ describe('database backups', () => {
     expect(files.map((f) => f.file)).toEqual(['tiefenkontakt-20261123-030000.db', 'tiefenkontakt-20261122-030000.db']);
     const copy = new DatabaseSync(join(dir, 'bak', files[0]!.file));
     expect(copy.prepare('SELECT v FROM t').get()).toEqual({ v: 'Seewolf' });
+  });
+
+  it('mirrors every backup to a second folder with the same retention', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tk-bak-'));
+    const db = new DatabaseSync(join(dir, 'live.db'));
+    db.exec('CREATE TABLE t (v TEXT)');
+    const b = new Backups(db, join(dir, 'bak'), 2, 24, join(dir, 'mirror'));
+    for (let i = 0; i < 3; i++) b.run(new Date(Date.UTC(2026, 10, 20 + i, 3, 0, 0)));
+    expect(readdirSync(join(dir, 'mirror')).sort()).toEqual(['tiefenkontakt-20261121-030000.db', 'tiefenkontakt-20261122-030000.db']);
   });
 
   it('does nothing without BACKUP_DIR', () => {

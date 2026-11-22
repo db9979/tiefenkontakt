@@ -8,6 +8,8 @@ class Metrics {
   bytesSent = 0;
   msgsSent = 0;
   msgsReceived = 0;
+  /** Errors reported by players' browsers (POST /api/client-error). */
+  clientErrors = 0;
   private window = { at: Date.now(), bytes: 0, msgs: 0 };
 
   constructor() {
@@ -45,6 +47,7 @@ class Metrics {
       bytesSentTotal: this.bytesSent,
       msgsSentTotal: this.msgsSent,
       msgsReceivedTotal: this.msgsReceived,
+      clientErrorsTotal: this.clientErrors,
       bytesSentPerS: rate.bytesPerS,
       msgsSentPerS: rate.msgsPerS,
       rssMb: Math.round(mem.rss / 1e6),

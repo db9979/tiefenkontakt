@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { log } from './log.js';
@@ -6,7 +6,8 @@ import { log } from './log.js';
 /**
  * Database backups: a consistent copy via `VACUUM INTO` (safe while the server runs),
  * every BACKUP_EVERY_H hours into BACKUP_DIR, keeping the newest BACKUP_KEEP files.
- * Disabled when BACKUP_DIR is not set.
+ * Disabled when BACKUP_DIR is not set. BACKUP_MIRROR_DIR (optional) gets a copy of every
+ * backup too — point it at a second disk or a NAS mount so a dead drive doesn't take both.
  */
 export class Backups {
   private timer?: ReturnType<typeof setInterval>;
@@ -16,6 +17,7 @@ export class Backups {
     private dir = process.env.BACKUP_DIR,
     private keep = Math.max(1, Number(process.env.BACKUP_KEEP ?? 7)),
     private everyH = Math.max(1, Number(process.env.BACKUP_EVERY_H ?? 24)),
+    private mirror = process.env.BACKUP_MIRROR_DIR || undefined,
   ) {}
 
   get enabled(): boolean {
@@ -46,6 +48,16 @@ export class Backups {
     // The path is built by us from digits only; quotes are doubled for SQL anyway
     this.db.exec(`VACUUM INTO '${target.replaceAll("'", "''")}'`);
     for (const old of this.list().slice(this.keep)) unlinkSync(join(this.dir, old.file));
+    if (this.mirror) {
+      try {
+        mkdirSync(this.mirror, { recursive: true });
+        copyFileSync(target, join(this.mirror, name));
+        const files = readdirSync(this.mirror).filter((f) => /^tiefenkontakt-\d{8}-\d{6}\.db$/.test(f)).sort().reverse();
+        for (const old of files.slice(this.keep)) unlinkSync(join(this.mirror, old));
+      } catch (e) {
+        log('error', 'Backup-Spiegel fehlgeschlagen', { dir: this.mirror, error: (e as Error).message });
+      }
+    }
     return name;
   }
 
