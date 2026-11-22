@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import type { ClassId, PlaneKind, Sighting } from '@tk/shared';
+import type { ClassId, PlaneKind, Sighting, WreckView } from '@tk/shared';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { mergeStatic } from './sea3d/merge.js';
 import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
+import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
 
 /**
@@ -60,6 +61,10 @@ export interface PeriscopeTarget {
   /** Aircraft: type and height above the sea (m). */
   plane?: PlaneKind;
   alt?: number;
+  /** Visible damage (list, trim, fire, settling). */
+  wreck?: WreckView;
+  /** Known to have sunk: a ship already in the picture goes down (never drawn anew). */
+  sunk?: boolean;
 }
 
 /** A detonation seen through the optic (from a hit/sunk report): water column, smoke, fire. */
@@ -68,6 +73,12 @@ export interface PeriscopeEffect {
   bearing: number;
   range: number;
   age: number;
+  /** World position of the blast (east, north); with the observer's position it stays put while we move. */
+  x?: number;
+  y?: number;
+  /** The struck ship goes down (sinking report); quiet: no new detonation, only the sinking. */
+  sinks?: boolean;
+  quiet?: boolean;
 }
 
 const DEFAULT_KN: Partial<Record<ClassId, number>> = { merchant: 9, ffg: 14, kor: 14 };
@@ -83,7 +94,10 @@ export class Periscope3D {
   private hemi = new THREE.HemisphereLight(0xb8c8d0, 0x1a2a30, 1.2);
   private sun = new THREE.DirectionalLight(0xffffff, 1.2);
   private ships = new Map<string, Placed>();
-  private sinking: { g: THREE.Group; since: number; y0: number }[] = [];
+  private sinking: Sinking[] = [];
+  private slicks: Slick[] = [];
+  private ownPos = { x: 0, y: 0 };
+  private glow = 0;
   private effects = new Map<string, THREE.Group>();
   private stars: THREE.Points;
   private rain: THREE.LineSegments;
@@ -181,15 +195,17 @@ export class Periscope3D {
       seen.add(e.id);
       let g = this.effects.get(e.id);
       if (!g) {
+        // The ship nearest to the blast in bearing starts to sink once it drops out of the picture
+        if (e.sinks) for (const s of this.ships.values()) if (Math.abs(((s.bearing - e.bearing + 540) % 360) - 180) < 4) (s.g.userData as { doomed?: number }).doomed = e.age;
+        if (e.quiet) continue;
         g = this.effectGroup();
         this.effects.set(e.id, g);
         this.scene.add(g);
-        // The ship nearest to the blast in bearing starts to sink once it drops out of the picture
-        for (const s of this.ships.values()) if (Math.abs(((s.bearing - e.bearing + 540) % 360) - 180) < 4) (s.g.userData as { doomed?: number }).doomed = e.age;
       }
       const b = (e.bearing * Math.PI) / 180;
       const drop = (e.range * e.range) / (2 * EARTH_R);
-      g.position.set(Math.sin(b) * e.range, -drop, -Math.cos(b) * e.range);
+      if (e.x !== undefined && e.y !== undefined) g.position.set(e.x - this.ownPos.x, -drop, -(e.y - this.ownPos.y));
+      else g.position.set(Math.sin(b) * e.range, -drop, -Math.cos(b) * e.range);
       const water = g.getObjectByName('water') as THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
       const rise = Math.min(1, e.age / 2.5);
       const fall = Math.max(0, 1 - Math.max(0, e.age - 4) / 6);
@@ -210,7 +226,7 @@ export class Periscope3D {
       if (e.age < 240) glow = Math.max(glow, (1 - light) * (1 - e.age / 240));
       if (glow > 0) this.fire.position.copy(g.position).setY(20);
     }
-    this.fire.intensity = glow * 4;
+    this.glow = glow;
     for (const [id, g] of this.effects) {
       if (!seen.has(id)) {
         this.scene.remove(g);
@@ -247,7 +263,12 @@ export class Periscope3D {
   render(o: {
     bearing: number; fovDeg: number; t: number; sea: number; light: number; targets: PeriscopeTarget[];
     rain?: boolean; hour?: number; effects?: PeriscopeEffect[]; pitchDeg?: number; ownKn?: number; ownHeading?: number;
+    /** Observer's world position (east, north), so slicks and blasts stay where they happened. */
+    own?: { x: number; y: number };
+    /** The own ship's damage: she lists and trims, and the view with her. */
+    ownWreck?: WreckView;
   }): void {
+    if (o.own) this.ownPos = o.own;
     const w = this.canvas.clientWidth || 400;
     const h = this.canvas.clientHeight || 400;
     // Full retina resolution costs four times the fill rate for little gain behind scanlines
@@ -268,7 +289,7 @@ export class Periscope3D {
     this.camera.position.set(0, this.eye + Math.sin(o.t * 0.55) * amp * (high ? 0.25 : 0.4), 0);
     this.camera.rotation.y = (-o.bearing * Math.PI) / 180;
     this.camera.rotation.x = ((o.pitchDeg ?? 0) * Math.PI) / 180 + Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
-    this.camera.rotation.z = Math.sin(o.t * 0.4) * (high ? 0.007 : 0.004) * (1 + o.sea * 0.6);
+    this.camera.rotation.z = Math.sin(o.t * 0.4) * (high ? 0.007 : 0.004) * (1 + o.sea * 0.6) + ((o.ownWreck?.list ?? 0) * Math.PI) / 180;
 
     const u = this.ocean.material.uniforms;
     u.uTime!.value = o.t;
@@ -311,6 +332,8 @@ export class Periscope3D {
     if (o.rain) this.rain.position.y = -((o.t * 22) % 30);
     this.updateEffects(o.effects ?? [], o.light);
     this.place(o.targets, o.t, o.sea, amp, o.light);
+    this.slicks = updateSlicks(this.slicks, this.scene, o.t, this.ownPos.x, this.ownPos.y, o.light);
+    this.fire.intensity = this.glow * 4;
     if (this.own) {
       // Keep the own hull under the camera: the bridge point sits below the eye, the ship heaves and rolls with it
       const c = ((o.ownHeading ?? 0) * Math.PI) / 180;
@@ -327,7 +350,13 @@ export class Periscope3D {
 
   private place(targets: PeriscopeTarget[], t: number, sea: number, amp: number, light: number): void {
     const seen = new Set<string>();
+    const burning = { n: 0 };
     for (const tg of targets) {
+      // A sunk ship is only shown going down if it was in the picture
+      if (tg.sunk) {
+        if (this.ships.has(tg.label)) (this.ships.get(tg.label)!.g.userData as { doomed?: number }).doomed = 0;
+        continue;
+      }
       seen.add(tg.label);
       const key = `${tg.plane ?? tg.cls}|${tg.sighting ?? ''}`;
       let s = this.ships.get(tg.label);
@@ -369,6 +398,15 @@ export class Periscope3D {
       // Models are built bow toward +z; turn them so the bow points along the course (north = −z)
       s.g.rotation.y = Math.PI - ((tg.course ?? tg.bearing + 90) * Math.PI) / 180;
       s.g.rotation.z = Math.sin(t * 0.45 + tg.range) * 0.02 * (1 + sea * 0.5);
+      // Damage: list, trim and settling; fire and smoke on deck (lights the night)
+      const fire = applyWreck(s.g, tg.wreck, t, light, seed, burning);
+      if (fire > 0 && fire * (1 - light) > this.glow) {
+        this.glow = fire * (1 - light);
+        this.fire.position.copy(s.g.position).setY(25);
+      }
+      const ud = s.g.userData as { wreck?: WreckView; wpos?: { x: number; y: number } };
+      ud.wreck = tg.wreck;
+      ud.wpos = { x: this.ownPos.x + s.g.position.x, y: this.ownPos.y - s.g.position.z };
       s.g.visible = tg.alpha > 0.05;
       const nav = s.g.getObjectByName('navlights');
       if (nav) nav.visible = !!tg.lit && light < 0.6;
@@ -376,17 +414,22 @@ export class Periscope3D {
     for (const [label, s] of this.ships) {
       if (!seen.has(label)) {
         this.ships.delete(label);
-        // A ship hit shortly before it vanished goes down by the bow instead of popping away
-        if ((s.g.userData as { doomed?: number }).doomed !== undefined) this.sinking.push({ g: s.g, since: t, y0: s.g.position.y });
-        else this.scene.remove(s.g);
+        // A ship reported sinking goes down by the bow or stern with a list instead of popping
+        // away, and leaves oil and wreckage on the water
+        const ud = s.g.userData as { doomed?: number; wreck?: WreckView; wpos?: { x: number; y: number } };
+        if (ud.doomed !== undefined && this.sinking.length < 6) {
+          const seed = label.charCodeAt(label.length - 1) || 0;
+          this.sinking.push(startSinking(s.g, t, ud.wreck, seed));
+          const p = ud.wpos;
+          const nearBlast = [...this.effects.values()].some((g) => g.position.distanceTo(s.g.position) < 300);
+          if (p && !nearBlast) addSlick(this.slicks, this.scene, p.x, p.y, t, seed % 6);
+        } else this.scene.remove(s.g);
       }
     }
     this.sinking = this.sinking.filter((k) => {
-      const a = t - k.since;
-      k.g.rotation.x = Math.min(0.35, a * 0.01);
-      k.g.position.y = k.y0 - a * 0.35;
-      if (a > 90) this.scene.remove(k.g);
-      return a <= 90;
+      const going = stepSinking(k, t);
+      if (!going) this.scene.remove(k.g);
+      return going;
     });
   }
 

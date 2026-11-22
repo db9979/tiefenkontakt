@@ -27,7 +27,7 @@ describe('torpedoes', () => {
     expect(typeof t).not.toBe('string');
     for (let i = 0; i < 6000 && m.hp >= 110; i++) stepWorld(w);
     expect(m.hp).toBeLessThan(40);
-    expect(m.damage!.leck).toBeGreaterThan(0);
+    expect(m.comps!.some((c) => c.leak > 0 || c.flood > 0)).toBe(true);
     fireTorpedo(w, sub, { heading: bearing(sub.pos, m.pos), enableAfter: 1500, searchDepth: 10 });
     for (let i = 0; i < 6000 && m.alive; i++) stepWorld(w);
     expect(m.alive).toBe(false);

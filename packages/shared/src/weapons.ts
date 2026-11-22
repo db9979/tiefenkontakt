@@ -262,9 +262,10 @@ function seek(w: World, t: Torpedo): Candidate | undefined {
   return best;
 }
 
-function damage(w: World, target: Ship, amount: number, byId: string): void {
+function damage(w: World, target: Ship, amount: number, byId: string, at?: Vec2): void {
   target.hp -= amount;
-  if (target.hp > 0) applyHitDamage(target, amount, w.rng);
+  w.events.push({ kind: 'hit', time: w.time, shipId: target.id, byId, x: at?.x ?? target.pos.x, y: at?.y ?? target.pos.y });
+  if (target.hp > 0) applyHitDamage(target, amount, w.rng, { at, byId, w });
   if (target.hp <= 0 && target.alive) {
     target.alive = false;
     target.order.speedKn = 0;
@@ -297,7 +298,7 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
       t.depth = approach(t.depth, c.depth, 8 * dt);
       if (Math.hypot(r, t.depth - c.depth) < HIT_RADIUS) {
         const ship = w.ships.find((s) => s.id === c.id);
-        if (ship) damage(w, ship, sp.damage, t.ownerId);
+        if (ship) damage(w, ship, sp.damage, t.ownerId, t.pos);
         return false;
       }
     } else {
@@ -360,7 +361,7 @@ function resolvePending(w: World, e: DelayedEffect): void {
   for (const s of w.ships) {
     if (!s.alive) continue;
     const r3 = Math.hypot(distance(s.pos, e.pos), s.depth - e.depth);
-    if (r3 < DC_LETHAL * 3) damage(w, s, r3 < DC_LETHAL ? 60 : 15, e.ownerId);
+    if (r3 < DC_LETHAL * 3) damage(w, s, r3 < DC_LETHAL ? 60 : 15, e.ownerId, e.pos);
   }
 }
 

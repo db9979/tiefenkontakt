@@ -5,6 +5,7 @@ import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
 import { easeAngle, moverNow, ownNow, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
+import { blasts } from '../../widgets/blasts.js';
 import { deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
 
 const H = 380;
@@ -126,13 +127,18 @@ export function bridgeStation(): Station {
     // Own ship and formation extrapolated to this frame, so the picture glides between 1 Hz updates
     const me = ownNow();
     for (const f of s.friendlies) {
-      if (!f.alive || f.id === s.own.id) continue;
+      if (f.id === s.own.id) continue;
+      // A mate that sank: shown going down if she was in sight
+      if (!f.alive) {
+        out.push({ label: f.id, cls: f.cls, bearing: 0, range: 0, alpha: 0, sunk: true });
+        continue;
+      }
       const fp = s.time - f.reportedAt < 3 ? moverNow(f, f.reportedAt) : f;
       const dx = fp.x - me.x;
       const dy = fp.y - me.y;
       const r = Math.hypot(dx, dy);
       if (r > reach || r < 50) continue;
-      out.push({ label: f.id, cls: f.cls, bearing: (Math.atan2(dx, dy) * 180) / Math.PI, range: r, course: f.heading, speedKn: f.speedKn, alpha: 1, lit: f.lit });
+      out.push({ label: f.id, cls: f.cls, bearing: (Math.atan2(dx, dy) * 180) / Math.PI, range: r, course: f.heading, speedKn: f.speedKn, alpha: 1, lit: f.lit, wreck: f.wreck });
     }
     const now = simNow();
     for (const c of s.contacts) {
@@ -228,6 +234,7 @@ export function bridgeStation(): Station {
         gl!.render({
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
           rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn,
+          effects: blasts(s!, tg.filter((x) => !x.sunk && !x.plane && !x.sighting), nowMs), own: ownNow(), ownWreck: s!.own.wreck,
         });
       }
       ctx.clearRect(0, 0, w, H);

@@ -16,7 +16,7 @@ const SHOW_S = 14;
 const MAX_RANGE = 25_000;
 
 /** lookout: seen from the bridge or through the raised periscope; under: a submerged boat's reconstruction. */
-interface Shot { id: string; bearing: number; range: number; cls: ClassId; startMs: number; mode: 'lookout' | 'under' }
+interface Shot { id: string; bearing: number; range: number; cls: ClassId; startMs: number; mode: 'lookout' | 'under'; sinks: boolean }
 
 export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: Snapshot | undefined): void } {
   const box = document.createElement('div');
@@ -79,7 +79,8 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
       for (const a of s.alerts) {
         if (a.kind !== 'hit' || a.bearing === undefined || a.time <= lastAlert) continue;
         lastAlert = a.time;
-        if (s.time - a.time > 20) continue;
+        // Sinking noises after a hit already shown: nothing new to see
+        if (s.time - a.time > 20 || a.sink) continue;
         // Range and type from our own formation if the victim is one of ours; otherwise a guess
         let range = 6_000;
         let cls: ClassId = 'merchant';
@@ -94,7 +95,7 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
           }
         }
         if (mode === 'lookout' && range > MAX_RANGE) continue;
-        shot = { id: `${a.time}|${a.bearing}`, bearing: a.bearing, range, cls, startMs: performance.now(), mode };
+        shot = { id: `${a.time}|${a.bearing}`, bearing: a.bearing, range, cls, startMs: performance.now(), mode, sinks: /SINKGERÄUSCHE/.test(a.text) };
         ensureGl(mode);
         box.style.display = '';
         box.querySelector('#hc-t')!.textContent = mode === 'under'
@@ -113,12 +114,15 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
         return;
       }
       if (!gl) return;
-      // The struck ship is shown for a moment, then dropped: the scene lets it go down by the bow
-      const targets: PeriscopeTarget[] = age < 3.5 ? [{ label: shot.id, cls: shot.cls, bearing: shot.bearing, range: shot.range, alpha: 1, speedKn: 4 }] : [];
+      // A sinking ship is shown for a moment, then dropped: the scene lets it go down by the bow or
+      // stern. One that survives the hit stays in the picture, burning, listing and settling.
+      const k = Math.min(1, Math.max(0, age - 1.5) / 8);
+      const wreck = shot.sinks ? undefined : { list: 7 * k, trim: 1.5 * k, fire: 0.8 * Math.min(1, Math.max(0, age - 1) / 2), settle: 0.35 * k };
+      const targets: PeriscopeTarget[] = age < 3.5 || !shot.sinks ? [{ label: shot.id, cls: shot.cls, bearing: shot.bearing, range: shot.range, alpha: 1, speedKn: 4, wreck }] : [];
       gl.render({
         bearing: shot.bearing, fovDeg: Math.max(4, Math.min(14, 9000 / shot.range * 2)), t: age, sea: s.env.seaState, light: s.env.light ?? 1,
         // The blast starts a moment later, once the ship stands in the scene (so it is marked to sink)
-        targets, rain: s.env.rain, hour: s.env.clock, effects: age > 0.4 ? [{ id: shot.id, bearing: shot.bearing, range: shot.range, age: age - 0.4 }] : [],
+        targets, rain: s.env.rain, hour: s.env.clock, effects: age > 0.4 ? [{ id: shot.id, bearing: shot.bearing, range: shot.range, age: age - 0.4, sinks: shot.sinks }] : [],
         pitchDeg: -0.1,
       });
     },

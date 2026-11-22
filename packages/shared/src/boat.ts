@@ -2,6 +2,7 @@ import { CLASSES } from './classes.js';
 import { BAD_CO2, BAD_O2, airOf, crewOf } from './crew.js';
 import { PERISCOPE_DEPTH, mastRaised, type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
+import { compsOf } from './compartments.js';
 import { KN, NM, headingVec } from './math.js';
 import type { World } from './world.js';
 import { stepCommandRadio } from './command-radio.js';
@@ -145,8 +146,10 @@ function stepBoat(w: World, s: Ship, dt: number): void {
       const [text, leakAdd, hp] = over < 0.35
         ? ['BOLZEN ABGESCHERT · WASSEREINBRUCH', 0.15, 4]
         : over < 0.7 ? ['DICHTUNG VERSAGT · STARKER WASSEREINBRUCH', 0.3, 8] : ['RISS IM DRUCKKÖRPER', 0.55, 18];
-      const d = (s.damage ??= { antrieb: 0, sonar: 0, waffen: 0, leck: 0 });
-      d.leck = Math.min(1, d.leck + leakAdd);
+      // A seam somewhere along the hull gives way
+      const comps = compsOf(s);
+      const c = comps[Math.floor(w.rng.next() * comps.length)]!;
+      c.leak = Math.min(1, c.leak + leakAdd);
       s.hp -= hp;
       say(w, s, 'hull', `${text} · UNTER TESTTIEFE`);
     }

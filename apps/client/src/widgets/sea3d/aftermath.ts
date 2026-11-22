@@ -65,7 +65,8 @@ export function updateAftermath(g: THREE.Group, age: number, t: number, light: n
   const spread = Math.min(140, 15 + age * 1.6);
   oil.scale.set(spread, spread * 0.8, 1);
   oil.rotation.z = seed;
-  oil.material.opacity = Math.min(0.75, Math.max(0, (age - 3) / 8));
+  // The slick stays for minutes, then thins out and is gone after twelve
+  oil.material.opacity = Math.min(0.75, Math.max(0, (age - 3) / 8)) * Math.max(0, Math.min(1, (720 - age) / 240));
   // Burning oil: flames flicker on the slick; they glow strongest at night and die down over minutes
   const burn = Math.max(0, 1 - age / 240) * (age > 2 ? 1 : 0);
   for (let i = 0; i < N_FIRES; i++) {
@@ -88,7 +89,7 @@ export function updateAftermath(g: THREE.Group, age: number, t: number, light: n
     const a = seed + i * 2.399;
     const dist = Math.min(90, 6 + age * (0.6 + (i % 5) * 0.25));
     const sink = i % 4 === 0 ? Math.max(0, (age - 40) * 0.05) : 0;
-    d.visible = age > 1.5 && sink < 3;
+    d.visible = age > 1.5 && sink < 3 && age < 700;
     d.position.set(Math.cos(a) * dist, 0.3 + Math.sin(t * 0.9 + i) * 0.35 - sink, Math.sin(a) * dist);
     d.rotation.set(Math.sin(t * 0.7 + i) * 0.2, a, Math.cos(t * 0.6 + i) * 0.2);
   }

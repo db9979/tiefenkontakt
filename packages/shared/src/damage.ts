@@ -1,54 +1,58 @@
-import { CLASSES } from './classes.js';
 import { crewWorkRate } from './crew.js';
+import { compartmentLayout, floodWeight, hitCompartments, reserveBuoyancy, type HitOptions } from './compartments.js';
 import type { Ship } from './entities.js';
+import { stepCompartments } from './flooding.js';
 import type { Rng } from './rng.js';
+import type { World } from './world.js';
 
-/** Damage control: hits damage systems; the crew repairs one priority system fast, others slowly. */
+/**
+ * Damage control. The truth lives in the compartments (compartments.ts, flooding.ts);
+ * the per-system figures here are derived from them every tick for everything that asks
+ * "how bad is the propulsion / sonar / weapons" and for the old panels. "leck" is the share
+ * of the reserve buoyancy the water aboard has used up.
+ */
 
 export type ShipSystem = 'antrieb' | 'sonar' | 'waffen' | 'leck';
 export const SYSTEMS: ShipSystem[] = ['antrieb', 'sonar', 'waffen', 'leck'];
 
 export type DamageState = Record<ShipSystem, number>;
 
-const PRIORITY_RATE = 1 / 240; // full repair in 4 min sim
-const BACKGROUND_RATE = 1 / 1500;
-const LEAK_HP_PER_S = 0.12; // at full flooding
-
 export function emptyDamage(): DamageState {
   return { antrieb: 0, sonar: 0, waffen: 0, leck: 0 };
 }
 
-/** Spread a hit over the systems: the biggest share lands on a random one, flooding always grows. */
-export function applyHitDamage(s: Ship, amount: number, rng: Rng): void {
-  const d = (s.damage ??= emptyDamage());
-  const sev = Math.min(1, amount / 80);
-  const pick = SYSTEMS[Math.floor(rng.next() * 3)]!;
-  d[pick] = Math.min(1, d[pick] + 0.4 + 0.5 * sev);
-  d.leck = Math.min(1, d.leck + 0.25 + 0.4 * sev);
-  for (const k of SYSTEMS) if (k !== pick && k !== 'leck') d[k] = Math.min(1, d[k] + 0.1 * sev);
+/** A hit: the compartment nearest the hit point takes it, the neighbours get some. */
+export function applyHitDamage(s: Ship, amount: number, rng: Rng, o: HitOptions = {}): void {
+  hitCompartments(s, amount, rng, o);
+  deriveSystems(s);
 }
 
-/** Repair progress and flooding effects for one tick. */
-export function stepDamage(s: Ship, dt: number): void {
-  const d = s.damage;
-  if (!d || !s.alive) return;
-  const prio = s.repair ?? (d.leck > 0 ? 'leck' : SYSTEMS.find((k) => d[k] > 0));
-  for (const k of SYSTEMS) {
-    if (d[k] <= 0) continue;
-    d[k] = Math.max(0, d[k] - (k === prio ? PRIORITY_RATE : BACKGROUND_RATE) * crewWorkRate(s) * dt);
-  }
-  if (d.leck > 0) s.hp -= LEAK_HP_PER_S * d.leck * dt;
-  // A flooding submarine cannot hold great depth
-  if (CLASSES[s.cls].submarine && d.leck > 0.2) {
-    const limit = CLASSES[s.cls].maxDepth * (1 - 0.7 * d.leck);
-    if (s.order.depth > limit) s.order.depth = limit;
-  }
+/** Per-system damage from the compartments: wrecked, flooded, burning or sealed compartments take their systems with them. */
+export function deriveSystems(s: Ship): void {
+  if (!s.comps) return;
+  const d = (s.damage ??= emptyDamage());
+  const layout = compartmentLayout(s.cls);
+  d.antrieb = 0;
+  d.sonar = 0;
+  d.waffen = 0;
+  s.comps.forEach((x, i) => {
+    const lost = x.sealed ? 1 : Math.min(1, Math.max(x.dmg, (x.flood - 0.3) / 0.5, x.fire * 0.6));
+    for (const [k, share] of Object.entries(layout[i]!.sys) as [Exclude<ShipSystem, 'leck'>, number][]) d[k] = Math.max(d[k], Math.min(1, lost * share));
+  });
+  d.leck = Math.min(1, floodWeight(s) / reserveBuoyancy(s));
+}
+
+/** Damage control for one tick: water, fire, repairs, trim and the sinking point. */
+export function stepDamage(s: Ship, dt: number, w?: World): void {
+  if (!s.comps || !s.alive) return;
+  stepCompartments(s, dt, w);
+  deriveSystems(s);
 }
 
 export const dmg = (s: Ship, k: ShipSystem): number => s.damage?.[k] ?? 0;
 
-/** Max speed factor from propulsion damage. */
-export const speedFactor = (s: Ship): number => 1 - 0.8 * dmg(s, 'antrieb');
+/** Max speed factor from propulsion damage and the water aboard. */
+export const speedFactor = (s: Ship): number => (1 - 0.8 * dmg(s, 'antrieb')) * (1 - 0.4 * dmg(s, 'leck'));
 /** Extra hull-sonar self noise (dB) from sonar damage. */
 export const sonarPenaltyDb = (s: Ship): number => 18 * dmg(s, 'sonar');
 /** Reload time factor from weapons damage. */
