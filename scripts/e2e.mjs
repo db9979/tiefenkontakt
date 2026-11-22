@@ -308,7 +308,14 @@ try {
   log('PASSED');
   clearTimeout(guard);
   cleanup();
-  if (!process.env.E2E_KEEP) rmSync(TMP, { recursive: true, force: true });
+  // Chrome may still be flushing its profile right after it was killed: retry, never fail a passed run on cleanup
+  if (!process.env.E2E_KEEP) {
+    try {
+      rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+    } catch (e) {
+      console.warn(`[e2e] could not remove ${TMP}: ${e.message}`);
+    }
+  }
   process.exit(0);
 } catch (e) {
   console.error(`[e2e] FAILED in step "${step}":`, e.message);
