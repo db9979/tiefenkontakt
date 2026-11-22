@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { ClassId, PlaneKind, Sighting } from '@tk/shared';
+import type { ClassId, MetCells, PlaneKind, Sighting, Vec2 } from '@tk/shared';
+import { WeatherFx } from './sea3d/weather3d.js';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { mergeStatic } from './sea3d/merge.js';
@@ -92,6 +93,7 @@ export class Periscope3D {
   private eye: number;
   /** Own ship around the camera (bridge view): model and how far forward of midships the bridge is. */
   private own?: { g: THREE.Group; bridgeZ: number };
+  private wx: WeatherFx;
 
   constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
     this.eye = opts.eye ?? 4;
@@ -111,6 +113,7 @@ export class Periscope3D {
     );
     this.ocean.rotation.x = -Math.PI / 2;
     this.scene.add(this.ocean);
+    this.wx = new WeatherFx(this.scene, this.ocean.material);
     this.sky = new THREE.Mesh(
       new THREE.SphereGeometry(50_000, 32, 16),
       new THREE.ShaderMaterial({
@@ -247,6 +250,8 @@ export class Periscope3D {
   render(o: {
     bearing: number; fovDeg: number; t: number; sea: number; light: number; targets: PeriscopeTarget[];
     rain?: boolean; hour?: number; effects?: PeriscopeEffect[]; pitchDeg?: number; ownKn?: number; ownHeading?: number;
+    /** Met cells (fog banks, squalls, ice) and the own position they are placed from. */
+    met?: MetCells; own?: Vec2;
   }): void {
     const w = this.canvas.clientWidth || 400;
     const h = this.canvas.clientHeight || 400;
@@ -275,14 +280,16 @@ export class Periscope3D {
     u.uAmp!.value = amp;
     u.uLight!.value = o.light;
     u.uFoam!.value = Math.max(0, Math.min(1, (o.sea - 2) / 4));
-    const haze = new THREE.Color(0x7f939b).multiplyScalar(0.06 + 0.94 * o.light * o.light);
+    // Inside a fog bank: everything goes white-grey within a few hundred meters
+    const inFog = this.wx.update(o.met, o.own, o.t, o.light);
+    const haze = new THREE.Color(0x7f939b).lerp(new THREE.Color(0xc4cdd1), inFog).multiplyScalar(0.06 + 0.94 * o.light * o.light);
     u.uFog!.value = haze;
     // Dusk and dawn tint the horizon orange; the sun stands low in the west or east
     const dusk = o.light > 0.15 && o.light < 0.9 ? 1 - Math.abs(o.light - 0.5) * 2 : 0;
     // Night: a dark sky with only a faint glow at the horizon
     const horizon = new THREE.Color(0x8fa3ab).lerp(new THREE.Color(0xd08a5a), dusk * 0.7).multiplyScalar(0.06 + 0.94 * o.light * o.light);
     const su = this.sky.material.uniforms;
-    su.uHorizon!.value = o.rain ? horizon.clone().lerp(new THREE.Color(0x5c666a), 0.6) : horizon;
+    su.uHorizon!.value = (o.rain ? horizon.clone().lerp(new THREE.Color(0x5c666a), 0.6) : horizon).lerp(haze, inFog);
     su.uTop!.value = new THREE.Color(0x3d5560).multiplyScalar((0.05 + 0.95 * o.light * o.light) * (o.rain ? 0.7 : 1));
     const hour = o.hour ?? 12;
     const sunAz = ((hour - 6) / 12) * Math.PI; // east at 6 h, south at noon, west at 18 h
@@ -290,7 +297,7 @@ export class Periscope3D {
     this.sun.position.set(Math.cos(sunAz) * 10, Math.max(0.03, sunEl) * 10, Math.sin(sunAz) * 10);
     const sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
     const moonDir = new THREE.Vector3(-Math.cos(sunAz), 0.35, -Math.sin(sunAz)).normalize();
-    const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (o.rain ? 0.2 : 1);
+    const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (o.rain ? 0.2 : 1) * (1 - 0.8 * inFog);
     u.uSun!.value = sunDir;
     u.uMoon!.value = moonDir;
     u.uSunUp!.value = sunUp;
@@ -304,7 +311,7 @@ export class Periscope3D {
     this.hemi.intensity = 0.2 + 1.0 * o.light;
     this.sun.intensity = 1.2 * o.light * (o.rain ? 0.4 : 1);
     (this.stars.material as THREE.PointsMaterial).opacity = o.rain ? 0 : Math.max(0, 1 - o.light * 3) * 0.9;
-    const fogDensity = 0.000022 * (1 + o.sea * 0.2) * (o.rain ? 2.2 : 1);
+    const fogDensity = THREE.MathUtils.lerp(0.000022 * (1 + o.sea * 0.2) * (o.rain ? 2.2 : 1), 0.0019, inFog);
     u.uFogDensity!.value = fogDensity;
     this.scene.fog = new THREE.FogExp2(haze, fogDensity);
     this.rain.visible = !!o.rain;

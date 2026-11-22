@@ -227,7 +227,7 @@ export function bridgeStation(): Station {
       if (live) {
         gl!.render({
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
-          rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn,
+          rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn, met: s!.env.met, own: ownNow(),
         });
       }
       ctx.clearRect(0, 0, w, H);
