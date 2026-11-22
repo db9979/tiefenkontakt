@@ -1,6 +1,7 @@
 import { CLASSES, bearing, launchNoisemaker, setTowedDecoy, wrap360, type World } from '@tk/shared';
 import { SKILL, heardBearing, newMemory, recordTrack, type BotMemory, type BotSkill } from './common.js';
 import { thinkFrigate } from './frigate.js';
+import { thinkAirDefense } from './airdef.js';
 import { thinkSub, type PackReport } from './sub.js';
 import { planSide, type EscortTask } from './escort-team.js';
 import { obeySub } from './orders-ai.js';
@@ -15,7 +16,7 @@ export interface SavedCrew {
   pack: PackReport[];
 }
 
-const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400 } as const;
+const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000 } as const;
 
 /** AI captains for empty teams (and passive training targets). */
 export class BotCrew {
@@ -73,6 +74,7 @@ export class BotCrew {
         obeySub(w, m, ship);
       } else {
         thinkFrigate(w, m, ship, this.skill, this.tasks.get(ship.id));
+        thinkAirDefense(w, m, ship, this.skill);
         // VDS frigates hunt with the body under the layer whenever they are slow enough
         const vds = CLASSES[ship.cls].vds;
         if (vds) {
@@ -107,6 +109,7 @@ export class BotCrew {
       } else if (e.kind === 'recon' && sub && ship.team === 'east') {
         // Air recon via fleet command: head for the reported convoy
         m.lead = { x: ship.pos.x, y: ship.pos.y, b: bearing(ship.pos, e), t: w.time };
+        m.convoyLine = { x: e.x, y: e.y, course: e.course, speedKn: e.speedKn, t: w.time };
       } else if (e.kind === 'sunk') {
         m.alertUntil = w.time + 600;
       }

@@ -62,6 +62,7 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   const ai = enemies.find((e) => e.id.startsWith('p_bot-'));
   if (ai && rnd() < 0.6) intel.push(`Feindlagebild: Der gegnerische Kommandant ${ai.name} gilt als ${TRAITS[commanderTrait(ai.id, w.env.seed ?? 0)].de}`);
   if (sub && !duel) intel.push('Funksprüche der Führung alle 20 Minuten: Empfang auf höchstens 25 m oder mit Schleppantenne (bis 60 m, höchstens 6 kn)');
+  if ((settings.mission === 'hafen' || settings.mission === 'meerenge') && (!sub || w.weapons?.loadouts.get(ship.id)?.mines)) intel.push(sub ? 'Minen: Wo die Eskorte patrouilliert, sperren ein paar Minen ihr Fahrwasser (Feuerleitung, bis 300 m Wassertiefe)' : 'Minengefahr: Aktivsonar findet Minen voraus auf etwa 1 km');
   const steps = sub
     ? ['Langsam (unter 5 kn) und unter 100 m fahren und horchen', 'Kontakt wählen, klassifizieren, dann Kurswechsel für die Entfernung', 'Mit guter TMA-Lösung schießen, danach tief und schnell ablaufen']
     : hasHelicopter(ship.cls)

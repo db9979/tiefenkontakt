@@ -1,4 +1,5 @@
 import type { Ship } from './entities.js';
+import { steerClear } from './mines.js';
 import { KN, angleDiff, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
 
 export interface ConvoyState {
@@ -14,6 +15,8 @@ export interface ConvoyState {
   scatterFrom?: Vec2;
   arrived: string[];
   arriveRadius: number;
+  /** Known mines: the merchants steer clear of them (mines.ts). */
+  hazards?: Vec2[];
 }
 
 const ZIG_PERIOD = 480; // s per leg
@@ -84,7 +87,7 @@ export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: n
     const sp = stationPoint(c, off);
     const lead = headingVec(c.guideHeading);
     const aim = { x: sp.x + lead.x * 1500, y: sp.y + lead.y * 1500 };
-    m.order.heading = bearing(m.pos, aim);
+    m.order.heading = c.hazards?.length ? steerClear(m.pos, bearing(m.pos, aim), c.hazards) : bearing(m.pos, aim);
     // Along-track error: positive when the station is ahead of the ship
     const along = (sp.x - m.pos.x) * lead.x + (sp.y - m.pos.y) * lead.y;
     const offCourse = Math.abs(angleDiff(m.heading, m.order.heading)) > 60 ? -2 : 0;

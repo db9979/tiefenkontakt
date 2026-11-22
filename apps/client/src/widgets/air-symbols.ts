@@ -1,4 +1,5 @@
 import type { PlaneView, Snapshot } from '@tk/shared';
+import { drawMines, drawMissiles } from './airdef-symbols.js';
 
 /**
  * Air contacts on canvases (radar scope, plot): NATO-style air symbols – the upper half of
@@ -74,4 +75,7 @@ export function drawAir(
     ctx.fillText(`${NAME[p.kind]} ${alt}`, q.x + 9, q.y - 6);
   }
   ctx.restore();
+  // Missiles in flight everywhere; mines only on the plot (not the radar scope)
+  drawMissiles(ctx, s, toScreen);
+  if (!only) drawMines(ctx, s, toScreen);
 }

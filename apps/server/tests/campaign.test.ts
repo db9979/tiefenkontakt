@@ -22,7 +22,8 @@ describe('campaign state transitions', () => {
     const r = newRun('ssk');
     expect(r).toMatchObject({ status: 'ready', side: 'east', stage: 0, day: 0 });
     expect(r.ship.stock).toEqual(fullStock('ssk'));
-    expect(r.ship.stock.torpedoes).toBe(12);
+    // The Kilo-type carries 4 mines in place of 2 torpedoes
+    expect(r.ship.stock.torpedoes).toBe(10);
     expect(crewLevel(r.crew.xp)).toBe('Grün');
     expect(newRun('ffg').side).toBe('west');
   });

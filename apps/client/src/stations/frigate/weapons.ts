@@ -6,6 +6,7 @@ import { renderContactList } from '../../widgets/contact-list.js';
 import { deg1, h, km, setHtml } from '../../widgets/format.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
+import { airDefPanel, samAction } from '../../widgets/airdef-panel.js';
 import { buoyAction, courseAction, mpaAction, rocketAction } from '../../widgets/actions.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
@@ -41,6 +42,7 @@ export function weaponsStation(): Station {
       <div class="panel"><div class="hd"><span>Torpedoabwehr</span></div>
         <button id="decoy" class="warn">Täuschkörper-Schleppe</button>
       </div>
+      <div id="airdef"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Zielkarte</span><span class="dim">RECHTSKLICK = RAKETE HIERHER</span></div><canvas id="plot"></canvas></div>
@@ -62,9 +64,11 @@ export function weaponsStation(): Station {
   el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => (b.onclick = () => net.send({ t: 'dc', depth: Number(b.dataset.dc) })));
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
   q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
-  const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
+  const plot: Plot = new Plot(q<HTMLCanvasElement>('#plot'), {
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...samAction(p, plot.scale * 14), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
   });
+  const ad = airDefPanel();
+  q('#airdef').replaceWith(ad.el);
   plot.scale = 30;
 
   return {
@@ -86,6 +90,7 @@ export function weaponsStation(): Station {
       q('#dcn').textContent = `${l.depthCharges} VERFÜGBAR`;
       q('#decoy').classList.toggle('on', l.towedDecoy);
       renderContactList(q('#list'));
+      ad.update();
     },
     frame() {
       plot.draw(Math.max(260, window.innerHeight - 380));

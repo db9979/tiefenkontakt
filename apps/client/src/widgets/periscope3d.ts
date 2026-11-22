@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import type { ClassId, MetCells, PlaneKind, Sighting, Vec2, WreckView } from '@tk/shared';
+import type { ClassId, MetCells, PlaneKind, SamView, Sighting, Vec2, WreckView } from '@tk/shared';
 import { WeatherFx } from './sea3d/weather3d.js';
+import { MissileTrails } from './sea3d/missiles.js';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { mergeStatic } from './sea3d/merge.js';
@@ -115,6 +116,8 @@ export class Periscope3D {
   /** Own ship around the camera (bridge view): model and how far forward of midships the bridge is. */
   private own?: { g: THREE.Group; bridgeZ: number };
   private wx: WeatherFx;
+  /** Surface-to-air missiles: smoke trails, flames, bursts. */
+  private missiles = new MissileTrails(this.scene);
 
   constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
     this.eye = opts.eye ?? 4;
@@ -277,6 +280,7 @@ export class Periscope3D {
     met?: MetCells; own?: Vec2;
     /** The own ship's damage: she lists and trims, and the view with her. */
     ownWreck?: WreckView;
+    missiles?: { list: SamView[]; me: { x: number; y: number } };
   }): void {
     if (o.own) this.ownPos = o.own;
     const w = this.canvas.clientWidth || 400;
@@ -346,6 +350,7 @@ export class Periscope3D {
     this.place(o.targets, o.t, o.sea, amp, o.light);
     this.slicks = updateSlicks(this.slicks, this.scene, o.t, this.ownPos.x, this.ownPos.y, o.light);
     this.fire.intensity = this.glow * 4;
+    this.missiles.update(o.missiles?.list ?? [], o.missiles?.me ?? { x: 0, y: 0 }, o.t, o.light);
     if (this.own) {
       // Keep the own hull under the camera: the bridge point sits below the eye, the ship heaves and rolls with it
       const c = ((o.ownHeading ?? 0) * Math.PI) / 180;

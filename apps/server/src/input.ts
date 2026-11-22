@@ -23,6 +23,9 @@ import {
   emergencyBlow,
   sendMad,
   executeOrder,
+  fireSam,
+  callFighter,
+  layMine,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -88,6 +91,9 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('dip'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
   z.object({ t: z.literal('helotorp'), bearing: deg, range: z.number().finite().min(500).max(30_000) }),
   z.object({ t: z.literal('mpa'), bearing: deg, range: z.number().finite().min(0).max(80_000) }),
+  z.object({ t: z.literal('sam'), planeId: z.string().min(1).max(24) }),
+  z.object({ t: z.literal('fighter') }),
+  z.object({ t: z.literal('mine') }),
   z.object({
     t: z.literal('classify'), label: z.string().min(1).max(24),
     choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
@@ -113,7 +119,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -222,6 +228,12 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     }
     case 'execute_order': {
       const r = executeOrder(w, s, m.id);
+      return r === true ? undefined : r;
+    }
+    case 'sam':
+    case 'fighter':
+    case 'mine': {
+      const r = m.t === 'sam' ? fireSam(w, s, m.planeId) : m.t === 'fighter' ? callFighter(w, s) : layMine(w, s);
       return r === true ? undefined : r;
     }
     case 'noisemaker': {

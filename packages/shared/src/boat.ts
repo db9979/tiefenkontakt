@@ -9,6 +9,7 @@ import { stepCommandRadio } from './command-radio.js';
 import { stepOrders } from './orders.js';
 import { stepIncidents } from './incidents.js';
 import { stepAirspace } from './airspace.js';
+import { stepAirDefense } from './airdef.js';
 import { stepLights } from './lights.js';
 
 /**
@@ -202,6 +203,7 @@ export function boatSystem(w: World, dt: number): void {
   stepOrders(w, dt);
   stepIncidents(w, dt);
   stepAirspace(w, dt);
+  stepAirDefense(w, dt);
   for (const s of w.ships) {
     if (!s.alive || s.cls === 'merchant' || s.team === 'neutral') continue;
     stepCrew(w, s, dt);

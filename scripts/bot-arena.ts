@@ -30,7 +30,8 @@ for (let g = 0; g < games; g++) {
   const shots = (what: string) => game.world.events.filter((e) => e.kind === 'weapon' && e.what === what).length;
   console.log(
     `${setup.mission.padEnd(9)} ${r.winner.padEnd(4)} ${String(r.minutes).padStart(4)} min | Frachter ${r.merchantsSunk} | U-Boote ${r.subsLost} | Eskorten ${r.escortsLost}` +
-      ` | Torpedos ${r.torpedoes} Raketen ${shots('rocket')} Bojen ${shots('buoy')} Funk ${game.world.events.filter((e) => e.kind === 'transmission').length} | ${r.reason} | ${Date.now() - t0} ms`,
+      ` | Torpedos ${r.torpedoes} Raketen ${shots('rocket')} Bojen ${shots('buoy')} Funk ${game.world.events.filter((e) => e.kind === 'transmission').length}` +
+      ` | FK ${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'launch').length}/${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'kill').length} Minen ${game.world.events.filter((e) => e.kind === 'transient' && e.what === 'mine').length} | Befehle W ${of('west')} O ${of('east')} | ${r.reason} | ${Date.now() - t0} ms`,
   );
 }
 const st = seriesStats(results);

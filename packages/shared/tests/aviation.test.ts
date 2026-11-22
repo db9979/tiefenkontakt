@@ -141,6 +141,12 @@ describe('air traffic and air sensors', () => {
       stepAirspace(w, 0.3);
     }
     expect(w.events.some((e) => e.kind === 'recon')).toBe(true);
+    // Reported on identification (20 km out), then it comes down to orbit low
+    for (let i = 0; i < 400; i++) {
+      w.time += 0.3;
+      stepAirspace(w, 0.3);
+    }
     expect(w.env.airspace!.planes.find((p) => p.kind === 'recon')!.alt).toBeLessThan(1500);
+    expect(w.events.filter((e) => e.kind === 'recon')).toHaveLength(1);
   });
 });

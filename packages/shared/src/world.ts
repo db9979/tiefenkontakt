@@ -25,7 +25,7 @@ export type GameEvent =
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
-  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' }
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' | 'sam' | 'mine' }
   /** Something the crew reports aboard (air, wounded, hull failure, incidents). */
   | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
@@ -39,7 +39,11 @@ export type GameEvent =
   /** FLASH order read aboard, or its result (orders.ts). */
   | { kind: 'flash'; time: number; shipId: string; orderId: string; text: string; status?: 'done' | 'missed' }
   /** Team radio between surface ships (UHF line of sight, not DF'd like HF): AI escorts announce roles. */
-  | { kind: 'teamradio'; time: number; senderId: string; text: string };
+  | { kind: 'teamradio'; time: number; senderId: string; text: string }
+  /** Air defence: missile launched / hit / missed, interceptor fighters out, kill or no target. */
+  | { kind: 'airdef'; time: number; what: 'launch' | 'kill' | 'miss' | 'fighter_out' | 'fighter_kill' | 'fighter_none'; team: 'west' | 'east'; shipId?: string; x: number; y: number }
+  /** Naval mines: detected by an escort's sonar, or detonated under a ship. */
+  | { kind: 'mine'; time: number; what: 'detected' | 'detonated'; mineId: string; team: 'west' | 'east'; shipId: string; x: number; y: number };
 
 export interface World {
   time: number;

@@ -236,6 +236,7 @@ export function bridgeStation(): Station {
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
           rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn, met: s!.env.met,
           effects: blasts(s!, tg.filter((x) => !x.sunk && !x.plane && !x.sighting), nowMs), own: ownNow(), ownWreck: s!.own.wreck,
+          missiles: { list: s!.airdef?.missiles ?? [], me: ownNow() },
         });
       }
       ctx.clearRect(0, 0, w, H);

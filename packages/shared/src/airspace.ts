@@ -3,7 +3,7 @@ import { fogAt, inSquall } from './met.js';
 import { CLASSES } from './classes.js';
 import { canCopy } from './command-radio.js';
 import { isConvoyShip, mastRaised, type Ship } from './entities.js';
-import { KN, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
+import { KN, angleDiff, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { World } from './world.js';
 
 /**
@@ -30,6 +30,11 @@ export interface Plane {
   orbit?: Vec2;
   orbitUntil?: number;
   reported?: boolean;
+  /** Breaking away from a missile (or fighter) until this time, away from that point. */
+  evadeUntil?: number;
+  evadeFrom?: Vec2;
+  /** Recon after losses: orbits this far out from the convoy instead of overhead. */
+  standoff?: number;
 }
 
 export interface AirspaceState { planes: Plane[]; nextCivil: number; nextRecon: number; nextId: number }
@@ -37,6 +42,8 @@ export interface AirspaceState { planes: Plane[]; nextCivil: number; nextRecon: 
 const AREA_M = 70_000;
 const AIRLINER_ALT = [9000, 11500];
 const RECON_KN = 330;
+/** The recon aircraft identifies the convoy (and reports it) from this range. */
+const RECON_ID_M = 20_000;
 /** Search radar of patrol and recon aircraft: detection of ships and range at which ESM hears it. */
 export const AIR_RADAR_M = 70_000;
 
@@ -72,9 +79,12 @@ function spawnRecon(w: World): void {
   const c = centre(w);
   const a = w.rng.next() * 360;
   const v = headingVec(a);
+  // Burnt once: later recon flights stay high and work from a stand-off orbit
+  const losses = w.env.airdef?.reconLosses ?? 0;
   st.planes.push({
     id: `R${st.nextId++}`, kind: 'recon', team: 'east', pos: { x: c.x + v.x * AREA_M, y: c.y + v.y * AREA_M },
-    heading: wrap360(a + 180), alt: 1500, speedKn: RECON_KN, radar: true, orbit: c,
+    heading: wrap360(a + 180), alt: losses ? 6000 + 1000 * Math.min(2, losses - 1) : 1500, speedKn: RECON_KN, radar: true, orbit: c,
+    standoff: losses ? Math.min(34_000, 22_000 + 6000 * (losses - 1)) : 0,
   });
 }
 
@@ -97,19 +107,32 @@ export function stepAirspace(w: World, dt: number): void {
   const c = centre(w);
   for (const p of st.planes) {
     if (p.kind === 'recon' && p.orbit) {
-      // Run in, descend to 300 m over the convoy, orbit 5 minutes with radar on, then leave
+      // Run in, descend to 300 m over the convoy (or hold a stand-off ring), orbit 5 minutes with radar on, then leave
       const conv = centre(w);
       const d = distance(p.pos, conv);
-      if (p.orbitUntil === undefined && d < 4000) p.orbitUntil = w.time + 300;
-      if (p.orbitUntil !== undefined && w.time < p.orbitUntil) {
-        p.heading = wrap360(p.heading + 3 * dt);
-        p.alt = Math.max(300, p.alt - 10 * dt);
-        if (!p.reported) {
-          p.reported = true;
-          const lead = w.convoy?.guideHeading ?? 0;
-          w.events.push({ kind: 'recon', time: w.time, x: conv.x, y: conv.y, course: Math.round(lead), speedKn: Math.round((w.convoy?.baseSpeedKn ?? 8)) });
+      const ring = p.standoff ?? 0;
+      if (p.evadeUntil !== undefined && w.time < p.evadeUntil && p.evadeFrom) {
+        // Missile warning: hard turn away from the launcher and down toward the sea clutter
+        p.heading = wrap360(p.heading + clamp(angleDiff(p.heading, bearing(p.evadeFrom, p.pos)), -6 * dt, 6 * dt));
+        p.alt = Math.max(ring ? 3000 : 120, p.alt - 25 * dt);
+      } else {
+        if (p.orbitUntil === undefined && d < ring + 4000) p.orbitUntil = w.time + 300;
+        if (p.orbitUntil !== undefined && w.time < p.orbitUntil) {
+          if (ring) p.heading = wrap360(bearing(conv, p.pos) + 90 + clamp((d - ring) / 100, -40, 40));
+          else {
+            p.heading = wrap360(p.heading + 3 * dt);
+            p.alt = Math.max(300, p.alt - 10 * dt);
+          }
+        } else if (p.orbitUntil === undefined) {
+          p.heading = bearing(p.pos, conv);
+          if (ring) p.alt = Math.min(7000, p.alt + 5 * dt);
         }
-      } else if (p.orbitUntil === undefined) p.heading = bearing(p.pos, conv);
+      }
+    }
+    // The report goes out once the convoy is identified: inside 20 km (or from the stand-off orbit)
+    if (p.kind === 'recon' && p.orbit && !p.reported && (p.orbitUntil !== undefined || distance(p.pos, c) < RECON_ID_M)) {
+      p.reported = true;
+      w.events.push({ kind: 'recon', time: w.time, x: c.x, y: c.y, course: Math.round(w.convoy?.guideHeading ?? 0), speedKn: Math.round((w.convoy?.baseSpeedKn ?? 8)) });
     }
     const v = headingVec(p.heading);
     p.pos.x += v.x * p.speedKn * KN * dt;

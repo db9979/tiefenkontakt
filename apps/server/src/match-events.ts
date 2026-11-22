@@ -16,12 +16,14 @@ import {
   isConvoyShip,
 } from '@tk/shared';
 
+import { airdefAlerts } from './airdef-events.js';
+
 /** Turning simulation events into per-player alerts (what each crew can hear or is told). */
 
 const EXPLOSION_HEARING = 40_000;
 /** Hearing ranges of transients (U-Jagd: tube flooding ~8 NM, launch ~35 NM). */
-const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400 } as const;
-const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN', splash: 'TRANSIENT · BOJENEINSCHLAG' } as const;
+const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000 } as const;
+const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN', splash: 'TRANSIENT · BOJENEINSCHLAG', sam: 'TRANSIENT · RAKETENSTART ÜBER WASSER', mine: 'TRANSIENT · UNTERWASSERDETONATION' } as const;
 
 const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
 
@@ -38,6 +40,7 @@ export interface AlertContext {
 }
 
 export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void {
+  airdefAlerts(w, fresh, ctx);
   for (const e of fresh) {
     if (e.kind === 'grounded') {
       for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind: 'sunk', text: 'AUF GRUND GELAUFEN · SCHÄDEN' });
