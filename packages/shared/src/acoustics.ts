@@ -23,6 +23,8 @@ export interface Environment {
   current?: { x: number; y: number };
   /** Incidents at sea (driftnets, whales, fronts); present only in full matches. */
   incidents?: IncidentState;
+  /** Aircraft: civil traffic and the Ostpakt's long-range reconnaissance. */
+  airspace?: import('./airspace.js').AirspaceState;
   /** Match seed (AI commanders' traits are drawn from it). */
   seed?: number;
   /** Mission id and its running state (shadowing time, exit line, weapons tight). */

@@ -1,4 +1,5 @@
 import {
+  planesFor,
   CLASSES,
   KN,
   batteryEndurance,
@@ -156,6 +157,7 @@ export function buildSnapshot(
     };
   }
   return {
+    planes: planesFor(w, own),
     air,
     time: w.time,
     timeScale: x.timeScale ?? 1,

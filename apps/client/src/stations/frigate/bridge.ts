@@ -4,6 +4,7 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
 import { easeAngle, moverNow, ownNow, simNow } from '../../widgets/smooth.js';
+import { planeTargets } from '../../widgets/air-targets.js';
 import { deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
 
 const H = 380;
@@ -21,7 +22,7 @@ export function bridgeStation(): Station {
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button id="glass">Fernglas 7×</button>
         <button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button>
-        <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button>
+        <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button>
         <span class="kbd" style="align-self:center">ZIEHEN DREHT · A / D</span>
       </div>
     </div>
@@ -87,9 +88,21 @@ export function bridgeStation(): Station {
     }
   };
   el.querySelector<HTMLButtonElement>('#tocontact')!.onclick = () => {
+    airTrack = undefined;
     const c = store.selectedContact();
     if (c) lookAt(c.bearing);
   };
+  // Aircraft: cycle through those in sight and follow one, looking up to its elevation
+  let airTrack: string | undefined;
+  let pitch = -8;
+  el.querySelector<HTMLButtonElement>('#toair')!.onclick = () => {
+    const s = store.snap;
+    const air = s ? planeTargets(s, ownNow(), simNow()).sort((a, b) => a.bearing - b.bearing) : [];
+    if (!air.length) return void (airTrack = undefined);
+    const i = air.findIndex((p) => p.label === airTrack);
+    airTrack = air[(i + 1) % air.length]!.label;
+  };
+  for (const id of ['#left', '#right', '#ahead', '#report']) el.querySelector(id)!.addEventListener('click', () => (airTrack = undefined));
   let dragX: number | undefined;
   view.style.cursor = 'ew-resize';
   view.style.touchAction = 'none';
@@ -128,6 +141,8 @@ export function bridgeStation(): Station {
       if (age > SIGHT_HOLD) continue;
       out.push({ label: c.label, cls: 'ssk', sighting: c.sighting, bearing: c.bearing, range: c.range, alpha: Math.min(1, (SIGHT_HOLD - age) / 2), speedKn: 6, course: c.bearing + 90 });
     }
+    // Aircraft in sight (helicopters, patrol aircraft, airliners, the enemy's recon)
+    out.push(...planeTargets(s, me, now));
     // Sightings only come once per sweep: glide toward the latest values
     for (const tg of out) {
       if (!tg.sighting) continue;
@@ -142,6 +157,14 @@ export function bridgeStation(): Station {
     }
     return out;
   }
+
+  /** Aircraft in sight and the one the lookout follows. */
+  const airLine = (s: NonNullable<typeof store.snap>) => {
+    const air = (s.planes ?? []).filter((p) => p.via.includes('visual'));
+    const f = air.find((p) => p.id === airTrack);
+    const NAME = { airliner: 'VERKEHRSFLUGZEUG', light: 'KLEINFLUGZEUG', recon: 'FERNAUFKLÄRER', mpa: 'SEEAUFKLÄRER', helo: 'HUBSCHRAUBER' } as const;
+    return `<div class="row"><span class="dim">LUFT IN SICHT</span><span>${air.length || '—'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${deg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
+  };
 
   return {
     title: 'Brücke',
@@ -163,6 +186,7 @@ export function bridgeStation(): Station {
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
         <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>
+        ${airLine(s)}
         <div class="dim" style="margin:8px 0 4px">MELDUNGEN</div>
         ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${deg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
         <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`);
@@ -194,10 +218,16 @@ export function bridgeStation(): Station {
       const live = !!gl && !!s;
       glCanvas.style.visibility = live ? 'visible' : 'hidden';
       const tg = live ? targets() : [];
+      // Following an aircraft: bearing and elevation of the plane, else the normal look over the sea
+      const followed = airTrack ? tg.find((x) => x.label === airTrack) : undefined;
+      if (airTrack && !followed && live) airTrack = undefined;
+      if (followed && s) relTarget = angleDiff(s.own.heading, followed.bearing);
+      const wantPitch = followed ? Math.min(70, (Math.atan2((followed.alt ?? 0) - 20, followed.range) * 180) / Math.PI) : glass ? -0.15 : -8;
+      pitch += (wantPitch - pitch) * 0.1;
       if (live) {
         gl!.render({
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
-          rain: s!.env.rain, hour: s!.env.clock, pitchDeg: glass ? -0.15 : -8, ownHeading: heading, ownKn: s!.own.speedKn,
+          rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn,
         });
       }
       ctx.clearRect(0, 0, w, H);

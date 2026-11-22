@@ -116,6 +116,7 @@ ${fig(figNato(), 'Abb. 7 · Kartensymbole.')}
 <tr><td>Ellipse</td><td>Unsicherheit einer Lösung oder Kreuzpeilung.</td></tr>
 <tr><td>Kreuz mit Kreis</td><td>Sonarboje; mit zweitem Ring und „A“ eine aktive Boje (DICASS). „T“ = tief unter der Schicht.</td></tr>
 <tr><td>Kreuz</td><td>Hubschrauber; gestrichelter Kreis: Reichweite des Tauchsonars beim Schweben.</td></tr>
+<tr><td>Luftsymbol</td><td>Obere Rahmenhälfte (Bogen eigen, Winkel feindlich, offenes Rechteck neutral) mit Typ, Höhe und Fahrtstrich. Ein gestrichelter Strahl mit ✈ ist ein Flugzeugradar, das nur im ESM gehört wird.</td></tr>
 <tr><td>Kartenfärbung</td><td>Land, Untiefen, Schelf und tiefes Wasser aus der Seekarte. Wer die Fahrrinne im Fjord verlässt, läuft auf.</td></tr>
 </table>
 <p>Peilungen werden geglättet angezeigt, damit Symbole ruhig stehen. Die Rohwerte rauschen, je schwächer das Signal, desto mehr.</p>

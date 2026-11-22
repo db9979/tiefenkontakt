@@ -35,6 +35,14 @@ function plan(s: Snapshot, torp?: AlertView, ping?: AlertView): Plan | undefined
   return undefined;
 }
 
+/** Aircraft: enemy radar heard on ESM (bearing only) or aircraft in sight through the periscope. */
+function airRow(s: Snapshot): string {
+  const air = (s.planes ?? []).filter((p) => p.side !== 'friend' && (p.via.includes('esm') || p.via.includes('visual')));
+  if (!air.length) return '<div class="row"><span class="dim">LUFT</span><span class="dim">—</span></div>';
+  const radar = air.filter((p) => p.via.includes('esm'));
+  return `<div class="row"><span class="dim">LUFT</span><span class="${radar.length ? 'red' : 'amber'}">${radar.length ? `FLUGZEUGRADAR ${radar.map((p) => `${deg3(p.bearing)}°`).join(' · ')} · MAST EINFAHREN` : `${air.length} IN SICHT`}</span></div>`;
+}
+
 export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
   const el = h(`<div class="panel threat"><div class="hd"><span>Bedrohung</span><span id="th-sum" class="dim"></span></div>
     <div id="th-rows"></div>
@@ -66,6 +74,7 @@ export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
         `<div class="row"><span class="dim">BORDSONAR · TAUCHSONAR · BOJE</span><span>${hull.length} · ${dip.length} · ${buoy.length}</span></div>`,
         loud ? `<div class="row"><span class="dim">LAUTESTER</span><span class="${(loud.level ?? 0) >= ECHO_LIKELY ? 'red' : ''}">${deg3(loud.bearing ?? 0)}° · ${loud.level ?? 0} DB${(loud.level ?? 0) >= ECHO_LIKELY ? ' · ER HAT VERMUTLICH EIN ECHO' : ''}</span></div>` : '',
         last2.length === 2 ? `<div class="row"><span class="dim">TREND</span><span class="${trend > 1 ? 'red' : ''}">${trend > 1 ? 'STEIGEND · ER KOMMT NÄHER' : trend < -1 ? 'FALLEND' : 'GLEICH'}</span></div>` : '',
+        airRow(s),
         `<div class="row"><span class="dim">BOJENEINSCHLÄGE (4 SM)</span><span class="${splashes.length ? 'amber' : ''}">${splashes.length}${splashes.length ? ` · ZULETZT ${deg3(splashes[splashes.length - 1]!.bearing ?? 0)}°` : ''}</span></div>`,
       ].join(''));
       current = plan(s, torp, pings[pings.length - 1]);

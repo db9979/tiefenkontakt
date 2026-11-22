@@ -148,6 +148,25 @@ export function bioTable(): string {
   <p class="small">* Quellpegel im Spiel. Reale Werte (Wikipedia): Finnwal 155–186 dB, Blauwal bis 188 dB, Pottwal-Klicks bis 236 dB (vor allem im Kilohertzbereich), Knallkrebse 185–190 dB je Knall.</p>`;
 }
 
+const AIR: { file: string; name: string; who: string; alt: string; kn: string; text: string }[] = [
+  { file: 'air-helo', name: 'Bordhubschrauber', who: 'Westbund (F-12)', alt: '25–120 m', kn: '120', text: 'Wirft Sonarbojen und Leichttorpedos, taucht sein Sonar, fliegt das MAD-Kleeblatt. Ohne eigenes Radar; dem U-Boot verrät er sich durch Rotorlärm und im Sehrohr.' },
+  { file: 'air-mpa', name: 'Seeaufklärer', who: 'Westbund (auf Anforderung)', alt: '300 m (MAD 60 m)', kn: '300', text: 'Vier Turboprops, Magnetsonde im Heck. Legt Bojenketten; sein Suchradar ist eingeschaltet und für jedes U-Boot mit ausgefahrenem Mast auf große Entfernung im ESM zu hören.' },
+  { file: 'air-recon', name: 'Fernaufklärer', who: 'Ostpakt', alt: '1500 m, über dem Konvoi 300 m', kn: '330', text: 'Kommt etwa alle 40–60 Minuten, sucht mit eingeschaltetem Radar, kreist fünf Minuten tief über dem Konvoi und meldet Position, Kurs und Fahrt über die Führung an die U-Boote. Die Eskorte sieht ihn im Radar und hört sein Radar im ESM – abschießen kann sie ihn nicht.' },
+  { file: 'air-airliner', name: 'Verkehrsflugzeug', who: 'Neutral', alt: '9–11,5 km', kn: '440–480', text: 'Kreuzt auf Luftstraßen. Bei Tag am Kondensstreifen bis 45 km zu sehen, nachts an den Lichtern; im Luftraumradar weit über den Horizont hinaus.' },
+  { file: 'air-light', name: 'Kleinflugzeug', who: 'Neutral', alt: '500–1100 m', kn: '110', text: 'Hochdecker im Küstenverkehr, vor allem über Schelf und Fjord. Klein und nur auf wenige Kilometer zu sehen.' },
+];
+
+/** Aircraft: pictures and what each sensor makes of them. */
+export function airCards(): string {
+  return `<table class="grid"><tr><th></th><th>Typ</th><th>Seite</th><th>Höhe</th><th>kn</th><th>Rolle und Erkennung</th></tr>${AIR.map((a) =>
+    `<tr><td style="width:34mm"><img src="img/${a.file}.png" alt="" style="width:32mm"></td><td><b>${a.name}</b></td><td>${a.who}</td><td>${a.alt}</td><td>${a.kn}</td><td>${a.text}</td></tr>`).join('')}</table>
+  <table class="grid"><tr><th>Sensor</th><th>Was er von Flugzeugen liefert</th></tr>
+  <tr><td>Luft-/Seeraumradar</td><td>Position, Höhe, Kurs und Fahrt bis zum Radarhorizont, der mit der Flughöhe wächst (Verkehrsflugzeuge weit über 100 km). Bereich 48 SM im Radarraum.</td></tr>
+  <tr><td>Ausguck / Sehrohr</td><td>Bei Tag nach Größe (Verkehrsflugzeug am Kondensstreifen), nachts nur an den Lichtern. Auf der Brücke schwenkt „Luft“ auf jedes sichtbare Flugzeug und folgt ihm mit dem Höhenwinkel.</td></tr>
+  <tr><td>ESM</td><td>Nur Peilung, aber auf die doppelte Radarreichweite: Seeaufklärer und Fernaufklärer verraten sich durch ihr Radar. Für ein U-Boot heißt das: Mast einfahren.</td></tr>
+  <tr><td>Datalink</td><td>Eigene Flugzeuge immer (U-Boote nur mit ausgefahrenem Mast).</td></tr></table>`;
+}
+
 /** Short comparison table of all playable classes. */
 export function unitTable(): string {
   const ids: ClassId[] = ['ffg', 'ffv', 'kor', 'ssn', 'ssk', 'ssc', 'ssa'];

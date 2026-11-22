@@ -131,6 +131,6 @@ export const EN_UX_PHRASES: [RegExp, string][] = [
   [/^Konvoi: Peilung (\d+), (\d+) km, (\d+) Frachter$/, 'Convoy: bearing $1, $2 km, $3 merchants'],
   [/^Ankerplatz: Peilung (\d+), (\d+) km, (\d+) Frachter$/, 'Anchorage: bearing $1, $2 km, $3 merchants'],
   [/^Bedrohung: (\d+) U-Boot\(e\), vermutlich voraus des Konvois$/, 'Threat: $1 submarine(s), probably ahead of the convoy'],
-  [/Atom-U-Boot Projekt 9/, 'Nuclear submarine Project 9'], [/Diesel-U-Boot Projekt 4/, 'Diesel submarine Project 4'], [/Küsten-U-Boot Projekt 2/, 'Coastal submarine Project 2'], [/^Korvette K-7/, 'Corvette K-7'], [/^Fregatte F-12/, 'Frigate F-12'],
+  [/Atom-U-Boot Projekt 9/, 'Nuclear submarine Project 9'], [/Diesel-U-Boot Projekt 4/, 'Diesel submarine Project 4'], [/Küsten-U-Boot Projekt 2/, 'Coastal submarine Project 2'], [/^Korvette K-7/, 'Corvette K-7'], [/^Fregatte F-12/, 'Frigate F-12'], [/^Sprechen \((.+)\)$/, 'Talk ($1)'], [/Leertaste/, 'Space'],
   [/^AN BORD: /, 'ABOARD: '], [/ · WERTUNG (\d+)/, ' · RATING $1'], [/ UHR\b/, ''], [/AKTIVSONAR/g, 'ACTIVE SONAR'],
 ];

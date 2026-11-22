@@ -1,6 +1,6 @@
 import { voice } from '../voice/voice.js';
 import { h, setHtml, setText } from './format.js';
-import { isKey } from './keys.js';
+import { currentKeys, isKey, keyName } from './keys.js';
 import { onTap } from './touch.js';
 
 /**
@@ -14,7 +14,7 @@ export function voicePanel(): { el: HTMLElement; dispose(): void } {
     <div class="row"><span class="dim">SPRECHFUNK</span><span id="vo-mode" class="dim"></span></div>
     <div class="steps">
       <button id="vo-on" title="Mikrofon freigeben und dem Sprechfunk des Teams beitreten">Sprechfunk an</button>
-      <button id="vo-ptt" class="ptt" title="Gedrückt halten zum Sprechen (Taste V). Jede Sendung kann der Gegner anpeilen." disabled>Sprechen (V)</button>
+      <button id="vo-ptt" class="ptt" disabled></button>
     </div>
     <div class="row"><span class="dim">MIKRO</span><span class="bar"><i id="vo-lvl"></i></span></div>
     <div id="vo-peers"></div>
@@ -38,12 +38,21 @@ export function voicePanel(): { el: HTMLElement; dispose(): void } {
   ptt.addEventListener('pointercancel', release);
   ptt.addEventListener('contextmenu', (e) => e.preventDefault());
   const down = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement).tagName === 'INPUT' || e.repeat || !isKey(e, 'ptt')) return;
-    voice.ptt(true);
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || !isKey(e, 'ptt') || !voice.joined) return;
+    // Space or Enter would also press the focused button or scroll the page
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.repeat) voice.ptt(true);
   };
-  const up = (e: KeyboardEvent) => isKey(e, 'ptt') && voice.ptt(false);
-  window.addEventListener('keydown', down);
-  window.addEventListener('keyup', up);
+  const up = (e: KeyboardEvent) => {
+    if (!isKey(e, 'ptt') || !voice.joined) return;
+    e.preventDefault();
+    voice.ptt(false);
+  };
+  // Capture phase: the talk key wins over station shortcuts and focused buttons
+  window.addEventListener('keydown', down, true);
+  window.addEventListener('keyup', up, true);
   window.addEventListener('blur', release);
 
   const render = () => {
@@ -53,7 +62,10 @@ export function voicePanel(): { el: HTMLElement; dispose(): void } {
     ptt.disabled = !voice.joined;
     const live = voice.pttHeld && !!st?.ptt;
     ptt.classList.toggle('live', live);
-    setText(ptt, live ? 'AUF SENDUNG' : voice.pttHeld ? 'Kein Sendebetrieb' : 'Sprechen (V)');
+    // Label and hint follow the key the player bound (help → keys)
+    const key = keyName(currentKeys().ptt);
+    setText(ptt, live ? 'AUF SENDUNG' : voice.pttHeld ? 'Kein Sendebetrieb' : `Sprechen (${key})`);
+    ptt.title = `Gedrückt halten zum Sprechen (Taste ${key}). Jede Sendung kann der Gegner anpeilen.`;
     setText(q('#vo-mode'), !voice.joined ? 'AUS' : voice.mode === 'sfu' ? 'ÜBER SPRACHSERVER' : 'DIREKT');
     const peers = [...voice.peers.values()];
     setHtml(q('#vo-peers'), voice.joined ? (peers.length ? peers.map((p) => {
@@ -78,8 +90,8 @@ export function voicePanel(): { el: HTMLElement; dispose(): void } {
     dispose() {
       offChange();
       clearInterval(meter);
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
+      window.removeEventListener('keydown', down, true);
+      window.removeEventListener('keyup', up, true);
       window.removeEventListener('blur', release);
     },
   };

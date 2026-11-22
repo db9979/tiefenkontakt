@@ -1,4 +1,4 @@
-import { CLASSES, launchNoisemaker, setTowedDecoy, wrap360, type World } from '@tk/shared';
+import { CLASSES, bearing, launchNoisemaker, setTowedDecoy, wrap360, type World } from '@tk/shared';
 import { SKILL, heardBearing, newMemory, recordTrack, type BotMemory, type BotSkill } from './common.js';
 import { thinkFrigate } from './frigate.js';
 import { thinkSub, type PackReport } from './sub.js';
@@ -92,6 +92,9 @@ export class BotCrew {
           m.lead = { x: ship.pos.x, y: ship.pos.y, b, t: w.time };
           m.alertUntil = w.time + 600;
         }
+      } else if (e.kind === 'recon' && sub && ship.team === 'east') {
+        // Air recon via fleet command: head for the reported convoy
+        m.lead = { x: ship.pos.x, y: ship.pos.y, b: bearing(ship.pos, e), t: w.time };
       } else if (e.kind === 'sunk') {
         m.alertUntil = w.time + 600;
       }

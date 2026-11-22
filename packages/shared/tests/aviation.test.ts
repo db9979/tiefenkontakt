@@ -103,3 +103,44 @@ describe('neutral traffic and sea life', () => {
     expect(SIGNATURES.pottwal.choice).toBe('bio');
   });
 });
+
+import { allPlanes, installAirspace, planesFor, stepAirspace } from '../src/index.js';
+
+describe('air traffic and air sensors', () => {
+  it('radar sees an airliner far off, the eye only by day, ESM hears the recon radar; a submerged boat sees nothing', () => {
+    const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 0, y: 0 }, heading: 0, speedKn: 12 });
+    const sub = createShip({ id: 'u', cls: 'ssk', name: 'U', team: 'east', pos: { x: 5000, y: 0 }, heading: 0, speedKn: 4, depth: 60 });
+    const w = createWorld([ffg, sub], 9, { layerDepth: 120, layerLoss: 12, seaState: 2, light: 1 });
+    installAirspace(w);
+    const st = w.env.airspace!;
+    st.planes = [
+      { id: 'F1', kind: 'airliner', team: 'neutral', pos: { x: 60_000, y: 0 }, alt: 10_000, heading: 270, speedKn: 450, radar: false },
+      { id: 'R1', kind: 'recon', team: 'east', pos: { x: 0, y: 130_000 }, alt: 1500, heading: 180, speedKn: 330, radar: true },
+    ];
+    ffg.radarOn = true;
+    const seen = planesFor(w, ffg);
+    expect(seen.find((p) => p.id === 'F1')?.via).toEqual(expect.arrayContaining(['radar']));
+    expect(seen.find((p) => p.id === 'R1')?.via).toEqual(['esm']);
+    expect(seen.find((p) => p.id === 'R1')?.x).toBeUndefined();
+    expect(planesFor(w, sub)).toHaveLength(0);
+    w.env.light = 0.05;
+    ffg.radarOn = false;
+    st.planes[0]!.pos = { x: 20_000, y: 0 };
+    expect(planesFor(w, ffg).find((p) => p.id === 'F1')?.via).toEqual(['visual']);
+    expect(allPlanes(w)).toHaveLength(2);
+  });
+
+  it('the recon aircraft flies to the convoy, orbits low and reports it', () => {
+    const m = createShip({ id: 'm', cls: 'merchant', name: 'M', pos: { x: 0, y: 0 }, heading: 0, speedKn: 0 });
+    const sub = createShip({ id: 'u', cls: 'ssk', name: 'U', team: 'east', pos: { x: 20_000, y: 0 }, heading: 0, speedKn: 0, depth: 60 });
+    const w = createWorld([m, sub], 4, { layerDepth: 120, layerLoss: 12, seaState: 2 });
+    installAirspace(w);
+    w.env.airspace!.nextRecon = 0;
+    for (let i = 0; i < 6000 && !w.events.some((e) => e.kind === 'recon'); i++) {
+      w.time += 0.3;
+      stepAirspace(w, 0.3);
+    }
+    expect(w.events.some((e) => e.kind === 'recon')).toBe(true);
+    expect(w.env.airspace!.planes.find((p) => p.kind === 'recon')!.alt).toBeLessThan(1500);
+  });
+});

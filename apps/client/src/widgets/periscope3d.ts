@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import type { ClassId, Sighting } from '@tk/shared';
+import type { ClassId, PlaneKind, Sighting } from '@tk/shared';
 import { shipModel, sightingModel } from './sea3d/models.js';
+import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { dprGl, oceanSegments } from './perf.js';
@@ -26,6 +27,9 @@ export interface PeriscopeTarget {
   sighting?: Sighting;
   /** Navigation lights burning (shown at dusk and night). */
   lit?: boolean;
+  /** Aircraft: type and height above the sea (m). */
+  plane?: PlaneKind;
+  alt?: number;
 }
 
 /** A detonation seen through the optic (from a hit/sunk report): water column, smoke, fire. */
@@ -292,15 +296,28 @@ export class Periscope3D {
     const seen = new Set<string>();
     for (const tg of targets) {
       seen.add(tg.label);
-      const key = `${tg.cls}|${tg.sighting ?? ''}`;
+      const key = `${tg.plane ?? tg.cls}|${tg.sighting ?? ''}`;
       let s = this.ships.get(tg.label);
       if (!s || s.key !== key) {
         if (s) this.scene.remove(s.g);
-        s = { g: tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls), key, bearing: tg.bearing };
+        s = { g: tg.plane ? aircraftModel(tg.plane) : tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls), key, bearing: tg.bearing };
         this.ships.set(tg.label, s);
         this.scene.add(s.g);
       }
       s.bearing = tg.bearing;
+      if (tg.plane) {
+        // Aircraft: at its height (earth curvature taken off), nose along the course, rotors turning
+        const b = (tg.bearing * Math.PI) / 180;
+        const drop = (tg.range * tg.range) / (2 * EARTH_R);
+        s.g.position.set(Math.sin(b) * tg.range, (tg.alt ?? 300) - drop, -Math.cos(b) * tg.range);
+        s.g.rotation.y = Math.PI - ((tg.course ?? 0) * Math.PI) / 180;
+        s.g.rotation.z = tg.plane === 'helo' ? 0 : Math.sin(t * 0.2 + tg.range) * 0.03;
+        animateAircraft(s.g, t, light < 0.6);
+        const navA = s.g.getObjectByName('navlights');
+        if (navA) navA.visible = !!tg.lit && light < 0.6;
+        s.g.visible = tg.alpha > 0.05;
+        continue;
+      }
       // Wake, bow wave and periscope feather follow the speed
       const kn = tg.speedKn ?? DEFAULT_KN[tg.cls] ?? 4;
       const wake = s.g.getObjectByName('wake');

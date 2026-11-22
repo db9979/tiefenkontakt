@@ -30,7 +30,9 @@ export type GameEvent =
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
   | { kind: 'grounded'; time: number; shipId: string }
   /** Bridge lookout reports a new sighting (start of an episode, not every sweep). */
-  | { kind: 'sighting'; time: number; shipId: string; label: string; bearing: number; range: number; what: Sighting };
+  | { kind: 'sighting'; time: number; shipId: string; label: string; bearing: number; range: number; what: Sighting }
+  /** The Ostpakt's reconnaissance aircraft reports the convoy (fleet command passes it to the boats). */
+  | { kind: 'recon'; time: number; x: number; y: number; course: number; speedKn: number };
 
 export interface World {
   time: number;

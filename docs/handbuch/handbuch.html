@@ -208,6 +208,7 @@ Ein Kontakt wird erst „feindlich“, wenn du ihn klassifiziert hast; vorher is
 <tr><td>Ellipse</td><td>Unsicherheit einer Lösung oder Kreuzpeilung.</td></tr>
 <tr><td>Kreuz mit Kreis</td><td>Sonarboje; mit zweitem Ring und „A“ eine aktive Boje (DICASS). „T“ = tief unter der Schicht.</td></tr>
 <tr><td>Kreuz</td><td>Hubschrauber; gestrichelter Kreis: Reichweite des Tauchsonars beim Schweben.</td></tr>
+<tr><td>Luftsymbol</td><td>Obere Rahmenhälfte (Bogen eigen, Winkel feindlich, offenes Rechteck neutral) mit Typ, Höhe und Fahrtstrich. Ein gestrichelter Strahl mit ✈ ist ein Flugzeugradar, das nur im ESM gehört wird.</td></tr>
 <tr><td>Kartenfärbung</td><td>Land, Untiefen, Schelf und tiefes Wasser aus der Seekarte. Wer die Fahrrinne im Fjord verlässt, läuft auf.</td></tr>
 </table>
 <p>Peilungen werden geglättet angezeigt, damit Symbole ruhig stehen. Die Rohwerte rauschen, je schwächer das Signal, desto mehr.</p>
@@ -264,6 +265,7 @@ Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann m
 <li><b>Torpedo im Wasser:</b> Torpedo auf 150° achteraus legen, volle Fahrt, Tiefe wechseln, Täuschkörper werfen. Eine harte Wende bei Fahrt hinterlässt ein Wirbelfeld (Knuckle), das Schall schluckt.</li>
 <li><b>Bojeneinschläge</b> in der Nähe heißen: Der Hubschrauber sucht hier. Leise bleiben, Ort verlassen.</li>
 <li><b>Aktive Bojen (DICASS)</b> pingen alle 45 Sekunden und verraten sich dabei selbst. Ihre Pings tauchen im Horchraum als „Boje“ auf.</li>
+<li><b>Flugzeugradar im ESM</b> (Bedrohungsseite „LUFT“): Seeaufklärer in der Nähe – Mast einfahren und tiefer gehen. Der eigene Fernaufklärer meldet den Konvoi dagegen über die Führung: Wer dann auf Empfangstiefe ist, bekommt Peilung, Entfernung, Kurs und Fahrt.</li>
 <li><b>Lärmdeckung:</b> Wer nahe hinter einem Frachter läuft, verschwindet für die Eskorte in dessen Lärm.</li>
 </ul>
 
@@ -287,7 +289,7 @@ Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann m
 <tr><td>Aktivsonar</td><td>Liefert Entfernung, verrät aber das Schiff auf große Entfernung. <b>CW</b> misst den Doppler (kommt er näher?), <b>LFM</b> misst genau und findet auch langsame Ziele im Nachhall.</td></tr>
 <tr><td>VDS (F-30)</td><td>Der Sonarkörper wird 40 m unter die gemessene Schicht gefiert. Dort hört und pingt er ohne den Schichtverlust. Bis 18 kn.</td></tr>
 <tr><td>BT-Sonde</td><td>Misst die Sprungschicht. Ohne Messung kennt man ihre Tiefe nicht.</td></tr>
-<tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer, verrät aber die Fregatte an jedes U-Boot mit ESM.</td></tr>
+<tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer und Flugzeuge weit darüber hinaus, verrät aber die Fregatte an jedes U-Boot mit ESM. Taucht der feindliche Fernaufklärer auf, kennen die U-Boote bald die Lage des Konvois – Kurs ändern lohnt sich.</td></tr>
 </table>
 <h2>Hubschrauber und Seeaufklärer (F-12)</h2>
 <p>Rechtsklick auf die Karte öffnet die Luftmittel. Der Hubschrauber fliegt mit 120 kn bis 30 km weit und braucht nach jeder Landung 2 Minuten an Deck.</p>
@@ -450,6 +452,14 @@ Nachts sieht man beleuchtete Schiffe viel weiter.</p>
         <div><p>Unter Segeln fast lautlos; nur der kleine Hilfsdiesel ist schwach zu hören. Im Sehrohr gut an den Segeln zu erkennen.</p><ul><li>Leiser als jedes U-Boot – ein schwacher Kontakt mit 25-Hz-Linie und sehr hoher Drehzahl ist oft eine Yacht.</li></ul></div>
       </div>
     </section>
+<h2>Luftfahrzeuge</h2>
+<p>Über dem Einsatzgebiet ist Betrieb: eigene Hubschrauber und Seeaufklärer, der Fernaufklärer des Ostpakts und ziviler Luftverkehr. Auf Karte und Radar tragen Flugzeuge das Luftsymbol (obere Hälfte des Rahmens) mit Höhe.</p>
+<table class="grid"><tr><th></th><th>Typ</th><th>Seite</th><th>Höhe</th><th>kn</th><th>Rolle und Erkennung</th></tr><tr><td style="width:34mm"><img src="img/air-helo.png" alt="" style="width:32mm"></td><td><b>Bordhubschrauber</b></td><td>Westbund (F-12)</td><td>25–120 m</td><td>120</td><td>Wirft Sonarbojen und Leichttorpedos, taucht sein Sonar, fliegt das MAD-Kleeblatt. Ohne eigenes Radar; dem U-Boot verrät er sich durch Rotorlärm und im Sehrohr.</td></tr><tr><td style="width:34mm"><img src="img/air-mpa.png" alt="" style="width:32mm"></td><td><b>Seeaufklärer</b></td><td>Westbund (auf Anforderung)</td><td>300 m (MAD 60 m)</td><td>300</td><td>Vier Turboprops, Magnetsonde im Heck. Legt Bojenketten; sein Suchradar ist eingeschaltet und für jedes U-Boot mit ausgefahrenem Mast auf große Entfernung im ESM zu hören.</td></tr><tr><td style="width:34mm"><img src="img/air-recon.png" alt="" style="width:32mm"></td><td><b>Fernaufklärer</b></td><td>Ostpakt</td><td>1500 m, über dem Konvoi 300 m</td><td>330</td><td>Kommt etwa alle 40–60 Minuten, sucht mit eingeschaltetem Radar, kreist fünf Minuten tief über dem Konvoi und meldet Position, Kurs und Fahrt über die Führung an die U-Boote. Die Eskorte sieht ihn im Radar und hört sein Radar im ESM – abschießen kann sie ihn nicht.</td></tr><tr><td style="width:34mm"><img src="img/air-airliner.png" alt="" style="width:32mm"></td><td><b>Verkehrsflugzeug</b></td><td>Neutral</td><td>9–11,5 km</td><td>440–480</td><td>Kreuzt auf Luftstraßen. Bei Tag am Kondensstreifen bis 45 km zu sehen, nachts an den Lichtern; im Luftraumradar weit über den Horizont hinaus.</td></tr><tr><td style="width:34mm"><img src="img/air-light.png" alt="" style="width:32mm"></td><td><b>Kleinflugzeug</b></td><td>Neutral</td><td>500–1100 m</td><td>110</td><td>Hochdecker im Küstenverkehr, vor allem über Schelf und Fjord. Klein und nur auf wenige Kilometer zu sehen.</td></tr></table>
+  <table class="grid"><tr><th>Sensor</th><th>Was er von Flugzeugen liefert</th></tr>
+  <tr><td>Luft-/Seeraumradar</td><td>Position, Höhe, Kurs und Fahrt bis zum Radarhorizont, der mit der Flughöhe wächst (Verkehrsflugzeuge weit über 100 km). Bereich 48 SM im Radarraum.</td></tr>
+  <tr><td>Ausguck / Sehrohr</td><td>Bei Tag nach Größe (Verkehrsflugzeug am Kondensstreifen), nachts nur an den Lichtern. Auf der Brücke schwenkt „Luft“ auf jedes sichtbare Flugzeug und folgt ihm mit dem Höhenwinkel.</td></tr>
+  <tr><td>ESM</td><td>Nur Peilung, aber auf die doppelte Radarreichweite: Seeaufklärer und Fernaufklärer verraten sich durch ihr Radar. Für ein U-Boot heißt das: Mast einfahren.</td></tr>
+  <tr><td>Datalink</td><td>Eigene Flugzeuge immer (U-Boote nur mit ausgefahrenem Mast).</td></tr></table>
 <h2>Biologische Kontakte</h2>
 <p>Wale, Delfine und Knallkrebse erscheinen im Sonar als Kontakte ohne Schraube. Sie zu erkennen spart Torpedos und Nerven –
 ein Pottwal in 400 m Tiefe sieht im Wasserfall aus wie ein tief fahrendes U-Boot.</p>

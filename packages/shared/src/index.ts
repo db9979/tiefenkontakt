@@ -12,6 +12,7 @@ export * from './command-radio.js';
 export * from './incidents.js';
 export * from './traffic.js';
 export * from './voice.js';
+export * from './airspace.js';
 export * from './traits.js';
 export * from './lights.js';
 export * from './contacts.js';

@@ -5,6 +5,7 @@ import { KN, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Emitter } from './sensors.js';
 import type { BioKind } from './signatures.js';
 import { BIO_SOURCE, installTraffic, spawnBio, spawnNeutral, stepTraffic } from './traffic.js';
+import { installAirspace } from './airspace.js';
 import { depthAt } from './seabed.js';
 import type { World } from './world.js';
 
@@ -157,4 +158,5 @@ export function stepIncidents(w: World, dt: number): void {
 export function installIncidents(w: World): void {
   w.env.incidents = { next: w.time + 900 + w.rng.next() * 600, nets: [], whales: [], neutrals: 0 };
   installTraffic(w);
+  installAirspace(w);
 }

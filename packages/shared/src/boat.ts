@@ -6,6 +6,7 @@ import { KN, NM, headingVec } from './math.js';
 import type { World } from './world.js';
 import { stepCommandRadio } from './command-radio.js';
 import { stepIncidents } from './incidents.js';
+import { stepAirspace } from './airspace.js';
 import { stepLights } from './lights.js';
 
 /**
@@ -195,6 +196,7 @@ export function boatSystem(w: World, dt: number): void {
   if (Math.floor(w.time) !== Math.floor(w.time - dt)) stepLights(w);
   stepCommandRadio(w, dt);
   stepIncidents(w, dt);
+  stepAirspace(w, dt);
   for (const s of w.ships) {
     if (!s.alive || s.cls === 'merchant' || s.team === 'neutral') continue;
     stepCrew(w, s, dt);

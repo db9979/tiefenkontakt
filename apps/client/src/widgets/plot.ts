@@ -1,5 +1,6 @@
 import { CLASSES, KN, NM, bearing, depthAt, distance, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
+import { drawAir } from './air-symbols.js';
 import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { lastFix } from './contact-pos.js';
@@ -277,6 +278,9 @@ export class Plot {
     }
     this.drawContacts(ctx, s, P, w, height);
     this.drawFriendlies(ctx, s, P);
+    // Aircraft with a position (datalink, radar, eye) and ESM strobes on aircraft radars
+    const meA = P(ownNow());
+    drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120);
 
     for (const t of s.torpedoes) {
       const p = P(t);

@@ -237,6 +237,8 @@ export interface Briefing {
 }
 
 export interface Snapshot {
+  /** Aircraft this ship knows of (datalink, radar, eye, ESM). */
+  planes?: import('./airspace.js').PlaneView[];
   time: number;
   /** Sim seconds per real second (for echo travel times and clocks). */
   timeScale: number;

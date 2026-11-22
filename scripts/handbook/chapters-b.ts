@@ -50,6 +50,7 @@ Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann m
 <li><b>Torpedo im Wasser:</b> Torpedo auf 150° achteraus legen, volle Fahrt, Tiefe wechseln, Täuschkörper werfen. Eine harte Wende bei Fahrt hinterlässt ein Wirbelfeld (Knuckle), das Schall schluckt.</li>
 <li><b>Bojeneinschläge</b> in der Nähe heißen: Der Hubschrauber sucht hier. Leise bleiben, Ort verlassen.</li>
 <li><b>Aktive Bojen (DICASS)</b> pingen alle 45 Sekunden und verraten sich dabei selbst. Ihre Pings tauchen im Horchraum als „Boje“ auf.</li>
+<li><b>Flugzeugradar im ESM</b> (Bedrohungsseite „LUFT“): Seeaufklärer in der Nähe – Mast einfahren und tiefer gehen. Der eigene Fernaufklärer meldet den Konvoi dagegen über die Führung: Wer dann auf Empfangstiefe ist, bekommt Peilung, Entfernung, Kurs und Fahrt.</li>
 <li><b>Lärmdeckung:</b> Wer nahe hinter einem Frachter läuft, verschwindet für die Eskorte in dessen Lärm.</li>
 </ul>
 `;
@@ -75,7 +76,7 @@ ${shot('ui-f-bruecke.jpg', 'Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.')}
 <tr><td>Aktivsonar</td><td>Liefert Entfernung, verrät aber das Schiff auf große Entfernung. <b>CW</b> misst den Doppler (kommt er näher?), <b>LFM</b> misst genau und findet auch langsame Ziele im Nachhall.</td></tr>
 <tr><td>VDS (F-30)</td><td>Der Sonarkörper wird 40 m unter die gemessene Schicht gefiert. Dort hört und pingt er ohne den Schichtverlust. Bis 18 kn.</td></tr>
 <tr><td>BT-Sonde</td><td>Misst die Sprungschicht. Ohne Messung kennt man ihre Tiefe nicht.</td></tr>
-<tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer, verrät aber die Fregatte an jedes U-Boot mit ESM.</td></tr>
+<tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer und Flugzeuge weit darüber hinaus, verrät aber die Fregatte an jedes U-Boot mit ESM. Taucht der feindliche Fernaufklärer auf, kennen die U-Boote bald die Lage des Konvois – Kurs ändern lohnt sich.</td></tr>
 </table>
 <h2>Hubschrauber und Seeaufklärer (F-12)</h2>
 <p>Rechtsklick auf die Karte öffnet die Luftmittel. Der Hubschrauber fliegt mit 120 kn bis 30 km weit und braucht nach jeder Landung 2 Minuten an Deck.</p>

@@ -1,5 +1,6 @@
 import { angleDiff, PERISCOPE_DEPTH, type ClassId } from '@tk/shared';
 import { BearingRangeFilter, easeAngle, simNow } from '../../widgets/smooth.js';
+import { planeTargets } from '../../widgets/air-targets.js';
 import type { Periscope3D, PeriscopeEffect } from '../../widgets/periscope3d.js';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
@@ -224,7 +225,7 @@ export function periscopeStation(): Station {
         const vis = visible();
         gl!.render({
           bearing: periBearing, fovDeg: (fov * w) / (2 * R), t, sea: s.env.seaState, light: s.env.light ?? 1,
-          targets: vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })),
+          targets: [...vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })), ...planeTargets(s, s.own, simNow())],
           rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs),
         });
         // Overlay: black mask outside the optic, reticle drawn below

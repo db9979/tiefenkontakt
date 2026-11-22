@@ -1,4 +1,7 @@
 import {
+  CLASSES,
+  canCopy,
+  mastRaised,
   KN,
   bearing,
   distance,
@@ -58,6 +61,17 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
           ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, text: `EXPLOSION / SINKGERÄUSCHE PEILUNG ${b.toFixed(0).padStart(3, '0')}` });
         }
       }
+    }
+  }
+  // Air reconnaissance: fleet command passes the convoy report to boats that can copy it now
+  for (const e of fresh) {
+    if (e.kind !== 'recon') continue;
+    for (const s of ctx.slots) {
+      const own = ctx.shipOf(s.playerId);
+      if (!own?.alive || own.team !== 'east' || !CLASSES[own.cls].submarine || !(canCopy(own) || mastRaised(own) || own.depth <= 0.5)) continue;
+      const b = bearing(own.pos, e);
+      const km = Math.round(distance(own.pos, e) / 1000);
+      ctx.alert(s.playerId, { time: e.time, kind: 'command', bearing: b, text: `FÜHRUNG · LUFTAUFKLÄRUNG: KONVOI PEILUNG ${b.toFixed(0).padStart(3, '0')} · CA. ${km} KM · KURS ${String(e.course).padStart(3, '0')} · ${e.speedKn} KN` });
     }
   }
   for (const e of fresh) {

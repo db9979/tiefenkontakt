@@ -5,6 +5,8 @@
 import * as THREE from 'three';
 import type { ClassId } from '@tk/shared';
 import { shipModel } from '../src/widgets/sea3d/models.js';
+import { aircraftModel } from '../src/widgets/sea3d/aircraft.js';
+import type { PlaneKind } from '@tk/shared';
 
 const p = new URLSearchParams(location.search);
 const cls = (p.get('cls') ?? 'ffg') as ClassId;
@@ -22,10 +24,12 @@ const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(-60, 120, 80);
 scene.add(sun);
 
-const g = shipModel(cls);
+// ?plane=airliner|light|recon|mpa|helo renders an aircraft instead (no contrail, rotor still)
+const plane = p.get('plane') as PlaneKind | null;
+const g = plane ? aircraftModel(plane) : shipModel(cls);
 const drop: THREE.Object3D[] = [];
 g.traverse((o) => {
-  if (['wake', 'bow', 'feather'].includes(o.name) || o instanceof THREE.Sprite || o instanceof THREE.Points) drop.push(o);
+  if (['wake', 'bow', 'feather', 'contrail'].includes(o.name) || o instanceof THREE.Sprite || o instanceof THREE.Points) drop.push(o);
   const m = (o as THREE.Mesh).material as THREE.Material | undefined;
   if (m && (m as THREE.MeshBasicMaterial).transparent) drop.push(o);
 });
@@ -39,7 +43,7 @@ const ctr = box.getCenter(new THREE.Vector3());
 const line = new THREE.Mesh(new THREE.BoxGeometry(size.z * 1.15, 0.15, 0.15), new THREE.MeshBasicMaterial({ color: 0x7aa0b8 }));
 line.rotation.y = Math.PI / 2;
 line.position.set(ctr.x + size.x, 0, ctr.z);
-if (box.min.y > -3) scene.add(line);
+if (box.min.y > -3 && !plane) scene.add(line);
 
 const cam = new THREE.PerspectiveCamera(18, W / H, 1, 5000);
 const dist = Math.max(size.z, size.y * 2.5) * 1.75;

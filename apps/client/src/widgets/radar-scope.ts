@@ -1,4 +1,5 @@
 import { depthAt, headingVec, type Snapshot } from '@tk/shared';
+import { drawAir } from './air-symbols.js';
 
 /**
  * Surface-search radar PPI as a phosphor tube: returns are written into a persistence
@@ -190,6 +191,13 @@ export class RadarScope {
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); ctx.stroke();
         ctx.setLineDash([]);
       }
+      // Air: radar tracks inside the scale, ESM strobes of aircraft radars
+      const scale = rr / (rangeNm * 1852);
+      drawAir(ctx, s, (x, y) => {
+        const dx = (x - s.own.x) * scale;
+        const dy = (y - s.own.y) * scale;
+        return Math.hypot(dx, dy) < rr ? { x: cx + dx, y: cy - dy } : undefined;
+      }, { x: cx, y: cy }, rr, (p) => (on && p.via.includes('radar')) || p.via.includes('esm'));
       // Selected radar contact: amber brackets
       const sel = s.contacts.find((c) => c.label === selected && c.sensors.includes('radar') && c.range !== undefined);
       if (sel && on) {

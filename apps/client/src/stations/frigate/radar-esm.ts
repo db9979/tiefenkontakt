@@ -7,7 +7,8 @@ import { RadarScope, SCOPE } from '../../widgets/radar-scope.js';
 import { onTap } from '../../widgets/touch.js';
 
 const RPM = 24;
-const RANGES = [3, 6, 12, 24] as const;
+// 48 SM: air search – aircraft at height show far beyond the surface horizon
+const RANGES = [3, 6, 12, 24, 48] as const;
 /** How far an enemy ESM receiver hears this radar (sensors.ts ESM_RANGE). */
 const ESM_HEARS_NM = 40;
 
@@ -134,9 +135,11 @@ export function radarEsmStation(): Station {
         }).join('')
         : `<div class="dim">${on ? 'KEINE SPUREN' : 'RADAR AUS · KEINE SPUREN'}</div>`);
       const esm = s.contacts.filter((c) => c.sensors.includes('esm')).sort((a, b) => b.lastSeen - a.lastSeen);
-      setHtml(el.querySelector('#esm')!, esm.length
+      const airEsm = (s.planes ?? []).filter((p) => p.via.includes('esm'));
+      const airRows = airEsm.map((p) => `<div class="row red"><span>✈ FLUGZEUGRADAR</span><span>${deg3(p.bearing)}°</span><span class="dim">JETZT</span></div>`).join('');
+      setHtml(el.querySelector('#esm')!, airRows + (esm.length
         ? esm.map((c) => `<div class="row ${s.time - c.lastSeen < 60 ? 'red' : 'dim'}"><span>${esc(c.label)}</span><span>${deg3(c.bearing)}°</span><span class="dim">VOR ${Math.round(s.time - c.lastSeen)} S</span></div>`).join('')
-        : '<div class="dim">KEINE FUNKPEILUNGEN · ALLES STILL</div>');
+        : airRows ? '' : '<div class="dim">KEINE FUNKPEILUNGEN · ALLES STILL</div>'));
     },
     frame() {
       const s = store.snap;
