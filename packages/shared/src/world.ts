@@ -32,7 +32,11 @@ export type GameEvent =
   /** Bridge lookout reports a new sighting (start of an episode, not every sweep). */
   | { kind: 'sighting'; time: number; shipId: string; label: string; bearing: number; range: number; what: Sighting }
   /** The Ostpakt's reconnaissance aircraft reports the convoy (fleet command passes it to the boats). */
-  | { kind: 'recon'; time: number; x: number; y: number; course: number; speedKn: number };
+  | { kind: 'recon'; time: number; x: number; y: number; course: number; speedKn: number }
+  /** FLASH order read aboard, or its result (orders.ts). */
+  | { kind: 'flash'; time: number; shipId: string; orderId: string; text: string; status?: 'done' | 'missed' }
+  /** Team radio between surface ships (UHF line of sight, not DF'd like HF): AI escorts announce roles. */
+  | { kind: 'teamradio'; time: number; senderId: string; text: string };
 
 export interface World {
   time: number;

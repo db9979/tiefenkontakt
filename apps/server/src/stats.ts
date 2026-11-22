@@ -49,9 +49,9 @@ export function rankFor(points: number): string {
   return RANKS.find(([p]) => points >= p)![1];
 }
 
-/** Points: a win counts most; sinkings and survival add, a loss costs a little. */
+/** Points: a win counts most; sinkings, survival and fleet command's orders add, a loss costs a little. */
 export function pointsFor(s: PlayerStats): number {
-  return (s.won ? 25 : -5) + Math.round(s.tonnageSunk / 2000) + (s.survived ? 5 : 0);
+  return (s.won ? 25 : -5) + Math.round(s.tonnageSunk / 2000) + (s.survived ? 5 : 0) + (s.orderPoints ?? 0);
 }
 
 export class StatsStore {

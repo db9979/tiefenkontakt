@@ -117,6 +117,16 @@ export function voted(m: BotMemory, t: ContactTrack): ClassChoice | undefined {
   return best;
 }
 
+/** The captain's current majority without counting another look (for team planning). */
+export function votedPeek(m: BotMemory, t: ContactTrack): ClassChoice | undefined {
+  const v = m.votes?.[t.label];
+  if (!v) return classify(t);
+  let best: ClassChoice | undefined;
+  let n = 0;
+  for (const [k, cnt] of Object.entries(v) as [ClassChoice, number][]) if (cnt > n) [best, n] = [k, cnt];
+  return best;
+}
+
 /** A cheap TMA for the AI (coarse grid), refreshed at most once a minute per contact. */
 export function solveFor(m: BotMemory, t: ContactTrack, now: number, choice?: ClassChoice): { sol: TmaSolution; q: number } | undefined {
   const cached = m.sols[t.label];

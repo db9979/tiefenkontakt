@@ -142,4 +142,10 @@ export const EN_UI: [string, string][] = [
   ['Kurs hierher', 'Course here'], ['Torpedo hierher', 'Torpedo here'], ['U-Jagd-Rakete hierher', 'ASW rocket here'], ['TMA-Lösung hierher', 'TMA solution here'],
   ['Sonarboje flach hierher', 'Shallow sonobuoy here'], ['Hubschrauber-Torpedo hierher', 'Helicopter torpedo here'],
   ['STATIONEN', 'STATIONS'], ['TASTEN', 'KEYS'], ['Sprache', 'Language'],
+  // FLASH orders from fleet command (orders panel, banner, debrief)
+  ['Befehle', 'Orders'], ['Befehle der Führung', 'Orders from fleet command'], ['Befehle der Führung öffnen', 'Open orders from fleet command'],
+  ['KEINE BEFEHLE', 'NO ORDERS'], ['FÜHRUNG SCHWEIGT', 'COMMAND IS SILENT'], ['ERFÜLLT', 'FULFILLED'], ['NICHT ERFÜLLT', 'NOT FULFILLED'],
+  ['U-Jagd im Verband', 'Team ASW hunt'], ['DATALINK', 'DATALINK'], ['FLASH', 'FLASH'],
+  ['Kursänderung an den Kommodore weitergeben: der Konvoi dreht für zehn Minuten auf den befohlenen Kurs', 'Pass the course change to the commodore: the convoy steers the ordered course for ten minutes'],
+  ['KONVOI', 'CONVOY'], ['ANGREIFEN', 'ATTACK'], ['FUNKSTILLE', 'RADIO SILENCE'],
 ];

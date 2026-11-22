@@ -30,6 +30,7 @@ import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
 import { callouts } from '../widgets/callouts.js';
+import { ordersPanel } from '../widgets/orders-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
 
 export interface Station {
@@ -65,11 +66,12 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     <div class="side">
       <div class="panel helm" id="helm"></div>
       <div class="side-tabs steps" id="side-tabs">
-        <button data-st="alerts">Meldungen</button><button data-st="crew">Boot</button><button data-st="damage">Schaden</button><button data-st="radio">Funk</button>
+        <button data-st="alerts">Meldungen</button><button data-st="crew">Boot</button><button data-st="damage">Schaden</button><button data-st="radio">Funk</button><button data-st="orders" title="Befehle der Führung">Befehle</button>
       </div>
       <div class="side-body">
       <div class="panel" id="damage" data-sp="damage"></div>
       <div id="crew-slot"></div>
+      <div id="orders-slot"></div>
       <div class="panel alerts" data-sp="alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alert-chips"></div><div id="alerts"></div></div>
       <div class="panel" data-sp="radio"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
@@ -89,6 +91,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const vp = voicePanel();
   q('#voice-slot').replaceWith(vp.el);
   crew.el.dataset.sp = 'crew';
+  const orders = ordersPanel(() => showSide('orders'));
+  q('#orders-slot').replaceWith(orders.el);
+  orders.el.dataset.sp = 'orders';
   // Right column: helm always visible, the rest as tabs (one panel at a time, a dot marks news elsewhere)
   let sideTab = localStorage.getItem('tk-side') ?? 'alerts';
   const sideSeen: Record<string, string> = {};
@@ -332,6 +337,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     }
     renderDamage(q('#damage'));
     crew.update(s);
+    orders.update(s);
+    markSide('orders', orders.key);
     renderSide();
   };
   const scheduleUi = (now = false) => {
@@ -410,6 +417,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     voice.leave();
     window.removeEventListener('pointerdown', unlock);
     banner.remove();
+    orders.dispose();
     helmToggle.remove();
     document.body.classList.remove('helm-open');
     tutorial?.el.remove();

@@ -168,6 +168,26 @@ class Audio {
     o.stop(t + 0.3);
   }
 
+  /** FLASH order from fleet command: a teletype burst (two groups of three high beeps). */
+  flash(): void {
+    if (!this.ctx || !this.master) return;
+    const c = this.ctx;
+    const t = c.currentTime;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'square';
+    o.frequency.value = 1568;
+    g.gain.value = 0;
+    for (let i = 0; i < 6; i++) {
+      const at = t + i * 0.12 + (i >= 3 ? 0.25 : 0);
+      g.gain.setValueAtTime(0.045, at);
+      g.gain.setValueAtTime(0, at + 0.07);
+    }
+    o.connect(g).connect(this.out(0));
+    o.start(t);
+    o.stop(t + 1.2);
+  }
+
   /** Two-tone klaxon for an incoming torpedo. */
   torpedoAlarm(pan = 0): void {
     if (!this.ctx || !this.master) return;

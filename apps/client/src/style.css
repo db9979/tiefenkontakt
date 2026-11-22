@@ -328,3 +328,11 @@ a.btnlink:hover { background: #12302a; }
 .voice .ptt { flex: 2; min-height: 40px; font-size: 12px; letter-spacing: 0.1em; touch-action: none; user-select: none; -webkit-user-select: none; }
 .voice .ptt.live { background: #3a1010; border-color: var(--red); color: #ffd0d0; }
 .green { color: #5dcaa5; }
+
+/* FLASH orders from fleet command */
+.flash-banner { position: fixed; top: 92px; left: 50%; transform: translateX(-50%); z-index: 39; padding: 6px 18px; max-width: 70vw;
+  border: 1px solid var(--amber); background: #1f1606; color: var(--amber); letter-spacing: 0.06em; font-size: 12px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-row { padding: 5px 0; border-bottom: 1px solid #16221f; }
+.order-row.done, .order-row.missed { opacity: 0.75; }
+.order-row .steps { margin-top: 4px; }

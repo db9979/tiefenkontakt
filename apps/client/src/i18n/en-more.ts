@@ -72,6 +72,17 @@ export const EN_CANVAS: [string, string][] = [
 
 /** Phrase rules for text assembled with numbers (after dictionary lookups). */
 export const EN_MORE_PHRASES: [RegExp, string][] = [
+  // FLASH orders (order texts come from the server in German)
+  [/KONVOI BIS (\d\d:\d\d) ANGREIFEN/, 'ATTACK THE CONVOY BY $1'], [/FEINDMELDUNG BIS (\d\d:\d\d) ABSETZEN/, 'SEND AN ENEMY REPORT BY $1'],
+  [/AUF SEHROHRTIEFE GEHEN UND BIS (\d\d:\d\d) LAGEBERICHT SENDEN/, 'GO TO PERISCOPE DEPTH AND SEND A SITREP BY $1'],
+  [/GEBIET UM PLANQUADRAT (\w+) \((\d+) KM\) BIS (\d\d:\d\d) RÄUMEN/, 'CLEAR THE AREA AROUND GRID $1 ($2 KM) BY $3'],
+  [/SEKTOR UM PLANQUADRAT (\w+) \((\d+) KM\) BIS (\d\d:\d\d) ABSUCHEN/, 'SEARCH THE SECTOR AROUND GRID $1 ($2 KM) BY $3'],
+  [/KONVOI BIS (\d\d:\d\d) AUF KURS (\d{3}) DREHEN/, 'TURN THE CONVOY TO $2 BY $1'], [/FUNKSTILLE BIS (\d\d:\d\d)/, 'RADIO SILENCE UNTIL $1'],
+  [/^FLASH · FÜHRUNG: /, 'FLASH · COMMAND: '], [/FÜHRUNG: BEFEHL ERFÜLLT/, 'COMMAND: ORDER FULFILLED'], [/FÜHRUNG: BEFEHL NICHT ERFÜLLT/, 'COMMAND: ORDER NOT FULFILLED'],
+  [/BEREITS ERFÜLLT/, 'ALREADY FULFILLED'], [/FRIST ABGELAUFEN/, 'DEADLINE PASSED'], [/\bNOCH (\d+:\d\d)/, '$1 LEFT'], [/(\d+:\d\d) SPÄT GELESEN/, 'READ $1 LATE'],
+  [/^(\d+)\/(\d+) OFFEN$/, '$1/$2 OPEN'], [/^An Kommodore: Kurs (\d{3})$/, 'To commodore: course $1'],
+  [/ALTER (\d+:\d\d) · GÜTE (\d+)/, 'AGE $1 · QUALITY $2'], [/^KONTAKT HÄLT$/, 'CONTACT HELD BY'], [/^\(AKTIV\)$/, '(ACTIVE)'], [/^\(LAUTLOS\)$/, '(SILENT)'],
+  [/^(\w+) PUNKTE$/, '$1 POINTS'], [/^gelesen nach/, 'read after'],
   [/^Kontakt (\S+) wählen$/, 'Select contact $1'], [/^TMA-Lösung (\S+) hierher/, 'TMA solution $1 here'], [/Suchkopf ab/, 'enable at'],
   [/^Hubschrauber bereit in/, 'Helicopter ready in'], [/^Seefernaufklärer (wieder )?bereit in/, 'Patrol aircraft ready in'],
   [/^Kabellänge (\d+) m \(lang = unter der Sprungschicht\)$/, 'Cable length $1 m (long = below the layer)'], [/ am Ziel$/, ' arrived'],

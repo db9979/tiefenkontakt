@@ -2,7 +2,7 @@ import { onTap } from '../widgets/touch.js';
 import { CLASSES, NM, headingVec, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
-import { debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
+import { debriefOrders, debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
 import { drawSymbol } from '../widgets/symbols.js';
 
 const SPEEDS = [30, 120, 480];
@@ -42,6 +42,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
         : `<div class="hd"><span>Ergebnis</span><span class="${d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
       ${live ? '' : debriefTips(d.stats.find((s) => s.playerId === store.playerId))}
       ${!live && d.learned?.length ? `<div class="panel" style="margin:6px 0;border-color:#6b4a1a"><div class="hd"><span class="amber">Der Gegner lernt</span></div>${d.learned.map((l) => `<div class="row" style="display:block">${esc(l)}</div>`).join('')}</div>` : ''}
+      ${live ? '' : debriefOrders(d, d.stats.find((s) => s.playerId === store.playerId)?.team)}
       <div id="db-stats"></div>
       <div class="hd" style="margin-top:10px"><span>Ereignisse</span><span class="dim">KLICK SPRINGT HIN</span></div>
       <div id="db-events"></div>

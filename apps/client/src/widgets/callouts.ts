@@ -55,7 +55,7 @@ function say(text: string, urgent: boolean): void {
   speechSynthesis.speak(u);
 }
 
-const LEVEL: Record<string, LogEntry['level']> = { command: 'info', boat: 'warn', sighting: 'warn', torpedo: 'alarm', sunk: 'alarm', ping: 'warn', esm: 'warn', transient: 'warn', hit: 'info' };
+const LEVEL: Record<string, LogEntry['level']> = { flash: 'alarm', command: 'info', boat: 'warn', sighting: 'warn', torpedo: 'alarm', sunk: 'alarm', ping: 'warn', esm: 'warn', transient: 'warn', hit: 'info' };
 
 export class Callouts {
   reset(): void {
@@ -126,7 +126,8 @@ export class Callouts {
         this.report(s, { level: 'info', text: a.text }, en ? `Explosion, bearing ${b}.` : `Explosion, Peilung ${b}.`);
       } else if (a.kind === 'esm') {
         this.report(s, { level: 'warn', text: a.text }, en ? `Radar intercept, bearing ${b}.` : `Radarpeilung, Peilung ${b}.`);
-      } else if (a.kind === 'sunk') {
+      } else if (a.kind === 'sunk' || a.kind === 'flash') {
+        // FLASH orders: the orders panel sounds the teletype alarm and speaks
         this.log.push({ time: a.time, text: a.text, level: 'alarm' });
       }
     }

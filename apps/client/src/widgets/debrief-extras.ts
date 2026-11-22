@@ -32,3 +32,20 @@ export function debriefTips(st: PlayerStats | undefined): string {
   return `<div class="hd" style="margin-top:4px"><span>${L('Auswertung', 'Evaluation')}</span><span class="dim">${L('FÜR DICH', 'FOR YOU')}</span></div>` +
     tips.map((t) => `<div class="tip ${t.good ? 'good' : ''}">${t.good ? '✓' : '▸'} ${esc(t.text)}</div>`).join('');
 }
+
+/** Fleet command's FLASH orders of both sides: fulfilled or not, read late, points for the side. */
+export function debriefOrders(d: Debrief, team?: string): string {
+  if (!d.orders?.length) return '';
+  const pts = (t: string) => d.stats.find((s) => s.team === t)?.orderPoints;
+  const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const side = (t: 'west' | 'east') => {
+    const list = d.orders!.filter((o) => o.team === t);
+    if (!list.length) return '';
+    const p = pts(t);
+    return `<div class="dim" style="margin-top:4px">${t === 'west' ? L('WESTBUND', 'WESTERN ALLIANCE') : L('OSTPAKT', 'EASTERN PACT')}${p !== undefined ? ` · ${p > 0 ? '+' : ''}${p} ${L('PUNKTE', 'POINTS')}` : ''}</div>` +
+      list.map((o) => `<div class="tip ${o.status === 'done' ? 'good' : ''}">${o.status === 'done' ? '✓' : o.status === 'missed' ? '✗' : '…'} ${esc(o.text)}` +
+        `${o.lateS !== undefined && o.lateS > 120 ? ` <span class="amber">(${L('gelesen nach', 'read after')} ${mmss(o.lateS)})</span>` : ''}</div>`).join('');
+  };
+  const own = team === 'east' ? (['east', 'west'] as const) : (['west', 'east'] as const);
+  return `<div class="hd" style="margin-top:8px"><span>${L('Befehle der Führung', 'Orders from fleet command')}</span><span class="dim">FLASH</span></div>${side(own[0])}${side(own[1])}`;
+}
