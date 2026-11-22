@@ -67,6 +67,7 @@ lobby.onDrop = (m) => store.remove(m.id);
 // Running matches are saved every MATCH_SAVE_S seconds (raise it on SD cards to save writes)
 const SAVE_S = Math.max(2, Number(process.env.MATCH_SAVE_S ?? 5));
 setInterval(() => lobby.prune(), 5000).unref();
+lobby.voice.start();
 setInterval(() => store.saveAll(lobby), SAVE_S * 1000).unref();
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {

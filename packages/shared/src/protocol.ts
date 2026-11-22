@@ -1,4 +1,5 @@
 import type { ClassId, NeutralClass, Team } from './classes.js';
+import type { VoiceClientMsg, VoiceServerMsg } from './voice.js';
 import type { ContactTrack } from './contacts.js';
 import type { DamageState, ShipSystem } from './damage.js';
 import type { ClassChoice } from './signatures.js';
@@ -43,6 +44,7 @@ export type ClientMsg =
   | { t: 'helotorp'; bearing: number; range: number }
   | { t: 'mpa'; bearing: number; range: number }
   | { t: 'repair'; system: ShipSystem }
+  | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
   | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' }
   | { t: 'lesson_done' }
@@ -327,6 +329,7 @@ export interface Habits {
 }
 
 export type ServerMsg =
+  | VoiceServerMsg
   | { t: 'welcome'; playerId: string; callsign: string; resume?: boolean }
   | { t: 'lobby'; matches: MatchSummary[] }
   | { t: 'match'; match: MatchLobby }

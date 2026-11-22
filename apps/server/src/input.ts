@@ -78,6 +78,14 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('classify'), label: z.string().min(1).max(24),
     choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
+  }),  // Voice radio: join/leave, WebRTC signalling to a team mate (size-limited), push-to-talk
+  z.object({
+    t: z.literal('voice'), op: z.enum(['join', 'leave', 'signal', 'ptt']),
+    to: z.string().max(64).optional(), on: z.boolean().optional(),
+    data: z.object({
+      sdp: z.object({ type: z.enum(['offer', 'answer']), sdp: z.string().max(20_000) }).optional(),
+      ice: z.object({ candidate: z.string().max(1000), sdpMid: z.string().max(64).nullable().optional(), sdpMLineIndex: z.number().int().min(0).max(64).nullable().optional() }).optional(),
+    }).optional(),
   }),
 ]);
 

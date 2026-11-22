@@ -6,19 +6,19 @@
 export type KeyAction =
   | 'station1' | 'station2' | 'station3' | 'station4' | 'station5'
   | 'left' | 'right' | 'faster' | 'slower' | 'up' | 'down'
-  | 'scopeLeft' | 'scopeRight' | 'help' | 'mute';
+  | 'scopeLeft' | 'scopeRight' | 'help' | 'mute' | 'ptt';
 
 export const KEY_LABEL: Record<KeyAction, string> = {
   station1: 'Station 1', station2: 'Station 2', station3: 'Station 3', station4: 'Station 4', station5: 'Station 5',
   left: 'Kurs links', right: 'Kurs rechts', faster: 'Fahrt +1 kn', slower: 'Fahrt −1 kn',
   up: 'Tiefe −10 m (auftauchen)', down: 'Tiefe +10 m (tauchen)',
-  scopeLeft: 'Sehrohr links', scopeRight: 'Sehrohr rechts', help: 'Hilfe', mute: 'Ton an/aus',
+  scopeLeft: 'Sehrohr links', scopeRight: 'Sehrohr rechts', help: 'Hilfe', mute: 'Ton an/aus', ptt: 'Sprechfunk (halten)',
 };
 
 export const DEFAULT_KEYS: Record<KeyAction, string> = {
   station1: 'Digit1', station2: 'Digit2', station3: 'Digit3', station4: 'Digit4', station5: 'Digit5',
   left: 'ArrowLeft', right: 'ArrowRight', faster: 'ArrowUp', slower: 'ArrowDown', up: 'PageUp', down: 'PageDown',
-  scopeLeft: 'KeyA', scopeRight: 'KeyD', help: 'KeyH', mute: 'KeyM',
+  scopeLeft: 'KeyA', scopeRight: 'KeyD', help: 'KeyH', mute: 'KeyM', ptt: 'KeyV',
 };
 
 const STORE = 'tk_keys';

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { ClientMsg, Debrief, ServerMsg } from '@tk/shared';
 import { LESSONS, lessonSlot, type LessonId } from './lessons.js';
 import { MAX_PER_TEAM, Match, type Conn } from './match.js';
+import { VoiceHub } from './voice.js';
 
 const MAX_MATCHES = 50;
 /** A running match with nobody connected stays (paused) this long before it is dropped. */
@@ -13,6 +14,8 @@ export class Lobby {
   private playerMatch = new Map<string, string>();
   private conns = new Map<string, Conn>();
   private watching = new Map<string, string>();
+  /** Voice radio between team mates (signalling, radio rules, push-to-talk). */
+  readonly voice = new VoiceHub((id) => this.conns.get(id), (id) => this.matchOf(id));
 
   /** Register a connection. Returns true when the player rejoins a match. Replaces an older tab. */
   connect(conn: Conn): boolean {
@@ -36,6 +39,7 @@ export class Lobby {
   disconnect(conn: Conn): void {
     if (this.conns.get(conn.playerId) !== conn) return;
     this.conns.delete(conn.playerId);
+    this.voice.drop(conn.playerId);
     this.stopWatching(conn.playerId);
     const m = this.matchOf(conn.playerId);
     if (!m) return;
@@ -185,6 +189,7 @@ export class Lobby {
 
   handle(conn: Conn, msg: ClientMsg): void {
     const err = (e: string | undefined) => e && conn.send({ t: 'error', msg: e });
+    if (msg.t === 'voice') return void err(this.voice.handle(conn, msg));
     switch (msg.t) {
       case 'create_match': {
         const m = this.create(msg.name);
@@ -234,6 +239,7 @@ export class Lobby {
         return;
       }
       case 'leave':
+        this.voice.drop(conn.playerId);
         this.stopWatching(conn.playerId);
         this.leaveCurrent(conn.playerId);
         return void conn.send(this.listMsg());

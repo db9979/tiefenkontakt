@@ -86,6 +86,13 @@ export function transmit(w: World, sender: Ship, text: string): void {
   ingest(w, dets);
 }
 
+/** A voice transmission: no text, but every enemy ESM receiver in reach gets a bearing. */
+export function voiceIntercept(w: World, sender: Ship): void {
+  const dets = interceptTransmission(sender, { ships: w.ships, env: w.env, time: w.time, rng: w.rng });
+  w.lastDetections.push(...dets);
+  ingest(w, dets);
+}
+
 const groundedAt = new WeakMap<Ship, number>();
 
 /** Seabed and shoals: a boat can't dive into the ground; ships run aground in shallows. */

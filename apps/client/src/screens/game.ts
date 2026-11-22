@@ -23,6 +23,8 @@ import { bindSortable, filterChips, getFilters } from '../widgets/sortable.js';
 import { hitCam } from '../widgets/hit-cam.js';
 import { crewPanel } from '../widgets/crew-panel.js';
 import { onTap } from '../widgets/touch.js';
+import { voicePanel } from '../widgets/voice-panel.js';
+import { voice } from '../voice/voice.js';
 import { frameIntervalMs } from '../widgets/perf.js';
 import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
@@ -73,6 +75,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         <div class="radio" id="radio"></div>
         <div style="display:flex;gap:4px;margin-top:6px"><input id="rtext" maxlength="200" placeholder="Konvoi Peilung 052" style="flex:1;min-width:0"><button id="rsend">Senden</button></div>
         <div class="steps" id="quick"></div>
+        <div id="voice-slot"></div>
       </div>
       </div>
     </div>
@@ -83,6 +86,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const cam = hitCam(el);
   const crew = crewPanel();
   q('#crew-slot').replaceWith(crew.el);
+  const vp = voicePanel();
+  q('#voice-slot').replaceWith(vp.el);
   crew.el.dataset.sp = 'crew';
   // Right column: helm always visible, the rest as tabs (one panel at a time, a dot marks news elsewhere)
   let sideTab = localStorage.getItem('tk-side') ?? 'alerts';
@@ -401,6 +406,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     off();
     cancelAnimationFrame(raf);
     window.removeEventListener('keydown', onKey);
+    vp.dispose();
+    voice.leave();
     window.removeEventListener('pointerdown', unlock);
     banner.remove();
     helmToggle.remove();
