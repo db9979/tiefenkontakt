@@ -6,6 +6,7 @@ import { adminPanel } from './admin.js';
 import { careerPanels } from './career.js';
 import { CLASS_NAME, esc, h } from '../widgets/format.js';
 import { missionCards, paintMissionCharts } from '../widgets/mission-cards.js';
+import { logout } from './logout.js';
 
 const rankShort = (r: string) => ({ 'Kapitän zur See': 'KptzS', Fregattenkapitän: 'FKpt', Korvettenkapitän: 'KKpt', Kapitänleutnant: 'KptLt', 'Oberleutnant zur See': 'OLzS', 'Leutnant zur See': 'LzS' })[r] ?? r;
 
@@ -44,7 +45,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       shownList = '';
       el.innerHTML = `
         <div class="title">TIEFENKONTAKT</div>
-        <div class="dim" style="margin-bottom:16px">EINGELOGGT ALS ${esc(me.callsign)}</div>
+        <div class="dim" style="margin-bottom:16px;display:flex;gap:10px;align-items:center">EINGELOGGT ALS ${esc(me.callsign)} <button id="logout" title="Abmelden und zurück zur Anmeldung">Abmelden</button></div>
         <div class="panel">
           <div id="mlist"></div>
           <div class="newmatch">
@@ -70,6 +71,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       el.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => {
         b.onclick = () => net.send({ t: 'training', lesson: b.dataset.lesson as 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' });
       });
+      el.querySelector<HTMLButtonElement>('#logout')!.onclick = () => void logout();
       el.querySelector<HTMLButtonElement>('#create')!.onclick = () => {
         const name = el.querySelector<HTMLInputElement>('#mname')!.value.trim() || t('Grönland-Lücke');
         net.send({ t: 'create_match', name, private: el.querySelector<HTMLInputElement>('#mpriv')!.checked });

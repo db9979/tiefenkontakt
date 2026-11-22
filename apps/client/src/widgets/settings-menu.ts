@@ -3,6 +3,7 @@ import { lang, setLang } from '../i18n/index.js';
 import { store } from '../store.js';
 import { h } from './format.js';
 import { QUALITY_LABEL, quality, qualitySetting, setQuality, type QualitySetting } from './perf.js';
+import { logout } from '../screens/logout.js';
 
 /** Display preferences that apply outside a match too (font size, palette, red light). */
 export function applyDisplayPrefs(): void {
@@ -38,7 +39,8 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
       <div class="menu-row"><span>Schriftgröße</span><span><button data-font="-1">A−</button> ${Math.round(font * 100)} % <button data-font="1">A+</button></span></div>
       <div class="menu-row" title="Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)"><span>Grafik</span><button id="m-q">${QUALITY_LABEL[qualitySetting()]}${qualitySetting() === 'auto' ? ` · ${QUALITY_LABEL[quality()]}` : ''}</button></div>
       <div class="menu-row"><span>Sprache</span><button id="m-lang">${lang === 'de' ? 'English' : 'Deutsch'}</button></div>
-      <div class="steps" style="margin-top:8px"><button id="m-brief">Lagebesprechung</button><button id="m-keys">Tasten</button></div>`;
+      <div class="steps" style="margin-top:8px"><button id="m-brief">Lagebesprechung</button><button id="m-keys">Tasten</button></div>
+      <div class="steps"><button id="m-logout" class="warn" title="Abmelden. In einer laufenden Partie wartet dein Schiff, bis du dich wieder anmeldest.">Abmelden</button></div>`;
   };
   panel.addEventListener('change', (e) => {
     const t = toggles.find((x) => x.id === (e.target as HTMLInputElement).dataset.t);
@@ -64,6 +66,15 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
     } else if (b.id === 'm-lang') setLang(lang === 'de' ? 'en' : 'de');
     else if (b.id === 'm-brief') { close(); opts.onBriefing(); }
     else if (b.id === 'm-keys') { close(); opts.onKeys(); }
+    else if (b.id === 'm-logout') {
+      // Two taps: signing out mid-match is easy to hit by accident
+      if (b.dataset.armed) void logout();
+      else {
+        b.dataset.armed = '1';
+        b.textContent = 'Wirklich abmelden?';
+        setTimeout(() => { delete b.dataset.armed; b.textContent = 'Abmelden'; }, 3000);
+      }
+    }
   });
   const close = () => {
     panel.style.display = 'none';
