@@ -293,6 +293,8 @@ export interface Debrief {
   winner: Exclude<Team, 'neutral'>;
   reason: string;
   duration: number;
+  /** What the AI adapted to from this player's earlier matches (shown in the debrief). */
+  learned?: string[];
 }
 
 export interface PlayerStats {
@@ -309,6 +311,15 @@ export interface PlayerStats {
   firstContactS?: number;
   distanceNm: number;
   won: boolean;
+  /** Share of the match spent at periscope depth, above the layer, above 12 kn, pinging (0..1). */
+  habits?: Habits;
+}
+
+export interface Habits {
+  pd: number;
+  above: number;
+  fast: number;
+  ping: number;
 }
 
 export type ServerMsg =

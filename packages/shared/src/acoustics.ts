@@ -23,6 +23,10 @@ export interface Environment {
   current?: { x: number; y: number };
   /** Incidents at sea (driftnets, whales, fronts); present only in full matches. */
   incidents?: IncidentState;
+  /** Match seed (AI commanders' traits are drawn from it). */
+  seed?: number;
+  /** What each side's AI learned about the other side's players' habits. */
+  adapt?: { west?: { pd?: boolean; above?: boolean; fast?: boolean }; east?: { ping?: boolean; fast?: boolean } };
 }
 
 export const DEFAULT_ENV: Environment = { layerDepth: 120, layerLoss: 12, seaState: 3 };

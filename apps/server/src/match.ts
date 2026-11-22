@@ -22,10 +22,12 @@ import {
   type ServerMsg,
   type Ship,
   type World,
+  type Habits,
 } from '@tk/shared';
 import { BotCrew, type BotState, type SavedCrew } from './bots/index.js';
 import { Recorder, type RecorderState } from './recorder.js';
 import { buildLesson, lessonResult } from './lessons.js';
+import { learnFrom } from './learning.js';
 import { applyCommand, type GameCommand } from './input.js';
 import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
@@ -177,6 +179,9 @@ export class Match {
 
   /** Called once with the debrief when the match ends (statistics, rankings). */
   onFinish?: (d: Debrief) => void;
+  /** Habits of account players (set by the server): the AI adapts to them. */
+  static recentHabits?: (userId: number, team: string) => Habits[];
+  private learned: string[] = [];
 
   /** Link lost mid-match: keep the slot and ship; pause when nobody is left. */
   detach(playerId: string): void {
@@ -333,6 +338,11 @@ export class Match {
       this.slots.push(...bots);
       this.world = buildScenario(this.slots, this.settings, this.seed);
       for (const b of bots) this.bots.add(`p_${b.playerId}`);
+      if (Match.recentHabits && bots.length) {
+        const l = learnFrom(this.slots, Match.recentHabits);
+        this.world.env.adapt = l.adapt;
+        this.learned = l.notes;
+      }
     }
     for (const s of this.slots) this.extras.set(s.playerId, { alerts: [], radio: [], reports: new Map(), timeScale: this.settings.timeScale });
     this.state = 'running';
@@ -473,7 +483,7 @@ export class Match {
     if (result) {
       this.state = 'ended';
       this.stop();
-      this.finished = { result, debrief: this.recorder.debrief(w, this.slots, result) };
+      this.finished = { result, debrief: { ...this.recorder.debrief(w, this.slots, result), learned: this.learned.length ? this.learned : undefined } };
       for (const c of this.conns.values()) {
         c.send({ t: 'end', ...result });
         c.send({ t: 'debrief', d: this.finished.debrief });

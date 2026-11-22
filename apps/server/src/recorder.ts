@@ -1,4 +1,4 @@
-import { CLASSES, NM, type Debrief, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
+import { CLASSES, KN, NM, type Debrief, type Habits, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
 import type { MatchResult } from './rules.js';
 
 const FRAME_EVERY = 15; // sim s
@@ -9,6 +9,14 @@ export interface RecorderState {
   lastFrame: number;
   distance: Record<string, number>;
   lastPos: Record<string, [number, number]>;
+  /** Habit samples per player ship: n samples, and counts at PD / above layer / fast / pinging. */
+  habits?: Record<string, [number, number, number, number, number]>;
+}
+
+function habitsOf(h?: [number, number, number, number, number]): Habits | undefined {
+  if (!h || h[0] < 4) return undefined;
+  const f = (i: number) => Math.round((h[i]! / h[0]) * 100) / 100;
+  return { pd: f(1), above: f(2), fast: f(3), ping: f(4) };
 }
 
 /** Records ground truth during the match; it is only revealed in the debrief after the end. */
@@ -25,6 +33,14 @@ export class Recorder {
       const prev = this.s.lastPos[x.id];
       if (prev) this.s.distance[x.id] = (this.s.distance[x.id] ?? 0) + Math.hypot(x.pos.x - prev[0], x.pos.y - prev[1]);
       this.s.lastPos[x.id] = [x.pos.x, x.pos.y];
+      if (!x.alive || !x.id.startsWith('p_') || x.id.startsWith('p_bot-')) continue;
+      const h = ((this.s.habits ??= {})[x.id] ??= [0, 0, 0, 0, 0]);
+      const sub = CLASSES[x.cls].submarine;
+      h[0]++;
+      if (sub && x.depth <= 20) h[1]++;
+      if (sub && w.env.layerDepth > 0 && x.depth < w.env.layerDepth) h[2]++;
+      if (x.speed / KN > 12) h[3]++;
+      if (x.activeSonar) h[4]++;
     }
   }
 
@@ -57,6 +73,7 @@ export class Recorder {
         firstContactS: first && first.length ? Math.round(Math.min(...first)) : undefined,
         distanceNm: Math.round(((this.s.distance[shipId] ?? 0) / NM) * 10) / 10,
         won: p.team === result.winner,
+        habits: habitsOf(this.s.habits?.[shipId]),
       };
     });
     return {

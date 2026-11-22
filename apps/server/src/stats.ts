@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Debrief, PlayerStats } from '@tk/shared';
+import type { Debrief, Habits, PlayerStats } from '@tk/shared';
 
 /** Match results, points and campaign progress for registered players (guests are not recorded). */
 
@@ -88,6 +88,12 @@ export class StatsStore {
         step TEXT NOT NULL,
         done_at INTEGER NOT NULL,
         PRIMARY KEY (user_id, step)
+      );
+      CREATE TABLE IF NOT EXISTS habits (
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        ended_at INTEGER NOT NULL,
+        team TEXT NOT NULL,
+        pd REAL NOT NULL, above REAL NOT NULL, fast REAL NOT NULL, ping REAL NOT NULL
       );`);
   }
 
@@ -103,12 +109,21 @@ export class StatsStore {
       const uid = userIdOf(s.playerId);
       if (uid === undefined) continue;
       ins.run(uid, now, mission, timeOfDay, s.team, s.cls, s.won ? 1 : 0, s.kills, s.tonnageSunk, s.shots + s.rockets, s.survived ? 1 : 0, pointsFor(s));
+      if (s.habits) {
+        this.db.prepare('INSERT INTO habits (user_id, ended_at, team, pd, above, fast, ping) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          .run(uid, now, s.team, s.habits.pd, s.habits.above, s.habits.fast, s.habits.ping);
+      }
       if (s.won) {
         for (const step of CAMPAIGN) {
           if (step.kind === 'mission' && step.mission === mission && step.timeOfDay === timeOfDay) this.complete(uid, step.id, now);
         }
       }
     }
+  }
+
+  /** Habits of a player's last few matches on a side (newest first). */
+  recentHabits(userId: number, team: string, n = 5): Habits[] {
+    return (this.db.prepare('SELECT pd, above, fast, ping FROM habits WHERE user_id = ? AND team = ? ORDER BY ended_at DESC LIMIT ?').all(userId, team, n) as unknown as Habits[]).map((h) => ({ ...h }));
   }
 
   complete(userId: number, stepId: string, now = Date.now()): void {

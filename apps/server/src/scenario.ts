@@ -132,6 +132,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     layerDepth: layer, layerLoss: 12, seaState: settings.seaState,
     seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed }, light: LIGHT[settings.timeOfDay],
   });
+  w.env.seed = seed;
   w.env.weather = initWeather(w.env, START_HOUR[settings.timeOfDay], settings.weather !== 'stabil');
   w.env.light = daylight(START_HOUR[settings.timeOfDay]);
   // Subs start safely above the bottom in shallow missions

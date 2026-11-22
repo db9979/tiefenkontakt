@@ -7,6 +7,8 @@ import {
   type Ship,
   type World,
   isConvoyShip,
+  TRAITS,
+  commanderTrait,
 } from '@tk/shared';
 import { MISSIONS, type ScenarioSettings } from './scenario.js';
 
@@ -47,6 +49,10 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
     intel.push(`Bedrohung: ${enemies.length} U-Boot(e), vermutlich voraus des Konvois`);
   }
   if (w.env.layerDepth > 0) intel.push('Sprungschicht vorhanden, Tiefe noch nicht gemessen');
+  // Fleet intelligence sometimes knows the enemy commander's character (AI ships only)
+  const ai = enemies.find((e) => e.id.startsWith('p_bot-'));
+  if (ai && rnd() < 0.6) intel.push(`Feindlagebild: Der gegnerische Kommandant ${ai.name} gilt als ${TRAITS[commanderTrait(ai.id, w.env.seed ?? 0)].de}`);
+  if (sub && !duel) intel.push('Funksprüche der Führung alle 20 Minuten: Empfang auf höchstens 25 m oder mit Schleppantenne (bis 60 m, höchstens 6 kn)');
   const steps = sub
     ? ['Langsam (unter 5 kn) und unter 100 m fahren und horchen', 'Kontakt wählen, klassifizieren, dann Kurswechsel für die Entfernung', 'Mit guter TMA-Lösung schießen, danach tief und schnell ablaufen']
     : ['Schleppsonar ausbringen und zwischen U-Boot-Richtung und Konvoi bleiben', 'Sonarbojen voraus werfen, Kontakte klassifizieren', 'Entfernung per Ping oder Hubschrauber, dann U-Jagd-Rakete'];

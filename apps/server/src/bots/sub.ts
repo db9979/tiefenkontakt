@@ -12,6 +12,8 @@ import {
   type Ship,
   type World,
   isConvoyShip,
+  TRAITS,
+  commanderTrait,
 } from '@tk/shared';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
@@ -34,6 +36,8 @@ const REPORT_EVERY = 900;
  */
 export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack: PackReport[]): void {
   const k = SKILL[skill];
+  // The commander's character scales the tactics (shot quality, speed, patience)
+  const tr = TRAITS[commanderTrait(s.id, w.env.seed ?? 0)];
   const now = w.time;
   if (m.passive) {
     if (now > m.legUntil) {
@@ -63,7 +67,9 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const layer = s.btLayer;
   const hide = Math.min(maxSafe, layer !== undefined ? layer + 40 : 150);
   const peeking = now < m.peekUntil;
-  s.order.depth = peeking ? PERISCOPE_DEPTH : threatNear ? hide : Math.min(60, maxSafe);
+  // Learned: against escorts that ping a lot, stay under the layer even when it's quiet
+  const quietDepth = w.env.adapt?.east?.ping && layer !== undefined ? Math.min(layer + 30, maxSafe) : Math.min(60, maxSafe);
+  s.order.depth = peeking ? PERISCOPE_DEPTH : threatNear ? hide : quietDepth;
   s.mastUp = peeking && s.depth <= PERISCOPE_DEPTH + 0.5;
   s.snorkel = false;
 
@@ -107,13 +113,13 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   }
   const choice = voted(m, target);
   const solved = solveFor(m, target, now, choice);
-  const goodTma = solved && solved.q >= k.tmaQuality;
+  const goodTma = solved && solved.q >= k.tmaQuality + tr.tma;
   // Against boats there's no periscope range: shoot on a good TMA (or a close, loud contact)
   const close = duel && target.se > 18 ? 4000 : undefined;
   const measured = target.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : undefined;
   const range = close ?? measured ?? (goodTma ? distance(s.pos, targetPosAt(solved!.sol, now)) : undefined);
   s.order.heading = wrap360(target.bearing + 40 * m.legSign);
-  s.order.speedKn = threatNear ? 3 : range !== undefined && range < 6000 ? 4 : 6;
+  s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
   // Pack report: costs a periscope-depth excursion and an ESM bearing for the escorts
   if (k.pack && now - m.lastReport > REPORT_EVERY && !threatNear) {
@@ -127,7 +133,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // No range yet and no good TMA: a quick periscope look (surface targets only)
   if (range === undefined && !threatNear && target.se > 6 && now > m.peekAgain) {
     m.peekUntil = now + 60;
-    m.peekAgain = now + 420;
+    m.peekAgain = now + 420 * tr.peek;
   }
 
   if (range !== undefined && range < 8000 && now - m.lastShot > SHOT_COOLDOWN) {

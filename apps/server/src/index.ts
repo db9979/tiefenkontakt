@@ -15,6 +15,7 @@ import { ModerationStore } from './moderation.js';
 import { Backups } from './backup.js';
 import { Ratings } from './rating.js';
 import { log } from './log.js';
+import { Match } from './match.js';
 import { clientIpFrom } from './client-ip.js';
 import { metrics } from './metrics.js';
 import { StatsStore, rankFor, userIdOf } from './stats.js';
@@ -43,6 +44,7 @@ lobby.onReport = (conn, m, from, reason) => {
   return fresh ? undefined : 'Bereits gemeldet';
 };
 const LESSON_STEP: Record<string, string> = { klassifizieren: 'l1', tma: 'l2', angriff: 'l3', ujagd: 'l4' };
+Match.recentHabits = (uid, team) => stats.recentHabits(uid, team);
 lobby.onFinish = (m, d) => {
   if (m.settings.lesson) {
     if (!d.reason.includes('geschafft')) return;

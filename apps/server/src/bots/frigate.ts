@@ -18,6 +18,8 @@ import {
   type Ship,
   type Vec2,
   type World,
+  TRAITS,
+  commanderTrait,
 } from '@tk/shared';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
@@ -57,6 +59,7 @@ function fixFromBuoy(t: ContactTrack, s: Ship, track: { t: number; x: number; y:
  */
 export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): void {
   const now = w.time;
+  const tr = TRAITS[commanderTrait(s.id, w.env.seed ?? 0)];
   if (now < m.evadeUntil) return;
   if (m.evadeUntil > 0) {
     m.evadeUntil = 0;
@@ -91,10 +94,13 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
   const target = subs[0];
   const leadB = target ? target.bearing : m.lead && now - m.lead.t < 900 ? m.lead.b : undefined;
   const prosecuting = leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
-  s.activeSonar = now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty;
+  const learned = w.env.adapt?.west;
+  s.activeSonar = now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? 0.5 : 1);
+  // Learned: boats that like periscope depth get radar sweeps a third of the time
+  if (learned?.pd) s.radarOn = now % 600 < 200;
 
   if (prosecuting) {
-    m.alertUntil = Math.max(m.alertUntil, now + 300);
+    m.alertUntil = Math.max(m.alertUntil, now + 300 * tr.hunt);
     const solved = target ? solveFor(m, target, now) : undefined;
     const est = target?.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 60
       ? target.range
@@ -103,7 +109,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     const v = headingVec(leadB!);
     const drop = { x: s.pos.x + v.x * Math.min(est, 20_000), y: s.pos.y + v.y * Math.min(est, 20_000) };
     // Helicopter: alternate dipping sonar and buoys along the bearing
-    const deep = (s.btLayer ?? 0) > 0;
+    const deep = (s.btLayer ?? 0) > 0 && !w.env.adapt?.west?.above;
     if (SKILL[skill].air && Math.floor(now / 400) % 2 === 0) sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1);
     else if (w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) sendBuoy(w, s, drop, deep);
     // A radio/transient lead far out: ask the patrol aircraft for a buoy line across it
