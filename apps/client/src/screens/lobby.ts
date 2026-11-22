@@ -56,7 +56,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="err" id="merr"></div>
         </div>
         <div class="panel" style="margin-top:10px">
-          <div class="hd"><span>Ausbildung</span><span class="dim">EINZELSPIELER · MIT ANLEITUNG</span></div>
+          <div class="hd"><span>Ausbildung</span><span class="dim">EINZELSPIELER · MIT ANLEITUNG · <a class="btnlink" href="/handbuch.pdf" download="Tiefenkontakt-Handbuch.pdf" title="Ausführliches Spielerhandbuch zum Drucken (A4, PDF)">HANDBUCH (PDF)</a></span></div>
           <div class="grid2">
             <button data-lesson="klassifizieren" style="text-align:left;text-transform:none"><div>1 · Horchen und Klassifizieren</div><div class="dim">LOFAR, DEMON, Klassenbibliothek</div></button>
             <button data-lesson="tma" style="text-align:left;text-transform:none"><div>2 · Zielbewegungsanalyse</div><div class="dim">Kurswechsel, Lösung, Güte</div></button>

@@ -1,0 +1,471 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Tiefenkontakt · Spielerhandbuch</title><style>
+@page { size: A4; margin: 16mm 15mm 18mm 15mm;
+  @bottom-center { content: counter(page); font: 9pt Helvetica, Arial, sans-serif; color: #666; } }
+@page :first { @bottom-center { content: none; } }
+* { box-sizing: border-box; }
+body { font: 10pt/1.45 Helvetica, Arial, sans-serif; color: #1b1f22; margin: 0; }
+h1 { font-size: 20pt; margin: 0 0 4mm; padding-bottom: 2mm; border-bottom: 1.5pt solid #1b1f22; break-before: page; letter-spacing: 0.02em; }
+h2 { font-size: 12.5pt; margin: 6mm 0 2mm; color: #1f6f8b; break-after: avoid; }
+h3 { font-size: 12pt; margin: 0 0 2mm; break-after: avoid; }
+h4 { margin: 0 0 1.5mm; font-size: 10.5pt; }
+p { margin: 0 0 2.5mm; } .lead { font-size: 11pt; }
+ul, ol { margin: 0 0 3mm; padding-left: 5mm; } li { margin-bottom: 1mm; }
+figure { margin: 3mm 0 5mm; break-inside: avoid; text-align: center; }
+figure svg { width: 100%; max-height: 80mm; }
+figcaption { font-size: 8.5pt; color: #555; margin-top: 1mm; }
+/* Screenshots: the dark console inverted to a light picture so it prints with little ink */
+.ui img { width: 100%; filter: invert(1) hue-rotate(180deg) saturate(0.6) contrast(0.95); border: 0.5pt solid #999; }
+.shots { gap: 4mm; margin-bottom: 0; } .shots figure { margin: 0 0 3mm; }
+table { border-collapse: collapse; width: 100%; margin: 0 0 4mm; break-inside: auto; }
+tr { break-inside: avoid; }
+.grid th, .grid td { border: 0.5pt solid #b9c0c4; padding: 1.3mm 2mm; text-align: left; vertical-align: top; }
+.grid th { background: #eef1f2; font-weight: bold; }
+.cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-bottom: 4mm; }
+.box { border: 0.75pt solid #b9c0c4; border-left: 2.5pt solid #1f6f8b; padding: 3mm 4mm; break-inside: avoid; }
+.small { font-size: 8.5pt; color: #555; }
+kbd { font: 9pt Menlo, Consolas, monospace; border: 0.5pt solid #888; border-radius: 1mm; padding: 0 1.5mm; }
+.keys td:first-child { width: 35mm; } .gloss td:first-child { width: 30mm; } .gloss td { padding: 0.9mm 2mm; font-size: 9pt; }
+.unit { break-inside: avoid; border-top: 1pt solid #1b1f22; padding-top: 2.5mm; margin-bottom: 5mm; font-size: 9pt; line-height: 1.35; }
+.unit p, .unit li { margin-bottom: 1mm; }
+.unit h3 .role { font-weight: normal; color: #555; font-size: 10pt; margin-left: 3mm; }
+.unit img { width: 100%; height: 30mm; object-fit: contain; display: block; margin: 1mm 0 2mm; }
+.unit-body { display: grid; grid-template-columns: 1.15fr 1fr; gap: 5mm; }
+.data th { text-align: left; font-weight: normal; color: #555; width: 27mm; padding: 0.6mm 2mm 0.6mm 0; vertical-align: top; }
+.data td { padding: 0.6mm 0; border-bottom: 0.5pt solid #e2e6e8; }
+.cover { height: 255mm; display: flex; flex-direction: column; justify-content: space-between; }
+.cover .t { font-size: 40pt; letter-spacing: 0.08em; font-weight: bold; margin-top: 30mm; }
+.cover .s { font-size: 15pt; color: #1f6f8b; margin-top: 2mm; }
+.cover img { width: 100%; margin: 10mm 0; }
+.cover .f { font-size: 9pt; color: #555; }
+.toc { break-before: page; } .toc h1 { break-before: avoid; }
+.toc a { color: inherit; text-decoration: none; display: flex; border-bottom: 0.5pt dotted #999; padding: 1.8mm 0; font-size: 11pt; }
+.toc a span { margin-right: 4mm; width: 8mm; color: #1f6f8b; font-weight: bold; }
+</style></head><body>
+<section class="cover">
+  <div><div class="t">TIEFENKONTAKT</div><div class="s">Spielerhandbuch · U-Boot-Jagd im Kalten Krieg</div></div>
+  <div><img src="img/ssk.png" alt=""><img src="img/ffg.png" alt=""></div>
+  <div class="f">Alle Staaten, Schiffsklassen und Namen sind erfunden. Werte entsprechen dem Spielstand vom 22.11.2026.<br>
+  Druckfreundlich: weißer Hintergrund, Graustufen-tauglich, A4.</div>
+</section>
+<nav class="toc"><h1>Inhalt</h1><a href="#k1"><span>1</span>Das Spiel</a><a href="#k2"><span>2</span>Erste Schritte</a><a href="#k3"><span>3</span>Das Meer und der Schall</a><a href="#k4"><span>4</span>Lagebild und Symbole</a><a href="#k5"><span>5</span>Als U-Boot-Kommandant</a><a href="#k6"><span>6</span>Als Kommandant der Eskorte</a><a href="#k7"><span>7</span>Klassifizieren</a><a href="#k8"><span>8</span>Einheitenreferenz</a><a href="#k9"><span>9</span>Missionen</a><a href="#k10"><span>10</span>Umwelt und Zwischenfälle</a><a href="#k11"><span>11</span>Taktik</a><a href="#k12"><span>12</span>Tastatur und Glossar</a></nav>
+
+<h1 id="k1">1 · Das Spiel</h1>
+<p class="lead">Tiefenkontakt ist eine U-Boot-Jagd im Stil des Kalten Kriegs für 2 bis 12 Spieler im Browser. Zwei Teams kämpfen um einen Konvoi:
+Das <b>Ostpakt-Wolfsrudel</b> will Tonnage versenken, der <b>Westbund-Geleitschutz</b> will den Konvoi ins Ziel bringen. Alle Nationen,
+Schiffsklassen und Namen sind erfunden.</p>
+<p>Jeder Spieler führt ein Schiff, allein oder als Besatzung mit Freunden. Fehlende Plätze übernimmt die KI, man kann also auch allein spielen.
+Die Simulation ist bewusst nüchtern: Man sieht den Gegner fast nie. Man hört ihn, peilt ihn, schätzt seine Bahn und schießt auf eine Lösung.</p>
+<div class="cols2">
+<div class="box"><h4>Sieg für die U-Boote</h4><ul><li>Die Hälfte der Konvoi-Tonnage versenkt, oder</li><li>bei Zeitablauf mindestens 30 % versenkt.</li></ul></div>
+<div class="box"><h4>Sieg für den Geleitschutz</h4><ul><li>Mehr als die Hälfte der Tonnage im Zielhafen, oder</li><li>alle U-Boote versenkt, oder</li><li>bei Zeitablauf weniger als 30 % Verlust.</li></ul></div>
+</div>
+<p>Die Zeit läuft dreifach gerafft: Eine Stunde Simulationszeit dauert 20 Minuten. Alle Uhren im Spiel zeigen Simulationszeit.
+Eine Partie dauert je nach Mission 30 bis 60 Minuten.</p>
+<figure><svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <g transform="translate(320 140)">
+      <rect x="-72" y="-5" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="-12" y="-5" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="48" y="-5" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="-72" y="45" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="-12" y="45" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="48" y="45" width="24" height="10" fill="#8a9196" stroke="none"/>
+      <path d="M-150 -40 A 170 170 0 0 1 150 -40" stroke="#1f6f8b" stroke-dasharray="6 4"/>
+      <g transform="translate(-110 -80) scale(0.55)"><path d="M-26 0 L26 0 L20 8 L-22 8 Z" fill="#1b1f22" stroke="none"/><rect x="-6" y="-9" width="12" height="9" fill="#1b1f22" stroke="none"/><line x1="0" y1="-9" x2="0" y2="-18" stroke="#1b1f22"/></g><g transform="translate(0 -120) scale(0.55)"><path d="M-26 0 L26 0 L20 8 L-22 8 Z" fill="#1b1f22" stroke="none"/><rect x="-6" y="-9" width="12" height="9" fill="#1b1f22" stroke="none"/><line x1="0" y1="-9" x2="0" y2="-18" stroke="#1b1f22"/></g><g transform="translate(110 -80) scale(0.55)"><path d="M-26 0 L26 0 L20 8 L-22 8 Z" fill="#1b1f22" stroke="none"/><rect x="-6" y="-9" width="12" height="9" fill="#1b1f22" stroke="none"/><line x1="0" y1="-9" x2="0" y2="-18" stroke="#1b1f22"/></g>
+      <line x1="0" y1="-20" x2="0" y2="-130" stroke="#1b1f22" marker-end="url(#c)"/>
+      <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#1b1f22" stroke="none"/></marker></defs>
+      <g transform="translate(-230 -60) scale(0.6)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#b03a2e" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#b03a2e" stroke="none"/></g><g transform="translate(210 10) scale(0.6)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#b03a2e" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#b03a2e" stroke="none"/></g>
+    </g>
+    <text x="320" y="250" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Sicherung vorn und an den Flanken; U-Boote greifen meist von vorn-seitlich an, wo der Konvoi auf sie zuläuft.</text>
+    <text x="330" y="18" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">Konvoikurs</text></svg><figcaption>Abb. 1 · Konvoi mit Sicherung. Gefährlich ist der Bereich vorn und seitlich, auf den der Konvoi zuläuft.</figcaption></figure>
+
+<h1 id="k2">2 · Erste Schritte</h1>
+<h2>Konto, Gast und Lobby</h2>
+<ol>
+<li><b>Anmelden</b> mit Rufzeichen und Passwort oder als Gast. Mit Konto werden Rang, Statistik und Karriere gespeichert.</li>
+<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Zeitlimit und KI-Stärke.</li>
+<li><b>Team und Klasse</b> wählen. Beim Teamkameraden „Mitfahren“ macht euch zur gemeinsamen Besatzung eines Schiffs, jeder an einer Station.</li>
+<li><b>Bereit</b> melden. Leere Plätze besetzt die KI.</li>
+<li>Vor dem Auslaufen erscheint die <b>Einsatzbesprechung</b> mit Auftrag, Lagebild, Aufklärung über den gegnerischen Kommandanten und den ersten Schritten.</li>
+</ol>
+<figure class="ui"><img src="img/ui-lobby.jpg" alt=""><figcaption>Bild 1 · Lobby: Teams, Klassenwahl und Missionen mit Kartenvorschau.</figcaption></figure>
+<figure class="ui"><img src="img/ui-briefing.jpg" alt=""><figcaption>Bild 2 · Einsatzbesprechung vor dem Auslaufen.</figcaption></figure>
+<h2>Lektionen</h2>
+<p>Die geführten Lektionen bringen jede Station Schritt für Schritt bei: Horchen, Peilen, TMA, Torpedoangriff, Schleppsonar, Hubschrauber und Ausweichen.
+Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Einsteiger“ beschriftet Linien und bietet Auto-Marken und Auto-TMA,
+„Profi“ verzichtet darauf.</p>
+<h2>Der Bildschirm</h2>
+<table class="grid">
+<tr><th>Bereich</th><th>Inhalt</th></tr>
+<tr><td>Obere Leiste</td><td>Stationen (Tasten 1–5), Schiff, Tonnage-Balken (rot versenkt, blau entkommen, Strich bei 50 %), Uhrzeit, Seegang, Restzeit, Ton, Einstellungen, Hilfe.</td></tr>
+<tr><td>Mitte</td><td>Die gewählte Station: Sonar, Sehrohr, Feuerleitung, Tauchstand bzw. Operationszentrale, Sonar, Waffen, Radar, Brücke.</td></tr>
+<tr><td>Rechts oben</td><td>Ruderstand: Kompass (Klick setzt den Kurs), Fahrstufen, Tiefe, Sehrohr bzw. Mast. Immer sichtbar.</td></tr>
+<tr><td>Rechts unten</td><td>Reiter <b>Meldungen · Boot · Schaden · Funk</b>. Ein roter Punkt zeigt Neues in einem anderen Reiter.</td></tr>
+</table>
+<h2>Bedienung mit der Maus</h2>
+<table class="grid">
+<tr><td>Karte</td><td>Ziehen verschiebt, Rad zoomt, Linksklick wählt einen Kontakt. <b>Rechtsklick</b> öffnet Aktionen: Kurs hierher, Torpedo hierher, Rakete, Boje, Hubschrauber, TMA.</td></tr>
+<tr><td>Kompass</td><td>Klicken oder ziehen setzt den Kurs. Gelb = befohlen, blau = aktuell.</td></tr>
+<tr><td>Wasserfall, Radar</td><td>Klick auf eine Spur oder ein Echo wählt den Kontakt.</td></tr>
+<tr><td>Listen</td><td>Spaltenköpfe sortieren, Filterchips grenzen ein (aktuell, ohne eigene, Sonar, ESM, Optik).</td></tr>
+</table>
+
+<h1 id="k3">3 · Das Meer und der Schall</h1>
+<p class="lead">Unter Wasser ist Schall das einzige Sinnesorgan auf Entfernung. Wer das Meer versteht, gewinnt.</p>
+<h2>Die Sonargleichung</h2>
+<p>Ein Kontakt entsteht, wenn der <b>Signalüberschuss</b> (SE) über null liegt. Er ergibt sich aus Quellpegel minus Ausbreitungsverlust
+minus Störpegel (abzüglich der Bündelung der Antenne) minus Erkennungsschwelle. Jeder Faktor ist im Spiel nachgebildet.</p>
+<figure><svg viewBox="0 0 640 245" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <rect x="30" y="30" width="70" height="170" fill="#1b1f22" stroke="none"/><text x="65" y="218" text-anchor="middle" font-size="12" fill="#1b1f22" stroke="none" font-weight="bold">SL</text><text x="65" y="232" text-anchor="middle" font-size="10" fill="#8a9196" stroke="none">Quellpegel</text>
+    <rect x="130" y="105" width="70" height="95" fill="#8a9196" stroke="none"/><text x="165" y="218" text-anchor="middle" font-size="12" fill="#1b1f22" stroke="none" font-weight="bold">− TL</text><text x="165" y="232" text-anchor="middle" font-size="10" fill="#8a9196" stroke="none">Ausbreitung</text>
+    <rect x="230" y="140" width="70" height="60" fill="#d9dee1" stroke="none"/><text x="265" y="218" text-anchor="middle" font-size="12" fill="#1b1f22" stroke="none" font-weight="bold">− (NL − DI)</text><text x="265" y="232" text-anchor="middle" font-size="10" fill="#8a9196" stroke="none">Störung − Bündelung</text>
+    <rect x="330" y="182" width="70" height="18" fill="#d9dee1" stroke="none"/><text x="365" y="218" text-anchor="middle" font-size="12" fill="#1b1f22" stroke="none" font-weight="bold">− DT</text><text x="365" y="232" text-anchor="middle" font-size="10" fill="#8a9196" stroke="none">Erkennungsschwelle</text>
+    <rect x="430" y="178" width="70" height="22" fill="#1f6f8b" stroke="none"/><text x="465" y="218" text-anchor="middle" font-size="12" fill="#1f6f8b" stroke="none" font-weight="bold">= SE</text>
+    <line x1="20" y1="200" x2="620" y2="200" stroke="#8a9196"/>
+    <text x="515" y="160" text-anchor="start" font-size="12" fill="#1f6f8b" stroke="none" font-weight="bold">Signalüberschuss</text><text x="515" y="176" text-anchor="start" font-size="11" fill="#1f6f8b" stroke="none">über 0 dB: Kontakt</text>
+    <text x="30" y="22" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">Wer gehört wird, entscheidet die Summe: laut (Fahrt, Kavitation, Schnorcheln) gegen Entfernung, Schicht und Lärm.</text></svg><figcaption>Abb. 2 · Sonargleichung als Pegeltreppe.</figcaption></figure>
+<table class="grid">
+<tr><th>Faktor</th><th>Was ihn erhöht (schlecht für den Gehörten)</th><th>Was ihn senkt</th></tr>
+<tr><td>Quellpegel SL</td><td>Fahrt (stark), Kavitation, Schnorcheln, Notanblasen, Rohrfluten, Gefechtslärm</td><td>Schleichfahrt, „Ruhe im Boot“ (−3 dB), Tiefe (Kavitation setzt später ein)</td></tr>
+<tr><td>Ausbreitung TL</td><td>Sprungschicht zwischen den Partnern, Flachwasser mit Bodenverlust, Entfernung</td><td>Oberflächenkanal, Konvergenzzone, gleiche Seite der Schicht</td></tr>
+<tr><td>Störpegel NL</td><td>Seegang, Regen, Verkehr, eigene Fahrt, Lärm anderer Schiffe in derselben Peilung</td><td>Ruhige See, langsame eigene Fahrt</td></tr>
+</table>
+<h2>Sprungschicht und Oberflächenkanal</h2>
+<p>Unter der warmen Deckschicht fällt die Temperatur plötzlich ab. Diese <b>Sprungschicht</b> knickt Schallstrahlen ab: Wer auf der anderen Seite ist,
+wird 10–15 dB leiser gehört. Über der Schicht bildet sich ein <b>Oberflächenkanal</b>, der Schall weit trägt. Die Schichttiefe ist unbekannt, bis sie gemessen ist:
+Die Fregatte wirft eine BT-Sonde, das U-Boot bemerkt sie beim Durchtauchen. Auf kurze Entfernung (unter 2 km) wirkt die Schicht nur teilweise.</p>
+<figure><svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <rect x="0" y="0" width="720" height="260" fill="#fff" stroke="none"/>
+    <line x1="20" y1="30" x2="700" y2="30" stroke="#1b1f22" stroke-width="1.6"/><text x="24" y="22" text-anchor="start" font-size="12" fill="#1b1f22" stroke="none">Wasseroberfläche</text>
+    <rect x="20" y="30" width="680" height="28" fill="#d9dee1" stroke="none" opacity="0.6"/><text x="600" y="49" text-anchor="start" font-size="12" fill="#8a9196" stroke="none">Oberflächenkanal</text>
+    <line x1="20" y1="120" x2="700" y2="120" stroke="#8a9196" stroke-dasharray="8 5" stroke-width="2"/>
+    <text x="24" y="114" text-anchor="start" font-size="12" fill="#8a9196" stroke="none">Sprungschicht (Temperatursprung)</text>
+    <path d="M60 70 Q 260 82 430 114 T 680 60" stroke="#1f6f8b" stroke-dasharray=""/><path d="M60 76 Q 260 96 430 112 T 680 64" stroke="#1f6f8b" stroke-dasharray="4 3"/><path d="M60 82 Q 260 110 430 110 T 680 68" stroke="#1f6f8b" stroke-dasharray=""/><path d="M60 88 Q 260 124 430 108 T 680 72" stroke="#1f6f8b" stroke-dasharray="4 3"/>
+    <g transform="translate(60 30) scale(0.9)"><path d="M-26 0 L26 0 L20 8 L-22 8 Z" fill="#1b1f22" stroke="none"/><rect x="-6" y="-9" width="12" height="9" fill="#1b1f22" stroke="none"/><line x1="0" y1="-9" x2="0" y2="-18" stroke="#1b1f22"/></g><g transform="translate(170 90) scale(0.8)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#1b1f22" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#1b1f22" stroke="none"/></g><text x="140" y="76" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">über der Schicht: hört und wird gehört</text>
+    <g transform="translate(470 190) scale(0.8)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#8a9196" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#8a9196" stroke="none"/></g><text x="420" y="222" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">unter der Schicht: 10–15 dB leiser für Sensoren oben</text>
+    <path d="M470 175 L470 126" stroke="#b03a2e" stroke-dasharray="3 3"/><text x="478" y="160" text-anchor="start" font-size="11" fill="#b03a2e" stroke="none">Schall wird an der Schicht abgelenkt</text>
+    <line x1="20" y1="245" x2="700" y2="245" stroke="#1b1f22" stroke-width="2"/><text x="24" y="240" text-anchor="start" font-size="12" fill="#8a9196" stroke="none">Meeresboden</text></svg><figcaption>Abb. 3 · Schallausbreitung an der Sprungschicht.</figcaption></figure>
+<h2>Konvergenzzonen</h2>
+<p>In tiefem Wasser biegen sich Strahlen in großer Tiefe wieder nach oben und kommen in etwa 55 km Entfernung an die Oberfläche zurück.
+Dort hört man laute Schiffe plötzlich wieder, dazwischen ist Stille.</p>
+<figure><svg viewBox="0 0 680 230" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <line x1="20" y1="40" x2="660" y2="40" stroke-width="1.6"/>
+    <path d="M40 40 C 140 200 240 200 330 42 C 420 200 520 200 620 44" stroke="#1f6f8b" opacity="0.5"/><path d="M40 40 C 140 212 240 212 330 42 C 420 212 520 212 620 44" stroke="#1f6f8b" opacity="0.62"/><path d="M40 40 C 140 224 240 224 330 42 C 420 224 520 224 620 44" stroke="#1f6f8b" opacity="0.74"/>
+    <g transform="translate(40 40) scale(0.7)"><path d="M-26 0 L26 0 L20 8 L-22 8 Z" fill="#1b1f22" stroke="none"/><rect x="-6" y="-9" width="12" height="9" fill="#1b1f22" stroke="none"/><line x1="0" y1="-9" x2="0" y2="-18" stroke="#1b1f22"/></g>
+    <ellipse cx="330" cy="44" rx="26" ry="10" fill="#d9dee1" stroke="#8a9196"/><text x="330" y="72" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">1. Konvergenzzone</text>
+    <ellipse cx="620" cy="46" rx="26" ry="10" fill="#d9dee1" stroke="#8a9196"/><text x="620" y="74" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">2. Zone</text>
+    <text x="185" y="130" text-anchor="middle" font-size="11" fill="#8a9196" stroke="none">Schattenzone: hier hört man nichts</text>
+    <text x="330" y="222" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Nur in tiefem Wasser (über 2000 m): Kontakte in ca. 55 km Abstand, dazwischen Stille</text></svg><figcaption>Abb. 4 · Konvergenzzonen in der Grönland-Lücke.</figcaption></figure>
+<h2>Flachwasser</h2>
+<p>Im Schelfmeer und im Fjord ist das Wasser 100–300 m tief. Der Boden schluckt Schall mit jeder Reflexion, die Schicht ist schwach und
+<b>Nachhall</b> (Echos von Boden und Oberfläche) überdeckt das Aktivsonar. Ein CW-Puls findet dort langsame Ziele kaum, ein <b>LFM-Puls</b>
+mit Pulskompression schon. Ein schnelles Ziel hebt sich durch seinen Doppler auch beim CW-Puls vom Nachhall ab.</p>
+<h2>Maskierung</h2>
+<p>Ein lautes Schiff überdeckt leisere Kontakte in fast derselben Peilung (Rumpfsonar etwa ± 8°, Schleppsonar ± 5°).
+U-Boote nutzen das: Wer sich nah unter einen Frachter setzt, verschwindet in dessen Lärm.</p>
+<h2>Toter Winkel und blinder Fleck</h2>
+<p>Hinter jedem Schiff liegt ein toter Winkel von etwa ± 30°, in dem das Rumpfsonar die eigene Schraube hört.
+Zusätzlich sieht kein Rumpfsonar steil nach unten: Ein Ziel mehr als 30° unter dem Schiff, also tief und nah, ist unsichtbar.
+Das Schleppsonar hört achtern, kann aber links und rechts nicht unterscheiden.</p>
+<figure><svg viewBox="0 0 720 270" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <text x="170" y="18" text-anchor="middle" font-size="12" fill="#1b1f22" stroke="none" font-weight="bold">Draufsicht: toter Winkel achtern</text>
+    <circle cx="170" cy="130" r="100" stroke="#d9dee1"/>
+    <path d="M170 130 L112 212 A100 100 0 0 0 228 212 Z" fill="#d9dee1" stroke="#8a9196"/>
+    <text x="170" y="208" text-anchor="middle" font-size="10" fill="#8a9196" stroke="none">TOTER WINKEL</text><text x="170" y="222" text-anchor="middle" font-size="10" fill="#8a9196" stroke="none">± 30° achtern</text>
+    <path d="M170 108 L177 144 L163 144 Z" fill="#1b1f22" stroke="none"/>
+    <line x1="170" y1="100" x2="170" y2="35" stroke="#1f6f8b" marker-end="url(#a)"/><text x="176" y="50" text-anchor="start" font-size="10" fill="#1f6f8b" stroke="none">Kurs</text>
+    <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#1f6f8b" stroke="none"/></marker></defs>
+    <text x="540" y="18" text-anchor="middle" font-size="12" fill="#1b1f22" stroke="none" font-weight="bold">Seitenansicht: blinder Fleck unter dem Rumpf</text>
+    <line x1="380" y1="60" x2="700" y2="60" stroke-width="1.6"/>
+    <g transform="translate(540 60) scale(1.1)"><path d="M-26 0 L26 0 L20 8 L-22 8 Z" fill="#1b1f22" stroke="none"/><rect x="-6" y="-9" width="12" height="9" fill="#1b1f22" stroke="none"/><line x1="0" y1="-9" x2="0" y2="-18" stroke="#1b1f22"/></g>
+    <path d="M540 68 L430 250 L650 250 Z" fill="none" stroke="#8a9196" stroke-dasharray="5 4"/>
+    <path d="M540 68 L460 250 L620 250 Z" fill="#d9dee1" stroke="none" opacity="0.8"/>
+    <text x="540" y="200" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">steiler als 30°</text><text x="540" y="214" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">unter dem Schiff:</text><text x="540" y="228" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">kein Rumpfsonar</text>
+    <g transform="translate(540 160) scale(0.7)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#b03a2e" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#b03a2e" stroke="none"/></g>
+    <text x="386" y="120" text-anchor="start" font-size="10" fill="#1f6f8b" stroke="none">VDS / Hubschrauber /</text><text x="386" y="133" text-anchor="start" font-size="10" fill="#1f6f8b" stroke="none">Bojen schließen die Lücke</text></svg><figcaption>Abb. 5 · Toter Winkel achtern und blinder Fleck unter dem Rumpf.</figcaption></figure>
+<figure><svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <path d="M280 40 L288 70 L272 70 Z" fill="#1b1f22" stroke="none"/>
+    <path d="M280 72 C 282 110 278 140 280 180" stroke="#1f6f8b" stroke-width="2.4"/><text x="290" y="170" text-anchor="start" font-size="11" fill="#1f6f8b" stroke="none">Schleppsonar</text>
+    <line x1="280" y1="130" x2="470" y2="70" stroke="#1b1f22"/><g transform="translate(480 66) scale(0.6)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#1b1f22" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#1b1f22" stroke="none"/></g><text x="450" y="100" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">echter Kontakt</text>
+    <line x1="280" y1="130" x2="90" y2="70" stroke="#8a9196" stroke-dasharray="5 4"/><g transform="translate(80 66) scale(0.6)"><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#d9dee1" stroke="none"/><rect x="-5" y="-11" width="10" height="7" fill="#d9dee1" stroke="none"/></g><text x="40" y="100" text-anchor="start" font-size="11" fill="#8a9196" stroke="none">Spiegelbild (Geist)</text>
+    <text x="280" y="22" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Eine Linie hört nur den Winkel zu ihrer Achse: links oder rechts? 20° wenden klärt es.</text></svg><figcaption>Abb. 6 · Mehrdeutigkeit des Schleppsonars.</figcaption></figure>
+<h2>Abstrahlung</h2>
+<p>Schiffe sind von achtern am lautesten (Schraube) und von vorn am leisesten. Querab werfen sie das stärkste Aktiv-Echo zurück, von vorn das schwächste.
+Darum zeigt ein U-Boot einem pingenden Gegner das Heck und meidet die Breitseite.</p>
+
+<h1 id="k4">4 · Lagebild und Symbole</h1>
+<p>Die Karte zeigt Kontakte mit Symbolen nach NATO-Art. Die Form steht für die Zugehörigkeit (eigen, feindlich, unbekannt), die volle Form für Überwasser, die untere Hälfte für U-Boot.
+Ein Kontakt wird erst „feindlich“, wenn du ihn klassifiziert hast; vorher ist er unbekannt.</p>
+<figure><svg viewBox="0 0 700 110" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2"><g transform="translate(60 0)"><circle cx="0" cy="40" r="16"/><text x="0" y="92" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">eigen · Überwasser</text></g><g transform="translate(170 0)"><path d="M-16 34 A16 16 0 0 0 16 34"/><text x="0" y="92" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">eigen · U-Boot</text></g><g transform="translate(290 0)"><path d="M0 20 L20 40 L0 60 L-20 40 Z" stroke="#b03a2e"/><text x="0" y="92" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">feindlich · Überwasser</text></g><g transform="translate(410 0)"><path d="M-20 34 L0 54 L20 34" stroke="#b03a2e"/><text x="0" y="92" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">feindlich · U-Boot</text></g><g transform="translate(520 0)"><rect x="-16" y="24" width="32" height="32"/><text x="0" y="92" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">neutral</text></g><g transform="translate(630 0)"><circle cx="0" cy="31" r="9" stroke="#8a9196"/><circle cx="9" cy="40" r="9" stroke="#8a9196"/><circle cx="0" cy="49" r="9" stroke="#8a9196"/><circle cx="-9" cy="40" r="9" stroke="#8a9196"/><text x="0" y="92" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">unbekannt</text></g></svg><figcaption>Abb. 7 · Kartensymbole.</figcaption></figure>
+<table class="grid">
+<tr><th>Element</th><th>Bedeutung</th></tr>
+<tr><td>Peillinie</td><td>Passive Peilung ohne Entfernung. Gestrichelt rot: Funkpeilung (ESM) eines sendenden U-Boots.</td></tr>
+<tr><td>Gelber Lösungskreis</td><td>Die TMA-Lösung: Position mit Kurs- und Fahrtvektor. Ziehen verschiebt die Entfernung, die Vektorspitze ändert Kurs und Fahrt.</td></tr>
+<tr><td>Ellipse</td><td>Unsicherheit einer Lösung oder Kreuzpeilung.</td></tr>
+<tr><td>Kreuz mit Kreis</td><td>Sonarboje; mit zweitem Ring und „A“ eine aktive Boje (DICASS). „T“ = tief unter der Schicht.</td></tr>
+<tr><td>Kreuz</td><td>Hubschrauber; gestrichelter Kreis: Reichweite des Tauchsonars beim Schweben.</td></tr>
+<tr><td>Kartenfärbung</td><td>Land, Untiefen, Schelf und tiefes Wasser aus der Seekarte. Wer die Fahrrinne im Fjord verlässt, läuft auf.</td></tr>
+</table>
+<p>Peilungen werden geglättet angezeigt, damit Symbole ruhig stehen. Die Rohwerte rauschen, je schwächer das Signal, desto mehr.</p>
+
+<h1 id="k5">5 · Als U-Boot-Kommandant</h1>
+<p class="lead">Leise sein, zuerst hören, eine Lösung erarbeiten, schießen, verschwinden.</p>
+<h2>Die Stationen</h2>
+<table class="grid">
+<tr><th>Taste</th><th>Station</th><th>Aufgabe</th></tr>
+<tr><td>1</td><td>Horchraum</td><td>Breitband-Wasserfall über 360°, Signalanalyse (LOFAR, DEMON), Mithören, Klassifizieren, Aktivsonar, Bedrohungsseite mit Pings, Bojeneinschlägen und Ausweichvorschlag.</td></tr>
+<tr><td>2</td><td>Sehrohr</td><td>3D-Sicht über Wasser: Peilung, Lagewinkel, Entfernung über die Masthöhe, Zähler für die Zeit mit Mast oben, Radarwarnung. Der Mast fährt in 8 s aus und 5 s ein.</td></tr>
+<tr><td>3</td><td>Feuerleitung</td><td>TMA-Plot, Lösung erarbeiten, Torpedo programmieren (Fahrt, Suchtiefe, Aktiv/Passiv, Freigabe-Entfernung), Feuer und Drahtlenkung.</td></tr>
+<tr><td>4</td><td>Tauchstand</td><td>Tiefenprofil mit Sprungschicht und Grund, Antrieb, Batterie und Restzeit, Schnorchel, Kavitationsgrenze.</td></tr>
+</table>
+<div class="cols2 shots"><figure class="ui"><img src="img/ui-u-horchraum.jpg" alt=""><figcaption>Bild 3 · Horchraum: Wasserfall, DEMON-Analyse, Kontaktliste und Bedrohungsseite.</figcaption></figure><figure class="ui"><img src="img/ui-u-sehrohr.jpg" alt=""><figcaption>Bild 4 · Sehrohr mit Strichplatte; rechts die Messwerte.</figcaption></figure></div>
+<div class="cols2 shots"><figure class="ui"><img src="img/ui-u-feuer.jpg" alt=""><figcaption>Bild 5 · Feuerleitung: Lagebild, TMA und Torpedoprogrammierung.</figcaption></figure><figure class="ui"><img src="img/ui-u-tauch.jpg" alt=""><figcaption>Bild 6 · Tauchstand: Tiefenprofil, Maschine und Batterie.</figcaption></figure></div>
+<h2>Der Ablauf eines Angriffs</h2>
+<ol>
+<li><b>Horchen:</b> langsam (3–5 kn) und tief fahren. Im Wasserfall erscheint eine Spur; Klick wählt den Kontakt.</li>
+<li><b>Klassifizieren:</b> In der Signalanalyse Linien markieren (Kapitel 7). Erst wenn klar ist, dass es ein Frachter ist, lohnt der Anlauf.</li>
+<li><b>Peilen:</b> Einen Schenkel von einigen Minuten fahren, dann 30–60° abdrehen und einen zweiten Schenkel fahren. Ohne Kurswechsel keine Entfernung.</li>
+<li><b>Lösen:</b> „Auto-TMA“ oder den gelben Kreis ziehen, bis die Peilungsreste klein sind. Hilfen: Ekelund-Entfernung aus zwei Schenkeln, Dot-Stack. Ziel: Güte über 60 %. Lösungen veralten nach 120 s.</li>
+<li><b>Bestätigen:</b> Ein kurzer Blick durchs Sehrohr misst die Entfernung, kostet aber Sichtbarkeit.</li>
+<li><b>Schießen:</b> „Lösung übernehmen“ und „Feuer“, oder Rechtsklick auf die Karte und „Torpedo hierher“. Mit 30 kn läuft der Torpedo leiser und hört weiter, mit 40 kn ist er schneller.</li>
+<li><b>Lenken:</b> Solange der Draht hält (eigene Fahrt bis 12 kn, bis 18 km), mit ◀ ▶ nachsteuern, bis „ZIEL ERFASST“ erscheint.</li>
+<li><b>Absetzen:</b> Rohrfluten und Abschuss sind weit hörbar. Abdrehen, tief gehen, unter die Schicht.</li>
+</ol>
+<figure><svg viewBox="0 0 640 250" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
+    <polyline points="60,220 160,200 260,180 330,130 400,80" stroke="#1b1f22" stroke-width="2"/>
+    <circle cx="60" cy="220" r="3.5" fill="#1b1f22" stroke="none"/><circle cx="160" cy="200" r="3.5" fill="#1b1f22" stroke="none"/><circle cx="260" cy="180" r="3.5" fill="#1b1f22" stroke="none"/><circle cx="330" cy="130" r="3.5" fill="#1b1f22" stroke="none"/><circle cx="400" cy="80" r="3.5" fill="#1b1f22" stroke="none"/>
+    <polyline points="260,40 330,50 400,60 470,70 540,80" stroke="#b03a2e" stroke-width="2"/>
+    <circle cx="260" cy="40" r="3.5" fill="#b03a2e" stroke="none"/><circle cx="330" cy="50" r="3.5" fill="#b03a2e" stroke="none"/><circle cx="400" cy="60" r="3.5" fill="#b03a2e" stroke="none"/><circle cx="470" cy="70" r="3.5" fill="#b03a2e" stroke="none"/><circle cx="540" cy="80" r="3.5" fill="#b03a2e" stroke="none"/>
+    <line x1="60" y1="220" x2="260" y2="40" stroke="#8a9196" stroke-dasharray="4 3"/><line x1="160" y1="200" x2="330" y2="50" stroke="#8a9196" stroke-dasharray="4 3"/><line x1="260" y1="180" x2="400" y2="60" stroke="#8a9196" stroke-dasharray="4 3"/><line x1="330" y1="130" x2="470" y2="70" stroke="#8a9196" stroke-dasharray="4 3"/><line x1="400" y1="80" x2="540" y2="80" stroke="#8a9196" stroke-dasharray="4 3"/>
+    <text x="70" y="240" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">1. Schenkel</text><text x="310" y="170" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">Kurswechsel</text><text x="410" y="100" text-anchor="start" font-size="11" fill="#1b1f22" stroke="none">2. Schenkel</text>
+    <text x="560" y="84" text-anchor="start" font-size="11" fill="#b03a2e" stroke="none">Ziel (unbekannt)</text>
+    <text x="320" y="22" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Peilungen allein sagen nichts über die Entfernung. Erst ein Kurswechsel</text>
+    <text x="320" y="36" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">macht nur noch eine Lösung (Kurs, Fahrt, Entfernung) passend.</text></svg><figcaption>Abb. 8 · Zielbewegungsanalyse (TMA) mit zwei Schenkeln.</figcaption></figure>
+<h2>Antrieb, Luft und Boot</h2>
+<table class="grid">
+<tr><td>Batterie</td><td>Diesel- und AIP-Boote fahren getaucht auf Batterie. Der Verbrauch steigt mit dem Quadrat der Fahrt. Schnorcheln auf Sehrohrtiefe lädt, ist aber laut und zeigt Mast und Abgas. Das AIP-Boot verbraucht bis 5 kn nichts.</td></tr>
+<tr><td>Luft</td><td>CO₂ steigt, O₂ fällt. Ab 3 % CO₂ oder unter 18 % O₂ leistet die Besatzung weniger. Abhilfe: Schnorcheln, Auftauchen, CO₂-Absorber und Sauerstoffkerzen.</td></tr>
+<tr><td>Trimm</td><td>Fahrt und Tiefenwechsel bringen das Boot aus dem Trimm. Ein schlecht getrimmtes Boot steuert Tiefe träge.</td></tr>
+<tr><td>Pressluft</td><td>Drei Flaschen. „Notanblasen“ (zweimal tippen) bringt das Boot schnell nach oben, ist aber sehr laut und kostet eine Flasche.</td></tr>
+<tr><td>Testtiefe</td><td>Unter der Tauchtiefe drohen Lecks und Schäden.</td></tr>
+<tr><td>Koppelort</td><td>Getaucht wird die eigene Position nur gekoppelt und immer ungenauer (bis 8 sm). Ein Fix am Mast setzt sie zurück.</td></tr>
+<tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
+</table>
+<h2>Funk und Führung</h2>
+<p>Funken geht nur mit ausgefahrenem Mast auf Sehrohrtiefe, und jede Sendung erzeugt beim Gegner eine Funkpeilung.
+Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann man über VLF bis 25 m Tiefe oder mit der Schleppantenne bis 60 m bei höchstens 6 kn.</p>
+<h2>Überleben</h2>
+<ul>
+<li><b>Ping gehört:</b> Heck zum Pinger, Schleichfahrt, durch die Sprungschicht. Die Bedrohungsseite schätzt, ob er schon ein Echo hat (ab etwa 25 dB) und ob er näher kommt.</li>
+<li><b>Torpedo im Wasser:</b> Torpedo auf 150° achteraus legen, volle Fahrt, Tiefe wechseln, Täuschkörper werfen. Eine harte Wende bei Fahrt hinterlässt ein Wirbelfeld (Knuckle), das Schall schluckt.</li>
+<li><b>Bojeneinschläge</b> in der Nähe heißen: Der Hubschrauber sucht hier. Leise bleiben, Ort verlassen.</li>
+<li><b>Aktive Bojen (DICASS)</b> pingen alle 45 Sekunden und verraten sich dabei selbst. Ihre Pings tauchen im Horchraum als „Boje“ auf.</li>
+<li><b>Lärmdeckung:</b> Wer nahe hinter einem Frachter läuft, verschwindet für die Eskorte in dessen Lärm.</li>
+</ul>
+
+<h1 id="k6">6 · Als Kommandant der Eskorte</h1>
+<p class="lead">Der Konvoi zählt, nicht die Abschüsse. Zwischen U-Boot und Konvoi bleiben, Kontakte früh finden, Angriffe stören.</p>
+<h2>Die Stationen</h2>
+<table class="grid">
+<tr><th>Taste</th><th>Station</th><th>Aufgabe</th></tr>
+<tr><td>1</td><td>Operationszentrale</td><td>Lagebild mit Konvoi, Eskorten, Datalink-Kontakten, Bojen, Hubschrauber und Funkpeilungen; Befehle an den Konvoi (Kurs, Zickzack, Fahrt).</td></tr>
+<tr><td>2</td><td>Sonar</td><td>Rumpfsonar aktiv/passiv, Pulsart CW oder LFM, Schleppsonar mit Länge und Seitenwahl, BT-Sonde, VDS (nur F-30).</td></tr>
+<tr><td>3</td><td>Waffen</td><td>U-Jagd-Rakete (bis 18 km, 40 s Flugzeit, setzt einen Leichttorpedo ab), Torpedorohre, Wasserbomben, Täuschkörper-Schleppe, Torpedowarnung.</td></tr>
+<tr><td>4</td><td>Radar und ESM</td><td>Radar an/aus (verrät die eigene Position), kurze Echos von Masten und Schnorcheln, Peilung gegnerischer Funksprüche.</td></tr>
+<tr><td>5</td><td>Brücke</td><td>Ausguck in 3D: Masten, Schnorchelfahnen, Torpedolaufbahnen, Treffer bei Tag; nachts nur beleuchtete Schiffe.</td></tr>
+</table>
+<div class="cols2 shots"><figure class="ui"><img src="img/ui-f-opz.jpg" alt=""><figcaption>Bild 7 · Operationszentrale mit Konvoi, Peillinien und Verbandsstatus.</figcaption></figure><figure class="ui"><img src="img/ui-f-sonar.jpg" alt=""><figcaption>Bild 8 · Sonarraum der F-30: Rumpfsonar am VDS in 146 m, Schleppsonar, LOFAR.</figcaption></figure></div>
+<div class="cols2 shots"><figure class="ui"><img src="img/ui-f-waffen.jpg" alt=""><figcaption>Bild 9 · Waffenleitstand mit Zielkarte.</figcaption></figure><figure class="ui"><img src="img/ui-f-radar.jpg" alt=""><figcaption>Bild 10 · Radar und Funkpeilung (ESM-Rose).</figcaption></figure></div>
+<figure class="ui"><img src="img/ui-f-bruecke.jpg" alt=""><figcaption>Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.</figcaption></figure>
+<h2>Sensoren richtig einsetzen</h2>
+<table class="grid">
+<tr><td>Schleppsonar</td><td>Das beste passive Ohr. Lang ausgebracht hängt es unter der Schicht. Nur bis 14 kn brauchbar, nach jedem Kurswechsel 60 s Stabilisierung. Links/rechts-Mehrdeutigkeit: 20° wenden oder das Rumpfsonar entscheidet.</td></tr>
+<tr><td>Aktivsonar</td><td>Liefert Entfernung, verrät aber das Schiff auf große Entfernung. <b>CW</b> misst den Doppler (kommt er näher?), <b>LFM</b> misst genau und findet auch langsame Ziele im Nachhall.</td></tr>
+<tr><td>VDS (F-30)</td><td>Der Sonarkörper wird 40 m unter die gemessene Schicht gefiert. Dort hört und pingt er ohne den Schichtverlust. Bis 18 kn.</td></tr>
+<tr><td>BT-Sonde</td><td>Misst die Sprungschicht. Ohne Messung kennt man ihre Tiefe nicht.</td></tr>
+<tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer, verrät aber die Fregatte an jedes U-Boot mit ESM.</td></tr>
+</table>
+<h2>Hubschrauber und Seeaufklärer (F-12)</h2>
+<p>Rechtsklick auf die Karte öffnet die Luftmittel. Der Hubschrauber fliegt mit 120 kn bis 30 km weit und braucht nach jeder Landung 2 Minuten an Deck.</p>
+<table class="grid">
+<tr><td>Sonarboje flach / tief</td><td>Passive Boje (DIFAR): peilt von ihrem Ort aus, 30 Minuten lang. „Tief“ hängt unter der Schicht. Bojen treiben mit der Strömung.</td></tr>
+<tr><td>Aktive Boje (DICASS)</td><td>Pingt 15 Minuten lang alle 45 s und liefert Peilung und Entfernung bis etwa 6 km. Jedes U-Boot in der Nähe hört sie.</td></tr>
+<tr><td>Tauchsonar</td><td>Der Hubschrauber schwebt 5 Minuten und pingt alle 20 s, flach oder unter der Schicht, bis 12 km.</td></tr>
+<tr><td>Leichttorpedo</td><td>Abwurf auf eine Position; der Torpedo sucht im Kreis (45 kn, 8 km Lauf).</td></tr>
+<tr><td>MAD</td><td>Kleeblattmuster in 50 m Höhe: Die Magnetsonde findet ein getauchtes Boot nur direkt darunter (wenige hundert Meter).</td></tr>
+<tr><td>Seeaufklärer</td><td>Legt eine Bojenkette quer zu einer Peilung. Danach 30 Minuten Bereitschaft.</td></tr>
+</table>
+<h2>Angriff</h2>
+<ol>
+<li>Kontakt mit Entfernung festmachen: Aktivsonar, Kreuzpeilung zweier Schiffe, Boje oder Tauchsonar.</li>
+<li>Rakete auf die Position (Rechtsklick „U-Jagd-Rakete hierher“). Der Leichttorpedo sucht aktiv; Täuschkörper können ihn verbrauchen, Wirbelfelder durchschaut er.</li>
+<li>Nah dran: Wasserbomben überlaufen das Ziel; sie wirken in der eingestellten Tiefe.</li>
+<li>Torpedowarnung: Täuschkörper-Schleppe ausbringen, abdrehen, Fahrt aufnehmen.</li>
+</ol>
+<h2>Positionslichter</h2>
+<p>Neutrale Schiffe fahren immer mit Lichtern. Der Konvoi führt sie, um die Kolonnen zu halten, und verdunkelt, sobald eine Bedrohung gemeldet wird
+(Torpedowarnung, Verlust, Sichtung), für 30 ruhige Minuten. Eskorten löschen ihre Lichter zusätzlich, solange sie pingen oder auf Gefechtsstationen sind.
+Nachts sieht man beleuchtete Schiffe viel weiter.</p>
+
+<h1 id="k7">7 · Klassifizieren</h1>
+<p>Der Server schickt nur Messwerte. Was ein Kontakt ist, entscheidest du. Die Klassenbibliothek bewertet deine Marken, die Entscheidung triffst du mit den Klassen-Knöpfen.</p>
+<table class="grid">
+<tr><th>Schritt</th><th>Vorgehen</th></tr>
+<tr><td>1 · LOFAR</td><td>Kontakt wählen, auf eine senkrechte Linie klicken und „Grundton markieren“. Gestrichelte Linien bei 2f und 3f zeigen, ob die anderen Linien eine Familie bilden (Generator, Getriebe).</td></tr>
+<tr><td>2 · DEMON</td><td>Die tiefe Linie als „Welle“, die stärkere höhere als „Blatt“ markieren. Blatt ÷ Welle = Blattzahl, Welle × 60 = Drehzahl. Drehzahl ÷ Fahrt ergibt einen Wert, der zur Klasse passt.</td></tr>
+<tr><td>3 · Bibliothek</td><td>Sie vergleicht Blattzahl, Drehzahl je Knoten und Linien mit dem Katalog (siehe Einheitenreferenz).</td></tr>
+<tr><td>Filter</td><td>Band wählen, Notch blendet die eigene Schraube aus, lange Integration hebt schwache Linien, „Spitze“ hält Maxima.</td></tr>
+</table>
+<div class="cols2">
+<div class="box"><h4>Typische Merkmale</h4><ul>
+<li><b>Frachter:</b> laut, 4–5 Blätter, Linien 50/100/150 Hz.</li>
+<li><b>Fregatte/Korvette:</b> mittlere Drehzahl, Linien 60 bzw. 75 Hz.</li>
+<li><b>U-Boot:</b> leise, 6–7 Blätter, kaum Linien; schnorchelnd starke Diesellinien.</li>
+<li><b>Torpedo:</b> laut, keine Linien, sehr hohe Drehzahl, schnell wandernde Peilung.</li>
+<li><b>Wale:</b> keine Schraube, pulsierende tiefe Töne um 20 Hz.</li>
+</ul></div>
+<div class="box"><h4>Fallen</h4><ul>
+<li>Schleppsonar-Geister: Rumpf und Schlepp weichen ab.</li>
+<li>Maskierung durch den Konvoi: Ein U-Boot in derselben Peilung wie ein Frachter fehlt im Wasserfall.</li>
+<li>Neutrale Schiffe (Trawler, Frachter ohne AIS) nicht angreifen.</li>
+</ul></div>
+</div>
+
+<h1 id="k8">8 · Einheitenreferenz</h1>
+<p>Alle Werte stammen direkt aus der Simulation. Die Bilder zeigen die Modelle, wie sie im Sehrohr und auf der Brücke erscheinen.</p>
+<table class="grid"><tr><th>Klasse</th><th>t</th><th>kn</th><th>Tiefe</th><th>Lärm*</th><th>Stärke</th></tr><tr><td>Fregatte F-12</td><td>3.800</td><td>28</td><td>—</td><td>150 dB</td><td>Hubschrauber, Bojen</td></tr><tr><td>Fregatte F-30 (VDS)</td><td>4.200</td><td>29</td><td>—</td><td>146 dB</td><td>VDS unter der Schicht</td></tr><tr><td>Korvette K-7</td><td>1.800</td><td>26</td><td>—</td><td>142 dB</td><td>wendig, leise</td></tr><tr><td>Atom-U-Boot Projekt 9</td><td>5.200</td><td>30</td><td>400 m</td><td>125 dB</td><td>Tempo, Ausdauer</td></tr><tr><td>Diesel-U-Boot Projekt 4</td><td>2.300</td><td>18</td><td>300 m</td><td>115 dB</td><td>sehr leise</td></tr><tr><td>Küsten-U-Boot Projekt 2</td><td>900</td><td>14</td><td>200 m</td><td>108 dB</td><td>Flachwasser</td></tr><tr><td>U-Boot Projekt 6 (AIP)</td><td>1.800</td><td>20</td><td>250 m</td><td>111 dB</td><td>leise und ausdauernd</td></tr></table><p class="small">* Quellpegel bei Marschfahrt (U-Boote 4–5 kn, Überwasserschiffe 15 kn). Je 6 dB weniger halbiert etwa die Entfernung, auf die man gehört wird.</p>
+<section class="unit">
+      <h3>Fregatte F-12<span class="role">U-Jagd-Fregatte mit Bordhubschrauber</span></h3>
+      <img src="img/ffg.png" alt="Fregatte F-12">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>3.800 t</td></tr><tr><th>Höchstfahrt</th><td>28 kn</td></tr><tr><th>Wendekreis</th><td>800 m</td></tr><tr><th>Tiefgang</th><td>6 m</td></tr><tr><th>Antrieb</th><td>Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Schleppsonar 1.200 m (bis 14 kn) · Bordhubschrauber · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 6 leichte Torpedos · 8 U-Jagd-Raketen · 12 Wasserbomben · 8 BT-Sonden</td></tr><tr><th>Signatur</th><td>5-Blatt-Schraube · Linien 60 Hz, 120 Hz, 180 Hz, 233 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <div><p>Das Rückgrat der Sicherung: kräftiges Rumpfsonar, langes Schleppsonar und ein Hubschrauber mit Sonarbojen, Tauchsonar, Leichttorpedo und Magnetsonde (MAD). Laut bei hoher Fahrt (Gasturbine).</p><ul><li>Mit 10–12 kn und ausgebrachtem Schleppsonar horchen, nach jedem Kurswechsel 60 s stabilisieren.</li><li>Den Hubschrauber an die Spitze der Peilung schicken; das Tauchsonar unter die Schicht senken.</li><li>Raketen erst mit Entfernung (Aktivsonar, Kreuzpeilung, Boje) einsetzen.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Fregatte F-30 (VDS)<span class="role">U-Jagd-Fregatte mit Tiefensonar (VDS)</span></h3>
+      <img src="img/ffv.png" alt="Fregatte F-30 (VDS)">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>4.200 t</td></tr><tr><th>Höchstfahrt</th><td>29 kn</td></tr><tr><th>Wendekreis</th><td>840 m</td></tr><tr><th>Tiefgang</th><td>6 m</td></tr><tr><th>Antrieb</th><td>Diesel-elektrisch</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 16 dB, aktiv) · Schleppsonar 1.200 m (bis 14 kn) · Tiefensonar bis 250 m (bis 18 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 8 leichte Torpedos · 8 U-Jagd-Raketen · 8 Wasserbomben · 8 BT-Sonden</td></tr><tr><th>Signatur</th><td>5-Blatt-Schraube · Linien 50 Hz, 100 Hz, 250 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <div><p>Leiser dieselelektrischer Antrieb und ein Sonarkörper, der an einem Kabel unter die Sprungschicht gefiert wird. Damit hört und pingt sie dort, wo sich U-Boote verstecken. Kein Hubschrauber.</p><ul><li>Im Sonarraum „VDS absenken“: der Körper geht 40 m unter die gemessene Schicht (vorher BT werfen).</li><li>Über 18 kn wird der VDS automatisch eingeholt.</li><li>Der VDS schließt den blinden Fleck unter dem eigenen Rumpf.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Korvette K-7<span class="role">Geleitkorvette</span></h3>
+      <img src="img/kor.png" alt="Korvette K-7">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>1.800 t</td></tr><tr><th>Höchstfahrt</th><td>26 kn</td></tr><tr><th>Wendekreis</th><td>600 m</td></tr><tr><th>Tiefgang</th><td>4 m</td></tr><tr><th>Antrieb</th><td>Diesel</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 14 dB, aktiv) · Schleppsonar 600 m (bis 14 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 4 leichte Torpedos · 4 U-Jagd-Raketen · 16 Wasserbomben · 6 BT-Sonden</td></tr><tr><th>Signatur</th><td>4-Blatt-Schraube · Linien 75 Hz, 150 Hz, 225 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <div><p>Klein, wendig und leise, aber mit kurzem Schleppsonar, schwächerem Rumpfsonar und ohne Hubschrauber. Ideal als Flankensicherung und für die schnelle Verfolgung eines Kontakts.</p><ul><li>Flanke des Konvois sichern, Kontakte an die Fregatte melden.</li><li>Wasserbomben auf kurze Entfernung, Torpedorohre für den Gegenangriff.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Atom-U-Boot Projekt 9<span class="role">Atom-U-Boot</span></h3>
+      <img src="img/ssn.png" alt="Atom-U-Boot Projekt 9">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Ostpakt</td></tr><tr><th>Verdrängung</th><td>5.200 t</td></tr><tr><th>Höchstfahrt</th><td>30 kn</td></tr><tr><th>Wendekreis</th><td>900 m</td></tr><tr><th>Tauchtiefe</th><td>400 m</td></tr><tr><th>Kavitation ab</th><td>9 kn an der Oberfläche, +5 kn je 100 m Tiefe</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 16 dB, aktiv) · Schleppsonar 600 m (bis 12 kn) · Sehrohr, Funkpeilung (ESM)</td></tr><tr><th>Bewaffnung</th><td>4 Rohre · 16 schwere Torpedos · 8 Täuschkörper</td></tr><tr><th>Signatur</th><td>7-Blatt-Schraube · Linien 25 Hz, 60 Hz, 120 Hz</td></tr><tr><th>Klasse im Sonar</th><td>U-Boot</td></tr></table>
+        <div><p>Schnell und unbegrenzt ausdauernd, mit Schleppsonar und 16 schweren Torpedos. Bei hoher Fahrt und geringer Tiefe laut (Kavitation, Reaktorpumpen).</p><ul><li>Weit vorauslaufen, dann langsam (unter 6 kn) und tief auf die Konvoibahn warten.</li><li>Das Schleppsonar hört weiter als jede Fregatte – nutzen, solange der Kurs gerade ist.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Diesel-U-Boot Projekt 4<span class="role">Diesel-U-Boot</span></h3>
+      <img src="img/ssk.png" alt="Diesel-U-Boot Projekt 4">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Ostpakt</td></tr><tr><th>Verdrängung</th><td>2.300 t</td></tr><tr><th>Höchstfahrt</th><td>18 kn</td></tr><tr><th>Wendekreis</th><td>600 m</td></tr><tr><th>Tauchtiefe</th><td>300 m</td></tr><tr><th>Kavitation ab</th><td>7 kn an der Oberfläche, +4 kn je 100 m Tiefe</td></tr><tr><th>Batterie</th><td>80 kn·h</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Sehrohr, Funkpeilung (ESM)</td></tr><tr><th>Bewaffnung</th><td>6 Rohre · 12 schwere Torpedos · 6 Täuschkörper</td></tr><tr><th>Signatur</th><td>6-Blatt-Schraube · Linien 50 Hz · Schnorchel 24/48/72 Hz</td></tr><tr><th>Klasse im Sonar</th><td>U-Boot</td></tr></table>
+        <div><p>Auf Batterie das leiseste Boot im Spiel, aber mit begrenzter Ausdauer: Schnorcheln lädt, verrät das Boot aber durch Dieselgeräusch, Mast und Radar.</p><ul><li>Batterie über 50 % halten; schnorcheln, solange keine Eskorte in der Nähe ist.</li><li>Langsam vor dem Konvoi lauern statt hinterherzulaufen.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Küsten-U-Boot Projekt 2<span class="role">Küsten-U-Boot</span></h3>
+      <img src="img/ssc.png" alt="Küsten-U-Boot Projekt 2">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Ostpakt</td></tr><tr><th>Verdrängung</th><td>900 t</td></tr><tr><th>Höchstfahrt</th><td>14 kn</td></tr><tr><th>Wendekreis</th><td>400 m</td></tr><tr><th>Tauchtiefe</th><td>200 m</td></tr><tr><th>Kavitation ab</th><td>6 kn an der Oberfläche, +4 kn je 100 m Tiefe</td></tr><tr><th>Batterie</th><td>45 kn·h</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 12 dB, aktiv) · Sehrohr, Funkpeilung (ESM)</td></tr><tr><th>Bewaffnung</th><td>4 Rohre · 6 schwere Torpedos · 4 Täuschkörper</td></tr><tr><th>Signatur</th><td>5-Blatt-Schraube · Linien 60 Hz · Schnorchel 30/60/90 Hz</td></tr><tr><th>Klasse im Sonar</th><td>U-Boot</td></tr></table>
+        <div><p>Sehr klein, extrem leise und wendig, nur 200 m Tauchtiefe und 4 Rohre. Ideal für flaches Wasser, Fjorde und Meerengen.</p><ul><li>Im Flachwasser nah am Grund bleiben – der Nachhall verdeckt das Echo.</li><li>Wenige Torpedos: nur auf gute Lösungen schießen.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>U-Boot Projekt 6 (AIP)<span class="role">U-Boot mit außenluftunabhängigem Antrieb (AIP)</span></h3>
+      <img src="img/ssa.png" alt="U-Boot Projekt 6 (AIP)">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Ostpakt</td></tr><tr><th>Verdrängung</th><td>1.800 t</td></tr><tr><th>Höchstfahrt</th><td>20 kn</td></tr><tr><th>Wendekreis</th><td>520 m</td></tr><tr><th>Tauchtiefe</th><td>250 m</td></tr><tr><th>Kavitation ab</th><td>7 kn an der Oberfläche, +4 kn je 100 m Tiefe</td></tr><tr><th>Batterie</th><td>60 kn·h · AIP bis 5 kn</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Sehrohr, Funkpeilung (ESM)</td></tr><tr><th>Bewaffnung</th><td>6 Rohre · 10 schwere Torpedos · 6 Täuschkörper</td></tr><tr><th>Signatur</th><td>7-Blatt-Schraube · Linien 400 Hz, 50 Hz · Schnorchel 27/54/81 Hz</td></tr><tr><th>Klasse im Sonar</th><td>U-Boot</td></tr></table>
+        <div><p>Fast so leise wie das Diesel-U-Boot, aber bis 5 kn ohne Batterieverbrauch. Muss nur zum schnellen Laufen schnorcheln. Ein schwacher 400-Hz-Ton der Stromrichter kann es verraten.</p><ul><li>Unter 5 kn unbegrenzt lauern; Batterie für Angriff und Flucht sparen.</li><li>Für die Klassifizierung: LOFAR-Linie bei 400 Hz, 7-Blatt-Schraube.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Frachter<span class="role">Frachter</span></h3>
+      <img src="img/merchant.png" alt="Frachter">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Konvoi</td></tr><tr><th>Verdrängung</th><td>12.000 t</td></tr><tr><th>Höchstfahrt</th><td>14 kn</td></tr><tr><th>Wendekreis</th><td>700 m</td></tr><tr><th>Tiefgang</th><td>9 m</td></tr><tr><th>Antrieb</th><td>Einwellen-Diesel</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>—</td></tr><tr><th>Bewaffnung</th><td>—</td></tr><tr><th>Signatur</th><td>4-Blatt-Schraube · Linien 50 Hz, 100 Hz, 150 Hz, 37.5 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Handelsschiff</td></tr></table>
+        <div><p>Das Ziel der Partie. Laut und langsam, mit starken Linien bei 50/100/150 Hz. Fährt im Zickzack und weicht bei Angriffen aus. Nachts mit Positionslichtern, bis eine Bedrohung gemeldet wird.</p><ul><li>Der Lärm des Konvois überdeckt leisere Kontakte in derselben Peilung.</li></ul></div>
+      </div>
+    </section>
+<section class="unit">
+      <h3>Fischtrawler<span class="role">Fischtrawler</span></h3>
+      <img src="img/fischer.png" alt="Fischtrawler">
+      <div class="unit-body">
+        <table class="data"><tr><th>Seite</th><td>Neutral</td></tr><tr><th>Verdrängung</th><td>900 t</td></tr><tr><th>Höchstfahrt</th><td>11 kn</td></tr><tr><th>Wendekreis</th><td>300 m</td></tr><tr><th>Tiefgang</th><td>4 m</td></tr><tr><th>Antrieb</th><td>Diesel</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>—</td></tr><tr><th>Bewaffnung</th><td>—</td></tr><tr><th>Signatur</th><td>3-Blatt-Schraube · Linien 30 Hz, 90 Hz, 270 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Handelsschiff</td></tr></table>
+        <div><p>Neutraler Verkehr, der als Zwischenfall auftaucht: langsam, laut, mit drei- oder vierflügeliger Schraube und vielen Lichtern. Neutrale Schiffe nie angreifen.</p><ul><li>Starke Linie bei 30 Hz, hohe Drehzahl für kleine Fahrt: schnell als Trawler zu erkennen.</li></ul></div>
+      </div>
+    </section>
+
+<h1 id="k9">9 · Missionen</h1>
+<table class="grid">
+<tr><th>Mission</th><th>Lage</th><th>Hinweis</th></tr>
+<tr><td><b>Grönland-Lücke</b></td><td>Tiefes Wasser, Konvergenzzonen, ausgeprägte Sprungschicht.</td><td>Schicht nutzen; Schleppsonare hören sehr weit.</td></tr>
+<tr><td><b>Schelfmeer</b></td><td>Flach (110–270 m), schwache Schicht, viel Nachhall, wenig Tauchtiefe.</td><td>Eskorte: LFM-Puls und aktive Bojen. U-Boot: nah am Grund und im Lärm der Frachter.</td></tr>
+<tr><td><b>Fjordausfahrt</b></td><td>Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf.</td><td>Der Konvoi ist berechenbar – die U-Boote auch: Die Rinne zwingt beide auf wenige Wege.</td></tr>
+<tr><td><b>Hafenangriff</b></td><td>Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt.</td><td>Langsam an der Einfahrt horchen; Schüsse auf ankernde Ziele brauchen keine TMA.</td></tr>
+<tr><td><b>U-Boot-Duell</b></td><td>U-Boote gegen U-Boote, kein Konvoi.</td><td>Wer zuerst hört, gewinnt: sehr langsam, Schleppsonar, aktive Torpedos.</td></tr>
+<tr><td><b>Fühlung halten</b></td><td>Waffen gesperrt: 25 Minuten Kontakt zum Konvoi aus höchstens 12 km.</td><td>Die Eskorte muss das Boot abdrängen, nicht versenken.</td></tr>
+<tr><td><b>Meerengen-Durchbruch</b></td><td>Die U-Boote müssen durch eine bewachte Enge nach Norden.</td><td>Tief und langsam durch das tiefste Wasser; die Eskorte legt Bojensperren.</td></tr>
+<tr><td><b>Aufklärung</b></td><td>Ein Geleitschiff im Sehrohr erkennen und per Funk melden.</td><td>Ein kurzer Blick auf unter 4 km, dann senden – und sofort weg.</td></tr>
+<tr><td><b>Eigene Mission</b></td><td>Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar.</td><td>Zum Üben einzelner Lagen.</td></tr>
+</table>
+<h2>Einstellungen der Partie</h2>
+<table class="grid">
+<tr><td>Tageszeit</td><td>Tag, Dämmerung oder Nacht; die Uhr läuft mit. Nachts sieht man nur beleuchtete Schiffe und Mündungsfeuer weit.</td></tr>
+<tr><td>Seegang</td><td>Mehr Seegang heißt mehr Störpegel, mehr Seegangsechos im Radar und schwerere Sicht im Sehrohr.</td></tr>
+<tr><td>Sprungschicht</td><td>Tiefe und Stärke der Schicht; im Flachwasser schwächer.</td></tr>
+<tr><td>KI-Stärke</td><td>Bestimmt, wie schnell und genau KI-Kommandanten lösen, schießen und melden. Jeder KI-Kommandant hat einen Charakter (draufgängerisch, schlauer Fuchs, vorsichtig, verbissener Jäger); die Aufklärung im Briefing deutet ihn manchmal an.</td></tr>
+</table>
+
+<h1 id="k10">10 · Umwelt und Zwischenfälle</h1>
+<p>Alle 15 bis 30 Minuten passiert etwas, für beide Seiten gleich:</p>
+<table class="grid">
+<tr><th>Zwischenfall</th><th>Wirkung</th></tr>
+<tr><td>Treibnetz</td><td>Reißt Schleppsonare ab (Ersatz nach 15 Minuten) und verfängt flach fahrende Boote für 20 Sekunden – laut.</td></tr>
+<tr><td>Wetterfront</td><td>Angekündigt 20 Minuten vorher: Seegang steigt um zwei Stufen, Regen.</td></tr>
+<tr><td>Neutraler Verkehr</td><td>Ein Frachter ohne AIS oder ein Fischtrawler kreuzt das Gebiet. Laut, beleuchtet, kein Ziel.</td></tr>
+<tr><td>Wale</td><td>Ein Walschwarm erzeugt biologische Kontakte mit tiefen Tönen.</td></tr>
+<tr><td>Ruderversager</td><td>Das Ruder klemmt eine Minute.</td></tr>
+<tr><td>Schnorchelventil</td><td>Klemmt: Der Schnorchel bleibt 45 Sekunden oben.</td></tr>
+<tr><td>Batteriegas</td><td>Fünf Minuten weiter schnorcheln und lüften, sonst verpufft das Gas und beschädigt den Antrieb.</td></tr>
+</table>
+<h2>Strömung</h2>
+<p>Eine Meeresströmung versetzt alle Bojen. Eine Boje, die vor 20 Minuten gesetzt wurde, liegt nicht mehr dort, wo sie abgeworfen wurde – die Karte zeigt ihre aktuelle Position.</p>
+<h2>Schäden</h2>
+<p>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Im Reiter „Schaden“ legt ein Klick die Reparatur-Priorität fest.
+Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
+
+<h1 id="k11">11 · Taktik</h1>
+<div class="cols2">
+<div class="box"><h4>Für U-Boote</h4><ol>
+<li>Vor den Konvoi setzen, nicht hinterherlaufen: Er kommt zu dir.</li>
+<li>Unter 6 kn bleiben, solange nicht geschossen wird. Kavitation verrät dich auf viele Kilometer.</li>
+<li>Die Sprungschicht ist dein Mantel. Horchen darüber, verstecken darunter.</li>
+<li>Funken nur, wenn es sich lohnt: Jede Meldung ist eine Funkpeilung für die Eskorte.</li>
+<li>Nach dem Schuss sofort weg: Transienten haben dich verraten.</li>
+<li>Im Lärm der Frachter bist du für die Eskorte fast unsichtbar.</li>
+<li>Gegen pingende Eskorten: Heck zeigen, langsam, Schicht wechseln.</li>
+</ol></div>
+<div class="box"><h4>Für die Eskorte</h4><ol>
+<li>Zuerst die Schicht messen (BT), dann das Schleppsonar auf die passende Länge.</li>
+<li>Passiv suchen, aktiv bestätigen. Wer ständig pingt, warnt jedes U-Boot.</li>
+<li>Kreuzpeilungen mit dem zweiten Schiff liefern Entfernungen ohne Ping.</li>
+<li>Funkpeilungen sofort mit Hubschrauber oder Bojen nachgehen.</li>
+<li>Im Flachwasser: LFM-Puls, aktive Bojen, VDS. Der Nachhall frisst CW-Echos.</li>
+<li>Unter dem eigenen Kiel bist du blind – ein Boot, das nah und tief steht, braucht Hubschrauber oder VDS.</li>
+<li>Den Konvoi bei Gefahr abdrehen und verdunkeln lassen.</li>
+</ol></div>
+</div>
+
+<h1 id="k12">12 · Tastatur und Glossar</h1>
+<p>Die Maus ist das Hauptwerkzeug; die Tasten sind Abkürzungen und lassen sich in der Hilfe (H) frei belegen.</p>
+<table class="grid keys"><tr><td><kbd>1 … 5</kbd></td><td>Stationen</td></tr><tr><td><kbd>← →</kbd></td><td>Kurs 5° (mit ⇧ 1°)</td></tr><tr><td><kbd>↑ ↓</kbd></td><td>Fahrt ± 1 kn</td></tr><tr><td><kbd>Bild ↑ / Bild ↓</kbd></td><td>Tiefe ∓ 10 m</td></tr><tr><td><kbd>A / D</kbd></td><td>Sehrohr drehen</td></tr><tr><td><kbd>H</kbd></td><td>Hilfe</td></tr><tr><td><kbd>M</kbd></td><td>Ton an/aus</td></tr><tr><td><kbd>Esc</kbd></td><td>Menüs und Fenster schließen</td></tr></table>
+<h2>Glossar</h2>
+<table class="grid gloss"><tr><td><b>AIP</b></td><td>Außenluftunabhängiger Antrieb: lässt ein konventionelles U-Boot langsam ohne Batterieverbrauch fahren.</td></tr><tr><td><b>BT</b></td><td>Bathythermograph: Sonde, die das Temperaturprofil und damit die Sprungschicht misst.</td></tr><tr><td><b>CW / LFM</b></td><td>Pulsarten des Aktivsonars: Dauerton (misst Doppler) und frequenzmodulierter Puls (genau, gut im Nachhall).</td></tr><tr><td><b>DEMON</b></td><td>Analyse der Modulation des Schraubengeräuschs: ergibt Wellen- und Blattfrequenz.</td></tr><tr><td><b>DICASS</b></td><td>Aktive Sonarboje, die selbst pingt.</td></tr><tr><td><b>DIFAR</b></td><td>Passive Richtungsboje: liefert Peilungen von ihrem Ort aus.</td></tr><tr><td><b>ESM</b></td><td>Funk- und Radarpeilung: hört gegnerische Sender.</td></tr><tr><td><b>Kavitation</b></td><td>Dampfblasen an der Schraube bei hoher Fahrt: plötzlich sehr laut; setzt in der Tiefe später ein.</td></tr><tr><td><b>Knuckle</b></td><td>Wirbelfeld nach einer harten Wende bei Fahrt: schluckt Schall und lenkt Suchköpfe kurz ab.</td></tr><tr><td><b>Konvergenzzone</b></td><td>Bereich in etwa 55 km Entfernung, in dem Schall in tiefem Wasser wieder an die Oberfläche kommt.</td></tr><tr><td><b>LOFAR</b></td><td>Schmalband-Spektrum: zeigt Linien von Maschinen, Generatoren und Getrieben.</td></tr><tr><td><b>MAD</b></td><td>Magnetanomalie-Detektor: findet ein getauchtes Boot nur direkt darunter.</td></tr><tr><td><b>Schenkel</b></td><td>Ein gerades Stück eigener Kurs während der TMA.</td></tr><tr><td><b>SE</b></td><td>Signalüberschuss: über 0 dB ist ein Kontakt da.</td></tr><tr><td><b>TMA</b></td><td>Zielbewegungsanalyse: Kurs, Fahrt und Entfernung aus einer Folge von Peilungen.</td></tr><tr><td><b>Toter Winkel</b></td><td>Sektor achtern, in dem das Rumpfsonar die eigene Schraube hört.</td></tr><tr><td><b>VDS</b></td><td>Tiefensonar an einem Kabel: hört unter der Sprungschicht.</td></tr><tr><td><b>VLF</b></td><td>Längstwellenfunk der Führung, bis etwa 25 m Tiefe zu empfangen.</td></tr></table>
+
+</body></html>

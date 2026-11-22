@@ -318,3 +318,7 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
   .side { display: flex; flex-direction: column; overflow: visible; }
   .side-body > [data-sp].on { max-height: 45vh; }
 }
+
+/* Download link styled like a small console button */
+a.btnlink { color: var(--g); border: 1px solid var(--line2); border-radius: 3px; padding: 2px 8px; text-decoration: none; letter-spacing: 0.06em; }
+a.btnlink:hover { background: #12302a; }

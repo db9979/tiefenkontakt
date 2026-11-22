@@ -1,5 +1,6 @@
 import {
   CLASSES,
+  hasHelicopter,
   KN,
   bearing,
   distance,
@@ -63,7 +64,11 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   if (sub && !duel) intel.push('Funksprüche der Führung alle 20 Minuten: Empfang auf höchstens 25 m oder mit Schleppantenne (bis 60 m, höchstens 6 kn)');
   const steps = sub
     ? ['Langsam (unter 5 kn) und unter 100 m fahren und horchen', 'Kontakt wählen, klassifizieren, dann Kurswechsel für die Entfernung', 'Mit guter TMA-Lösung schießen, danach tief und schnell ablaufen']
-    : ['Schleppsonar ausbringen und zwischen U-Boot-Richtung und Konvoi bleiben', 'Sonarbojen voraus werfen, Kontakte klassifizieren', 'Entfernung per Ping oder Hubschrauber, dann U-Jagd-Rakete'];
+    : hasHelicopter(ship.cls)
+      ? ['Schleppsonar ausbringen und zwischen U-Boot-Richtung und Konvoi bleiben', 'Sonarbojen voraus werfen, Kontakte klassifizieren', 'Entfernung per Ping oder Hubschrauber, dann U-Jagd-Rakete']
+      : CLASSES[ship.cls].vds
+        ? ['BT werfen, dann VDS unter die Schicht absenken und Schleppsonar ausbringen', 'Zwischen U-Boot-Richtung und Konvoi bleiben (unter 18 kn), Kontakte klassifizieren', 'Entfernung per Ping (im Flachwasser LFM) oder Kreuzpeilung, dann U-Jagd-Rakete']
+        : ['Schleppsonar ausbringen und die Flanke des Konvois sichern', 'Kontakte klassifizieren und über Datalink an die Fregatte melden', 'Entfernung per Ping oder Kreuzpeilung, dann U-Jagd-Rakete oder Wasserbomben'];
   return {
     title: m.title, info: m.info, goal, intel, steps,
     timeLimitMin: settings.timeLimitMin, timeOfDay: settings.timeOfDay, ship: `${CLASSES[ship.cls].name} ${ship.name}`,

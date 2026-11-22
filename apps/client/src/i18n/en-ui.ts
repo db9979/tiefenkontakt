@@ -120,7 +120,7 @@ export const EN_UI: [string, string][] = [
   ['Küsten-U-Boot Projekt 2', 'Coastal submarine Project 2'], ['Küsten-U-Boot', 'Coastal submarine'], ['Korvette K-7 (Diesel)', 'Corvette K-7 (diesel)'],
   ['AIP-U-BOOT', 'AIP SUBMARINE'], ['VDS-FREGATTE', 'VDS FRIGATE'], ['FISCHTRAWLER', 'FISHING TRAWLER'], ['Fischtrawler', 'Fishing trawler'], ['Fischtrawler (Diesel)', 'Fishing trawler (diesel)'],
   ['U-Boot Projekt 6 (AIP)', 'Submarine Project 6 (AIP)'], ['Fregatte F-30 (VDS)', 'Frigate F-30 (VDS)'], ['Fregatte F-30 (Diesel-elektrisch)', 'Frigate F-30 (diesel-electric)'], ['AIP-U-Boot', 'AIP submarine'], ['VDS-Fregatte', 'VDS frigate'],
-  ['VDS absenken', 'Lower VDS'], ['VDS einholen', 'Recover VDS'], ['Aktive Boje (DICASS) hierher · pingt, verrät sich', 'Active buoy (DICASS) here · pings, gives itself away'],
+  ['VDS absenken', 'Lower VDS'], ['Handbuch (PDF)', 'Handbook (PDF, German)'], ['HANDBUCH (PDF)', 'HANDBOOK (PDF, GERMAN)'], ['VDS einholen', 'Recover VDS'], ['Aktive Boje (DICASS) hierher · pingt, verrät sich', 'Active buoy (DICASS) here · pings, gives itself away'],
   ['Tiefensonar lässt sich unter die Sprungschicht absenken (bis 18 kn); kein Hubschrauber', 'Variable-depth sonar lowers below the layer (up to 18 kn); no helicopter'],
   ['Außenluftunabhängig: bis 5 kn ohne Batterieverbrauch, sehr leise; 250 m', 'Air-independent: up to 5 kn without battery drain, very quiet; 250 m'],
   ['Extrem leise, klein und wendig; nur 4 Rohre, kleine Batterie, 200 m', 'Extremely quiet, small and agile; only 4 tubes, small battery, 200 m'],

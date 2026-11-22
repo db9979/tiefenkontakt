@@ -144,9 +144,9 @@ export function mountHelm(el: HTMLElement) {
       if (document.activeElement !== sp) sp.value = String(o.order.speedKn);
       q('#depth-box').style.display = spec.submarine ? '' : 'none';
       if (spec.submarine) {
-        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>`);
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
-        q('#h-dep').innerHTML += s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
+        const ground = s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
+        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>${ground}`);
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const dp = q<HTMLInputElement>('#h-depth');
         dp.max = String(spec.maxDepth);
