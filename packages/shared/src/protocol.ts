@@ -62,7 +62,35 @@ export type ClientMsg =
     weather?: 'wechselhaft' | 'stabil';
     custom?: CustomMissionSettings;
     merchants?: number;
-  };
+    sandbox?: boolean;
+  }
+  /** Start the next mission of the player's campaign run (accounts). */
+  | { t: 'campaign_start' }
+  | SandboxClientMsg;
+
+/** Sandbox / training mode controls (only accepted in sandbox matches). */
+export interface SandboxClientMsg {
+  t: 'sandbox';
+  op: 'speed' | 'truth' | 'spawn' | 'steer' | 'remove';
+  /** speed: 0 = pause, 1 … 10. */
+  scale?: number;
+  on?: boolean;
+  cls?: ClassId;
+  /** spawn: from the player's own ship. */
+  bearing?: number;
+  range?: number;
+  heading?: number;
+  speedKn?: number;
+  depth?: number;
+  id?: string;
+}
+
+/** God's-eye picture of a sandbox match: true positions of every unit. */
+export interface TruthView {
+  time: number;
+  ships: { id: string; name: string; cls: ClassId; team: Team; x: number; y: number; heading: number; speedKn: number; depth: number; alive: boolean }[];
+  torpedoes: { id: string; ownerId: string; x: number; y: number }[];
+}
 
 export interface PlayerSlot {
   playerId: string;
@@ -116,6 +144,10 @@ export interface MatchLobby extends MatchSummary {
     custom?: CustomMissionSettings;
     merchantsCount?: number;
     lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd';
+    /** Training sandbox: truth view, time controls and spawning. */
+    sandbox?: boolean;
+    /** A mission of a player's campaign run. */
+    campaign?: boolean;
   };
 }
 
@@ -342,4 +374,6 @@ export type ServerMsg =
   | { t: 'spectate'; d: Debrief; delayS: number }
   | { t: 'error'; msg: string }
   /** Removed from the match by a moderator (kick or match ended). */
-  | { t: 'removed'; msg: string };
+  | { t: 'removed'; msg: string }
+  /** Sandbox matches: time scale (0 = paused) and, for players who switched it on, the truth view. */
+  | { t: 'sandbox'; scale: number; truth?: TruthView };

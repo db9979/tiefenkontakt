@@ -21,6 +21,10 @@ import { clientIpFrom } from './client-ip.js';
 import { metrics } from './metrics.js';
 import { StatsStore, rankFor, userIdOf } from './stats.js';
 import type { Conn } from './match.js';
+import { CampaignStore } from './campaign-store.js';
+import { CampaignService } from './campaign-match.js';
+import { SeriesRunner } from './series.js';
+import { handleOps } from './ops-api.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const MAX_MSG_BYTES = 4096;
@@ -34,6 +38,10 @@ const stats = new StatsStore(auth.db);
 const mod = new ModerationStore(auth.db);
 const backups = new Backups(auth.db);
 const ratings = new Ratings(auth.db);
+const campaigns = new CampaignStore(auth.db);
+const campaign = new CampaignService(campaigns);
+const series = new SeriesRunner();
+lobby.onCampaignStart = (conn) => campaign.plan(conn);
 backups.start();
 lobby.onReport = (conn, m, from, reason) => {
   const s = m.senderOf(from);
@@ -55,6 +63,8 @@ lobby.onFinish = (m, d) => {
     }
     return;
   }
+  campaign.finish(m, d);
+  if (m.settings.sandbox) return; // training: no results, no rating
   stats.record(d, m.settings.mission, m.settings.timeOfDay);
   ratings.update(d);
 };
@@ -64,11 +74,15 @@ lobby.onLessonDone = (playerId, lesson) => {
 };
 const restored = store.loadAll(lobby);
 if (restored) log('info', 'Partien wiederhergestellt', { count: restored });
-lobby.onDrop = (m) => store.remove(m.id);
+lobby.onDrop = (m) => {
+  store.remove(m.id);
+  if (m.state !== 'ended') campaign.finish(m); // left before the end: the sortie counts as aborted
+};
 // Running matches are saved every MATCH_SAVE_S seconds (raise it on SD cards to save writes)
 const SAVE_S = Math.max(2, Number(process.env.MATCH_SAVE_S ?? 5));
 setInterval(() => lobby.prune(), 5000).unref();
 lobby.voice.start();
+lobby.sandbox.start();
 setInterval(() => store.saveAll(lobby), SAVE_S * 1000).unref();
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
@@ -166,6 +180,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     if (!u) return json(res, 401, { error: 'Nur mit Konto' });
     return json(res, 200, { summary: stats.summary(u.id), campaign: stats.campaign(u.id), rating: ratings.get(u.id) });
   }
+  const opsUser = req.url?.startsWith('/api/campaign') || req.url?.startsWith('/api/series') ? auth.userForToken(token) : undefined;
+  const opsCtx = { method: req.method ?? 'GET', url: req.url ?? '', user: opsUser, admin: mod.isAdmin(opsUser?.callsign), body: () => readBody(req), reply: (st: number, b: unknown) => json(res, st, b) };
+  if (await handleOps(opsCtx, campaigns, series)) return;
   if (req.method !== 'POST') return json(res, 404, { error: 'Nicht gefunden' });
   if (req.url === '/api/client-error') {
     // Browser errors from players, so problems on their devices show up in the server log

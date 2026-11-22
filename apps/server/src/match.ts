@@ -130,13 +130,9 @@ export class Match {
     this.name = name;
   }
 
-  get connected(): number {
-    return this.conns.size;
-  }
+  get connected(): number { return this.conns.size; }
 
-  online(playerId: string): boolean {
-    return this.conns.has(playerId);
-  }
+  online(playerId: string): boolean { return this.conns.has(playerId); }
 
   /** Who sent radio under this ship name most recently, with their last lines as evidence. */
   senderOf(shipName: string): { playerId: string; evidence: string } | undefined {
@@ -256,8 +252,12 @@ export class Match {
     return undefined;
   }
 
-  removeSpectator(playerId: string): void {
-    this.spectators.delete(playerId);
+  removeSpectator(playerId: string): void { this.spectators.delete(playerId); }
+
+  /** Sandbox time controls: 0 pauses the sim; the clients' extrapolation follows the scale. */
+  setTimeScale(n: number): void {
+    this.settings.timeScale = n;
+    for (const x of this.extras.values()) x.timeScale = n;
   }
 
   private sendSpectate(conn: Conn): void {

@@ -1,4 +1,5 @@
 import { CLASSES } from './classes.js';
+import { crewAvertsMishap } from './crew.js';
 import { type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, distance, headingVec, wrap360, type Vec2 } from './math.js';
@@ -65,6 +66,7 @@ function trigger(w: World, st: IncidentState): void {
     // Sea life: whales, dolphins or a snapping-shrimp bed, depending on the water
     () => spawnBio(w, w.time + WHALE_LIFE_S),
     () => {
+      if (averted(w, any)) return;
       any.rudderJamUntil = w.time + 60;
       sayRudder(w, any);
     },
@@ -72,15 +74,25 @@ function trigger(w: World, st: IncidentState): void {
   if (snorkelers.length) {
     const s = snorkelers[Math.floor(w.rng.next() * snorkelers.length)]!;
     options.push(() => {
+      if (averted(w, s)) return;
       s.snorkelStuckUntil = w.time + 45;
       say(w, s, 'valve', 'SCHNORCHELKOPFVENTIL KLEMMT · SCHNORCHEL BLEIBT 45 S OBEN');
     });
     options.push(() => {
+      if (averted(w, s)) return;
       s.batteryGasUntil = w.time + 300;
       say(w, s, 'gas', 'WASSERSTOFF IN DER BATTERIE · 5 MIN WEITER SCHNORCHELN UND LÜFTEN');
     });
   }
   options[Math.floor(w.rng.next() * options.length)]!();
+}
+
+/** An experienced crew may catch a mechanical fault early (no random draw for ordinary crews). */
+function averted(w: World, s: Ship): boolean {
+  const p = crewAvertsMishap(s);
+  if (p <= 0 || w.rng.next() >= p) return false;
+  say(w, s, 'averted', 'STÖRUNG FRÜH ERKANNT · DIE ERFAHRENE BESATZUNG HAT SIE BEHOBEN');
+  return true;
 }
 
 function sayRudder(w: World, s: Ship): void {

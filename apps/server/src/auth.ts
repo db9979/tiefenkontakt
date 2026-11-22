@@ -123,7 +123,7 @@ export class AuthStore {
 
   /** Delete an account with everything that belongs to it. */
   deleteUser(userId: number): void {
-    for (const table of ['sessions', 'tokens', 'results', 'campaign']) {
+    for (const table of ['sessions', 'tokens', 'results', 'campaign', 'campaign_runs']) {
       try {
         this.db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(userId);
       } catch {

@@ -3,6 +3,8 @@ import type { ClientMsg, Debrief, ServerMsg } from '@tk/shared';
 import { LESSONS, lessonSlot, type LessonId } from './lessons.js';
 import { MAX_PER_TEAM, Match, type Conn } from './match.js';
 import { VoiceHub } from './voice.js';
+import { SandboxHub } from './sandbox.js';
+import type { CampaignPlan } from './campaign-match.js';
 
 const MAX_MATCHES = 50;
 /** A running match with nobody connected stays (paused) this long before it is dropped. */
@@ -16,6 +18,14 @@ export class Lobby {
   private watching = new Map<string, string>();
   /** Voice radio between team mates (signalling, radio rules, push-to-talk). */
   readonly voice = new VoiceHub((id) => this.conns.get(id), (id) => this.matchOf(id));
+  /** Sandbox matches: truth view, time controls, spawning. */
+  readonly sandbox = new SandboxHub(this);
+  /** Campaign hook (set by the server): plans a player's next campaign mission. */
+  onCampaignStart?: (conn: Conn) => CampaignPlan | string;
+
+  connOf(playerId: string): Conn | undefined {
+    return this.conns.get(playerId);
+  }
 
   /** Register a connection. Returns true when the player rejoins a match. Replaces an older tab. */
   connect(conn: Conn): boolean {
@@ -238,6 +248,20 @@ export class Lobby {
         m.start();
         return;
       }
+      case 'campaign_start': {
+        const plan = this.onCampaignStart?.(conn) ?? 'Die Kampagne gibt es nur mit Konto';
+        if (typeof plan === 'string') return void err(plan);
+        this.leaveCurrent(conn.playerId);
+        const m = this.create(plan.name);
+        if (typeof m === 'string') return void err(m);
+        Object.assign(m.settings, plan.settings);
+        this.playerMatch.set(conn.playerId, m.id);
+        m.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team: plan.team, cls: plan.cls, ready: true, rank: conn.rank, rating: conn.rating });
+        m.reattach(conn);
+        m.start();
+        plan.started(m);
+        return;
+      }
       case 'leave':
         this.voice.drop(conn.playerId);
         this.stopWatching(conn.playerId);
@@ -274,6 +298,8 @@ export class Lobby {
         return void err(m.setCrew(conn.playerId, msg.captainId));
       case 'classify':
         return void err(m.classify(conn.playerId, msg.label, msg.choice));
+      case 'sandbox':
+        return void err(this.sandbox.handle(conn, m, msg));
       default:
         return void err(m.command(conn.playerId, msg));
     }
