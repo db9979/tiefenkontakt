@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { M, box, cyl, deckCap, hull, mat, navLights, smoke, wake } from './parts.js';
+import { K, lathe, loftHull, mast, railing, whip, windowBand, hullNumber, type Hull } from './hullkit.js';
 
 /**
  * Escort silhouettes after the period's real types (game names stay fictional):
@@ -18,37 +19,81 @@ function barrels(g: THREE.Group, n: number, y: number, z: number, len: number): 
   }
 }
 
-/** Long-hull ASW frigate with helicopter (F-12). Deck at 6 m. */
+/** Base height for a fitting spanning z0..z1: the lower deck point, slightly sunk (never floats). */
+export const onDeck = (h: Hull, z0: number, z1: number) => Math.min(h.deckAt(z0), h.deckAt(z1)) - 0.15;
+
+/** Long-hull ASW frigate with helicopter (F-12), after the long-hull frigates of the period. */
 export function asw(g: THREE.Group): void {
-  const len = 130;
-  const beam = 14;
-  hull(g, len, beam, 7.5, 1.5, M.hullGrey, M.black);
-  deckCap(g, len, beam, 6, M.deck);
-  // Single-arm missile launcher on the foredeck
-  cyl(g, 1.6, 1.2, 0, 6.6, 46, M.grey, 1.9);
-  box(g, 0.9, 0.9, 4, 0, 7.8, 46.5, M.grey).rotation.x = -0.3;
-  // One long deckhouse from the bridge to the twin hangar (6–13 m)
-  box(g, beam * 0.8, 7, 70, 0, 9.5, -5, M.grey);
-  // Bridge on its front, window band, fire-control dome on top
-  box(g, beam * 0.72, 3, 10, 0, 14.5, 24, M.grey);
-  box(g, beam * 0.74, 0.9, 0.4, 0, 15, 29.1, M.glass);
-  add3(g, 1.2, 17.2, 25);
-  // Tall mast stepped on the deckhouse roof, yard and turning air-search radar
-  cyl(g, 0.3, 17, 0, 21.5, 14, M.black, 0.7);
-  box(g, 7, 0.4, 0.4, 0, 26, 14, M.black);
-  const radar = box(g, 5, 1.6, 0.4, 0, 30.8, 14, M.black);
+  const h = loftHull(g, {
+    len: 136, beam: 14, freeboard: 6, draft: 4.6, sheerBow: 2.6, rake: 6, flare: 0.1, fullness: 0.15, transom: 0.78, bilge: 0.45,
+    colors: { top: 0x6b767c, boot: 0x1a1d1f, bottom: 0x5a2a24 },
+  });
+  const N = K.navy;
+  // Foredeck: single-arm missile launcher with its magazine drum, anchor gear, breakwater
+  const zl = 47;
+  const yl = h.deckAt(zl);
+  lathe(g, [[0.01, 0], [1.9, 0], [1.9, 1.1], [1.4, 1.5], [0.01, 1.5]], N).position.set(0, yl - 0.1, zl);
+  cyl(g, 0.6, 1.4, 0, yl + 2, zl, N);
+  const arm = box(g, 0.7, 0.7, 4.2, 0, yl + 2.6, zl + 0.8, K.navyDark);
+  arm.rotation.x = -0.35;
+  box(g, 9, 0.9, 0.3, 0, h.deckAt(56) + 0.3, 56, N).rotation.x = 0.4;
+  for (const sx of [-1, 1]) cyl(g, 0.35, 0.6, sx * 2.2, h.deckAt(60) + 0.25, 60, K.black);
+  // Deckhouse in three levels: hangar/main deck house (5 m), upper deck house (3.4 m), bridge on top
+  const base = onDeck(h, -42, 30);
+  const l1 = base + 5;
+  const l2 = l1 + 3.4;
+  const l3 = l2 + 3;
+  box(g, 11.4, 5.15, 72, 0, base + 2.5, -6, N);
+  box(g, 10.2, 3.4, 64, 0, l1 + 1.7, -6, N);
+  box(g, 9.4, 3, 11, 0, l2 + 1.5, 22, N);
+  windowBand(g, 8.8, 1, 0, l2 + 2, 27.52, 'z+');
+  for (const sx of [-1, 1]) {
+    windowBand(g, 9, 1, sx * 4.71, l2 + 2, 22, sx > 0 ? 'x+' : 'x-');
+    windowBand(g, 30, 0.6, sx * 5.11, l1 + 2.2, 4, sx > 0 ? 'x+' : 'x-');
+  }
+  // Bridge wings and the fire-control dome on the bridge roof
+  box(g, 13.6, 0.35, 3, 0, l2 + 0.2, 25.5, N);
+  cyl(g, 0.5, 1.1, 0, l3 + 0.55, 21, N);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.3, 14, 10), K.white);
+  dome.position.set(0, l3 + 1.1 + 1.1, 21);
+  g.add(dome);
+  // Tall mast on the upper deck house with yards and the turning air-search radar
+  const m = mast(g, 0, l2, 12, 18, 0.75, [{ at: 0.55, span: 8 }, { at: 0.8, span: 5 }]);
+  const radar = box(m, 6, 1.4, 0.3, 0, 18.7, 0, K.black);
   g.userData.radar = radar;
-  // Low stack aft of the mast, gun on the roof, rafts in canisters on deck
-  box(g, 4, 5, 5, 0, 15.5, -6, M.grey);
-  smoke(g, 0, 18.5, -6, 5, 0x4a4c4e);
-  cyl(g, 1.3, 1.4, 0, 13.7, -16, M.grey, 1.5);
-  barrels(g, 1, 14.2, -16, 5);
-  for (const x of [-1, 1]) cyl(g, 0.6, 2, x * beam * 0.42, 6.6, 30, ORANGE).rotation.x = Math.PI / 2;
-  // Flight deck behind the hangar, with marking
-  box(g, beam * 0.86, 0.3, 24, 0, 6.15, -52, M.deck);
-  box(g, 0.4, 0.05, 20, 0, 6.33, -52, mat(0xd9d9d0));
-  navLights(g, len, beam, 31, 14, 6);
-  wake(g, 190, beam, len / 2, -len / 2);
+  for (const z of [4, -4]) whip(g, 4.9, l2, z, 7);
+  // Low stack aft of the mast, with a dark cap
+  box(g, 4.4, 4.2, 5.6, 0, l2 + 2.1, -4, N);
+  box(g, 4.6, 0.5, 5.8, 0, l2 + 4.2, -4, K.black);
+  smoke(g, 0, l2 + 4.8, -4, 5, 0x4a4c4e);
+  // Gun on the upper deck house, close-in weapon on the hangar roof
+  lathe(g, [[0.01, 0], [1.6, 0], [1.4, 1.2], [0.9, 1.7], [0.01, 1.8]], K.navyDark).position.set(0, l2, -18);
+  const barrel = cyl(g, 0.14, 5, 0, l2 + 1.1, -15.2, N);
+  barrel.rotation.x = Math.PI / 2 - 0.15;
+  lathe(g, [[0.01, 0], [0.9, 0], [0.9, 1.4], [0.7, 2.4], [0.01, 2.6]], K.white).position.set(0, l1, -40);
+  for (const sx of [-1, 1]) for (const z of [20, 12, -26, -32]) cyl(g, 0.45, 1.6, sx * 5.2, l1 + 0.45, z, K.white).rotation.x = Math.PI / 2;
+  // Triple torpedo tubes on deck, life rafts in canisters along the deckhouse
+  for (const sx of [-1, 1]) {
+    // Triple tubes stacked on a stand, inboard of the deck edge
+    const tz = 34;
+    const tx = sx * (h.halfBeamAt(tz, h.deckAt(tz)) - 1.4);
+    for (let i = 0; i < 3; i++) cyl(g, 0.25, 3.2, tx, h.deckAt(tz) + 0.25 + i * 0.5, tz, K.navyDark).rotation.x = Math.PI / 2;
+  }
+  // Twin hangar doors on the aft face, flight deck with markings and safety nets
+  for (const sx of [-1, 1]) windowBand(g, 4.6, 4.4, sx * 2.7, base + 2.4, -42.02, 'z-');
+  const fz0 = -44;
+  const fz1 = -66;
+  const fy = h.deckAt(-55) + 0.05;
+  const mk = new THREE.MeshBasicMaterial({ color: 0xd9d9d0 });
+  box(g, 0.35, 0.03, 18, 0, fy, (fz0 + fz1) / 2, mk);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.5, 32), mk);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(0, fy + 0.01, -54);
+  g.add(ring);
+  railing(g, h, -66, 40);
+  hullNumber(g, h, 'F 212', 44, h.deckAt(44) - 2.6, 2.6);
+  navLights(g, 136, 14, l2 + 18, 12, h.deckAt(0));
+  wake(g, 190, 14, 68, -68);
 }
 
 /** Small sphere (radar dome) resting at height y. */

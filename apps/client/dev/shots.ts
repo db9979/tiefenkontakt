@@ -31,7 +31,7 @@ const drop: THREE.Object3D[] = [];
 g.traverse((o) => {
   if (['wake', 'bow', 'feather', 'contrail'].includes(o.name) || o instanceof THREE.Sprite || o instanceof THREE.Points) drop.push(o);
   const m = (o as THREE.Mesh).material as THREE.Material | undefined;
-  if (m && (m as THREE.MeshBasicMaterial).transparent) drop.push(o);
+  if (m && (m as THREE.MeshBasicMaterial).transparent && !o.userData.keep) drop.push(o);
 });
 for (const o of drop) o.removeFromParent();
 scene.add(g);
@@ -46,8 +46,12 @@ line.position.set(ctr.x + size.x, 0, ctr.z);
 if (box.min.y > -3 && !plane) scene.add(line);
 
 const cam = new THREE.PerspectiveCamera(18, W / H, 1, 5000);
-const dist = Math.max(size.z, size.y * 2.5) * 1.75;
-cam.position.set(ctr.x + dist * 0.9, ctr.y + dist * 0.3, ctr.z + dist * 0.32);
+const dist = (Math.max(size.z, size.y * 2.5) * 1.75) / Number(p.get('zoom') ?? 1);
+// ?view=bow: from ahead on the port bow, lower; ?view=top: from above; default: port side, slightly above
+const view = p.get('view');
+if (view === 'bow') cam.position.set(ctr.x + dist * 0.55, ctr.y + dist * 0.12, ctr.z + dist * 0.8);
+else if (view === 'top') cam.position.set(ctr.x + dist * 0.2, ctr.y + dist * 1.0, ctr.z + dist * 0.15);
+else cam.position.set(ctr.x + dist * 0.9, ctr.y + dist * 0.3, ctr.z + dist * 0.32);
 cam.lookAt(ctr);
 renderer.render(scene, cam);
 document.title = 'ready';
