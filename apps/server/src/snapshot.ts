@@ -159,7 +159,7 @@ export function buildSnapshot(
       id: own.id, cls: own.cls, team: own.team, name: own.name, x: own.pos.x, y: own.pos.y,
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, order: { ...own.order },
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
-      snorkel: own.snorkel, mastUp: own.mastUp, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
+      snorkel: own.snorkel, mastUp: own.mastUp, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
       activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: own.towedLength, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
       noiseDb: sourceLevel(own), cavitationKn: Number.isFinite(cavitationSpeedKn(own)) ? cavitationSpeedKn(own) : 99,

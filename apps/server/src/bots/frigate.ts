@@ -110,11 +110,11 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
       const lv = headingVec(m.lead.b);
       callMpa(w, s, { x: m.lead.x + lv.x * 15_000, y: m.lead.y + lv.y * 15_000 }, m.lead.b);
     }
-    s.order.heading = wrap360(leadB! + (est < 4000 ? 40 * m.legSign : 0));
+    s.order.heading = wrap360(leadB! + (est < 4000 ? 30 * m.legSign : 0));
     s.order.speedKn = est > 9000 ? 20 : 10;
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
-      m.legUntil = now + 120;
+      m.legUntil = now + 240;
     }
   } else if (merchants.length) {
     // Screen ahead on a flank (escorts split left/right), weaving to clear the baffles
@@ -124,9 +124,10 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill): 
     const to = bearing(s.pos, station);
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
-      m.legUntil = now + 180;
+      // Long straight legs: the towed array needs a minute of steady course after every turn
+      m.legUntil = now + 360;
     }
-    s.order.heading = distance(s.pos, station) > 2500 ? to : wrap360(to + 50 * m.legSign);
+    s.order.heading = distance(s.pos, station) > 2500 ? to : wrap360(to + 30 * m.legSign);
     s.order.speedKn = distance(s.pos, station) > 4000 ? 18 : 12;
   }
 

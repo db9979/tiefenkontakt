@@ -13,7 +13,7 @@ import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatu
 import { SHALLOW_M, pathDepth } from './seabed.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
-import { isAtPeriscopeDepth } from './entities.js';
+import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
 import { KN, NM, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
 
@@ -221,7 +221,7 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
     const range = distance(obs.pos, tgt.pos);
     const sub = CLASSES[tgt.cls].submarine;
     if (sub) {
-      if (!(tgt.mastUp && isAtPeriscopeDepth(tgt)) || range > RADAR_MAST_RANGE) continue;
+      if (!mastExposed(tgt) || range > RADAR_MAST_RANGE) continue;
       const pDetect = 0.35 * (1 - ctx.env.seaState * 0.1);
       if (ctx.rng.next() > pDetect) continue;
     } else if (range > RADAR_RANGE) continue;
@@ -246,7 +246,7 @@ function esm(obs: Ship, ctx: SensorContext, out: Detection[]): void {
 }
 
 function hasAntennaUp(s: Ship): boolean {
-  return CLASSES[s.cls].submarine ? s.mastUp && isAtPeriscopeDepth(s) : true;
+  return CLASSES[s.cls].submarine ? mastRaised(s) : true;
 }
 
 /** Run one sensor cycle for all ships. Pings fire when their interval elapsed. */
@@ -262,7 +262,7 @@ export function runSensors(ctx: SensorContext): Detection[] {
       obs.lastPingAt = ctx.time;
       ping(obs, ctx, out);
     }
-    if (CLASSES[obs.cls].submarine && obs.mastUp && isAtPeriscopeDepth(obs)) periscope(obs, ctx, out);
+    if (CLASSES[obs.cls].submarine && mastRaised(obs)) periscope(obs, ctx, out);
     if (obs.radarOn && !CLASSES[obs.cls].submarine) radar(obs, ctx, out);
     if (!CLASSES[obs.cls].submarine) {
       for (const v of lookoutSweep(obs, ctx.ships, ctx.env, ctx.rng)) {

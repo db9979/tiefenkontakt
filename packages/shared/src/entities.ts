@@ -27,7 +27,13 @@ export interface Ship {
   /** SSK battery in knot-hours. */
   battery?: number;
   snorkel: boolean; // ordered to snorkel (SSK, needs shallow depth)
-  mastUp: boolean; // periscope / radio mast raised (needs periscope depth)
+  mastUp: boolean; // periscope / radio mast ordered up (needs periscope depth)
+  /** How far the mast is out of its well, 0..1: it takes seconds to hoist and to lower. */
+  mastExt?: number;
+  /** Snorkel head extension 0..1; the diesels only run once it is fully up. */
+  snorkelExt?: number;
+  /** Current rate of turn (deg/s, + = starboard); builds up and dies away with rudder and hull inertia. */
+  yawRate?: number;
   radarOn: boolean;
   towedLength: number; // m deployed, 0 = stowed
   activeSonar: boolean; // pings periodically when true
@@ -88,4 +94,14 @@ export function createShip(init: ShipInit): Ship {
 
 export function isAtPeriscopeDepth(s: Ship): boolean {
   return CLASSES[s.cls].submarine && s.depth <= PERISCOPE_DEPTH + 0.5;
+}
+
+/** Mast fully hoisted at periscope depth: optics, ESM and radio work. */
+export function mastRaised(s: Ship): boolean {
+  return (s.mastExt ?? (s.mastUp ? 1 : 0)) >= 1 && isAtPeriscopeDepth(s);
+}
+
+/** Enough mast or snorkel above the water for an enemy radar or lookout to notice. */
+export function mastExposed(s: Ship): boolean {
+  return isAtPeriscopeDepth(s) && Math.max(s.mastExt ?? (s.mastUp ? 1 : 0), s.snorkelExt ?? 0) > 0.3;
 }

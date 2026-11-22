@@ -1,6 +1,6 @@
 import { CLASSES, angleDiff, bearing, distance, type ClassId, type Snapshot } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from './periscope3d.js';
-import { deg3, km } from './format.js';
+import { deg3, km, mastState } from './format.js';
 import { lang } from '../i18n/index.js';
 
 const L = (de: string, en: string) => (lang === 'en' ? en : de);
@@ -60,7 +60,7 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
 
   return {
     snap(s) {
-      const canSee = !CLASSES[s.own.cls].submarine || s.own.mastUp;
+      const canSee = !CLASSES[s.own.cls].submarine || mastState(s.own).raised;
       for (const a of s.alerts) {
         if (a.kind !== 'hit' || a.bearing === undefined || a.time <= lastAlert) continue;
         lastAlert = a.time;

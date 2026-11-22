@@ -3,6 +3,8 @@ import {
   KN,
   SIM_DT,
   isAtPeriscopeDepth,
+  mastExposed,
+  mastRaised,
   shipById,
   stepWorld,
   transmit,
@@ -386,7 +388,7 @@ export class Match {
     const w = this.world;
     const ship = this.shipOf(playerId);
     if (!w || !ship?.alive) return 'Kein Funk möglich';
-    if (CLASSES[ship.cls].submarine && !(ship.mastUp && isAtPeriscopeDepth(ship))) return 'Funkmast muss ausgefahren sein';
+    if (CLASSES[ship.cls].submarine && !mastRaised(ship)) return 'Funkmast muss ausgefahren sein';
     transmit(w, ship, text);
     this.radioLog.push({ from: ship.name, playerId, text });
     if (this.radioLog.length > 200) this.radioLog.shift();
@@ -440,7 +442,7 @@ export class Match {
       const x = this.extras.get(s.playerId);
       const ship = this.shipOf(s.playerId);
       if (!x || !ship) continue;
-      if (ship.mastUp) x.mastUpSince ??= w.time;
+      if (mastExposed(ship)) x.mastUpSince ??= w.time;
       else x.mastUpSince = undefined;
     }
     if (this.spectators.size && this.tickCount % SPECTATE_EVERY === 0) for (const c of this.spectators.values()) this.sendSpectate(c);

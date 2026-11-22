@@ -22,6 +22,16 @@ type Drag =
   | { kind: 'sol'; label: string }
   | { kind: 'vec'; label: string };
 
+type LinesMode = 'alle' | 'auswahl' | 'aus';
+/** Bearing lines on the plot: all contacts, only the selected one (default), or none. */
+const linesMode = (): LinesMode => {
+  const v = localStorage.getItem('tk_lines');
+  return v === 'alle' || v === 'aus' ? v : 'auswahl';
+};
+/** Bearing fan of the selected contact: the last 10 minutes, at most this many lines. */
+const FAN_WINDOW_S = 600;
+const FAN_MAX = 10;
+
 /**
  * North-up tactical plot centered on own ship. Mouse: wheel/buttons zoom, drag pans,
  * click selects, right-click opens actions, the amber TMA marker and its vector tip drag.
@@ -41,8 +51,15 @@ export class Plot {
     this.el.appendChild(canvas);
     const tools = document.createElement('div');
     tools.style.cssText = 'position:absolute;top:6px;right:6px;display:flex;flex-direction:column;gap:3px';
-    tools.innerHTML = `<button title="Hineinzoomen">+</button><button title="Herauszoomen">−</button><button title="Auf eigenes Schiff zentrieren">◎</button>`;
-    const [zin, zout, ctr] = [...tools.querySelectorAll('button')];
+    tools.innerHTML = `<button title="Hineinzoomen">+</button><button title="Herauszoomen">−</button><button title="Auf eigenes Schiff zentrieren">◎</button><button class="lines-btn" title="Peillinien: alle / nur Auswahl / aus"></button>`;
+    const [zin, zout, ctr, lines] = [...tools.querySelectorAll('button')];
+    const showLines = () => (lines!.textContent = { alle: '╱╱', auswahl: '╱', aus: '·' }[linesMode()]);
+    lines!.onclick = () => {
+      const order: LinesMode[] = ['auswahl', 'alle', 'aus'];
+      localStorage.setItem('tk_lines', order[(order.indexOf(linesMode()) + 1) % order.length]!);
+      showLines();
+    };
+    showLines();
     zin!.onclick = () => (this.scale = Math.max(5, this.scale / 1.4));
     zout!.onclick = () => (this.scale = Math.min(600, this.scale * 1.4));
     ctr!.onclick = () => (this.pan = { x: 0, y: 0 });
@@ -364,10 +381,14 @@ export class Plot {
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       const isEsm = c.sensors.includes('esm') && c.sensors.length === 1;
-      if ((this.opts.bearingLines && c.via === 'own') || (isEsm && this.opts.esmLines)) {
-        // Selected: a stable fan, one line per 20 s of sim time (not by index, which reshuffles on every update)
+      const mode = linesMode();
+      const wantLines = mode === 'alle' || (mode === 'auswahl' && sel);
+      if (wantLines && ((this.opts.bearingLines && c.via === 'own') || (isEsm && this.opts.esmLines))) {
+        // Selected: a stable fan, one line per minute of sim time over the last 10 minutes (bucketed by time, so it doesn't reshuffle)
         let bucket = -1;
-        const fan = sel ? c.history.filter((h) => (Math.floor(h.t / 20) !== bucket ? ((bucket = Math.floor(h.t / 20)), true) : false)) : [];
+        const step = FAN_WINDOW_S / FAN_MAX;
+        const recent = c.history.filter((h) => s.time - h.t <= FAN_WINDOW_S);
+        const fan = sel ? recent.filter((h) => (Math.floor(h.t / step) !== bucket ? ((bucket = Math.floor(h.t / step)), true) : false)).slice(-FAN_MAX) : [];
         const latest = c.history[c.history.length - 1];
         const smoothable = latest && latest.alt === undefined && latest.ox === undefined;
         const cur = smoothable ? this.smoothedBearing(c.label, c.lastSeen, c.bearing) : undefined;
@@ -390,7 +411,8 @@ export class Plot {
             const v = headingVec(b);
             const a = P(origin2);
             const end = P({ x: origin2.x + v.x * far, y: origin2.y + v.y * far });
-            ctx.globalAlpha = stale ? 0.2 : sel ? 0.35 : 0.7;
+            // Older fan lines fade out
+            ctx.globalAlpha = stale ? 0.2 : sel ? 0.1 + 0.4 * Math.max(0, 1 - (s.time - hs.t) / FAN_WINDOW_S) : 0.7;
             ctx.setLineDash(isEsm ? [6, 4] : [4, 3]);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(end.x, end.y); ctx.stroke();
           }

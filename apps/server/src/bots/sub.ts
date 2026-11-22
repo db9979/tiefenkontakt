@@ -1,4 +1,4 @@
-import {
+import { mastRaised,
   CLASSES,
   PERISCOPE_DEPTH,
   depthAt,
@@ -115,7 +115,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
 
   // Pack report: costs a periscope-depth excursion and an ESM bearing for the escorts
   if (k.pack && now - m.lastReport > REPORT_EVERY && !threatNear) {
-    if (s.mastUp) {
+    if (mastRaised(s)) {
       transmit(w, s, `Konvoi Peilung ${Math.round(target.bearing)}`);
       pack.push({ t: now, x: s.pos.x, y: s.pos.y, b: target.bearing, team: s.team });
       m.lastReport = now;

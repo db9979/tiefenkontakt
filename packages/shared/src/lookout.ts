@@ -1,6 +1,6 @@
 import type { Environment } from './acoustics.js';
 import { CLASSES } from './classes.js';
-import { isAtPeriscopeDepth, type Ship } from './entities.js';
+import { isAtPeriscopeDepth, mastExposed, type Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { KN, NM, bearing, distance, wrap360 } from './math.js';
 import type { Rng } from './rng.js';
@@ -43,7 +43,7 @@ export function sightingRange(tgt: Ship, env: Environment): { what: Sighting; ra
   // Diesel exhaust haze and the snorkel head's spray: seen farther, less hidden by whitecaps
   if (isSnorkeling(tgt)) return { what: 'snorkel', range: (3_500 + 300 * kn) * vis * (0.5 + 0.5 * clutter(env)) };
   // A periscope or mast at speed cuts a feather; almost invisible when the boat creeps
-  if (tgt.mastUp) return { what: 'mast', range: Math.min(4_500, 900 + 380 * kn) * vis * clutter(env) };
+  if (mastExposed(tgt) && (tgt.mastExt ?? 1) > 0.3) return { what: 'mast', range: Math.min(4_500, 900 + 380 * kn) * vis * clutter(env) };
   return undefined;
 }
 

@@ -95,7 +95,8 @@ describe('transients and layer', () => {
   });
 
   it('a submarine learns the layer by crossing it; a frigate by XBT', () => {
-    const sub = createShip({ id: 'u', cls: 'ssk', name: 'U', pos: { x: 0, y: 0 }, heading: 0, depth: 80 });
+    // Under way: depth changes on the planes need speed (a stopped boat only trims slowly)
+    const sub = createShip({ id: 'u', cls: 'ssk', name: 'U', pos: { x: 0, y: 0 }, heading: 0, depth: 80, speedKn: 5 });
     const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 5000, y: 0 }, heading: 0 });
     const w = createWorld([sub, ffg], 2, env);
     installWeapons(w);

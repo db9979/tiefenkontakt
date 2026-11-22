@@ -5,7 +5,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { isKey } from '../../widgets/keys.js';
-import { CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km } from '../../widgets/format.js';
+import { CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km, mastState } from '../../widgets/format.js';
 
 const MAST_HEIGHT: Record<ClassId, number> = { merchant: 28, ffg: 32, kor: 24, ssn: 8, ssk: 7, ssc: 5 };
 
@@ -128,7 +128,7 @@ export function periscopeStation(): Station {
   /** Periscope contacts with a smoothed bearing/range and a fade for ships dipping out of sight. */
   function visible() {
     const s = store.snap;
-    if (!s || !s.own.mastUp) return [];
+    if (!s || !mastState(s.own).raised) return [];
     const now = simNow();
     const out: { label: string; cls: ClassId; bearing: number; range: number; alpha: number }[] = [];
     for (const c of s.contacts) {
@@ -171,10 +171,11 @@ export function periscopeStation(): Station {
       const up = el.querySelector<HTMLButtonElement>('#up')!;
       up.classList.toggle('on', o.mastUp);
       up.textContent = o.mastUp ? 'Mast einfahren' : 'Mast ausfahren';
+      const ms = mastState(o);
       const since = o.mastUpSince !== undefined ? s.time - o.mastUpSince : 0;
       const mast = el.querySelector<HTMLElement>('#mast')!;
-      mast.className = o.mastUp ? (since > 20 ? 'red' : 'amber') : 'dim';
-      mast.textContent = o.mastUp ? `MAST OBEN ${since.toFixed(0)} S` : atDepth ? 'MAST UNTEN' : `TIEFE ${o.depth.toFixed(0)} M · ZU TIEF`;
+      mast.className = ms.moving ? 'amber blink' : o.mastUp ? (since > 20 ? 'red' : 'amber') : 'dim';
+      mast.textContent = ms.moving ? `MAST FÄHRT ${ms.moving === 'aus' ? 'AUS' : 'EIN'} · ${Math.round(ms.ext * 100)} %` : o.mastUp ? `MAST OBEN ${since.toFixed(0)} S` : atDepth ? 'MAST UNTEN' : `TIEFE ${o.depth.toFixed(0)} M · ZU TIEF`;
       const esm = s.alerts.filter((a) => a.kind === 'esm' && s.time - a.time < 10);
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
@@ -201,7 +202,7 @@ export function periscopeStation(): Station {
     },
     frame() {
       // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
-      if (store.snap?.own.mastUp) ensureGl();
+      if (store.snap && mastState(store.snap.own).ext > 0) ensureGl();
       const s = store.snap;
       const H = 380;
       const ctx = fitCanvas(view, H);
@@ -213,7 +214,9 @@ export function periscopeStation(): Station {
       const cx = w / 2;
       const cy = H / 2;
       const R = Math.min(w * 0.42, H * 0.47);
-      const use3d = !!gl && !!s?.own.mastUp;
+      const mst = s ? mastState(s.own) : { ext: 0, raised: false, moving: undefined };
+      // The head breaks the surface at about 55 % of its travel
+      const use3d = !!gl && mst.ext >= 0.55;
       glCanvas.style.visibility = use3d ? 'visible' : 'hidden';
       if (use3d && s) {
         const fov = zoom6 ? 8 : 32;
@@ -237,6 +240,26 @@ export function periscopeStation(): Station {
           ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
         }
         if (s.env.rain) lensDrops(ctx, cx, cy, R, t);
+        if (mst.ext < 1) waterWash(ctx, cx, cy, R, (1 - mst.ext) / 0.45, t);
+      } else if (s && mst.ext > 0) {
+        // Head still under water: green murk, light from above, rising bubbles
+        ctx.fillStyle = '#030504';
+        ctx.fillRect(0, 0, w, H);
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+        const g = ctx.createLinearGradient(0, cy - R, 0, cy + R);
+        const lit = 0.25 + 0.75 * (s.env.light ?? 1);
+        g.addColorStop(0, `rgba(${Math.round(60 * lit)},${Math.round(120 * lit)},${Math.round(115 * lit)},1)`);
+        g.addColorStop(1, '#02100e');
+        ctx.fillStyle = g;
+        ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+        ctx.fillStyle = 'rgba(200,240,230,0.35)';
+        for (let i = 0; i < 26; i++) {
+          const bx = cx - R + ((i * 73.1) % (2 * R));
+          const by = cy + R - (((t * (40 + (i % 7) * 9)) + i * 37) % (2 * R));
+          ctx.beginPath(); ctx.arc(bx, by, 1.5 + (i % 3), 0, 7); ctx.fill();
+        }
+        ctx.restore();
       } else {
         ctx.fillStyle = '#030504';
         ctx.fillRect(0, 0, w, H);
@@ -247,7 +270,7 @@ export function periscopeStation(): Station {
       ctx.clip();
       if (use3d) {
         // 3D scene already rendered underneath
-      } else if (s?.own.mastUp) {
+      } else if (s && mst.raised) {
         const sea = s.env.seaState;
         // Slow, swell-like pitch and roll (no fast jitter)
         const hy = cy + Math.sin(t * 0.55) * (1.5 + sea * 1.1) + Math.sin(t * 0.23 + 1.3) * sea * 0.6;
@@ -305,7 +328,9 @@ export function periscopeStation(): Station {
       ctx.fillStyle = COL.g2;
       ctx.textAlign = 'center';
       ctx.fillText(deg3(periBearing), cx, cy + R + 16 > H ? H - 4 : cy + R + 16);
-      if (!s?.own.mastUp) {
+      if (s && mst.ext > 0 && mst.ext < 1) {
+        ctx.fillText(`MAST FÄHRT ${mst.moving === 'ein' ? 'EIN' : 'AUS'} · ${Math.round(mst.ext * 100)} %`, cx, cy + 34);
+      } else if (!s || !mst.raised) {
         ctx.fillText('MAST EINGEFAHREN', cx, cy - 20);
         ctx.fillStyle = COL.dim;
         ctx.fillText(s && s.own.depth > 19 ? 'AUF SEHROHRTIEFE GEHEN, DANN MAST AUSFAHREN' : 'MAST AUSFAHREN ZUM BEOBACHTEN', cx, cy + 34);
@@ -374,4 +399,26 @@ function blasts(s: import('@tk/shared').Snapshot, vis: { bearing: number; range:
     out.push({ id, bearing: a.bearing, range: near?.range ?? 6000, age: (nowMs - blastSeen.get(id)!) / 1000 });
   }
   return out;
+}
+
+/** Water sheeting off the head window just after it breaks the surface: a falling waterline and runs. */
+function waterWash(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, cover: number, t: number): void {
+  const k = Math.max(0, Math.min(1, cover));
+  if (k <= 0) return;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+  const top = cy + R - 2 * R * k;
+  const g = ctx.createLinearGradient(0, top - 20, 0, cy + R);
+  g.addColorStop(0, 'rgba(40,90,90,0)');
+  g.addColorStop(0.15, 'rgba(40,90,90,0.85)');
+  g.addColorStop(1, 'rgba(5,25,24,0.95)');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - R, top - 20, 2 * R, cy + R - top + 20);
+  ctx.strokeStyle = 'rgba(210,240,235,0.35)';
+  for (let i = 0; i < 14; i++) {
+    const x = cx - R + ((i * 61.7) % (2 * R));
+    const y0 = cy - R + ((i * 29 + t * 90) % (2 * R)) * (1 - k);
+    ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + 1, y0 + 14 + (i % 4) * 6); ctx.stroke();
+  }
+  ctx.restore();
 }

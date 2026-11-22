@@ -84,7 +84,7 @@ export function diveEngineStation(): Station {
       const pct = spec.battery && o.battery !== undefined ? (100 * o.battery) / spec.battery.capacityKnH : undefined;
       const cav = o.speedKn > o.cavitationKn;
       q('#stat').innerHTML = `
-        <div class="row"><span class="dim">ANTRIEB</span><span>${spec.battery ? (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 ? 'DIESEL / SCHNORCHEL' : 'E-MASCHINE') : 'REAKTOR'}</span></div>
+        <div class="row"><span class="dim">ANTRIEB</span><span>${spec.battery ? (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 ? ((o.snorkelExt ?? 1) >= 1 ? 'DIESEL / SCHNORCHEL' : `SCHNORCHEL FÄHRT AUS ${Math.round((o.snorkelExt ?? 0) * 100)} %`) : (o.snorkelExt ?? 0) > 0 ? `E-MASCHINE · SCHNORCHEL FÄHRT EIN` : 'E-MASCHINE') : 'REAKTOR'}</span></div>
         <div class="row"><span class="dim">EIGENGERÄUSCH</span><span class="${o.noiseDb > 135 ? 'red' : o.noiseDb > 122 ? 'amber' : ''}">${o.noiseDb.toFixed(0)} DB</span></div>
         <div class="row"><span class="dim">KAVITATION AB</span><span class="${cav ? 'red' : ''}">${o.cavitationKn.toFixed(1)} KN${cav ? ' · KAVITIERT' : ''}</span></div>
         ${pct !== undefined ? `<div class="row"><span class="dim">BATTERIE</span><span class="${pct < 25 ? 'red' : pct < 50 ? 'amber' : ''}">${pct.toFixed(0)} %</span></div>

@@ -11,7 +11,7 @@ import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
-import { CLASS_LABEL, clock, deg3, esc, h } from '../widgets/format.js';
+import { CLASS_LABEL, clock, deg3, esc, h, mastState } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
@@ -252,7 +252,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     renderLog(s);
     showRadio(s.radio, s.own.name);
     const sub = CLASSES[s.own.cls].submarine;
-    q('#radio-state').innerHTML = sub ? (s.own.mastUp ? '<span class="amber">MAST OBEN · PEILBAR</span>' : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
+    q('#radio-state').innerHTML = sub ? (mastState(s.own).raised ? '<span class="amber">MAST OBEN · PEILBAR</span>' : mastState(s.own).moving ? `<span class="amber">MAST FÄHRT ${mastState(s.own).moving === 'aus' ? 'AUS' : 'EIN'}</span>` : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();
     if (torp && s.own.alive) {
       banner.textContent = store.realism === 'profi'

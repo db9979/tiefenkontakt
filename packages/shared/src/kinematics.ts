@@ -22,23 +22,42 @@ export function stepShip(s: Ship, dt: number, now: number): void {
   }
   if (isSnorkeling(s)) maxKn = Math.min(maxKn, SNORKEL_MAX_KN);
 
-  const targetSpeed = clamp(s.order.speedKn, 0, maxKn) * KN;
-  s.speed = approach(s.speed, targetSpeed, spec.accel * dt);
+  // Speed: engines push up slowly, drag and astern power bring it down a bit quicker;
+  // a hard turn bleeds speed (rudder and hull drag)
+  const turnShare = Math.abs(s.yawRate ?? 0) / Math.max(0.1, spec.turnRateDeg);
+  const targetSpeed = clamp(s.order.speedKn, 0, maxKn) * KN * (1 - 0.25 * Math.min(1, turnShare));
+  s.speed = approach(s.speed, targetSpeed, (targetSpeed < s.speed ? 1.3 : 1) * spec.accel * dt);
 
-  // Turning: rudder authority drops at low speed
-  const speedKn = s.speed / KN;
-  const rate = spec.turnRateDeg * clamp(speedKn / 6, 0.15, 1);
+  // Turning: rate of turn = speed / turning radius (a slow ship turns slowly), with rudder lag;
+  // the turn is eased off ahead of the ordered course so it doesn't overshoot
+  const speedMs = s.speed;
+  const maxRate = speedMs < 0.15 ? 0 : Math.min(spec.turnRateDeg, ((speedMs / spec.turnRadius) * 180) / Math.PI);
+  const yawAcc = Math.max(0.05, maxRate / 6); // about 6 s to full rate of turn
   const diff = angleDiff(s.heading, s.order.heading);
-  const step = clamp(diff, -rate * dt, rate * dt);
-  s.heading = wrap360(s.heading + step);
-  if (Math.abs(step) > 0.05 * dt) s.lastTurnAt = now;
+  const want = Math.sign(diff) * Math.min(maxRate, Math.sqrt(2 * yawAcc * Math.abs(diff)));
+  s.yawRate = approach(s.yawRate ?? 0, want, yawAcc * dt);
+  const step = s.yawRate * dt;
+  if (Math.abs(diff) < 0.02 || (Math.abs(diff) <= Math.abs(step) && Math.sign(diff) === Math.sign(step))) {
+    // On the ordered course: meet her (rudder amidships)
+    s.heading = wrap360(s.order.heading);
+    s.yawRate = 0;
+  } else s.heading = wrap360(s.heading + step);
+  if (Math.abs(s.yawRate) > 0.05) s.lastTurnAt = now;
 
-  // Depth
   if (spec.submarine) {
+    // Depth: planes give speed · sin(angle); trim and ballast a little more at any speed
     const target = clamp(s.order.depth, 0, spec.maxDepth);
-    s.depth = approach(s.depth, target, spec.depthRate * dt);
-    // Masts retract when going deep; the snorkel order persists and takes effect at periscope depth
-    if (s.depth > PERISCOPE_DEPTH + 0.5) s.mastUp = false;
+    const planes = speedMs * Math.sin(((spec.planeAngleDeg ?? 15) * Math.PI) / 180);
+    const vmax = Math.min(spec.depthRate, 0.2 + planes);
+    // Level off gently instead of stopping dead at the ordered depth
+    const v = Math.min(vmax, 0.05 + Math.abs(target - s.depth) * 0.08);
+    s.depth = approach(s.depth, target, v * dt);
+    // Masts: hoisting takes about 8 s, lowering 5 s; the snorkel head 15 s up, 6 s down
+    const atPd = s.depth <= PERISCOPE_DEPTH + 0.5;
+    if (!atPd) s.mastUp = false;
+    s.mastExt = approach(s.mastExt ?? 0, s.mastUp && atPd ? 1 : 0, (s.mastUp && atPd ? 1 / 8 : 1 / 5) * dt);
+    const snorkelOut = s.snorkel && atPd;
+    s.snorkelExt = approach(s.snorkelExt ?? 0, snorkelOut ? 1 : 0, (snorkelOut ? 1 / 15 : 1 / 6) * dt);
   }
 
   // Position
@@ -49,8 +68,9 @@ export function stepShip(s: Ship, dt: number, now: number): void {
   stepBattery(s, dt);
 }
 
+/** Snorkel fully up at periscope depth: diesels run, battery charges. */
 export function isSnorkeling(s: Ship): boolean {
-  return s.snorkel && isAtPeriscopeDepth(s);
+  return s.snorkel && isAtPeriscopeDepth(s) && (s.snorkelExt ?? 1) >= 1;
 }
 
 function stepBattery(s: Ship, dt: number): void {

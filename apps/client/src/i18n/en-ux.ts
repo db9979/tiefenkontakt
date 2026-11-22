@@ -20,6 +20,7 @@ export const EN_UX: [string, string][] = [
   ['Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.', 'Without radar the frigate stays silent. Switch on briefly, take the picture, switch off again.'],
   ['Grafik', 'Graphics'], ['Niedrig', 'Low'], ['Mittel', 'Medium'], ['Hoch', 'High'], ['Auto · Mittel', 'Auto · Medium'], ['Auto · Hoch', 'Auto · High'], ['Auto · Niedrig', 'Auto · Low'],
   ['Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)', 'Auto: lighter on phones and small machines (battery, heat)'],
+  ['Peillinien: alle / nur Auswahl / aus', 'Bearing lines: all / selected only / off'],
   ['LAGEBESPRECHUNG', 'BRIEFING'], ['AUFTRAG', 'ORDERS'], ['EIGENES SCHIFF', 'OWN SHIP'], ['LAGE', 'SITUATION'], ['ERSTE SCHRITTE', 'FIRST STEPS'],
   ['Auf Station', 'Man your station'], ['Schelfmeer', 'Shelf sea'], ['Fjordausfahrt', 'Fjord exit'],
   ['Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', 'Narrow channel between shoals; leave it and you run aground'],
@@ -55,6 +56,8 @@ export const EN_UX: [string, string][] = [
 ];
 
 export const EN_UX_PHRASES: [RegExp, string][] = [
+  [/^MAST FÄHRT AUS · (\d+) %$/, 'MAST GOING UP · $1 %'], [/^MAST FÄHRT EIN · (\d+) %$/, 'MAST GOING DOWN · $1 %'], [/^MAST FÄHRT AUS$/, 'MAST GOING UP'], [/^MAST FÄHRT EIN$/, 'MAST GOING DOWN'],
+  [/^SCHNORCHEL FÄHRT AUS (\d+) %$/, 'SNORKEL GOING UP $1 %'], [/^E-MASCHINE · SCHNORCHEL FÄHRT EIN$/, 'E-MOTOR · SNORKEL GOING DOWN'],
   [/^VERLOREN (\d+) %$/, 'LOST $1 %'], [/^SICHER (\d+) %$/, 'SAFE $1 %'], [/^VERSENKT (\d+) %$/, 'SUNK $1 %'], [/^ENTKOMMEN (\d+) %$/, 'ESCAPED $1 %'],
   [/^· SIEG: ÜBER 50 % SICHER$/, '· WIN: OVER 50 % SAFE'], [/^· SIEG: 50 % VERSENKT$/, '· WIN: 50 % SUNK'],
   [/^Konvoi-Tonnage\. Rot: versenkt \((\d+) %\), blau: sicher im Zielhafen \((\d+) %\)\..*$/, 'Convoy tonnage. Red: sunk ($1 %), blue: safe in port ($2 %). More than half in port = win, half sunk = defeat. At the time limit the escort loses from 30 % lost (tick).'],

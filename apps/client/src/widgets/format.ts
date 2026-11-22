@@ -58,3 +58,10 @@ export const COL = {
   bg: '#080c0b', grid: 'rgba(93,202,165,0.12)', g: '#5dcaa5', g2: '#9fe1cb', dim: '#5f7a72',
   amber: '#fac775', red: '#f09595', blue: '#85b7eb',
 };
+
+/** Mast hoist state from the own-ship view: extension 0..1, fully raised, and direction of travel. */
+export function mastState(o: { mastUp: boolean; mastExt?: number }): { ext: number; raised: boolean; moving?: 'aus' | 'ein' } {
+  const ext = o.mastExt ?? (o.mastUp ? 1 : 0);
+  const moving = o.mastUp && ext < 1 ? 'aus' : !o.mastUp && ext > 0 ? 'ein' : undefined;
+  return { ext, raised: ext >= 1, moving };
+}
