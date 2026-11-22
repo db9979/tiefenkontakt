@@ -30,6 +30,7 @@ import { mountHelm } from './helm.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
 import { callouts } from '../widgets/callouts.js';
+import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
 
 export interface Station {
@@ -139,6 +140,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const stationEl = q('#station');
   const tabs = q('#tabs');
   const helm = mountHelm(q('#helm'));
+  const sandbox = mountSandbox(el);
   const assistant = mountAssistant(q('.station-wrap'), (i) => i < stations.length && show(i));
   const banner = document.createElement('div');
   banner.className = 'banner blink';
@@ -269,7 +271,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const s = store.snap!;
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
     const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}`;
-    q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${clock(s.score.timeLeftS)}`;
+    q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${s.score.timeLeftS > 1e8 ? '∞' : clock(s.score.timeLeftS)}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
     // Convoy tonnage bar: red grows from the left (sunk), blue from the right (safe in port);
@@ -407,6 +409,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     cancelAnimationFrame(raf);
     window.removeEventListener('keydown', onKey);
     vp.dispose();
+    sandbox.dispose();
     voice.leave();
     window.removeEventListener('pointerdown', unlock);
     banner.remove();

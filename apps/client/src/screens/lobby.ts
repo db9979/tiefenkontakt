@@ -4,6 +4,8 @@ import { t } from '../i18n/index.js';
 import { accountPanel } from './account.js';
 import { adminPanel } from './admin.js';
 import { careerPanels } from './career.js';
+import { campaignPanel } from './campaign.js';
+import { seriesPanel } from './series.js';
 import { CLASS_NAME, esc, h } from '../widgets/format.js';
 import { missionCards, paintMissionCharts } from '../widgets/mission-cards.js';
 import { logout } from './logout.js';
@@ -66,6 +68,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           </div>
         </div>`;
       el.appendChild(careerPanels());
+      el.appendChild(campaignPanel());
+      el.appendChild(seriesPanel());
       el.appendChild(accountPanel());
       el.appendChild(adminPanel());
       el.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => {
@@ -124,6 +128,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="row"><span class="dim">ZEITLIMIT</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>
           <div class="row"><span class="dim">KI-STÄRKE</span><select id="s-skill"><option value="leicht">LEICHT</option><option value="normal">NORMAL</option><option value="schwer">SCHWER</option></select></div>
+          <div class="row"><span class="dim" title="Wahrheitsansicht, Zeitraffer und Ziele setzen; ohne Wertung">ÜBUNGSMODUS (SANDKASTEN)</span><select id="s-sandbox"><option value="0">NEIN</option><option value="1">JA</option></select></div>
           <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${match.settings.layerDepth > 0 ? match.settings.layerDepth + ' M' : 'UNBEKANNT · MESSEN'}</span></div>
 
           <div style="display:flex;gap:6px;margin-top:10px">
@@ -187,15 +192,17 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     sel('#s-bots').value = match.settings.fillBots ? '1' : '0';
     sel('#s-skill').value = match.settings.botSkill ?? 'normal';
     sel('#s-wx').value = match.settings.weather ?? 'wechselhaft';
+    sel('#s-sandbox').value = match.settings.sandbox ? '1' : '0';
     const send = () => net.send({
       t: 'settings', mission: sel('#s-mission').value as MissionKey, timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht',
       seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), fillBots: sel('#s-bots').value === '1',
       botSkill: sel('#s-skill').value as 'leicht' | 'normal' | 'schwer',
       weather: sel('#s-wx').value as 'wechselhaft' | 'stabil',
       merchants: Number(sel('#c-n').value),
+      sandbox: sel('#s-sandbox').value === '1',
       custom: { convoyKn: Number(sel('#c-kn').value), seabed: sel('#c-bed').value as 'tief' | 'schelf' | 'fjord', subFrac: Number(sel('#c-sub').value) },
     });
-    for (const id of ['#s-mission', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#c-n', '#c-kn', '#c-bed', '#c-sub']) sel(id).onchange = send;
+    for (const id of ['#s-mission', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
     el.querySelectorAll<HTMLButtonElement>('[data-crew]').forEach((b) => (b.onclick = () => net.send({ t: 'crew', captainId: b.dataset.crew! })));
     el.querySelector<HTMLButtonElement>('#own-ship')?.addEventListener('click', () => net.send({ t: 'crew', captainId: null }));
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });

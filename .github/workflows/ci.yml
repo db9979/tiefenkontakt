@@ -1,4 +1,4 @@
-# Typecheck, tests and build on every push and pull request; the Docker image is built too.
+# Typecheck, tests and build on every push and pull request; then the browser end-to-end test; the Docker image is built too.
 name: CI
 on:
   push:
@@ -17,6 +17,23 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm -w @tk/client run build
+  e2e:
+    # Browser test: headless Chrome over the DevTools protocol (scripts/e2e.mjs starts its own
+    # server and Vite on free ports). CHROME_PATH can be set as a repository variable.
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+    env:
+      CHROME_PATH: ${{ vars.CHROME_PATH || 'google-chrome' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: $CHROME_PATH --version
+      - run: npm run e2e
   docker:
     runs-on: ubuntu-latest
     needs: test

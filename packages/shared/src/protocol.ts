@@ -182,7 +182,7 @@ export interface OwnShipView {
   vdsOrder?: number;
   towedReady: boolean;
   /** People aboard, air (diesel boats), trim, high-pressure air, blow, buoy antenna (crew.ts, boat.ts). */
-  crew?: { fatigue: number; morale: number; wounded: number; battle: boolean; silent: boolean; performance: number };
+  crew?: { fatigue: number; morale: number; wounded: number; battle: boolean; silent: boolean; performance: number; xp?: number };
   air?: { co2: number; o2: number; scrubbers: number; candles: number };
   trim?: number;
   hpAir?: number;
