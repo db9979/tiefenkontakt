@@ -126,7 +126,9 @@ export function spawnBio(w: World, until: number): void {
 export function installTraffic(w: World): void {
   const st = w.env.incidents;
   if (!st) return;
-  st.traffic = COUNT[w.env.mission ?? 'eigene'] ?? 4;
+  // TK_NO_TRAFFIC=1 switches traffic off (A/B balance runs in scripts/bot-arena.ts)
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  st.traffic = env?.TK_NO_TRAFFIC ? 0 : COUNT[w.env.mission ?? 'eigene'] ?? 4;
   for (let i = 0; i < st.traffic; i++) spawnNeutral(w);
   if (w.rng.next() < 0.8) spawnBio(w, w.time + 2400);
 }

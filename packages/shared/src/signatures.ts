@@ -265,5 +265,6 @@ export function rankClasses(m: Marks): { sig: Signature; fit: number }[] {
 }
 
 export const CHOICE_MAX_KN: Record<ClassChoice, number> = {
-  merchant: 23, warship: 30, submarine: 30, torpedo: 50, bio: 15, unknown: 30,
+  // Merchant 14 kn: the TMA search ceiling for convoy targets (fast container ships are never targets)
+  merchant: 14, warship: 30, submarine: 30, torpedo: 50, bio: 15, unknown: 30,
 };

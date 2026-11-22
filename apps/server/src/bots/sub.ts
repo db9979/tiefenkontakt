@@ -65,7 +65,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   crewOf(s).silent = now < (m.silentUntil ?? 0);
   // A merchant nearby whose noise masks ours: with escorts close, creep in under it
   const cover = !w.ships.some(isConvoyShip) ? undefined
-    : fresh.filter((t) => voted(m, t) === 'merchant' && !isFriendly(w, s, t, m) && t.se > 10).sort((a, b) => b.se - a.se)[0];
+    : fresh.filter((t) => voted(m, t) === 'merchant' && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m) && t.se > 10).sort((a, b) => b.se - a.se)[0];
   // Strait breakthrough: creep north through the deepest water, deep and slow, ignore targets
   if (w.env.mission === 'meerenge') {
     // Straight north unless the water ahead gets shallow; then the deeper side
