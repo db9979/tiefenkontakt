@@ -49,6 +49,8 @@ export interface BotMemory {
   lead?: { x: number; y: number; b: number; t: number };
   sprintUntil: number;
   snorkelUntil: number;
+  /** Silent running after hearing a ping (no hammering, no loud work). */
+  silentUntil?: number;
   xbtDone?: boolean;
   /** Classification votes per contact label (a single look can mislead). */
   votes?: Record<string, Partial<Record<ClassChoice, number>>>;

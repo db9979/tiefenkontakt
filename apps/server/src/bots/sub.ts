@@ -1,4 +1,5 @@
 import {
+  crewOf,
   mastRaised,
   CLASSES,
   PERISCOPE_DEPTH,
@@ -59,6 +60,12 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const warships = fresh.filter((t) => voted(m, t) === 'warship' && !isFriendly(w, s, t, m));
   // Escorts are loud from far away: only a strong signal (close) or a ping counts as a threat
   const threatNear = pinged || warships.some((t) => t.se > 24 || (t.range !== undefined && t.range < 6000));
+  // Any ping heard (even faint) means rig for silent running for ten minutes
+  if (tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 30)) m.silentUntil = now + 600;
+  crewOf(s).silent = now < (m.silentUntil ?? 0);
+  // A merchant nearby whose noise masks ours: with escorts close, creep in under it
+  const cover = !w.ships.some(isConvoyShip) ? undefined
+    : fresh.filter((t) => voted(m, t) === 'merchant' && !isFriendly(w, s, t, m) && t.se > 10).sort((a, b) => b.se - a.se)[0];
   // Strait breakthrough: creep north through the deepest water, deep and slow, ignore targets
   if (w.env.mission === 'meerenge') {
     // Straight north unless the water ahead gets shallow; then the deeper side
@@ -121,6 +128,10 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     if (!sprinting && now > m.sprintUntil + 180) m.sprintUntil = now + 240;
     s.order.speedKn = sprinting && !threatNear ? (CLASSES[s.cls].submarine && cap ? 8 : 12) : 3;
     if (sprinting && !threatNear) s.order.depth = hide;
+    if (threatNear && cover) {
+      s.order.heading = cover.bearing;
+      s.order.speedKn = 5;
+    }
     return;
   }
 
@@ -136,7 +147,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const close = duel && target.se > 18 ? 4000 : undefined;
   const measured = target.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : undefined;
   const range = close ?? measured ?? (goodTma ? distance(s.pos, targetPosAt(solved!.sol, now)) : undefined);
-  s.order.heading = wrap360(target.bearing + 40 * m.legSign);
+  // Hunted: close in under the merchants' noise instead of legging across the line of sight
+  s.order.heading = wrap360(target.bearing + (threatNear && !duel ? 8 : 40) * m.legSign);
   s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
   // Reconnaissance: an escort seen through the periscope gets reported at once
