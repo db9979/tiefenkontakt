@@ -10,10 +10,11 @@ import {
   type World,
 } from '@tk/shared';
 import { buildFirstPatrol, firstPatrolResult } from './first-patrol.js';
+import { buildFirstEscort, firstEscortResult } from './first-escort.js';
 
 /** Training lessons: small, calm single-player scenarios for one skill each. */
 
-export type LessonId = 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt';
+export type LessonId = 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
 
 export const LESSONS: Record<LessonId, { title: string; side: 'east' | 'west'; cls: 'ssk' | 'ffg' }> = {
   klassifizieren: { title: 'Horchen und Klassifizieren', side: 'east', cls: 'ssk' },
@@ -21,6 +22,7 @@ export const LESSONS: Record<LessonId, { title: string; side: 'east' | 'west'; c
   angriff: { title: 'Torpedoangriff', side: 'east', cls: 'ssk' },
   ujagd: { title: 'U-Jagd mit Fregatte', side: 'west', cls: 'ffg' },
   feindfahrt: { title: 'Erste Feindfahrt', side: 'east', cls: 'ssk' },
+  geleitfahrt: { title: 'Erste Geleitfahrt', side: 'west', cls: 'ffg' },
 };
 
 export function lessonSlot(lesson: LessonId, playerId: string, callsign: string): PlayerSlot {
@@ -31,6 +33,8 @@ export function lessonSlot(lesson: LessonId, playerId: string, callsign: string)
 /** Build the lesson world. Returns the ship ids that should get a passive AI (no weapons). */
 export function buildLesson(lesson: LessonId, slot: PlayerSlot, seed: number): { world: World; passiveBots: string[] } {
   if (lesson === 'feindfahrt') return { world: buildFirstPatrol(slot, seed), passiveBots: [] };
+  // The escort lesson's boat has no captain at all: it holds its course (see first-escort.ts)
+  if (lesson === 'geleitfahrt') return { world: buildFirstEscort(slot, seed), passiveBots: [] };
   const ships: Ship[] = [];
   const merchants: Ship[] = [];
   const passiveBots: string[] = [];
@@ -62,6 +66,7 @@ export function buildLesson(lesson: LessonId, slot: PlayerSlot, seed: number): {
 /** Lessons end on their goal (or the time limit); classification/TMA lessons only end by time. */
 export function lessonResult(w: World, lesson: LessonId, limitS: number): { winner: 'west' | 'east'; reason: string } | undefined {
   if (lesson === 'feindfahrt') return firstPatrolResult(w, limitS);
+  if (lesson === 'geleitfahrt') return firstEscortResult(w, limitS);
   if (lesson === 'angriff' && w.ships.some((s) => s.cls === 'merchant' && !s.alive)) return { winner: 'east', reason: 'Lektion geschafft: Ziel versenkt' };
   if (lesson === 'ujagd' && w.ships.some((s) => s.id === 'p_bot-train' && !s.alive)) return { winner: 'west', reason: 'Lektion geschafft: U-Boot versenkt' };
   if (w.time >= limitS) return { winner: LESSONS[lesson].side, reason: 'Lektion beendet' };

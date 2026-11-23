@@ -18,11 +18,11 @@ jobs:
       - run: npm test
       - run: npm -w @tk/client run build
   e2e:
-    # Browser test: headless Chrome over the DevTools protocol (scripts/e2e.mjs starts its own
+    # Browser tests: headless Chrome over the DevTools protocol (scripts/e2e.mjs and tutorial-e2e.mjs start their own
     # server and Vite on free ports). CHROME_PATH can be set as a repository variable.
     runs-on: ubuntu-latest
     needs: test
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       CHROME_PATH: ${{ vars.CHROME_PATH || 'google-chrome' }}
     steps:
@@ -34,6 +34,8 @@ jobs:
       - run: npm ci
       - run: $CHROME_PATH --version
       - run: npm run e2e
+      # Both guided lessons played to the end in the browser (about five minutes, 3× time scale)
+      - run: npm run e2e:tutorials
   docker:
     runs-on: ubuntu-latest
     needs: test

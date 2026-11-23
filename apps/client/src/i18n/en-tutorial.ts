@@ -1,4 +1,4 @@
-/** German → English: the guided beginner sortie "Erste Feindfahrt" (lobby button, step panel, result). */
+/** German → English: the guided beginner sorties "Erste Feindfahrt" and "Erste Geleitfahrt" (lobby buttons, step panels, results). */
 export const EN_TUTORIAL: [string, string][] = [
   // Lobby
   ['Erste Feindfahrt · Einstieg mit Anleitung', 'First patrol · guided start'], ['Erste Feindfahrt', 'First patrol'], ['Einstieg mit Anleitung', 'Guided start'],
@@ -31,4 +31,35 @@ export const EN_TUTORIAL: [string, string][] = [
     'After the shot the enemy knows where you are. Evade: lower the mast, speed “Half”, then deeper than 60 m and turn away from the target.'],
   // Result and world
   ['Lektion geschafft: Ziel versenkt, Boot abgelaufen', 'Lesson complete: target sunk, boat got away'], ['Nachzügler', 'Straggler'],
+  // "Erste Geleitfahrt" (frigate): lobby
+  ['Erste Geleitfahrt · Fregatte mit Anleitung', 'First escort · frigate, guided'], ['Erste Geleitfahrt', 'First escort'], ['Fregatte mit Anleitung', 'Frigate, guided'],
+  ['Schleppsonar, Sonarboje, Klassifizieren, Konvoi umleiten, Ping, U-Jagd-Rakete', 'Towed array, sonobuoy, classifying, convoy detour, ping, ASW rocket'],
+  ['Geführte Einsteiger-Mission auf der Fregatte: vom Schleppsonar bis zur U-Jagd-Rakete', 'Guided beginner mission on the frigate: from the towed array to the ASW rocket'],
+  // Panel
+  ['Ausbildung · Erste Geleitfahrt', 'Training · First escort'],
+  ['2 · Sonar · Schleppsonar', '2 · Sonar · Towed array'], ['2 · Sonar · Kurs halten', '2 · Sonar · Hold course'], ['1 · OPZ · Sonarboje', '1 · Ops room · Sonobuoy'],
+  ['2 · Sonar · Kontakt', '2 · Sonar · Contact'], ['2 · Sonar · Klassifizieren', '2 · Sonar · Classify'], ['1 · OPZ · Konvoi warnen', '1 · Ops room · Warn the convoy'],
+  ['2 · Sonar · Entfernung', '2 · Sonar · Range'], ['3 · Waffen · Rakete', '3 · Weapons · Rocket'], ['Meldungen · Treffer', 'Reports · Hit'],
+  ['Willkommen an Bord der Fregatte. Hinter dir laufen drei Frachter nach Osten, du sicherst sie nach vorn. Mit 20 kn hört das Sonar fast nur das eigene Schiff, und ein Schleppsonar rauscht über 14 kn. Stelle die Fahrt auf „Halbe“ (12 kn).',
+    'Welcome aboard the frigate. Three merchants follow you east; you screen ahead of them. At 20 kn the sonar hears little but your own ship, and a towed array gets noisy above 14 kn. Set the speed to “Half” (12 kn).'],
+  ['Das Schleppsonar hört leise U-Boote viel weiter als das Rumpfsonar. Station Sonar: Knopf „900 m“ unter dem Schleppsonar-Wasserfall.',
+    'The towed array hears quiet submarines much farther than the hull sonar. Sonar station: button “900 m” below the towed-array waterfall.'],
+  ['Die Winde braucht knapp 4 Minuten. Danach muss das Kabel 60 s gerade hinter dem Schiff liegen: Kurs halten, bis oben „900 M · BEREIT“ steht. Jede Kursänderung lässt es neu einschwingen.',
+    'The winch needs almost 4 minutes. Then the cable must trail straight behind the ship for 60 s: hold your course until “900 M · READY” shows at the top. Every course change makes it settle again.'],
+  ['Station OPZ: Rechtsklick in die Karte etwa 4 km vor das eigene Schiff (rechts, Richtung Osten) und „Sonarboje tief“. Der Bordhubschrauber fliegt hin und wirft sie ab; sie hört dort, wo der Konvoi gleich hinfährt.',
+    'Ops room: right-click the map about 4 km ahead of your ship (to the right, east) and choose “Deep sonobuoy”. The helicopter flies out and drops it; it listens where the convoy is about to go.'],
+  ['Die Frachter hinter dir sind laut. Suche voraus nach einer schwachen, neuen Spur im Schleppsonar-Wasserfall und klicke sie an (oder wähle den Kontakt in der Kontaktliste). Das Schleppsonar weiß nicht, ob links oder rechts: die Peilung kann gespiegelt sein.',
+    'The merchants behind you are loud. Look ahead for a faint new trace in the towed-array waterfall and click it (or pick the contact in the contact list). The towed array cannot tell left from right: the bearing may be mirrored.'],
+  ['Rechts in der Signalanalyse: LOFAR-Grundton und DEMON-Linien markieren, die Klassenbibliothek vergleicht. Ein langsamer Kontakt ohne die tiefen Linien eines Frachters ist ein U-Boot: klicke „U-Boot“.',
+    'In the signal analysis on the right: mark the LOFAR fundamental and the DEMON lines, the class library compares. A slow contact without a merchant’s low lines is a submarine: click “Submarine”.'],
+  ['Das U-Boot steht vor dem Geleitzug. Station OPZ, Feld „Konvoi umleiten“: versetze den Konvoi vom U-Boot weg (steht es nördlich, also an Backbord des Konvois: „3 km ▶“). Alternativ eine Funkmeldung an den Konvoi (Reiter „Funk“).',
+    'The submarine is ahead of the convoy. Ops room, box “Convoy detour”: shift the convoy away from the submarine (if it is to the north, i.e. on the convoy’s port side: “3 km ▶”). Or send a radio message to the convoy (tab “Radio”).'],
+  ['Passiv gibt es nur die Peilung. Wähle „LFM“ (genaue Entfernung) und schalte „Aktiv-Ping“ ein. Sobald der Kontakt eine Entfernung hat, den Ping wieder aus: er verrät die Fregatte. Liegt das U-Boot achteraus, erst darauf zudrehen (achtern ist das Rumpfsonar taub).',
+    'Passive sonar gives only a bearing. Choose “LFM” (accurate range) and switch “Active ping” on. As soon as the contact has a range, switch the ping off again: it gives the frigate away. If the submarine is astern, turn towards it first (the hull sonar is deaf astern).'],
+  ['Station Waffen: den U-Boot-Kontakt wählen und „Rakete auf Ziel“ – sie zielt auf die frische Ortung (nicht älter als 45 s, sonst erneut pingen). Flugzeit etwa 40 s.',
+    'Weapons station: select the submarine contact and “Rocket on target” – it aims at the fresh fix (no older than 45 s, otherwise ping again). Flight time about 40 s.'],
+  ['Der Leichtgewichtstorpedo sucht im Kreis und greift an. Warte auf die Explosion. Kein Treffer nach drei Minuten: neu orten (Ping) und noch eine Rakete.',
+    'The lightweight torpedo searches in circles and attacks. Wait for the explosion. No hit after three minutes: get a new fix (ping) and fire another rocket.'],
+  // Result
+  ['Lektion geschafft: U-Boot getroffen und abgedrängt', 'Lesson complete: submarine hit and driven off'],
 ];

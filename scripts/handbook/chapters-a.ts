@@ -46,6 +46,7 @@ Sprechfunk mit Verbindungsgüte; ein grüner Punkt heißt: er spricht gerade.</p
 </table>
 <h2>Lektionen</h2>
 <p>Für den Einstieg führt <b>„Erste Feindfahrt“</b> (Lobby, Ausbildung) durch einen ganzen Angriff auf einen einzelnen Frachter: Tiefe, Schleichfahrt, Horchen, Schenkel für die TMA, Sehrohr, Schuss, Drahtlenkung und Ablaufen – jeder Schritt mit Haken, „Weiter“ überspringt.</p>
+<p>Das Gegenstück für die Fregatte ist <b>„Erste Geleitfahrt“</b>: drei Frachter folgen der Fregatte, voraus läuft ein einzelnes Diesel-U-Boot tief und auf festem Kurs an. Die Lektion führt durch Fahrt verringern, Schleppsonar auf 900 m ausbringen und einschwingen lassen, Sonarboje vor den Konvoi werfen, den leisen Kontakt finden und als U-Boot klassifizieren, den Konvoi umleiten, mit kurzem LFM-Ping die Entfernung holen und die U-Jagd-Rakete schießen. Geschafft ist sie, wenn das U-Boot getroffen ist.</p>
 <p>Die geführten Lektionen bringen jede Station Schritt für Schritt bei: Horchen, Peilen, TMA, Torpedoangriff, Schleppsonar, Hubschrauber und Ausweichen.
 Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Einsteiger“ beschriftet Linien und bietet Auto-Marken und Auto-TMA,
 „Profi“ verzichtet darauf.</p>

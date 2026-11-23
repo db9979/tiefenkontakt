@@ -59,7 +59,7 @@ export type ClientMsg =
   | { t: 'compartment'; index: number; action: 'priority' | 'seal' | 'open' }
   | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
-  | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' }
+  | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt' }
   | { t: 'lesson_done' }
   | { t: 'station'; index: number }
   | { t: 'quick' }
@@ -156,7 +156,7 @@ export interface MatchLobby extends MatchSummary {
     weather: 'wechselhaft' | 'stabil';
     custom?: CustomMissionSettings;
     merchantsCount?: number;
-    lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt';
+    lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
     /** Training sandbox: truth view, time controls and spawning. */
     sandbox?: boolean;
     /** A mission of a player's campaign run. */
@@ -313,7 +313,7 @@ export interface Snapshot {
   /** Who mans which station aboard. */
   stations?: { callsign: string; station: number }[];
   /** Training lesson id when this is a lesson. */
-  lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt';
+  lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
   briefing?: Briefing;
   own: OwnShipView;
   contacts: (Omit<ContactTrack, 'history'> & {
