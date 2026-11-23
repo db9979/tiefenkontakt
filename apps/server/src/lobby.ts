@@ -211,6 +211,7 @@ export class Lobby {
         const m = this.create(msg.name);
         if (typeof m === 'string') return void err(m);
         if (msg.private) m.settings.private = true;
+        if (msg.setup) m.fixSetup(msg.setup);
         this.leaveCurrent(conn.playerId);
         this.playerMatch.set(conn.playerId, m.id);
         return void err(m.join(conn, 'west'));

@@ -15,7 +15,8 @@ import type { SeekerMode } from './weapons.js';
 
 /** Messages client -> server. Validated with zod on the server. */
 export type ClientMsg =
-  | { t: 'create_match'; name: string; private?: boolean }
+  /** setup: rebuild a finished match's situation (same seed and lobby choices, debrief "Gleiche Lage"). */
+  | { t: 'create_match'; name: string; private?: boolean; setup?: MatchSetup }
   /** Join through an invite link: the server picks the team with fewer players. */
   | { t: 'join_code'; matchId: string }
   | { t: 'join'; matchId: string; team: Exclude<Team, 'neutral'> }
@@ -67,12 +68,13 @@ export type ClientMsg =
   | {
     t: 'settings';
     mission?: MissionKey;
-    timeOfDay?: 'tag' | 'daemmerung' | 'nacht';
+    timeOfDay?: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     seaState?: number;
     timeLimitMin?: number;
     fillBots?: boolean;
     botSkill?: 'leicht' | 'normal' | 'schwer';
-    weather?: 'wechselhaft' | 'stabil';
+    weather?: 'wechselhaft' | 'stabil' | 'zufall';
+    variation?: Variation;
     custom?: CustomMissionSettings;
     merchants?: number;
     sandbox?: boolean;
@@ -143,7 +145,7 @@ export interface MatchLobby extends MatchSummary {
   chat?: LobbyChatLine[];
   settings: {
     mission: MissionKey;
-    timeOfDay: 'tag' | 'daemmerung' | 'nacht';
+    timeOfDay: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     timeScale: number;
     layerDepth: number;
     seaState: number;
@@ -153,7 +155,10 @@ export interface MatchLobby extends MatchSummary {
     botSkill: 'leicht' | 'normal' | 'schwer';
     /** Not listed; joined only through an invite link. */
     private?: boolean;
-    weather: 'wechselhaft' | 'stabil';
+    weather: 'wechselhaft' | 'stabil' | 'zufall';
+    variation?: Variation;
+    /** Set when the situation was fixed (rematch with the same seed). */
+    lage?: number;
     custom?: CustomMissionSettings;
     merchantsCount?: number;
     lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
@@ -364,6 +369,26 @@ export interface Snapshot {
 }
 
 /** Full truth, released only after the match ended. */
+/** How much a mission's positions, route, speed and sea state vary from match to match. */
+export type Variation = 'aus' | 'leicht' | 'stark';
+
+/** A match's seed and lobby choices: enough to play the same situation again. */
+export interface MatchSetup {
+  seed: number;
+  settings: {
+    mission: MissionKey;
+    timeOfDay: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
+    weather: 'wechselhaft' | 'stabil' | 'zufall';
+    seaState: number;
+    timeLimitMin: number;
+    merchants: number;
+    fillBots: boolean;
+    botSkill: 'leicht' | 'normal' | 'schwer';
+    custom?: CustomMissionSettings;
+    variation?: Variation;
+  };
+}
+
 export interface Debrief {
   ships: { id: string; name: string; cls: ClassId; team: Team; player: boolean }[];
   /** Positions every few sim seconds: [t, [id, x, y, heading, alive(0/1)][]] */
@@ -380,6 +405,8 @@ export interface Debrief {
   orders?: import('./orders.js').OrderSummary[];
   /** Periscope and bridge photos with their grades. */
   photos?: import('./recognition.js').PhotoRecord[];
+  /** Seed and lobby choices, for a rematch in the same situation (not for lessons or campaigns). */
+  setup?: MatchSetup;
 }
 
 export interface PlayerStats {

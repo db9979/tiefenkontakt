@@ -1,5 +1,6 @@
 import { onTap } from '../widgets/touch.js';
 import { CLASSES, NM, headingVec, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
+import { net } from '../net.js';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
 import { debriefOrders, debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
@@ -53,6 +54,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
       <div class="hd" style="margin-top:10px"><span>Ereignisse</span><span class="dim">KLICK SPRINGT HIN</span></div>
       <div id="db-events"></div>
       ${canShare ? shareBlock() : ''}
+      ${mine && d.setup ? `<button id="db-again" style="margin-top:10px;width:100%" title="Neue Partie mit denselben Startpositionen, derselben Route und demselben Wetter">Gleiche Lage nochmal · #${d.setup.seed}</button>` : ''}
       <button id="db-close" style="margin-top:10px;width:100%">${shared ? 'Selbst spielen' : 'Zur Lobby'}</button>
     </div>
   </div></div>`);
@@ -123,6 +125,14 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
     current = undefined;
     onClose();
   };
+  const again = el.querySelector<HTMLButtonElement>('#db-again');
+  if (again && d.setup) {
+    const setup = d.setup;
+    again.onclick = () => {
+      q<HTMLButtonElement>('#db-close').click();
+      net.send({ t: 'create_match', name: `Gleiche Lage #${setup.seed}`, setup });
+    };
+  }
 
   /** Interpolated frame at time t. */
   function positionsAt(time: number): Map<string, [number, number, number, number]> {

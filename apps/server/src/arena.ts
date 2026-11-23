@@ -3,6 +3,7 @@ import { BotCrew } from './bots/index.js';
 import { Recorder } from './recorder.js';
 import { evaluate, computeScore, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type MissionId, type PlayableClass, type ScenarioSettings } from './scenario.js';
+import { resolveLobby } from './variation.js';
 
 /** Bot-vs-bot matches without a server: used by the arena script and by replay series. */
 
@@ -13,6 +14,8 @@ export interface ArenaSetup {
   west: PlayableClass[];
   east: PlayableClass[];
   timeLimitMin: number;
+  /** Per-match variation (default: as in the lobby, leicht). */
+  variation?: ScenarioSettings['variation'];
 }
 
 export const DEFAULT_ARENA: ArenaSetup = { mission: 'groenland', timeOfDay: 'tag', botSkill: 'normal', west: ['ffg', 'ffg'], east: ['ssk', 'ssn'], timeLimitMin: 40 };
@@ -58,7 +61,10 @@ export class ArenaGame {
   result?: MatchResult;
 
   constructor(readonly setup: ArenaSetup, readonly seed: number, record = false) {
-    this.settings = { ...DEFAULT_SETTINGS, mission: setup.mission, timeOfDay: setup.timeOfDay, botSkill: setup.botSkill, timeLimitMin: setup.timeLimitMin };
+    this.settings = resolveLobby({
+      ...DEFAULT_SETTINGS, mission: setup.mission, timeOfDay: setup.timeOfDay, botSkill: setup.botSkill, timeLimitMin: setup.timeLimitMin,
+      variation: setup.variation ?? DEFAULT_SETTINGS.variation,
+    }, seed);
     const slots = arenaSlots(setup);
     this.world = buildScenario(slots, this.settings, seed);
     this.crew = new BotCrew(setup.botSkill);

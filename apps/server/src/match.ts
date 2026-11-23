@@ -10,6 +10,7 @@ import {
   type AlertView,
   type ClassChoice,
   type Debrief,
+  type MatchSetup,
   type FriendlyView,
   type SavedWorld,
   restoreWorld,
@@ -31,6 +32,7 @@ import { applyCommand, type GameCommand } from './input.js';
 import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
+import { resolveLobby } from './variation.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
 import { radioToTeam, spectateView } from './match-io.js';
@@ -94,6 +96,8 @@ export class Match {
   private classes = new Map<string, Map<string, ClassChoice>>();
   private tickCount = 0;
   private timer?: ReturnType<typeof setInterval>;
+  /** The seed came from a rematch and is shown in the lobby. */
+  private fixedSeed = false;
   onChange?: () => void;
 
   /** Everything needed to continue this match after a server restart. */
@@ -189,7 +193,8 @@ export class Match {
   }
 
   lobby(): MatchLobby {
-    return { ...this.summary(), slots: this.slots.map((s) => ({ ...s })), settings: { ...this.settings }, chat: [...this.chat] };
+    const { asSet: _asSet, ...settings } = this.settings;
+    return { ...this.summary(), slots: this.slots.map((s) => ({ ...s })), settings: { ...settings, lage: this.fixedSeed ? this.seed : undefined }, chat: [...this.chat] };
   }
 
   private chat: { from: string; text: string; at: number }[] = [];
@@ -225,10 +230,25 @@ export class Match {
     if (this.conns.size === 0) this.stop();
   }
 
+  /** Rematch: the same seed and lobby choices as a finished match. Changing settings unfixes the seed. */
+  fixSetup(setup: MatchSetup): void {
+    this.seed = setup.seed;
+    this.fixedSeed = true;
+    Object.assign(this.settings, setup.settings);
+  }
+
+  /** Seed and lobby choices for a rematch (convoy battles only). */
+  private setup(): MatchSetup | undefined {
+    const s = this.settings;
+    if (s.lesson || s.campaign || s.sandbox || !s.asSet) return undefined;
+    return { seed: this.seed, settings: s.asSet };
+  }
+
   /** Lobby settings: anyone in the lobby may change them; everyone's ready flag resets. */
-  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'fillBots' | 'botSkill' | 'weather' | 'custom' | 'merchants'>>): string | undefined {
+  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'fillBots' | 'botSkill' | 'weather' | 'custom' | 'merchants' | 'variation'>>): string | undefined {
     if (this.state !== 'lobby' || !this.slots.some((x) => x.playerId === playerId)) return 'Nur in der Lobby möglich';
     for (const [k, v] of Object.entries(s)) if (v !== undefined) (this.settings as unknown as Record<string, unknown>)[k] = v;
+    this.fixedSeed = false;
     for (const x of this.slots) {
       x.ready = false;
       const allowed = allowedClasses(this.settings.mission, x.team);
@@ -323,6 +343,7 @@ export class Match {
     } else {
       const bots = this.botSlots();
       this.slots.push(...bots);
+      this.settings = resolveLobby(this.settings, this.seed);
       this.world = buildScenario(this.slots, this.settings, this.seed);
       for (const b of bots) this.bots.add(`p_${b.playerId}`);
       if (Match.recentHabits && bots.length) {
@@ -455,7 +476,7 @@ export class Match {
     if (result) {
       this.state = 'ended';
       this.stop();
-      this.finished = { result, debrief: { ...this.recorder.debrief(w, this.slots, result), learned: this.learned.length ? this.learned : undefined } };
+      this.finished = { result, debrief: { ...this.recorder.debrief(w, this.slots, result), learned: this.learned.length ? this.learned : undefined, setup: this.setup() } };
       for (const c of this.conns.values()) {
         c.send({ t: 'end', ...result });
         c.send({ t: 'debrief', d: this.finished.debrief });

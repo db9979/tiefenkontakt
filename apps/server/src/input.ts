@@ -33,9 +33,30 @@ import { z } from 'zod';
 
 const deg = z.number().finite().min(0).max(360);
 const team = z.enum(['west', 'east']);
+/** Lobby settings (the settings message and a rematch's setup share them). */
+const settingsFields = {
+  mission: z.enum(['groenland', 'schelf', 'fjord', 'duell', 'hafen', 'eigene', 'fuehlung', 'meerenge', 'aufklaerung']).optional(),
+  custom: z.object({ convoyKn: z.number().min(5).max(14), seabed: z.enum(['tief', 'schelf', 'fjord']), subFrac: z.number().min(0.2).max(0.9) }).optional(),
+  merchants: z.number().int().min(2).max(12).optional(),
+  timeOfDay: z.enum(['tag', 'daemmerung', 'nacht', 'zufall']).optional(),
+  seaState: z.number().int().min(0).max(6).optional(),
+  timeLimitMin: z.number().int().min(10).max(90).optional(),
+  fillBots: z.boolean().optional(),
+  botSkill: z.enum(['leicht', 'normal', 'schwer']).optional(),
+  weather: z.enum(['wechselhaft', 'stabil', 'zufall']).optional(),
+  variation: z.enum(['aus', 'leicht', 'stark']).optional(),
+  sandbox: z.boolean().optional(),
+};
+/** Seed and lobby choices of a finished match (debrief "Gleiche Lage"). */
+const matchSetup = z.object({
+  seed: z.number().int().min(0).max(0xffffffff),
+  settings: z.object(settingsFields).omit({ sandbox: true }).required({
+    mission: true, timeOfDay: true, weather: true, seaState: true, timeLimitMin: true, merchants: true, fillBots: true, botSkill: true,
+  }),
+});
 
 export const clientMsgSchema = z.discriminatedUnion('t', [
-  z.object({ t: z.literal('create_match'), name: z.string().trim().min(1).max(40), private: z.boolean().optional() }),
+  z.object({ t: z.literal('create_match'), name: z.string().trim().min(1).max(40), private: z.boolean().optional(), setup: matchSetup.optional() }),
   z.object({ t: z.literal('join_code'), matchId: z.string().regex(/^[a-f0-9]{8}$/) }),
   z.object({ t: z.literal('join'), matchId: z.string().max(40), team }),
   z.object({ t: z.literal('leave') }),
@@ -64,19 +85,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('station'), index: z.number().int().min(0).max(4) }),
   z.object({ t: z.literal('quick') }),
   z.object({ t: z.literal('spectate'), matchId: z.string().max(40) }),
-  z.object({
-    t: z.literal('settings'),
-    mission: z.enum(['groenland', 'schelf', 'fjord', 'duell', 'hafen', 'eigene', 'fuehlung', 'meerenge', 'aufklaerung']).optional(),
-    custom: z.object({ convoyKn: z.number().min(5).max(14), seabed: z.enum(['tief', 'schelf', 'fjord']), subFrac: z.number().min(0.2).max(0.9) }).optional(),
-    merchants: z.number().int().min(2).max(12).optional(),
-    timeOfDay: z.enum(['tag', 'daemmerung', 'nacht']).optional(),
-    seaState: z.number().int().min(0).max(6).optional(),
-    timeLimitMin: z.number().int().min(10).max(90).optional(),
-    fillBots: z.boolean().optional(),
-    botSkill: z.enum(['leicht', 'normal', 'schwer']).optional(),
-    weather: z.enum(['wechselhaft', 'stabil']).optional(),
-    sandbox: z.boolean().optional(),
-  }),
+  z.object({ t: z.literal('settings'), ...settingsFields }),
   z.object({ t: z.literal('campaign_start') }),
   z.object({
     t: z.literal('sandbox'), op: z.enum(['speed', 'truth', 'spawn', 'steer', 'remove']),

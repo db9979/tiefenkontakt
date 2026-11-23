@@ -19,6 +19,7 @@ import {
   mineSystem,
 } from '@tk/shared';
 import type { LessonId } from './lessons.js';
+import { rollVariation, type LobbyChoice, type Variation } from './variation.js';
 
 export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
 /** Strait breakthrough: escorts guard the narrows here, the boats must get past this line. */
@@ -72,7 +73,8 @@ export const START_HOUR: Record<TimeOfDay, number> = { tag: 10, daemmerung: 18.5
 
 export interface ScenarioSettings {
   mission: MissionId;
-  timeOfDay: TimeOfDay;
+  /** 'zufall' is rolled from the seed when the match starts (variation.ts). */
+  timeOfDay: TimeOfDay | 'zufall';
   /** Sim seconds per real second. Gives room to hunt within a playable real-time match. */
   timeScale: number;
   layerDepth: number;
@@ -82,7 +84,11 @@ export interface ScenarioSettings {
   /** Fill a team without players with AI captains. */
   fillBots: boolean;
   botSkill: 'leicht' | 'normal' | 'schwer';
-  weather: 'wechselhaft' | 'stabil';
+  weather: 'wechselhaft' | 'stabil' | 'zufall';
+  /** How much positions, route, speed and sea state vary per match (default leicht). */
+  variation?: Variation;
+  /** The lobby choices before 'zufall' and the sea-state roll were resolved (rematch). */
+  asSet?: LobbyChoice;
   custom?: CustomMission;
   /** Training lesson instead of the convoy battle. */
   lesson?: LessonId;
@@ -95,7 +101,7 @@ export interface ScenarioSettings {
 }
 
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */
-export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: 3, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft' };
+export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: 3, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft', variation: 'leicht' };
 
 /** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
 export function routeLength(s: ScenarioSettings): number {
@@ -126,15 +132,20 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const ships: Ship[] = [];
   const mission = settings.mission;
   const custom = mission === 'eigene' ? { ...DEFAULT_CUSTOM, ...settings.custom } : undefined;
-  const route = routeLength(settings);
+  const v = rollVariation(settings, seed);
+  const baseKn = custom?.convoyKn ?? MISSIONS[mission].convoyKn ?? 9;
+  const convoyKn = baseKn + (mission === 'hafen' ? 0 : v.convoyKnDelta);
+  // A faster or slower convoy gets a longer or shorter passage: the time under the boats stays the same
+  const route = routeLength(settings) * (convoyKn / baseKn);
   const merchants: Ship[] = [];
   const nMerchants = mission === 'duell' || mission === 'meerenge' ? 0 : settings.merchants;
-  const convoyKn = custom?.convoyKn ?? MISSIONS[mission].convoyKn ?? 9;
+  const tod: TimeOfDay = settings.timeOfDay === 'zufall' ? 'tag' : settings.timeOfDay;
+  const sp = v.spacing;
   for (let i = 0; i < nMerchants; i++) {
     const anchored = mission === 'hafen';
     const m = createShip({
       id: `m${i + 1}`, cls: 'merchant', name: `Frachter ${i + 1}`,
-      pos: anchored ? { x: ((i % 4) - 1.5) * 600, y: 3000 + Math.floor(i / 4) * 700 } : { x: ((i % 3) - 1) * 900, y: -Math.floor(i / 3) * 900 },
+      pos: anchored ? { x: ((i % 4) - 1.5) * 600, y: 3000 + Math.floor(i / 4) * 700 } : { x: ((i % 3) - 1) * sp, y: -Math.floor(i / 3) * sp },
       heading: 0, speedKn: anchored ? 0 : convoyKn,
     });
     merchants.push(m);
@@ -145,20 +156,20 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const east = slots.filter((s) => s.team === 'east' && !s.crewOf);
   west.forEach((p, i) => {
     const side = i % 2 === 0 ? 1 : -1;
-    const x = side * (2500 + Math.floor(i / 2) * 1500);
+    const x = v.escortX(i, side * (2500 + Math.floor(i / 2) * 1500));
     const sub = CLASSES[p.cls].submarine;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'west', playerId: p.playerId,
       // Strait: the escorts guard the narrows halfway up the channel
-      pos: { x: mission === 'meerenge' ? x * 0.5 : x, y: mission === 'hafen' ? 6500 : mission === 'meerenge' ? STRAIT_GUARD_Y : MISSIONS[mission].escortY ?? 2500 }, heading: 0,
+      pos: { x: mission === 'meerenge' ? x * 0.5 : x, y: v.escortDy(i) + (mission === 'hafen' ? 6500 : mission === 'meerenge' ? STRAIT_GUARD_Y : MISSIONS[mission].escortY ?? 2500) }, heading: 0,
       speedKn: sub ? 5 : mission === 'hafen' || mission === 'meerenge' ? 8 : 12, depth: sub ? 80 : undefined,
     }));
   });
   east.forEach((p, i) => {
-    const frac = custom ? custom.subFrac : mission === 'hafen' ? 0.9 : 0.45 + ((i * 0.37) % 0.3);
+    const frac = custom ? custom.subFrac : mission === 'hafen' ? 0.9 : v.subFrac(i, 0.45 + ((i * 0.37) % 0.3));
     const spread = MISSIONS[mission].subSpread;
-    const x = (i % 2 === 0 ? 1 : -1) * (spread + (i * spread) / 2);
-    const y = mission === 'duell' ? 25_000 : mission === 'meerenge' ? -1500 - i * 800 : mission === 'hafen' ? Math.min(route * frac, 22_000) : route * frac;
+    const x = v.subX(i, (i % 2 === 0 ? 1 : -1) * (spread + (i * spread) / 2));
+    const y = mission === 'duell' ? 25_000 + v.subDy(i) : mission === 'meerenge' ? -1500 - i * 800 + v.subDy(i) : mission === 'hafen' ? Math.min(route * frac, 22_000) + v.subDy(i) : route * frac;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'east', playerId: p.playerId,
       pos: { x, y }, heading: mission === 'meerenge' ? 0 : 180, speedKn: 4, depth: 80,
@@ -168,7 +179,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const layer = settings.layerDepth > 0 ? settings.layerDepth : 80 + ((seed * 7919) % 91);
   const w = createWorld(ships, seed, {
     layerDepth: layer, layerLoss: 12, seaState: settings.seaState,
-    seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed, ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}) }, light: LIGHT[settings.timeOfDay],
+    seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed, ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}) }, light: LIGHT[tod],
   });
   w.env.seed = seed;
   w.env.mission = mission;
@@ -177,8 +188,8 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     w.env.shadowS = 0;
   }
   if (mission === 'meerenge') w.env.exitY = STRAIT_EXIT_Y;
-  w.env.weather = initWeather(w.env, START_HOUR[settings.timeOfDay], settings.weather !== 'stabil');
-  w.env.light = daylight(START_HOUR[settings.timeOfDay]);
+  w.env.weather = initWeather(w.env, START_HOUR[tod], settings.weather !== 'stabil');
+  w.env.light = daylight(START_HOUR[tod]);
   w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: mission === 'groenland', fogBanks: mission === 'groenland' ? 3 : 1 + (seed % 2) });
   // Subs start safely above the bottom in shallow missions
   for (const s of ships) {
@@ -187,7 +198,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
       s.depth = s.order.depth = Math.max(18, Math.min(s.depth, bottom - 30));
     }
   }
-  if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, [{ x: 0, y: route * 0.5 }, { x: 0, y: route }], convoyKn);
+  if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, v.waypoints(route), convoyKn, sp);
   installWeapons(w);
   w.systems.push(mineSystem);
   installAir(w);

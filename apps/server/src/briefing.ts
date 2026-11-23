@@ -41,7 +41,7 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
     if (centre) {
       const b = bearing(ship.pos, centre) + (rnd() - 0.5) * 30;
       intel.push(`Aufklärung: ${harbour ? 'Ankerplatz' : 'Konvoi'} etwa Peilung ${deg3(b)}, ${km(distance(ship.pos, centre) * (0.75 + rnd() * 0.5))} (ungenau)`);
-      if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9} kn, Kurs Nord`);
+      if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9} kn, Generalkurs ${deg3(Math.round((w.convoy?.guideHeading ?? 0) / 10) * 10)}`);
     }
     intel.push(`Eskorte: ${enemies.length} Fregatte(n) mit Schleppsonar, Hubschrauber und U-Jagd-Raketen`);
   } else {
