@@ -2,37 +2,54 @@ import { audio } from '../audio.js';
 import { lang, setLang } from '../i18n/index.js';
 import { store } from '../store.js';
 import { h } from './format.js';
+import { setInkLight } from './ink.js';
 import { QUALITY_LABEL, quality, qualitySetting, setQuality, type QualitySetting } from './perf.js';
 import { logout } from '../screens/logout.js';
 
 /** Display preferences that apply outside a match too (font size, palette, red light). */
 export function applyDisplayPrefs(): void {
-  const scale = Number(localStorage.getItem('tk_font') ?? '1');
+  const scale = Math.min(1.3, Math.max(0.9, Number(localStorage.getItem('tk_font') ?? '1') || 1));
   document.documentElement.style.fontSize = `${12 * scale}px`;
   document.body.classList.toggle('cb', localStorage.getItem('tk_cb') === '1');
   document.body.classList.toggle('crt', localStorage.getItem('tk_crt') !== '0');
   document.body.classList.toggle('redlight', localStorage.getItem('tk_red') === '1');
   document.documentElement.dataset.theme = isLight() ? 'light' : 'dark';
+  setInkLight(isLight());
   const tb = document.querySelector<HTMLButtonElement>('.themebtn');
   if (tb) {
-    tb.textContent = isLight() ? '☾' : '☀';
-    tb.title = isLight() ? 'Dunkler Modus' : 'Heller Modus';
+    const t = themePref();
+    tb.textContent = THEME_ICON[t];
+    tb.title = `${THEME_LABEL[t]} · Klick: ${THEME_LABEL[nextTheme(t)]}`;
+    tb.setAttribute('aria-label', tb.title);
   }
 }
 
-/** Light or dark interface (stored per browser). */
-export const isLight = (): boolean => localStorage.getItem('tk_theme') === 'light';
-export function setLight(on: boolean): void {
-  localStorage.setItem('tk_theme', on ? 'light' : 'dark');
+/** Interface theme (stored per browser): dark, light, or following the device. */
+export type ThemePref = 'dark' | 'light' | 'system';
+export const THEME_LABEL: Record<ThemePref, string> = { dark: 'Dunkler Modus', light: 'Heller Modus', system: 'Wie System' };
+const THEME_ICON: Record<ThemePref, string> = { dark: '☾', light: '☀', system: '◐' };
+const nextTheme = (t: ThemePref): ThemePref => (t === 'dark' ? 'light' : t === 'light' ? 'system' : 'dark');
+const systemLight = window.matchMedia?.('(prefers-color-scheme: light)');
+export function themePref(): ThemePref {
+  const t = localStorage.getItem('tk_theme');
+  return t === 'light' || t === 'system' ? t : 'dark';
+}
+export const isLight = (): boolean => themePref() === 'light' || (themePref() === 'system' && !!systemLight?.matches);
+export function setTheme(t: ThemePref): void {
+  localStorage.setItem('tk_theme', t);
   applyDisplayPrefs();
 }
+// The device switches between day and night: follow it
+systemLight?.addEventListener?.('change', () => {
+  if (themePref() === 'system') applyDisplayPrefs();
+});
 
-/** ☀/☾ switch next to the language switch, on every screen. */
+/** Theme switch next to the language switch, on every screen: dark → light → system. */
 export function mountThemeButton(): void {
   if (document.querySelector('.themebtn')) return;
   const b = document.createElement('button');
   b.className = 'langbtn themebtn';
-  b.onclick = () => setLight(!isLight());
+  b.onclick = () => setTheme(nextTheme(themePref()));
   document.body.appendChild(b);
   applyDisplayPrefs();
 }
@@ -53,13 +70,13 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
     { id: 'crt', label: 'Röhren-Effekt', ...flag('tk_crt', true) },
     { id: 'red', label: 'Rotlicht (Nacht)', ...flag('tk_red', false) },
     { id: 'cb', label: 'Farbenblind-Palette', ...flag('tk_cb', false) },
-    { id: 'light', label: 'Heller Modus', get: isLight, set: (on) => localStorage.setItem('tk_theme', on ? 'light' : 'dark') },
   ];
   const render = () => {
     const font = Number(localStorage.getItem('tk_font') ?? '1');
     panel.innerHTML = `<div class="hd"><span>Einstellungen</span></div>
       ${toggles.map((t) => `<label class="menu-row"><span>${t.label}</span><input type="checkbox" data-t="${t.id}" ${t.get() ? 'checked' : ''}></label>`).join('')}
       <div class="menu-row"><span>Lautstärke</span><input type="range" id="m-vol" min="0" max="1" step="0.05" value="${audio.volume}" style="width:110px"></div>
+      <div class="menu-row"><span>Darstellung</span><button id="m-theme">${THEME_LABEL[themePref()]}</button></div>
       <div class="menu-row"><span>Schriftgröße</span><span><button data-font="-1">A−</button> ${Math.round(font * 100)} % <button data-font="1">A+</button></span></div>
       <div class="menu-row" title="Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)"><span>Grafik</span><button id="m-q">${QUALITY_LABEL[qualitySetting()]}${qualitySetting() === 'auto' ? ` · ${QUALITY_LABEL[quality()]}` : ''}</button></div>
       <div class="menu-row"><span>Sprache</span><button id="m-lang">${lang === 'de' ? 'English' : 'Deutsch'}</button></div>
@@ -79,13 +96,17 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
     const b = (e.target as HTMLElement).closest('button');
     if (!b) return;
     if (b.dataset.font) {
-      const f = Math.min(1.5, Math.max(0.85, Number(localStorage.getItem('tk_font') ?? '1') + Number(b.dataset.font) * 0.1));
+      const f = Math.min(1.3, Math.max(0.9, Number(localStorage.getItem('tk_font') ?? '1') + Number(b.dataset.font) * 0.1));
       localStorage.setItem('tk_font', f.toFixed(2));
       applyDisplayPrefs();
       render();
     } else if (b.id === 'm-q') {
       const order: QualitySetting[] = ['auto', 'niedrig', 'mittel', 'hoch'];
       setQuality(order[(order.indexOf(qualitySetting()) + 1) % order.length]!);
+      render();
+    } else if (b.id === 'm-theme') {
+      const order: ThemePref[] = ['dark', 'light', 'system'];
+      setTheme(order[(order.indexOf(themePref()) + 1) % order.length]!);
       render();
     } else if (b.id === 'm-lang') setLang(lang === 'de' ? 'en' : 'de');
     else if (b.id === 'm-brief') { close(); opts.onBriefing(); }

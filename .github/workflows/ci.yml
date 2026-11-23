@@ -22,7 +22,7 @@ jobs:
     # server and Vite on free ports). CHROME_PATH can be set as a repository variable.
     runs-on: ubuntu-latest
     needs: test
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       CHROME_PATH: ${{ vars.CHROME_PATH || 'google-chrome' }}
     steps:
@@ -36,6 +36,15 @@ jobs:
       - run: npm run e2e
       # Both guided lessons played to the end in the browser (about five minutes, 3× time scale)
       - run: npm run e2e:tutorials
+      # Every screen in the dark and the light theme: screenshots plus a contrast check of all text
+      - run: npm run theme-check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: theme-shots
+          path: artifacts/theme-shots
+          retention-days: 14
+          if-no-files-found: ignore
   docker:
     runs-on: ubuntu-latest
     needs: test

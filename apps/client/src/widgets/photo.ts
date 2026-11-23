@@ -48,6 +48,7 @@ export interface PhotoView {
 /** Capture now (call right after rendering, in the same frame) and send the metadata. */
 export function snapPhoto(v: PhotoView): string {
   const out = document.createElement('canvas');
+  out.className = 'keep'; // a photo, not a display: no light-mode ink
   out.width = 240;
   out.height = Math.max(60, Math.round((240 * v.crop.h) / v.crop.w));
   const ctx = out.getContext('2d')!;
@@ -112,7 +113,7 @@ export function photoStrip(d: Debrief, playerId: string | undefined): string {
     return `<div style="flex:0 0 132px;border:1px solid var(--line);padding:3px" title="${esc(text)}" data-noi18n>
       ${url ? `<img src="${url}" alt="" style="width:124px;display:block">` : `<div class="dim" style="height:70px;display:flex;align-items:center;justify-content:center">${L('KEIN BILD', 'NO IMAGE')}</div>`}
       <div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:${col[p.quality]}">${p.score}</span><span class="dim">${Math.floor(p.t / 60)}:${String(p.t % 60).padStart(2, '0')}</span></div>
-      <div style="font-size:10px;line-height:1.3">${esc(text)}</div></div>`;
+      <div style="font-size:0.8333rem;line-height:1.3">${esc(text)}</div></div>`;
   });
   return `<div class="hd" style="margin-top:8px"><span>${L('Sehrohrfotos', 'Periscope photos')}</span><span class="dim">${mine.length} · ${L('SCHNITT', 'AVERAGE')} ${avg}</span></div>
     <div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0">${cells.join('')}</div>`;

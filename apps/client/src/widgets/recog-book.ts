@@ -51,7 +51,7 @@ export function toggleRecogBook(title: string, anchor: HTMLElement): void {
       html += `<div class="dim" style="margin:6px 0 2px">${GROUP_TITLE[g]}</div>`;
       for (const c of RECOG_ORDER.filter((x) => RECOG[x].group === g)) {
         html += `<div class="clickable" data-cls="${c}" style="padding:3px;border:1px solid ${c === current ? 'var(--g)' : 'transparent'};border-radius:3px;cursor:pointer">
-          ${img(c, 'side', 22)}<div style="font-size:11px">${CLASS_LABEL[c]}</div></div>`;
+          ${img(c, 'side', 22)}<div style="font-size:0.9167rem">${CLASS_LABEL[c]}</div></div>`;
       }
     }
     q('#rb-list').innerHTML = html;
@@ -64,10 +64,10 @@ export function toggleRecogBook(title: string, anchor: HTMLElement): void {
     q('#rb-page').innerHTML = `
       <div class="hd"><span>${esc(spec.name)}</span><span class="dim">${CLASS_LABEL[current]}</span></div>
       <div style="background:var(--well);border:1px solid var(--line);padding:4px;margin:4px 0">
-        <div class="dim" style="font-size:10px">${VIEW_TITLE.side}</div>${img(current, 'side', 96)}
+        <div class="dim" style="font-size:0.8333rem">${VIEW_TITLE.side}</div>${img(current, 'side', 96)}
         <div style="display:flex;gap:6px;align-items:flex-end">
-          <div><div class="dim" style="font-size:10px">${VIEW_TITLE.bow}</div>${img(current, 'bow', 80)}</div>
-          <div style="flex:1;min-width:0"><div class="dim" style="font-size:10px">${VIEW_TITLE.top}</div>${img(current, 'top', 58)}</div>
+          <div><div class="dim" style="font-size:0.8333rem">${VIEW_TITLE.bow}</div>${img(current, 'bow', 80)}</div>
+          <div style="flex:1;min-width:0"><div class="dim" style="font-size:0.8333rem">${VIEW_TITLE.top}</div>${img(current, 'top', 58)}</div>
         </div>
       </div>
       ${row('LÄNGE', `${r.length} M`)}${row('BREITE', `${r.beam} M`)}

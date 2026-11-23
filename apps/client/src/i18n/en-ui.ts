@@ -53,7 +53,7 @@ export const EN_UI: [string, string][] = [
   ['Fjordausfahrt · Kanal', 'Fjord exit · channel'], ['U-Boot-Duell', 'Submarine duel'], ['Hafenangriff', 'Harbour attack'], ['Eigene Mission', 'Custom mission'],
   ['FRACHTER', 'MERCHANTS'], ['KONVOIFAHRT', 'CONVOY SPEED'], ['MEERESBODEN', 'SEABED'], ['TIEF', 'DEEP'], ['SCHELF', 'SHELF'], ['FJORD', 'FJORD'],
   ['U-BOOTE WARTEN BEI', 'SUBMARINES WAIT AT'], ['TAGESZEIT', 'TIME OF DAY'], ['Tag', 'Day'], ['Dämmerung', 'Dusk'], ['Nacht', 'Night'],
-  ['WETTER', 'WEATHER'], ['Zufall', 'Random'], ['ZUFALL', 'RANDOM'], ['VARIATION', 'VARIATION'], ['AUS · IMMER GLEICH', 'OFF · ALWAYS THE SAME'], ['LEICHT · JEDES MAL ETWAS ANDERS', 'SLIGHT · A LITTLE DIFFERENT EACH TIME'], ['STARK · JEDES MAL NEU', 'STRONG · NEW EACH TIME'], ['LAGE', 'SITUATION'],
+  ['WETTER', 'WEATHER'], ['Zufall', 'Random'], ['ZUFALL', 'RANDOM'], ['VARIATION', 'VARIATION'], ['LAGE', 'SITUATION'],
   ['Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie', 'Waiting positions, distances, route, convoy speed and sea state (±1) change from match to match'],
   ['Neue Partie mit denselben Startpositionen, derselben Route und demselben Wetter', 'New match with the same start positions, the same route and the same weather'], ['WECHSELHAFT', 'CHANGEABLE'], ['STABIL', 'STABLE'], ['SEEGANG', 'SEA STATE'], ['ZEITLIMIT', 'TIME LIMIT'],
   ['KI FÜR LEERES TEAM', 'AI FOR EMPTY TEAM'], ['JA', 'YES'], ['NEIN', 'NO'], ['KI-STÄRKE', 'AI SKILL'], ['LEICHT', 'EASY'], ['NORMAL', 'NORMAL'], ['SCHWER', 'HARD'],

@@ -1,9 +1,9 @@
 /*
  * Light mode (html[data-theme="light"], switch ☀/☾ at the bottom left or in the ⚙ menu).
  * The console look on paper: light panels, dark green text, amber and red as dark inks.
- * 2D displays (waterfall, plot, radar, analysis, maps) are drawn for a dark screen; in light
- * mode they are inverted in brightness with their hues kept (glowing green on black becomes dark
- * green on light). 3D views and the optics overlays (.gl, .keep) stay as they are.
+ * 2D displays (waterfall, plot, radar, analysis, maps) mirror the lightness of every colour they
+ * draw, hues kept (widgets/ink.ts): glowing green on black becomes dark green on paper. 3D views
+ * and the optics overlays (.gl, .keep) stay as they are.
  */
 html[data-theme='light'] {
   --bg: #e9eeeb;
@@ -88,9 +88,8 @@ html[data-theme='light'] .banner { background: #fbe3e1; color: #8e1d16; }
   html[data-theme='light'] .topbar .tabs { background: #eef3f1; }
 }
 
-/* 2D displays: brightness inverted, hues kept. CRT glow off in light mode */
-html[data-theme='light'] canvas:not(.gl):not(.keep) { filter: invert(1) hue-rotate(180deg); }
-html[data-theme='light'] body.crt .panel canvas:not(.gl):not(.keep) { filter: invert(1) hue-rotate(180deg); animation: none; }
+/* 2D displays draw in light-mode ink themselves (widgets/ink.ts); no CRT glow on paper */
+html[data-theme='light'] body.crt .panel canvas:not(.gl):not(.keep) { filter: none; animation: none; }
 html[data-theme='light'] .panel canvas { box-shadow: 0 0 0 1px #b9c8c3; }
 
 /* Theme switch next to the language switch */

@@ -274,7 +274,12 @@ function reconScene(ctx: CanvasRenderingContext2D, v: View): void {
 }
 
 /** Draw the chart canvases rendered by missionCards (sea area cached per mission). */
+// Theme switched while the cards are on screen: paint them again in the new ink
+let lastSeabed: SeabedKind | undefined;
+window.addEventListener('tk-ink', () => paintMissionCharts(document.body, lastSeabed));
+
 export function paintMissionCharts(root: HTMLElement, customSeabed?: SeabedKind): void {
+  lastSeabed = customSeabed;
   root.querySelectorAll<HTMLCanvasElement>('canvas[data-chart]').forEach((cv) => {
     const card = CARDS.find((c) => c.key === cv.dataset.chart)!;
     const seabed = card.kind === 'custom' && customSeabed ? customSeabed : card.seabed;

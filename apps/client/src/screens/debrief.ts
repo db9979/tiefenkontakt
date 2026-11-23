@@ -1,4 +1,4 @@
-import { onTap } from '../widgets/touch.js';
+import { onTap, touchable } from '../widgets/touch.js';
 import { CLASSES, NM, headingVec, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -108,11 +108,15 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
     e.preventDefault();
     scale = Math.min(400, Math.max(5, scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
   }, { passive: false });
-  cv.style.touchAction = 'none';
+  touchable(cv, (f) => (scale = Math.min(400, Math.max(5, scale * f))));
   cv.addEventListener('pointerdown', (e) => (drag = { x: e.clientX, y: e.clientY, px: pan?.x ?? 0, py: pan?.y ?? 0 }));
   window.addEventListener('pointerup', () => (drag = undefined));
   cv.addEventListener('pointermove', (e) => {
     if (!drag || !pan) return;
+    if (cv.dataset.pinch) {
+      drag = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+      return;
+    }
     pan = { x: drag.px - (e.clientX - drag.x) * scale, y: drag.py + (e.clientY - drag.y) * scale };
   });
   if (live) {

@@ -70,7 +70,7 @@ export class Plot {
     this.el.appendChild(tools);
 
     canvas.style.cursor = 'crosshair';
-    touchable(canvas);
+    touchable(canvas, (f) => (this.scale = Math.min(600, Math.max(5, this.scale * f))));
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       this.scale = Math.min(600, Math.max(5, this.scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
@@ -172,6 +172,11 @@ export class Plot {
     const d = this.drag;
     if (!d) {
       this.canvas.style.cursor = this.hitSolution(m) ? 'grab' : 'crosshair';
+      return;
+    }
+    if (this.canvas.dataset.pinch) {
+      // Two fingers zoom; the pan of the first finger must not jump about meanwhile
+      if (d.kind === 'pan') { d.x = e.clientX; d.y = e.clientY; d.px = this.pan.x; d.py = this.pan.y; d.moved = true; }
       return;
     }
     if (d.kind === 'pan') {

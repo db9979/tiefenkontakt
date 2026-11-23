@@ -118,7 +118,8 @@ Optional gibt es einen nächtlichen Balance-Test der KI mit Bericht per Mail:
 | `COOKIE_SECURE` | `1` hinter HTTPS, `0` nur für HTTP im LAN |
 | `ADMIN` | Rufzeichen der Moderatoren, durch Kommas getrennt |
 | `SMTP_*`, `MAIL_FROM` | Ausgehende Mail; Beispiele für Gmail und iCloud stehen in `.env.example` |
-| `MAX_MATCHES` | Höchstzahl gleichzeitiger Partien (Standard 30) |
+| `MAX_MATCHES` | Höchstzahl gleichzeitiger Partien (Standard 30, auf einem Pi 5 gemessen) |
+| `MAX_LOAD` | Neue Partien werden abgelehnt, solange die laufenden den Server-Thread stärker auslasten (Standard 0,6) |
 | `BACKUP_*` | Tägliche Datenbank-Sicherung, optional mit Zweitkopie auf NAS oder zweiter Platte |
 | `COMPOSE_PROFILES` | `turn`, `sfu` oder `turn,sfu` für den Sprachfunk (siehe unten) |
 
@@ -236,7 +237,8 @@ Monitoring: the server itself mails on failed backups, low disk, high memory or 
 | `COOKIE_SECURE` | `1` behind HTTPS, `0` only for plain HTTP in the LAN |
 | `ADMIN` | Callsigns of the moderators, comma-separated |
 | `SMTP_*`, `MAIL_FROM` | Outgoing mail; examples for Gmail and iCloud are in `.env.example` |
-| `MAX_MATCHES` | Maximum number of simultaneous matches (default 30) |
+| `MAX_MATCHES` | Maximum number of simultaneous matches (default 30, measured on a Pi 5) |
+| `MAX_LOAD` | New matches are refused while the running ones keep the server thread busier than this (default 0.6) |
 | `BACKUP_*` | Daily database backup, optionally with a second copy on a NAS or second disk |
 | `COMPOSE_PROFILES` | `turn`, `sfu` or `turn,sfu` for voice radio (see below) |
 

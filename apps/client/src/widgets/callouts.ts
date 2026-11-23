@@ -1,4 +1,5 @@
 import { CLASSES, angleDiff, type AlertView, type Snapshot } from '@tk/shared';
+import { announce } from '../a11y.js';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { store } from '../store.js';
@@ -80,6 +81,7 @@ export class Callouts {
     if (this.log.length > 80) this.log.shift();
     if (e.level !== 'alarm') audio.chime(e.level === 'warn' ? 'warn' : 'info');
     say(spoken, e.level === 'alarm');
+    announce(e.text, e.level);
   }
 
   update(s: Snapshot): void {

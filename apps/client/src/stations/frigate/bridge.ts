@@ -66,7 +66,10 @@ export function bridgeStation(): Station {
   const fov = () => (glass ? GLASS_FOV : WIDE_FOV);
   let maskCanvas: HTMLCanvasElement | undefined;
   const mask = (w: number, hgt: number) => {
-    if (!maskCanvas) maskCanvas = document.createElement('canvas');
+    if (!maskCanvas) {
+      maskCanvas = document.createElement('canvas');
+      maskCanvas.className = 'keep';
+    }
     if (maskCanvas.width !== w || maskCanvas.height !== hgt) {
       maskCanvas.width = w;
       maskCanvas.height = hgt;

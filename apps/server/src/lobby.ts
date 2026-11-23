@@ -6,13 +6,21 @@ import { VoiceHub } from './voice.js';
 import { SandboxHub } from './sandbox.js';
 import type { CampaignPlan } from './campaign-match.js';
 import { takePhoto } from './photos.js';
+import { metrics } from './metrics.js';
 
 /**
- * Matches at the same time (lobby + running). Load test on the Pi 5: 12 matches with 24 players
- * and AI cost 1.3 ms per tick (≈16 % of one core) at a steady 10 snapshots/s, so 30 leaves room
- * for the voice server and the system. MAX_MATCHES in .env overrides it.
+ * Matches at the same time (lobby + running). Load test on the Pi 5 (scripts/net-load-test.ts):
+ * 30 matches with 60 players and AI cost 1.6 ms per match tick, about half of one core, at a
+ * steady 9.6 snapshots/s and 240 MB over five minutes; 45 still held 10/s, 60 dropped to 8/s,
+ * 80 to 2/s. 30 leaves room for the voice server and the system. MAX_MATCHES in .env overrides it.
  */
 const MAX_MATCHES = Math.max(1, Number(process.env.MAX_MATCHES) || 30);
+/**
+ * New matches are refused while the running ones keep the server thread busier than this
+ * (share of wall time in match ticks; MAX_LOAD in .env). Measured on a Pi 5: 30 typical
+ * matches use about half, but big six-against-six matches cost three times as much.
+ */
+const MAX_LOAD = Math.min(0.95, Math.max(0.1, Number(process.env.MAX_LOAD) || 0.6));
 /** A running match with nobody connected stays (paused) this long before it is dropped. */
 export const ABANDON_MS = 15 * 60_000;
 
@@ -133,6 +141,7 @@ export class Lobby {
   create(name: string, lesson?: LessonId): Match | string {
     this.prune();
     if (this.matches.size >= MAX_MATCHES) return 'Zu viele Partien';
+    if (metrics.simLoad() > MAX_LOAD) return 'Der Server ist gerade ausgelastet, versuch es gleich noch einmal';
     const m = new Match(randomUUID().slice(0, 8), name);
     if (lesson) Object.assign(m.settings, { lesson, fillBots: false, timeLimitMin: 30 });
     this.hook(m);

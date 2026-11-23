@@ -1,3 +1,4 @@
+import { inkOn } from './ink.js';
 import { depthAt, headingVec, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
 
@@ -154,7 +155,8 @@ export class RadarScope {
     ctx.fillStyle = glass;
     ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.fill();
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
+    // The phosphor glows on the dark tube; on paper its dark ink darkens instead
+    ctx.globalCompositeOperation = inkOn(ctx) ? 'darken' : 'lighter';
     ctx.drawImage(this.phos, ox, oy, size, size);
     ctx.restore();
     const on = !!s?.own.radarOn;

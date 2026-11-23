@@ -42,7 +42,8 @@ for (let i = 0; i < MATCHES; i++) {
   const a = await open(`W${i}`, i * 2);
   const b = await open(`O${i}`, i * 2 + 1);
   a.ws.send(JSON.stringify({ t: 'create_match', name: `Last ${i}` }));
-  await wait(150);
+  // Under load the answer takes longer than a fixed pause: wait for it
+  for (let k = 0; k < 100 && !a.inbox.some((m) => m.t === 'match'); k++) await wait(50);
   const id = a.inbox.find((m) => m.t === 'match')!.match!.id;
   b.ws.send(JSON.stringify({ t: 'join', matchId: id, team: 'east' }));
   await wait(100);

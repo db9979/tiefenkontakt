@@ -1,3 +1,4 @@
+import { isInkLight } from './ink.js';
 import { depthAt, type Snapshot, type Vec2 } from '@tk/shared';
 
 /**
@@ -67,7 +68,7 @@ export class DepthChart {
     // The render area is anchored on a coarse world grid, so small moves of the view reuse it
     const ax = Math.round(c.x / (w * scale * MARGIN)) * (w * scale * MARGIN);
     const ay = Math.round(c.y / (hgt * scale * MARGIN)) * (hgt * scale * MARGIN);
-    const key = `${spec.kind}|${spec.seed}|${spec.bankY ?? ''}|${scale.toFixed(3)}|${ax}|${ay}|${w}|${hgt}`;
+    const key = `${spec.kind}|${spec.seed}|${spec.bankY ?? ''}|${scale.toFixed(3)}|${ax}|${ay}|${w}|${hgt}|${isInkLight()}`;
     if (this.done?.key !== key && this.job?.key !== key) {
       const spanX = w * scale * (1 + 2 * MARGIN);
       const spanY = hgt * scale * (1 + 2 * MARGIN);

@@ -98,7 +98,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       '<div class="slot dim">Freier Platz</div>';
     const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn', 'ssc', 'ssa'] as const) : (['ffg', 'kor', 'ffv'] as const);
     el.innerHTML = `
-      <div class="hd" style="font-size:14px"><span>PARTIE „${esc(match.name)}“</span><span>${match.slots.length} SPIELER · KONVOI ${match.settings.merchants} FRACHTER</span></div>
+      <div class="hd" style="font-size:1.1667rem"><span>PARTIE „${esc(match.name)}“</span><span>${match.slots.length} SPIELER · KONVOI ${match.settings.merchants} FRACHTER</span></div>
       <div class="invite"><span class="dim">${match.settings.private ? 'PRIVATE PARTIE · NUR PER LINK' : 'EINLADEN'}</span>
         <input id="inv-link" readonly value="${esc(`${location.origin}/#join=${match.id}`)}"><button id="inv-copy">Link kopieren</button></div>
       <div class="grid2" style="margin-bottom:8px">
@@ -127,7 +127,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="row"><span class="dim">TAGESZEIT</span><select id="s-tod"><option value="tag">Tag</option><option value="daemmerung">Dämmerung</option><option value="nacht">Nacht</option><option value="zufall">Zufall</option></select></div>
           <div class="row"><span class="dim">WETTER</span><select id="s-wx"><option value="wechselhaft">WECHSELHAFT</option><option value="stabil">STABIL</option><option value="zufall">ZUFALL</option></select></div>
           <div class="row"><span class="dim">SEEGANG</span><select id="s-sea">${[1, 2, 3, 4, 5, 6].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
-          <div class="row"><span class="dim" title="Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie">VARIATION</span><select id="s-var"><option value="aus">AUS · IMMER GLEICH</option><option value="leicht">LEICHT · JEDES MAL ETWAS ANDERS</option><option value="stark">STARK · JEDES MAL NEU</option></select></div>
+          <div class="row"><span class="dim" title="Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie">VARIATION</span><select id="s-var"><option value="aus">AUS</option><option value="leicht">GERING</option><option value="stark">STARK</option></select></div>
           ${match.settings.lage !== undefined ? `<div class="row"><span class="dim">LAGE</span><span>#${match.settings.lage} · WIE IN DER LETZTEN PARTIE</span></div>` : ''}
           <div class="row"><span class="dim">ZEITLIMIT</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>

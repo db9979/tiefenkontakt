@@ -90,7 +90,9 @@ export const EN_UX: [string, string][] = [
   ['Einladung ungültig oder Partie läuft schon', 'Invite invalid or the match has already started'], ['BACKUP_DIR ist nicht gesetzt', 'BACKUP_DIR is not set'],
   // Mine countermeasures
   ['Minenmeiden', 'Mine avoidance'], ['Hochfrequentes Minenmeidesonar: findet verankerte Minen voraus bis etwa 1,6 km (±70°), nur bis 15 kn, kaum weit zu hören', 'High-frequency mine-avoidance sonar: finds moored mines ahead out to about 1.6 km (±70°), only up to 15 kn, hardly heard far away'],
-  ['Heller Modus', 'Light mode'], ['Dunkler Modus', 'Dark mode'],
+  ['Heller Modus', 'Light mode'], ['Dunkler Modus', 'Dark mode'], ['Wie System', 'Follow system'], ['Darstellung', 'Appearance'],
+  ['Dunkler Modus · Klick: Heller Modus', 'Dark mode · click: light mode'], ['Heller Modus · Klick: Wie System', 'Light mode · click: follow system'],
+  ['Wie System · Klick: Dunkler Modus', 'Follow system · click: dark mode'],
   ['MINENMEIDEN ZU SCHNELL', 'MINE AVOIDANCE TOO FAST'], ['Konvoi umleiten', 'Convoy detour'], ['Route', 'Route'], ['AUF ROUTE', 'ON ROUTE'], ['Zurück auf die befohlene Route', 'Back onto the ordered route'],
   ['Nur Geleitschiffe haben ein Minenmeidesonar', 'Only escorts have a mine-avoidance sonar'], ['Kein Konvoi unter eigenem Befehl', 'No convoy under your command'],
   // Shared replays (/r/<id>)
