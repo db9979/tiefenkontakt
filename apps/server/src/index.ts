@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, resolve, sep } from 'node:path';
 import type { ServerMsg } from '@tk/shared';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { lkHttp, lkUpgrade } from './lk-proxy.js';
-import { AuthStore, RateLimiter, parseCookies, type User } from './auth.js';
+import { AuthStore, GUEST_TOKEN, RateLimiter, guestPlayerId, parseCookies, type User } from './auth.js';
 import { parseClientMsg } from './input.js';
 import { Lobby } from './lobby.js';
 import { MatchStore } from './match-store.js';
@@ -27,6 +27,8 @@ import { CampaignStore } from './campaign-store.js';
 import { CampaignService } from './campaign-match.js';
 import { SeriesRunner } from './series.js';
 import { handleOps } from './ops-api.js';
+import { RecentFinished, ReplayStore } from './replays.js';
+import { ReplayApi, replayPageId, withOgTags } from './replays-api.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const MAX_MSG_BYTES = 4096;
@@ -47,6 +49,11 @@ const rankings = new Rankings(auth.db, stats, badges);
 rankings.init();
 campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
+const replays = new ReplayStore(auth.db);
+const recentFinished = new RecentFinished();
+const replayApi = new ReplayApi(replays, recentFinished);
+replays.cleanup();
+setInterval(() => replays.cleanup(), 3_600_000).unref();
 lobby.onCampaignStart = (conn) => campaign.plan(conn);
 backups.start();
 lobby.onReport = (conn, m, from, reason) => {
@@ -61,6 +68,7 @@ lobby.onReport = (conn, m, from, reason) => {
 const LESSON_STEP: Record<string, string> = { klassifizieren: 'l1', tma: 'l2', angriff: 'l3', ujagd: 'l4' };
 Match.recentHabits = (uid, team) => stats.recentHabits(uid, team);
 lobby.onFinish = (m, d) => {
+  recentFinished.remember(m.id, d); // its players may share the replay by link
   if (m.settings.lesson) {
     if (!d.reason.includes('geschafft')) return;
     for (const s of d.stats) {
@@ -180,6 +188,11 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     }
     return handleAdmin(req, body, (status, b) => json(res, status, b), lobby, mod);
   }
+  if (req.url?.startsWith('/api/replays') && await replayApi.handle({
+    method: req.method ?? 'GET', url: req.url ?? '', ip, accountPlayerId: ((u) => (u ? `u-${u.id}` : undefined))(auth.userForToken(token)),
+    acceptGzip: /\bgzip\b/.test(String(req.headers['accept-encoding'] ?? '')), body: () => readBody(req), reply: (st: number, b: unknown) => json(res, st, b),
+    raw: (st: number, hd: Record<string, string>, data: Buffer) => void res.writeHead(st, hd).end(req.method === 'HEAD' ? undefined : data),
+  })) return;
   if (rankings.handle(req.method ?? 'GET', req.url ?? '', (st, b) => json(res, st, b))) return;
   if (req.url === '/api/balance' && req.method === 'GET') return json(res, 200, stats.balance());
   if (req.url === '/api/stats' && req.method === 'GET') {
@@ -295,6 +308,12 @@ function serveStatic(req: IncomingMessage, res: ServerResponse): void {
   let file = resolve(join(root, urlPath));
   if (!file.startsWith(root + sep) && file !== root) return void res.writeHead(403).end();
   if (!existsSync(file) || statSync(file).isDirectory()) file = join(root, 'index.html');
+  // Shared replay page: index.html with link-preview tags
+  const rid = replayPageId(urlPath);
+  if (rid && existsSync(file)) {
+    res.writeHead(200, { 'content-type': TYPES['.html']!, 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
+    return void res.end(req.method === 'HEAD' ? undefined : withOgTags(readFileSync(file, 'utf8'), replays.meta(rid)));
+  }
   if (!existsSync(file)) return void res.writeHead(404).end();
   const type = TYPES[extname(file)] ?? 'application/octet-stream';
   const cache = file.includes(`${sep}assets${sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache';
@@ -331,8 +350,6 @@ server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
 });
 
-const GUEST_TOKEN = /^[a-f0-9]{32}$/;
-
 /** Wire format: two decimals are plenty (cm, 0.01°) and halve the payload. */
 function roundNumbers(_k: string, v: unknown): unknown {
   return typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 100) / 100 : v;
@@ -345,9 +362,10 @@ function roundNumbers(_k: string, v: unknown): unknown {
 function identity(user: User | undefined, guestName: string | null, guestToken: string | null): { playerId: string; callsign: string } {
   if (user) return { playerId: `u-${user.id}`, callsign: user.callsign };
   const token = guestToken && GUEST_TOKEN.test(guestToken) ? guestToken : createHash('sha256').update(String(Math.random())).digest('hex').slice(0, 32);
-  const id = createHash('sha256').update(`guest:${token}`).digest('hex').slice(0, 16);
+  const playerId = guestPlayerId(token);
+  const id = playerId.slice(2);
   const name = (guestName ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12);
-  return { playerId: `g-${id}`, callsign: `${name.length >= 3 ? name : 'Gast'}-${parseInt(id.slice(0, 4), 16) % 900 + 100}` };
+  return { playerId, callsign: `${name.length >= 3 ? name : 'Gast'}-${parseInt(id.slice(0, 4), 16) % 900 + 100}` };
 }
 
 wss.on('connection', (ws: WebSocket, req) => {

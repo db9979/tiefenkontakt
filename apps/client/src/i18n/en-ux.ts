@@ -92,6 +92,13 @@ export const EN_UX: [string, string][] = [
   ['Minenmeiden', 'Mine avoidance'], ['Hochfrequentes Minenmeidesonar: findet verankerte Minen voraus bis etwa 1,6 km (±70°), nur bis 15 kn, kaum weit zu hören', 'High-frequency mine-avoidance sonar: finds moored mines ahead out to about 1.6 km (±70°), only up to 15 kn, hardly heard far away'],
   ['MINENMEIDEN ZU SCHNELL', 'MINE AVOIDANCE TOO FAST'], ['Konvoi umleiten', 'Convoy detour'], ['Route', 'Route'], ['AUF ROUTE', 'ON ROUTE'], ['Zurück auf die befohlene Route', 'Back onto the ordered route'],
   ['Nur Geleitschiffe haben ein Minenmeidesonar', 'Only escorts have a mine-avoidance sonar'], ['Kein Konvoi unter eigenem Befehl', 'No convoy under your command'],
+  // Shared replays (/r/<id>)
+  ['Wiederholung teilen', 'Share replay'], ['Link kopieren', 'Copy link'], ['LINK KOPIERT', 'LINK COPIED'], ['Wiederholung', 'Replay'], ['Selbst spielen', 'Play yourself'],
+  ['ÖFFENTLICH · NUR ANSEHEN · KEINE KONTEN-DATEN', 'PUBLIC · VIEW ONLY · NO ACCOUNT DATA'],
+  ['Öffentlicher Link: jeder mit dem Link sieht die Wiederholung, ohne Anmeldung', 'Public link: anyone with the link can watch the replay, no sign-in needed'],
+  ['ZIEHEN VERSCHIEBT · RAD ZOOMT · BLAU WESTBUND · ROT OSTPAKT', 'DRAG PANS · WHEEL ZOOMS · BLUE WESTERN BLOC · RED EASTERN PACT'],
+  ['Wiederholung nicht gefunden oder abgelaufen', 'Replay not found or expired'], ['Keine beendete Partie von dir zum Teilen', 'No finished match of yours to share'],
+  ['Zu viele Anfragen, versuch es später', 'Too many requests, try again later'], ['Aufzeichnung zu groß zum Teilen', 'Recording too large to share'],
 ];
 
 export const EN_UX_PHRASES: [RegExp, string][] = [

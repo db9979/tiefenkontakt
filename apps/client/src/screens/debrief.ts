@@ -5,6 +5,7 @@ import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js
 import { debriefOrders, debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
 import { photoStrip } from '../widgets/photo.js';
 import { drawSymbol } from '../widgets/symbols.js';
+import { shareBlock, wireShare } from '../widgets/replay-share.js';
 
 const SPEEDS = [30, 120, 480];
 
@@ -20,35 +21,39 @@ function teamColor(team: string, player: boolean): string {
 /** Only one debrief at a time: a re-sent debrief (reconnect, server restart) updates it instead of stacking a new one at 00:00. */
 let current: { update(nd: Debrief): void; el: HTMLElement } | undefined;
 
-export function debriefOverlay(d: Debrief, onClose: () => void, live = false): { update(nd: Debrief): void } {
+/** `shared`: the public replay page (/r/<id>): no own solutions, tips or photos, no lobby. */
+export function debriefOverlay(d: Debrief, onClose: () => void, live = false, shared = false): { update(nd: Debrief): void } {
   if (current && document.body.contains(current.el)) {
     current.update(d);
     return current;
   }
-  const ownId = store.snap?.own.id;
+  const ownId = shared ? undefined : store.snap?.own.id;
+  const mine = !live && !shared;
+  const canShare = mine && d.stats.some((s) => s.playerId === store.playerId);
   const el = h(`<div class="overlay"><div class="panel" style="max-width:1200px;width:96vw;max-height:94vh;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:10px">
     <div style="min-width:0">
-      <div class="hd"><span>Nachbesprechung · ${esc(d.reason)}</span><span id="db-t"></span></div>
+      <div class="hd"><span>${shared ? 'Wiederholung' : 'Nachbesprechung'} · ${esc(d.reason)}</span><span id="db-t"></span></div>
       <canvas id="db-cv" style="cursor:grab"></canvas>
       <div class="steps" style="align-items:center">
         <button id="db-play">Abspielen</button><button id="db-speed">×30</button>
         <input id="db-slider" type="range" min="0" max="${d.duration}" step="1" value="0" style="flex:3">
-        <button id="db-mine" class="on" title="Eigener Kurs und eigene TMA-Lösungen einblenden">Meine Lösungen</button>
+        ${shared ? '' : '<button id="db-mine" class="on" title="Eigener Kurs und eigene TMA-Lösungen einblenden">Meine Lösungen</button>'}
       </div>
       ${timelineMarkers(d)}
-      <div class="dim">ZIEHEN VERSCHIEBT · RAD ZOOMT · BLAU WESTBUND · ROT OSTPAKT · GELB EIGENE TMA-LÖSUNG</div>
+      <div class="dim">${shared ? 'ZIEHEN VERSCHIEBT · RAD ZOOMT · BLAU WESTBUND · ROT OSTPAKT' : 'ZIEHEN VERSCHIEBT · RAD ZOOMT · BLAU WESTBUND · ROT OSTPAKT · GELB EIGENE TMA-LÖSUNG'}</div>
     </div>
     <div style="min-width:0;overflow:auto">
       ${live ? '<div class="hd"><span>Zuschauer</span><span class="amber">LIVE · VERZÖGERT</span></div><div class="dim">DU SIEHST DIE WAHRE LAGE MIT EINIGEN MINUTEN VERZÖGERUNG, DAMIT NIEMAND SEINEM TEAM HELFEN KANN.</div>'
-        : `<div class="hd"><span>Ergebnis</span><span class="${d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
-      ${live ? '' : debriefTips(d.stats.find((s) => s.playerId === store.playerId))}
-      ${live ? '' : photoStrip(d, store.playerId)}
-      ${!live && d.learned?.length ? `<div class="panel" style="margin:6px 0;border-color:#6b4a1a"><div class="hd"><span class="amber">Der Gegner lernt</span></div>${d.learned.map((l) => `<div class="row" style="display:block">${esc(l)}</div>`).join('')}</div>` : ''}
+        : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
+      ${mine ? debriefTips(d.stats.find((s) => s.playerId === store.playerId)) : ''}
+      ${mine ? photoStrip(d, store.playerId) : ''}
+      ${mine && d.learned?.length ? `<div class="panel" style="margin:6px 0;border-color:#6b4a1a"><div class="hd"><span class="amber">Der Gegner lernt</span></div>${d.learned.map((l) => `<div class="row" style="display:block">${esc(l)}</div>`).join('')}</div>` : ''}
       ${live ? '' : debriefOrders(d, d.stats.find((s) => s.playerId === store.playerId)?.team)}
       <div id="db-stats"></div>
       <div class="hd" style="margin-top:10px"><span>Ereignisse</span><span class="dim">KLICK SPRINGT HIN</span></div>
       <div id="db-events"></div>
-      <button id="db-close" style="margin-top:10px;width:100%">Zur Lobby</button>
+      ${canShare ? shareBlock() : ''}
+      <button id="db-close" style="margin-top:10px;width:100%">${shared ? 'Selbst spielen' : 'Zur Lobby'}</button>
     </div>
   </div></div>`);
   document.body.appendChild(el);
@@ -73,7 +78,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
   let t = 0;
   let playing = false;
   let speedIdx = 0;
-  let showMine = true;
+  let showMine = !shared;
   let scale = 60;
   let pan: Vec2 | undefined;
   let drag: { x: number; y: number; px: number; py: number } | undefined;
@@ -87,7 +92,9 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
     playing = !playing;
   };
   q<HTMLButtonElement>('#db-speed').onclick = () => (speedIdx = (speedIdx + 1) % SPEEDS.length);
-  q<HTMLButtonElement>('#db-mine').onclick = () => (showMine = !showMine);
+  const mineBtn = el.querySelector<HTMLButtonElement>('#db-mine');
+  if (mineBtn) mineBtn.onclick = () => (showMine = !showMine);
+  wireShare(el);
   el.querySelector('.tl')!.addEventListener('click', (e) => {
     const m = (e.target as HTMLElement).closest<HTMLElement>('[data-ev]');
     if (m) t = Math.max(0, d.events[Number(m.dataset.ev)]!.t - 30);
@@ -155,7 +162,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false): {
     slider.value = String(Math.round(t));
     q('#db-play').textContent = playing ? 'Pause' : 'Abspielen';
     q('#db-speed').textContent = `×${SPEEDS[speedIdx]}`;
-    q('#db-mine').classList.toggle('on', showMine);
+    mineBtn?.classList.toggle('on', showMine);
     q('#db-t').textContent = `${clock(t)} / ${clock(d.duration)}`;
 
     const H = Math.min(620, window.innerHeight * 0.7);

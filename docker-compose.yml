@@ -28,6 +28,10 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
       # Daily database copy in the data volume (/data/backups), newest 7 kept
       BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      # Shared replay links (/r/<id>): days kept, total cap, compressed size cap per replay
+      REPLAY_KEEP_DAYS: ${REPLAY_KEEP_DAYS:-90}
+      REPLAY_MAX_COUNT: ${REPLAY_MAX_COUNT:-5000}
+      REPLAY_MAX_BYTES: ${REPLAY_MAX_BYTES:-2000000}
       BACKUP_EVERY_H: ${BACKUP_EVERY_H:-24}
       # Second copy of every backup, on the host (BACKUP_MIRROR_HOST: e.g. a NAS mount)
       BACKUP_MIRROR_DIR: /mirror
