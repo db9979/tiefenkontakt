@@ -339,7 +339,7 @@ export interface Snapshot {
     light?: number;
     /** Water depth under the own ship (m) and the chart, which is public. */
     bottom?: number;
-    seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number };
+    seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number; /** Shallow bank across deep water (Grönland), seabed.ts. */ bankY?: number };
     rain?: boolean;
     /** Met forecast: fog banks, rain squalls, ice floes and icebergs (public). */
     met?: import('./met.js').MetCells;

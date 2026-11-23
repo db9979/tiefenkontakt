@@ -67,6 +67,7 @@ export const EN_MORE: [string, string][] = [
 
 /** Canvas-only labels (short, single letters allowed). */
 export const EN_CANVAS: [string, string][] = [
+  ['TIEFE M', 'DEPTH M'],
   ['O', 'E'], ['BB', 'P'], ['STB', 'S'], ['SEEFERNAUFKL.', 'MPA'], ['TAUCHSONAR', 'DIPPING'], ['HUBSCHR.', 'HELO'],
 ];
 
