@@ -248,8 +248,12 @@ async function geleitfahrt(tab) {
   })()`), 240_000, 1000);
   await tab.click(`#station [data-c="${label}"]`);
   await untilDone(tab, L, 5, 20_000, `contact ${label} selected`);
+  // The contact list re-renders while clicking: make sure the class goes to the contact we found
+  await tab.ev(`__tk.store.selected = ${JSON.stringify(label)}; true`);
   await tab.click('#station [data-cls="submarine"]');
   await untilDone(tab, L, 6, 20_000, 'classified as submarine');
+  const wrong = await tab.ev(`__tk.store.snap.contacts.filter((c) => c.assigned === 'submarine' && c.label !== ${JSON.stringify(label)}).map((c) => c.label)`);
+  if (wrong.length) throw new Error(`classified the wrong contact (${wrong.join(', ')} instead of ${label})`);
   await station(tab, /OPZ/);
   await tab.click('[data-detour="3000"]');
   await untilDone(tab, L, 7, 20_000, 'convoy diverted');
