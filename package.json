@@ -13,6 +13,7 @@
     "arena": "tsx scripts/bot-arena.ts",
     "loadtest": "tsx scripts/net-load-test.ts",
     "e2e": "node scripts/e2e.mjs",
+    "e2e:tutorials": "node scripts/tutorial-e2e.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
   "devDependencies": {

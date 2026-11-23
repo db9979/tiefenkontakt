@@ -62,7 +62,7 @@ npm run dev:server        # Spielserver auf http://localhost:8787
 npm run dev:client        # in einem zweiten Terminal: Oberfläche auf http://localhost:5173
 ```
 
-Dann http://localhost:5173 öffnen, „Als Gast“ wählen und in der Lobby **„Erste Feindfahrt“** starten. Dieses Tutorial führt Schritt für Schritt durch einen ersten Angriff.
+Dann http://localhost:5173 öffnen, „Als Gast“ wählen und in der Lobby **„Erste Feindfahrt“** starten. Dieses Tutorial führt Schritt für Schritt durch einen ersten Angriff; **„Erste Geleitfahrt“** ist das Gegenstück auf der Fregatte (U-Jagd mit Schleppsonar, Boje, Ping und Rakete).
 
 Ohne Mailserver landen Bestätigungs- und Passwort-Links im Server-Log. Konten funktionieren also auch lokal.
 
@@ -136,6 +136,7 @@ Der Sprachfunk hat drei Stufen:
 npm test                  # Unit- und Integrationstests (vitest)
 npm run typecheck         # TypeScript für Server, Simulation und Oberfläche
 npm run e2e               # Browser-Ende-zu-Ende-Test (braucht Chrome; CHROME_PATH setzen, falls nötig)
+npm run e2e:tutorials     # spielt beide Einsteiger-Lektionen im Browser durch (ca. 5 min)
 npm run arena -- 90       # 90 Partien KI gegen KI: Balance-Bilanz pro Mission
 npm run loadtest -- 10 60 # Lasttest: 10 Partien, 60 Sekunden
 ```
@@ -179,7 +180,7 @@ npm run dev:server        # game server on http://localhost:8787
 npm run dev:client        # in a second terminal: interface on http://localhost:5173
 ```
 
-Then open http://localhost:5173, choose "Play as guest" and start **"First patrol"** in the lobby. This tutorial walks you through a first attack step by step.
+Then open http://localhost:5173, choose "Play as guest" and start **"First patrol"** in the lobby. This tutorial walks you through a first attack step by step; **"First escort"** is its counterpart on the frigate (ASW with towed array, buoy, ping and rocket).
 
 Without a mail server, verification and password links go to the server log. So accounts work locally too.
 
@@ -253,6 +254,7 @@ Voice radio has three levels:
 npm test                  # unit and integration tests (vitest)
 npm run typecheck         # TypeScript for server, simulation and interface
 npm run e2e               # browser end-to-end test (needs Chrome; set CHROME_PATH if needed)
+npm run e2e:tutorials     # plays both beginner lessons through in the browser (about 5 min)
 npm run arena -- 90       # 90 AI-vs-AI matches: balance per mission
 npm run loadtest -- 10 60 # load test: 10 matches, 60 seconds
 ```

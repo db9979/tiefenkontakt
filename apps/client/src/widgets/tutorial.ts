@@ -3,6 +3,7 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { esc, h, setHtml } from './format.js';
 import { FIRST_PATROL_STEPS } from './tutorial-feindfahrt.js';
+import { FIRST_ESCORT_STEPS } from './tutorial-geleitfahrt.js';
 
 interface Step {
   text: string;
@@ -20,6 +21,7 @@ const bestQuality = () => {
 
 export const LESSON_STEPS: Record<string, { title: string; steps: Step[]; sequential?: boolean }> = {
   feindfahrt: FIRST_PATROL_STEPS,
+  geleitfahrt: FIRST_ESCORT_STEPS,
   klassifizieren: {
     title: 'Horchen und Klassifizieren',
     steps: [
