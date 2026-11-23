@@ -9,8 +9,18 @@ import { log } from './log.js';
  * Disabled when BACKUP_DIR is not set. BACKUP_MIRROR_DIR (optional) gets a copy of every
  * backup too — point it at a second disk or a NAS mount so a dead drive doesn't take both.
  */
+export interface BackupResult {
+  ok: boolean;
+  file?: string;
+  error?: string;
+  /** Set when the main copy worked but the mirror copy failed. */
+  mirrorError?: string;
+}
+
 export class Backups {
   private timer?: ReturnType<typeof setInterval>;
+  /** Called after every run, good or bad (the watchdog mails failures). */
+  onResult?: (r: BackupResult) => void;
 
   constructor(
     private db: DatabaseSync,
@@ -36,18 +46,32 @@ export class Backups {
       .sort((a, b) => b.file.localeCompare(a.file));
   }
 
-  /** Write one backup now and prune old ones. Returns the file name. */
+  /** Write one backup now and prune old ones. Returns the file name; throws if the copy fails. */
   run(now = new Date()): string | undefined {
     if (!this.dir) return undefined;
-    mkdirSync(this.dir, { recursive: true });
+    let r: BackupResult;
+    try {
+      r = this.write(now);
+    } catch (e) {
+      this.onResult?.({ ok: false, error: (e as Error).message });
+      throw e;
+    }
+    this.onResult?.(r);
+    return r.file;
+  }
+
+  private write(now: Date): BackupResult {
+    const dir = this.dir!;
+    mkdirSync(dir, { recursive: true });
     const p = (n: number) => String(n).padStart(2, '0');
     const stamp = `${now.getUTCFullYear()}${p(now.getUTCMonth() + 1)}${p(now.getUTCDate())}-${p(now.getUTCHours())}${p(now.getUTCMinutes())}${p(now.getUTCSeconds())}`;
     const name = `tiefenkontakt-${stamp}.db`;
-    const target = resolve(this.dir, name);
-    if (existsSync(target)) return name;
+    const target = resolve(dir, name);
+    if (existsSync(target)) return { ok: true, file: name };
     // The path is built by us from digits only; quotes are doubled for SQL anyway
     this.db.exec(`VACUUM INTO '${target.replaceAll("'", "''")}'`);
-    for (const old of this.list().slice(this.keep)) unlinkSync(join(this.dir, old.file));
+    for (const old of this.list().slice(this.keep)) unlinkSync(join(dir, old.file));
+    let mirrorError: string | undefined;
     if (this.mirror) {
       try {
         mkdirSync(this.mirror, { recursive: true });
@@ -55,10 +79,11 @@ export class Backups {
         const files = readdirSync(this.mirror).filter((f) => /^tiefenkontakt-\d{8}-\d{6}\.db$/.test(f)).sort().reverse();
         for (const old of files.slice(this.keep)) unlinkSync(join(this.mirror, old));
       } catch (e) {
-        log('error', 'Backup-Spiegel fehlgeschlagen', { dir: this.mirror, error: (e as Error).message });
+        mirrorError = (e as Error).message;
+        log('error', 'Backup-Spiegel fehlgeschlagen', { dir: this.mirror, error: mirrorError });
       }
     }
-    return name;
+    return { ok: true, file: name, mirrorError };
   }
 
   /** Back up on start if the newest copy is older than the interval, then check hourly. */

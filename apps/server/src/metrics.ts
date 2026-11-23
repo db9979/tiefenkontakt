@@ -4,6 +4,8 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 class Metrics {
   readonly started = Date.now();
   private ticks: number[] = [];
+  /** Tick times since the watchdog last looked (takeTicks). */
+  private recent: number[] = [];
   private loop = monitorEventLoopDelay({ resolution: 10 });
   bytesSent = 0;
   msgsSent = 0;
@@ -20,8 +22,17 @@ class Metrics {
   timeTick(fn: () => void): void {
     const t0 = performance.now();
     fn();
-    this.ticks.push(performance.now() - t0);
+    const ms = performance.now() - t0;
+    this.ticks.push(ms);
+    if (this.recent.length < 20_000) this.recent.push(ms);
     if (this.ticks.length > 3000) this.ticks.splice(0, this.ticks.length - 3000);
+  }
+
+  /** Tick times since the last call (for the watchdog's own window; /api/metrics is unaffected). */
+  takeTicks(): number[] {
+    const out = this.recent;
+    this.recent = [];
+    return out;
   }
 
   sent(bytes: number): void {
