@@ -121,6 +121,7 @@ export class Periscope3D {
 
   constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
     this.eye = opts.eye ?? 4;
+    canvas.classList.add('gl');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x24343b);
     this.camera.rotation.order = 'YXZ';

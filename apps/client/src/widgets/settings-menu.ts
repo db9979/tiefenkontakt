@@ -12,6 +12,29 @@ export function applyDisplayPrefs(): void {
   document.body.classList.toggle('cb', localStorage.getItem('tk_cb') === '1');
   document.body.classList.toggle('crt', localStorage.getItem('tk_crt') !== '0');
   document.body.classList.toggle('redlight', localStorage.getItem('tk_red') === '1');
+  document.documentElement.dataset.theme = isLight() ? 'light' : 'dark';
+  const tb = document.querySelector<HTMLButtonElement>('.themebtn');
+  if (tb) {
+    tb.textContent = isLight() ? '☾' : '☀';
+    tb.title = isLight() ? 'Dunkler Modus' : 'Heller Modus';
+  }
+}
+
+/** Light or dark interface (stored per browser). */
+export const isLight = (): boolean => localStorage.getItem('tk_theme') === 'light';
+export function setLight(on: boolean): void {
+  localStorage.setItem('tk_theme', on ? 'light' : 'dark');
+  applyDisplayPrefs();
+}
+
+/** ☀/☾ switch next to the language switch, on every screen. */
+export function mountThemeButton(): void {
+  if (document.querySelector('.themebtn')) return;
+  const b = document.createElement('button');
+  b.className = 'langbtn themebtn';
+  b.onclick = () => setLight(!isLight());
+  document.body.appendChild(b);
+  applyDisplayPrefs();
 }
 
 type Toggle = { id: string; label: string; get(): boolean; set(on: boolean): void };
@@ -30,6 +53,7 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
     { id: 'crt', label: 'Röhren-Effekt', ...flag('tk_crt', true) },
     { id: 'red', label: 'Rotlicht (Nacht)', ...flag('tk_red', false) },
     { id: 'cb', label: 'Farbenblind-Palette', ...flag('tk_cb', false) },
+    { id: 'light', label: 'Heller Modus', get: isLight, set: (on) => localStorage.setItem('tk_theme', on ? 'light' : 'dark') },
   ];
   const render = () => {
     const font = Number(localStorage.getItem('tk_font') ?? '1');

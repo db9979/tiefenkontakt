@@ -68,12 +68,12 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       setText(q('#cp-perf'), c ? `LEISTUNG ${Math.round(c.performance * 100)} %` : '');
       q('#cp-perf').className = c && c.performance < 0.85 ? 'amber' : 'dim';
       const fat = c?.fatigue ?? 0;
-      q<HTMLElement>('#cp-fat').style.cssText = `width:${Math.round(fat * 100)}%;background:${fat > 0.7 ? '#f09595' : fat > 0.4 ? '#fac775' : '#5dcaa5'}`;
+      q<HTMLElement>('#cp-fat').style.cssText = `width:${Math.round(fat * 100)}%;background:${fat > 0.7 ? 'var(--red)' : fat > 0.4 ? 'var(--amber)' : 'var(--g)'}`;
       const mor = c?.morale ?? 0.7;
-      q<HTMLElement>('#cp-mor').style.cssText = `width:${Math.round(mor * 100)}%;background:${mor < 0.35 ? '#f09595' : mor < 0.55 ? '#fac775' : '#5dcaa5'}`;
+      q<HTMLElement>('#cp-mor').style.cssText = `width:${Math.round(mor * 100)}%;background:${mor < 0.35 ? 'var(--red)' : mor < 0.55 ? 'var(--amber)' : 'var(--g)'}`;
       q('#cp-wnd-row').style.display = c?.wounded ? '' : 'none';
       q('#cp-xp-row').style.display = c?.xp ? '' : 'none';
-      q<HTMLElement>('#cp-xp').style.cssText = `width:${Math.round((c?.xp ?? 0) * 100)}%;background:#fac775`;
+      q<HTMLElement>('#cp-xp').style.cssText = `width:${Math.round((c?.xp ?? 0) * 100)}%;background:var(--amber)`;
       setText(q('#cp-wnd'), c?.wounded ? `${c.wounded} · SANITÄTER` : '');
       el.querySelector('[data-cp="battle"]')!.classList.toggle('on', !!c?.battle);
       el.querySelector('[data-cp="silent"]')!.classList.toggle('on', !!c?.silent);

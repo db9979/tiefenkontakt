@@ -105,7 +105,7 @@ export function renderDamage(el: HTMLElement): void {
     const prio = o.repair === k;
     return `<div class="row clickable ${prio ? 'selrow' : ''}" data-sys="${k}" title="${EFFECT[k]} · Klick: Reparatur-Priorität">
       <span>${prio ? '▸ ' : ''}${LABEL[k]}</span>
-      <span style="flex:1;margin:0 8px;background:#132320;height:8px;align-self:center"><span style="display:block;height:8px;width:${Math.round(v * 100)}%;background:${v > 0.6 ? '#f09595' : v > 0.25 ? '#fac775' : '#5dcaa5'}"></span></span>
+      <span style="flex:1;margin:0 8px;background:var(--track);height:8px;align-self:center"><span style="display:block;height:8px;width:${Math.round(v * 100)}%;background:${v > 0.6 ? 'var(--red)' : v > 0.25 ? 'var(--amber)' : 'var(--g)'}"></span></span>
       <span>${Math.round(v * 100)} %</span></div>`;
   }).join(''));
 }

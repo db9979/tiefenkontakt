@@ -63,7 +63,7 @@ export function toggleRecogBook(title: string, anchor: HTMLElement): void {
     const row = (k: string, v: string) => `<div class="row"><span class="dim">${k}</span><span>${v}</span></div>`;
     q('#rb-page').innerHTML = `
       <div class="hd"><span>${esc(spec.name)}</span><span class="dim">${CLASS_LABEL[current]}</span></div>
-      <div style="background:#07100e;border:1px solid var(--line);padding:4px;margin:4px 0">
+      <div style="background:var(--well);border:1px solid var(--line);padding:4px;margin:4px 0">
         <div class="dim" style="font-size:10px">${VIEW_TITLE.side}</div>${img(current, 'side', 96)}
         <div style="display:flex;gap:6px;align-items:flex-end">
           <div><div class="dim" style="font-size:10px">${VIEW_TITLE.bow}</div>${img(current, 'bow', 80)}</div>

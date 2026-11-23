@@ -21,7 +21,7 @@ const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL',
 export function bridgeStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Brücke · Ausguck</span><span id="b-brg" class="dim"></span></div>
-      <div style="position:relative"><canvas id="gl" style="position:absolute;inset:0;width:100%;height:${H}px"></canvas><canvas id="view" style="position:relative"></canvas></div>
+      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:${H}px"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button id="glass">Fernglas 7×</button>
         <button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button>

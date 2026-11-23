@@ -1,0 +1,100 @@
+/*
+ * Light mode (html[data-theme="light"], switch ☀/☾ at the bottom left or in the ⚙ menu).
+ * The console look on paper: light panels, dark green text, amber and red as dark inks.
+ * 2D displays (waterfall, plot, radar, analysis, maps) are drawn for a dark screen; in light
+ * mode they are inverted in brightness with their hues kept (glowing green on black becomes dark
+ * green on light). 3D views and the optics overlays (.gl, .keep) stay as they are.
+ */
+html[data-theme='light'] {
+  --bg: #e9eeeb;
+  --panel: #f7f9f8;
+  --line: #cfdad6;
+  --line2: #aebfb9;
+  --g: #1b7458;
+  --g2: #173a30;
+  --dim: #5b6f68;
+  --amber: #9a5800;
+  --red: #b3261e;
+  --blue: #1d5fa6;
+  --btn: #eef3f1;
+  --on-bg: #cfe9df;
+  --on-fg: #0d3a2c;
+  --track: #dfe8e4;
+  --well: #eef3f1;
+  --amber-line: #d4a85a;
+  color-scheme: light;
+}
+html[data-theme='light'] body.cb { --red: #b54700; --amber: #8a6d00; --blue: #1460b0; }
+
+html[data-theme='light'] button,
+html[data-theme='light'] input,
+html[data-theme='light'] select { background: var(--btn); color: var(--g2); }
+html[data-theme='light'] button { background: linear-gradient(180deg, #ffffff, #e8eeeb); box-shadow: inset 0 1px 0 #fff, 0 1px 0 #b9c7c2; }
+html[data-theme='light'] button:active { box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.15); }
+html[data-theme='light'] button.on { background: linear-gradient(180deg, #dcf1e9, #c4e4d8); color: var(--on-fg); box-shadow: inset 0 0 6px rgba(27, 116, 88, 0.2); }
+html[data-theme='light'] button.warn { border-color: #c9953d; }
+html[data-theme='light'] button.fire { border-color: #d98a84; }
+html[data-theme='light'] button.danger { border-color: #d98a84; color: #a3261c; }
+html[data-theme='light'] .row { border-bottom-color: #dde6e2; }
+html[data-theme='light'] .order-row { border-bottom-color: #dde6e2; }
+
+html[data-theme='light'] .panel {
+  border-color: #b9c8c3 !important;
+  background:
+    radial-gradient(circle at 7px 7px, #9fb0aa 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 7px) 7px, #9fb0aa 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 7px calc(100% - 7px), #9fb0aa 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #9fb0aa 0 1.6px, transparent 2.4px),
+    linear-gradient(180deg, #fbfcfc 0%, #f2f6f4 100%);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(40, 60, 55, 0.18);
+}
+html[data-theme='light'] body { background: var(--bg); }
+html[data-theme='light'] body::before,
+html[data-theme='light'] body::after { display: none; }
+html[data-theme='light'] .hd,
+html[data-theme='light'] body.crt .hd,
+html[data-theme='light'] body.crt .title { text-shadow: none; }
+/* Tube effect: scanlines, vignette and glow belong to a dark screen */
+html[data-theme='light'] body.crt .panel::after,
+html[data-theme='light'] body.crt .station-wrap::after { display: none; }
+html[data-theme='light'] .title { text-shadow: none; }
+
+html[data-theme='light'] .ctxmenu { background: #ffffff; box-shadow: 0 6px 20px rgba(30, 50, 45, 0.25); }
+html[data-theme='light'] .ctxmenu button:hover,
+html[data-theme='light'] a.btnlink:hover { background: var(--on-bg); }
+html[data-theme='light'] .clickable:hover { background: #e3eeea; }
+html[data-theme='light'] .selrow { background: #fbf0d6; }
+html[data-theme='light'] .overlay { background: rgba(40, 55, 50, 0.45); }
+html[data-theme='light'] .menu-panel { box-shadow: 0 10px 30px rgba(30, 50, 45, 0.3); }
+html[data-theme='light'] .assist { background: #eef6f2; }
+html[data-theme='light'] .assist.urgent { background: #fbe3e1; color: #8e1d16; }
+html[data-theme='light'] .brief-goal { color: #0d3a2c; }
+html[data-theme='light'] .pbar,
+html[data-theme='light'] .crew-panel .bar,
+html[data-theme='light'] .cbar { background: #dfe8e4; }
+html[data-theme='light'] .pbar .pb-mid { background: #a66a00; }
+html[data-theme='light'] .pbar .pb-30 { background: rgba(166, 106, 0, 0.5); }
+html[data-theme='light'] .rank { border-color: #d4b27a; }
+html[data-theme='light'] .green { color: var(--g); }
+html[data-theme='light'] .voice .ptt.live { background: #fbe3e1; color: #8e1d16; }
+html[data-theme='light'] .update-banner,
+html[data-theme='light'] .helm-toggle { background: var(--on-bg); color: var(--g2); }
+html[data-theme='light'] .hitcam { background: #fff; }
+/* Amber notice boxes and the alarm banner (dark fills in the dark theme) */
+html[data-theme='light'] .flash-banner,
+html[data-theme='light'] .linkbanner { background: #fbf0d6; }
+html[data-theme='light'] .banner { background: #fbe3e1; color: #8e1d16; }
+@media (max-width: 600px) {
+  html[data-theme='light'] .topbar .tabs { background: #eef3f1; }
+}
+
+/* 2D displays: brightness inverted, hues kept. CRT glow off in light mode */
+html[data-theme='light'] canvas:not(.gl):not(.keep) { filter: invert(1) hue-rotate(180deg); }
+html[data-theme='light'] body.crt .panel canvas:not(.gl):not(.keep) { filter: invert(1) hue-rotate(180deg); animation: none; }
+html[data-theme='light'] .panel canvas { box-shadow: 0 0 0 1px #b9c8c3; }
+
+/* Theme switch next to the language switch */
+.themebtn { left: 44px; }
+@media (max-width: 600px) {
+  .themebtn { right: 52px; left: auto; }
+}

@@ -43,7 +43,7 @@ function silhouette(ctx: CanvasRenderingContext2D, x: number, size: number, cls:
 export function periscopeStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
-      <div style="position:relative"><canvas id="gl" style="position:absolute;inset:0;width:100%;height:380px"></canvas><canvas id="view" style="position:relative"></canvas></div>
+      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:380px"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button id="up">Mast ausfahren</button><button id="zoom">Vergr 6×</button>
         <button id="peri">Auf Sehrohrtiefe</button>

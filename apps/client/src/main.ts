@@ -1,7 +1,8 @@
 import './style.css';
+import './theme-light.css';
 import { initI18n } from './i18n/index.js';
 import { installErrorReporting } from './error-report.js';
-import { applyDisplayPrefs } from './widgets/settings-menu.js';
+import { applyDisplayPrefs, mountThemeButton } from './widgets/settings-menu.js';
 import type { ServerMsg } from '@tk/shared';
 import { net, type LinkState } from './net.js';
 import { handleMailLink, toast } from './screens/account.js';
@@ -18,6 +19,7 @@ installErrorReporting();
 registerServiceWorker(() => screen === 'game');
 initI18n();
 applyDisplayPrefs();
+mountThemeButton();
 const root = document.getElementById('app')!;
 let cleanup: (() => void) | undefined;
 let screen: 'auth' | 'lobby' | 'game' = 'auth';

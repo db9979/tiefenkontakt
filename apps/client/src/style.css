@@ -9,6 +9,9 @@
   --amber: #fac775;
   --red: #f09595;
   --blue: #85b7eb;
+  --track: #132320;
+  --well: #07100e;
+  --amber-line: #6b4a1a;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 12px;
   color: var(--g2);

@@ -26,6 +26,7 @@ export class UnderwaterScene {
   private cls: ClassId | undefined;
 
   constructor(private canvas: HTMLCanvasElement) {
+    canvas.classList.add('gl');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.localClippingEnabled = true;
     this.scene.background = new THREE.Color(0x041a19);
