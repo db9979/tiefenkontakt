@@ -53,7 +53,13 @@ async function login(tab, name) {
   for (let i = 0; ; i++) {
     try {
       await waitFor('page ready', () => tab.ev(`document.readyState === 'complete' && !!document.querySelector('[data-mode="guest"]')`), 60_000);
-      await tab.ev(`localStorage.setItem('tk_lang', 'de'); true`);
+      // The steps are matched on German labels; the language is fixed when the page loads, and
+      // Chrome on Linux ignores --lang: set it and reload if the page came up in English
+      if (await tab.ev(`(localStorage.setItem('tk_lang', 'de'), document.documentElement.lang !== 'de')`)) {
+        await tab.cmd('Page.reload');
+        await sleep(1000);
+        await waitFor('page ready (German)', () => tab.ev(`document.readyState === 'complete' && document.documentElement.lang === 'de' && !!document.querySelector('[data-mode="guest"]')`), 60_000);
+      }
       await tab.ev(HOOK);
       await tab.click('[data-mode="guest"]');
       await waitFor('callsign field', () => tab.ev(`!!document.querySelector('#cs')`));
