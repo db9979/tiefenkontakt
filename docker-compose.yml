@@ -32,6 +32,20 @@ services:
       BACKUP_EVERY_H: ${BACKUP_EVERY_H:-24}
       # Second copy of every backup, on the host (BACKUP_MIRROR_HOST: e.g. a NAS mount)
       BACKUP_MIRROR_DIR: /mirror
+      # Operator alerts by mail (see .env.example): failed/stale backups, low disk in /data,
+      # high memory, event-loop lag, slow ticks. Max one mail per kind per 6 h + an all-clear.
+      ALERT: ${ALERT:-1}
+      ALERT_TO: ${ALERT_TO:-}
+      ALERT_DAILY: ${ALERT_DAILY:-0}
+      ALERT_DAILY_HOUR: ${ALERT_DAILY_HOUR:-7}
+      ALERT_DISK_MIN: ${ALERT_DISK_MIN:-10%,1GB}
+      ALERT_RSS_MB: ${ALERT_RSS_MB:-}
+      ALERT_LAG_MS: ${ALERT_LAG_MS:-200}
+      ALERT_TICK_MS: ${ALERT_TICK_MS:-50}
+      ALERT_CHECK_S: ${ALERT_CHECK_S:-60}
+      ALERT_PERSIST: ${ALERT_PERSIST:-5}
+      # Weekly restore test (scripts/restore-test.ts): newest backup older than this = failure
+      RESTORE_MAX_AGE_H: ${RESTORE_MAX_AGE_H:-}
       # Bearer token for GET /api/metrics (?format=prom for Prometheus); empty = moderators only
       METRICS_TOKEN: ${METRICS_TOKEN:-}
       # Seconds between saves of running matches (higher = fewer writes on SD cards)

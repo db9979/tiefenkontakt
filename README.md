@@ -104,6 +104,12 @@ Optional gibt es einen nächtlichen Balance-Test der KI mit Bericht per Mail:
 ./scripts/install-arena-cron.sh user@raspberrypi.local
 ```
 
+Überwachung: Der Server mailt selbst bei fehlgeschlagenen Backups, wenig Platz, hohem Speicherverbrauch oder Verzögerungen (`ALERT_*` in `.env`, Empfänger `ALERT_TO`). Dass der Server ganz ausgefallen ist, merkt ein Cron-Job auf dem Host (alle 5 min, Neustart + Mail), dazu kommt sonntags ein Restore-Test des neuesten Backups:
+
+```bash
+./scripts/install-health-cron.sh user@raspberrypi.local
+```
+
 ### Wichtige Einstellungen (`.env`)
 
 | Variable | Bedeutung |
@@ -213,6 +219,12 @@ Optionally there is a nightly AI balance test that reports by mail:
 
 ```bash
 ./scripts/install-arena-cron.sh user@raspberrypi.local
+```
+
+Monitoring: the server itself mails on failed backups, low disk, high memory or lag (`ALERT_*` in `.env`, recipient `ALERT_TO`). A host cron job notices when the server is down altogether (every 5 min, restart + mail), and every Sunday the newest backup gets a restore test:
+
+```bash
+./scripts/install-health-cron.sh user@raspberrypi.local
 ```
 
 ### Main settings (`.env`)

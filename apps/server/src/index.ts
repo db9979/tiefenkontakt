@@ -27,6 +27,7 @@ import { CampaignStore } from './campaign-store.js';
 import { CampaignService } from './campaign-match.js';
 import { SeriesRunner } from './series.js';
 import { handleOps } from './ops-api.js';
+import { startWatchdog } from './watchdog.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const MAX_MSG_BYTES = 4096;
@@ -48,7 +49,6 @@ rankings.init();
 campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
 lobby.onCampaignStart = (conn) => campaign.plan(conn);
-backups.start();
 lobby.onReport = (conn, m, from, reason) => {
   const s = m.senderOf(from);
   if (!s) return 'Absender nicht gefunden';
@@ -104,6 +104,18 @@ if (mailer instanceof SmtpMailer) {
   const c = mailer.cfg;
   log('info', 'Mailversand über SMTP', { host: c.host, port: c.port, security: c.security, from: c.from, login: c.user ? 'ja' : 'nein' });
 } else log('info', 'Kein Mailserver eingestellt: Bestätigungs- und Reset-Links stehen im Log');
+// Operator alerts (failed backups, disk, memory, lag); hooked in before the first backup run
+startWatchdog(mailer, backups, () => {
+  const all = lobby.allMatches();
+  return {
+    Laufzeit: `${Math.round(process.uptime() / 3600)} h`,
+    'Partien (laufend/Lobby)': `${all.filter((m) => m.state === 'running').length}/${all.filter((m) => m.state === 'lobby').length}`,
+    'Spieler verbunden': all.reduce((a, m) => a + m.connected, 0),
+    Verbindungen: wss.clients.size,
+    Backups: backups.enabled ? backups.list().length : 'aus',
+  };
+});
+backups.start();
 const PUBLIC_URL = process.env.PUBLIC_URL ?? 'http://localhost:5173';
 const HOUR = 3_600_000;
 
