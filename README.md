@@ -70,8 +70,11 @@ Ohne Mailserver landen Bestätigungs- und Passwort-Links im Server-Log. Konten f
 
 ```bash
 cp .env.example .env      # Werte eintragen (siehe unten); .env nie committen
-docker compose up -d --build
+docker compose pull       # fertiges Image von ghcr.io (amd64 und arm64, also auch Raspberry Pi)
+docker compose up -d
 ```
+
+Selbst bauen statt herunterladen: `docker compose up -d --build`. Für eine feste Version setzt du in `.env` z. B. `TK_IMAGE=ghcr.io/db9979/tiefenkontakt:1.0.0` (die Versionen stehen unter *Releases*).
 
 Das Spiel läuft danach auf http://localhost:8787, mit Server und fertig gebauter Oberfläche auf einem Port. Die Daten (Konten, Statistiken, laufende Partien, Backups) liegen im Docker-Volume `tiefenkontakt-data`.
 
@@ -178,8 +181,11 @@ Without a mail server, verification and password links go to the server log. So 
 
 ```bash
 cp .env.example .env      # fill in the values (see below); never commit .env
-docker compose up -d --build
+docker compose pull       # ready-made image from ghcr.io (amd64 and arm64, so Raspberry Pi too)
+docker compose up -d
 ```
+
+To build it yourself instead of downloading: `docker compose up -d --build`. For a fixed version set e.g. `TK_IMAGE=ghcr.io/db9979/tiefenkontakt:1.0.0` in `.env` (versions are listed under *Releases*).
 
 The game then runs on http://localhost:8787, with the server and the built interface on one port. Data (accounts, statistics, running matches, backups) is kept in the Docker volume `tiefenkontakt-data`.
 

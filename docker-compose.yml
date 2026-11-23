@@ -2,7 +2,8 @@
 services:
   tiefenkontakt:
     build: .
-    image: tiefenkontakt:latest
+    # Ready-made image (amd64/arm64): docker compose pull && docker compose up -d. With --build it is built here instead
+    image: ${TK_IMAGE:-ghcr.io/db9979/tiefenkontakt:latest}
     restart: unless-stopped
     ports:
       - "${HOST_PORT:-8787}:8787"

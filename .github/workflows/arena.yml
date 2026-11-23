@@ -1,10 +1,8 @@
-# Nightly balance check: 90 bot-vs-bot games on Grönland, Schelf and Fjord. Fails when one side
-# wins more than 65 % (ARENA_BAND), so a balance shift shows up the morning after. Can also be
-# started by hand from the Actions tab (with a different number of games).
+# Balance check: 90 bot-vs-bot games on Grönland, Schelf and Fjord. Fails when one side wins more
+# than 65 % (ARENA_BAND). The nightly run happens on the game server itself (scripts/install-arena-cron.sh,
+# report by mail); here it is started by hand from the Actions tab, e.g. before a release.
 name: Arena
 on:
-  schedule:
-    - cron: '30 2 * * *'
   workflow_dispatch:
     inputs:
       games:

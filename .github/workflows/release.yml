@@ -1,0 +1,17 @@
+# A tag v1.2.3 becomes a GitHub release with notes generated from the commits since the last one
+# (the Docker workflow publishes the matching image ghcr.io/db9979/tiefenkontakt:1.2.3).
+#   git tag v1.2.3 && git push origin v1.2.3
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release create "$GITHUB_REF_NAME" --generate-notes --title "Tiefenkontakt $GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}
