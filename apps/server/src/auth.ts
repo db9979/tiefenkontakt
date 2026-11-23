@@ -213,3 +213,10 @@ export function parseCookies(header: string | undefined): Record<string, string>
   }
   return out;
 }
+
+export const GUEST_TOKEN = /^[a-f0-9]{32}$/;
+
+/** A guest's stable player id from their per-tab secret token (others only ever see this hash). */
+export function guestPlayerId(token: string): string {
+  return `g-${createHash('sha256').update(`guest:${token}`).digest('hex').slice(0, 16)}`;
+}

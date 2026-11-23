@@ -116,7 +116,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           ${missionCards(match.settings.mission)}
           <select id="s-mission" style="display:none">
             <option value="groenland">Grönland-Lücke · tief</option><option value="schelf">Schelfmeer · flach</option><option value="fjord">Fjordausfahrt · Kanal</option>
-            <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="eigene">Eigene Mission</option></select>
+            <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="fuehlung">Fühlung halten</option><option value="meerenge">Meerengen-Durchbruch</option><option value="aufklaerung">Aufklärung</option><option value="eigene">Eigene Mission</option></select>
           <div id="custom" style="display:none">
             <div class="row"><span class="dim">FRACHTER</span><select id="c-n">${[4, 6, 8, 10, 12].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
             <div class="row"><span class="dim">KONVOIFAHRT</span><select id="c-kn">${[7, 9, 11, 13].map((v) => `<option value="${v}">${v} KN</option>`).join('')}</select></div>

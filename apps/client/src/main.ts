@@ -7,6 +7,7 @@ import { net, type LinkState } from './net.js';
 import { handleMailLink, toast } from './screens/account.js';
 import { authScreen } from './screens/auth.js';
 import { debriefOverlay } from './screens/debrief.js';
+import { sharedReplayId, sharedReplayScreen } from './widgets/replay-share.js';
 import { gameScreen } from './screens/game.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { store } from './store.js';
@@ -93,6 +94,9 @@ const savedGuest = sessionStorage.getItem('tk_guest');
 const toAuth = () => go('auth', () => authScreen(root, (callsign) => net.connect(callsign)));
 // A mail link opened in an already open tab only changes the hash
 window.addEventListener('hashchange', () => /^#(verify|reset)=/.test(location.hash) && location.reload());
-if (handleMailLink(root, () => net.connect(''))) screen = 'auth';
+// Shared replay link (/r/<id>): only the playback, no connection, lobby or login
+const replayId = sharedReplayId();
+if (replayId) void sharedReplayScreen(root, replayId, (d, close) => debriefOverlay(d, close, false, true));
+else if (handleMailLink(root, () => net.connect(''))) screen = 'auth';
 else if (savedGuest) net.connect(savedGuest);
 else toAuth();
