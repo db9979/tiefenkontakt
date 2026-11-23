@@ -1,58 +1,27 @@
 #!/usr/bin/env node
 /**
  * Tutorial end-to-end test: headless Chrome over the DevTools protocol (no extra dependencies,
- * helpers copied from scripts/e2e.mjs). Own game server and Vite on free ports, a fresh
+ * helpers in scripts/cdp-tab.mjs). Own game server and Vite on free ports, a fresh
  * database. Two guests play the two guided beginner lessons at the same time, through the
  * real UI (buttons, helm, contact list, map right-click menu):
  *   "Erste Feindfahrt" (submarine) and "Erste Geleitfahrt" (frigate).
  * Asserts for each: every step ticks itself off (✓, never skipped with „Weiter“), the lesson
  * ends with success, and no uncaught page errors.
  * Usage: npm run e2e:tutorials     (CHROME_PATH=/path/to/chrome, ONLY=feindfahrt|geleitfahrt, E2E_KEEP=1 keeps logs)
- * Takes about five minutes: both lessons run side by side at the normal 3× time scale.
+ * Takes about five minutes: both lessons run side by side at the normal 3× time scale (a missed
+ * torpedo or rocket is fired again, as the lesson tells the player; each repeat adds a few minutes).
  */
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HOOK, chromePath, freePort, log, openTab, prewarmVite, sleep, stalls, waitFor } from './cdp-tab.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TMP = mkdtempSync(join(tmpdir(), 'tk-tut-'));
 const procs = [];
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const T0 = performance.now();
-const log = (who, ...a) => console.log(`[tut ${((performance.now() - T0) / 1000).toFixed(1).padStart(5)}s] ${who}`, ...a);
 const ONLY = process.env.ONLY;
-
-function chromePath() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  const candidates = process.platform === 'darwin'
-    ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium']
-    : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'];
-  for (const c of candidates) {
-    if (c.startsWith('/')) {
-      if (existsSync(c)) return c;
-      continue;
-    }
-    try {
-      return execFileSync('which', [c]).toString().trim();
-    } catch {
-      /* next */
-    }
-  }
-  throw new Error('Chrome not found: set CHROME_PATH');
-}
-
-const freePort = () => new Promise((res, rej) => {
-  const s = createServer();
-  s.unref();
-  s.on('error', rej);
-  s.listen(0, '127.0.0.1', () => {
-    const { port } = s.address();
-    s.close(() => res(port));
-  });
-});
 
 function run(name, cmd, args, opts) {
   const p = spawn(cmd, args, { ...opts, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -74,96 +43,10 @@ function cleanup() {
   }
 }
 
-async function waitFor(what, fn, timeoutMs = 30_000, everyMs = 250) {
-  const until = Date.now() + timeoutMs;
-  let last;
-  while (Date.now() < until) {
-    try {
-      const v = await fn();
-      if (v) return v;
-    } catch (e) {
-      last = e;
-    }
-    await sleep(everyMs);
-  }
-  throw new Error(`timeout waiting for ${what}${last ? `: ${last.message}` : ''}`);
-}
-
 function assert(cond, msg) {
   if (!cond) throw new Error(`assertion failed: ${msg}`);
   log('ok ·', msg);
 }
-
-/** One browser tab with a tiny DevTools client. */
-async function openTab(cdpPort, url) {
-  const t = await (await fetch(`http://127.0.0.1:${cdpPort}/json/new?${encodeURI(url)}`, { method: 'PUT' })).json();
-  const ws = new WebSocket(t.webSocketDebuggerUrl);
-  await new Promise((r, j) => {
-    ws.onopen = r;
-    ws.onerror = j;
-  });
-  let id = 0;
-  const wait = new Map();
-  const errors = [];
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    if (m.id && wait.has(m.id)) {
-      wait.get(m.id)(m);
-      wait.delete(m.id);
-    } else if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text);
-  };
-  const cmd = (method, params = {}) => new Promise((r) => {
-    const i = ++id;
-    wait.set(i, r);
-    ws.send(JSON.stringify({ id: i, method, params }));
-  });
-  const ev = async (expr) => {
-    const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
-    if (r.result?.exceptionDetails) throw new Error(`${expr.slice(0, 80)} → ${JSON.stringify(r.result.exceptionDetails).slice(0, 300)}`);
-    return r.result?.result?.value;
-  };
-  await cmd('Runtime.enable');
-  await cmd('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-  await cmd('Emulation.setFocusEmulationEnabled', { enabled: true });
-  const mouse = async (x, y, button = 'left', hold = 0) => {
-    const base = { x, y, button, clickCount: 1 };
-    await cmd('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
-    await cmd('Input.dispatchMouseEvent', { type: 'mousePressed', ...base });
-    if (hold) await sleep(hold);
-    await cmd('Input.dispatchMouseEvent', { type: 'mouseReleased', ...base });
-  };
-  /** Real mouse click in the middle of the first visible element matching the selector (and text). */
-  const click = async (sel, match) => {
-    const text = match instanceof RegExp ? match.source : match;
-    const t0 = Date.now();
-    let why = '';
-    const box = await waitFor(`visible ${sel}${text ? ` "${text}"` : ''}`, () => ev(`(() => {
-      const re = ${text ? `new RegExp(${JSON.stringify(text)})` : 'null'};
-      const el = [...document.querySelectorAll(${JSON.stringify(sel)})].find((e) => e.getClientRects().length && !e.disabled && (!re || re.test(e.textContent.trim())));
-      if (!el) return null;
-      el.scrollIntoView({ block: 'center' });
-      const r = el.getBoundingClientRect();
-      const x = r.left + r.width / 2, y = r.top + r.height / 2;
-      // Only click what is really on top (no overlay in the way)
-      const top = document.elementFromPoint(x, y);
-      if (top && (el === top || el.contains(top))) return { x, y };
-      throw new Error('covered by ' + (top ? top.tagName + '.' + top.className + ' ' + (top.textContent ?? '').slice(0, 40) : 'nothing') + ' at ' + Math.round(x) + ',' + Math.round(y));
-    })()`).catch((e) => void (why = e.message)), 15_000);
-    if (Date.now() - t0 > 3000) log('slow click', sel, `${Date.now() - t0} ms`, why.slice(-160));
-    await mouse(box.x, box.y);
-  };
-  return { ev, cmd, click, mouse, errors, close: () => ws.close() };
-}
-
-/** Hook the page's own modules (same instances as the app in Vite dev) to observe traffic. */
-const HOOK = `(async () => {
-  if (window.__tk) return true;
-  const net = (await import('/src/net.ts')).net;
-  const store = (await import('/src/store.ts')).store;
-  window.__tk = { net, store, msgs: [] };
-  net.on((m) => { if (m.t !== 'snap' && m.t !== 'voice') __tk.msgs.push(m); });
-  return true;
-})()`;
 
 async function login(tab, name) {
   // Vite may reload the page once while it optimizes dependencies on a cold start: retry
@@ -176,13 +59,18 @@ async function login(tab, name) {
       await waitFor('callsign field', () => tab.ev(`!!document.querySelector('#cs')`));
       await tab.ev(`(() => { const f = document.querySelector('#cs'); f.value = ${JSON.stringify(name)}; f.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
       await tab.click('#go');
-      return await waitFor(`${name} in the lobby`, () => tab.ev(`!!document.querySelector('#create')`), 20_000);
+      await waitFor(`${name} in the lobby`, () => tab.ev(`!!document.querySelector('#create')`), 20_000);
+      // The lobby compiles the 3D shaders in the background; in headless Chrome (software WebGL)
+      // that blocks the page for many seconds. Let it finish before the lesson's clock runs
+      const t0 = Date.now();
+      await tab.ev(`(async () => { const p = (await import('/src/prefetch.ts')).warmUpDone(); await Promise.race([p, new Promise((r) => setTimeout(r, 120000))]); return true; })()`);
+      log(name, `lobby warm-up done in ${((Date.now() - t0) / 1000).toFixed(1)} s`, await stalls(tab, 1000));
+      return true;
     } catch (e) {
       if (i >= 2) throw e;
       log(name, 'login retry:', e.message);
       await tab.cmd('Page.reload');
       await sleep(3000);
-      await tab.ev(`delete window.__tk; true`).catch(() => undefined);
     }
   }
 }
@@ -202,7 +90,8 @@ const progress = async (tab, lesson) => {
   }
   return r;
 };
-const currentStep = (tab) => tab.ev(`(document.querySelector('.tutorial')?.innerText.split('\\n').find((l) => l.startsWith('▸')) ?? '').slice(2)`);
+// textContent, not innerText: the test folds the panel, and folded rows have no rendered text
+const currentStep = (tab) => tab.ev(`document.querySelector('.tutorial .row.amber .dim')?.textContent ?? ''`);
 
 /** Wait until the lesson has n steps ticked; fail at once if any was skipped. */
 async function untilDone(tab, lesson, n, timeoutMs, what) {
@@ -214,7 +103,7 @@ async function untilDone(tab, lesson, n, timeoutMs, what) {
   }, timeoutMs, 500).then((r) => {
     if (r.skipped) throw new Error(`step(s) ${r.skipped.map((i) => i + 1)} skipped with „Weiter“`);
   });
-  log(lesson, `✓ ${n} ${what}`);
+  log(lesson, `✓ ${n} ${what}`, await stalls(tab));
 }
 
 const station = (tab, re) => tab.click('#tabs button', re);
@@ -246,6 +135,23 @@ async function finish(tab, lesson, steps) {
   assert(/geschafft/.test(end.reason), `${lesson}: ended with success ("${end.reason}") at sim ${Math.round(await simTime(tab))} s`);
   const errs = tab.errors.filter((e) => !/AbortError|NotAllowedError|ResizeObserver/.test(e ?? ''));
   assert(errs.length === 0, `${lesson}: no uncaught page errors${errs.length ? `: ${errs.join(' | ')}` : ''}`);
+}
+
+/**
+ * Fire control: take over the solution and fire (seeker on at half the computed distance for a
+ * repeat shot). Returns the sim seconds after which a torpedo that has not found the target missed.
+ */
+async function torpedoShot(tab, early) {
+  await tab.click('#calc');
+  await sleep(500);
+  // „Lösung übernehmen“ sets the seeker distance to 70 % of the solution's range
+  const en = Number(await tab.ev(`document.querySelector('#t-en').value`));
+  if (early) await tab.ev(`(() => { const f = document.querySelector('#t-en'); f.value = String(Math.max(500, Math.round(Number(f.value) / 2 / 250) * 250)); return true; })()`);
+  const n = await tab.ev(`__tk.store.snap.own.loadout.tubes.filter((t) => t.loaded).length`);
+  await tab.click('#fire');
+  await waitFor('torpedo away', () => tab.ev(`__tk.store.snap.own.loadout.tubes.filter((t) => t.loaded).length < ${n}`), 30_000);
+  // Run time to the solution's range at 40 kn (20.6 m/s), plus a margin for the search
+  return ((en / 0.7) / 20.6) * 1.5 + 90;
 }
 
 /** "Erste Feindfahrt": the submarine sortie against a lone freighter. */
@@ -283,11 +189,26 @@ async function feindfahrt(tab) {
   await tab.click('#up');
   await waitFor('mast down', () => tab.ev(`!__tk.store.snap.own.mastUp`), 20_000);
   await station(tab, /Feuerleitung/);
-  await tab.click('#calc');
-  await sleep(500);
-  await tab.click('#fire');
+  const firstRun = await torpedoShot(tab, false);
   await untilDone(tab, L, 9, 30_000, 'torpedo fired');
-  await untilDone(tab, L, 10, 200_000, 'seeker acquired');
+  // A shot can miss (most often: the solution's range is too long, so the seeker switches on
+  // behind the target). The lesson tells the player to fire again with the seeker on earlier
+  for (let shot = 1, runS = firstRun; ; shot++) {
+    const t0 = await simTime(tab);
+    const r = await waitFor(`${L}: hit or a missed torpedo (shot ${shot})`, async () => {
+      if ((await progress(tab, L)).done.length >= 10) return 'hit';
+      // A hit removes the torpedo before the panel (redrawn 4× a second) ticks the step: no miss then
+      const { homing, running, sunk } = await tab.ev(`(({ torpedoes, score }) => ({ homing: torpedoes.some((t) => t.homing), running: torpedoes.length, sunk: score.sunkTons > 0 }))(__tk.store.snap)`);
+      return !sunk && !homing && (!running || (await simTime(tab)) - t0 > runS) ? 'miss' : false;
+    }, 300_000, 1000);
+    if (r === 'hit') break;
+    if (shot >= 3) throw new Error(`${shot} torpedoes missed`);
+    log(L, `torpedo ${shot} missed (no target after ${Math.round(runS)} s): new solution, seeker on earlier, fire again`);
+    await tab.click('#auto');
+    await sleep(500);
+    runS = await torpedoShot(tab, true);
+  }
+  log(L, '✓ 10 hit');
   // Evade: half speed, then deep
   await tab.click('#h-steps button[data-s="3"]');
   await slider(tab, '#h-depth', 80);
@@ -341,7 +262,27 @@ async function geleitfahrt(tab) {
   await waitFor('sub selected', () => tab.ev(`__tk.store.selectedContact()?.assigned === 'submarine' || (__tk.store.selected = __tk.store.snap.contacts.find((c) => c.assigned === 'submarine')?.label, false)`), 10_000);
   await tab.click('#rocket');
   await untilDone(tab, L, 9, 20_000, 'ASW rocket away');
-  await untilDone(tab, L, 10, 200_000, 'hit');
+  // The lightweight can miss: the lesson says to ping again and fire another rocket
+  for (let shot = 1; ; shot++) {
+    const t0 = await simTime(tab);
+    const r = await waitFor(`${L}: hit or a missed rocket (shot ${shot})`, async () => {
+      if ((await progress(tab, L)).done.length >= 10) return 'hit';
+      return (await simTime(tab)) - t0 > 240 ? 'miss' : false;
+    }, 200_000, 1000);
+    if (r === 'hit') break;
+    if (shot >= 3) throw new Error(`${shot} rockets missed`);
+    log(L, `rocket ${shot} missed (no hit after 240 s): ping again, another rocket`);
+    const rockets = await tab.ev(`__tk.store.snap.own.loadout.rockets`);
+    await station(tab, /Sonar/);
+    await tab.click('#ping');
+    await waitFor('fresh ping fix', () => tab.ev(`(() => { const s = __tk.store.snap; const c = s.contacts.find((x) => x.assigned === 'submarine'); return !!c && c.sensors.includes('active') && c.range !== undefined && s.time - c.lastSeen < 10; })()`), 120_000, 500);
+    if (await tab.ev(`!!__tk.store.snap.own.activeSonar`)) await tab.click('#ping');
+    await station(tab, /Waffen/);
+    await waitFor('sub selected', () => tab.ev(`__tk.store.selectedContact()?.assigned === 'submarine' || (__tk.store.selected = __tk.store.snap.contacts.find((c) => c.assigned === 'submarine')?.label, false)`), 10_000);
+    await tab.click('#rocket');
+    await waitFor('rocket away', () => tab.ev(`__tk.store.snap.own.loadout.rockets < ${rockets}`), 20_000);
+  }
+  log(L, '✓ 10 hit');
   await finish(tab, L, 10);
 }
 
@@ -368,23 +309,29 @@ async function main() {
   run('chrome', chromePath(), args, {});
   await waitFor('chrome devtools', async () => (await fetch(`http://127.0.0.1:${cdpPort}/json/version`)).ok, 30_000, 300);
   log('setup', 'servers and Chrome up');
+  const viteProc = procs.find((p) => p.name === 'vite');
+  await prewarmVite(cdpPort, BASE, () => Buffer.concat(viteProc.chunks).toString());
 
   const plays = [['feindfahrt', 'Kaleun', feindfahrt], ['geleitfahrt', 'Kommodore', geleitfahrt]].filter(([l]) => !ONLY || ONLY === l);
   const tabs = [];
   for (const [, name] of plays) {
-    const tab = await openTab(cdpPort, BASE);
+    const tab = await openTab(cdpPort, BASE, name);
     await login(tab, name);
     tabs.push(tab);
   }
   // Both lessons at once (separate private matches on the same server)
   const results = await Promise.allSettled(plays.map(([lesson, , play], i) => play(tabs[i]).catch(async (e) => {
     const step = await currentStep(tabs[i]).catch(() => '?');
-    log(lesson, 'state:', await tabs[i].ev(`JSON.stringify({ matchId: __tk.store.matchId, keys: Object.keys(sessionStorage), panel: document.querySelector('.tutorial')?.innerText.split('\\n').filter((l) => /^[✓»▸·]/.test(l)).map((l) => l[0]).join(''),
+    log(lesson, 'state:', await tabs[i].ev(`JSON.stringify({ matchId: __tk.store.matchId, keys: Object.keys(sessionStorage), panel: [...document.querySelectorAll('.tutorial .row > span:first-child')].map((s) => s.textContent.trim()[0]).join(''),
       own: (({ heading, x, y, speedKn }) => ({ heading, x, y, speedKn }))(__tk.store.snap.own), selected: __tk.store.selected, time: __tk.store.snap.time,
+      torpedoes: __tk.store.snap.torpedoes.map((t) => ({ id: t.id, heading: Math.round(t.heading), homing: t.homing, wire: t.wire, run: Math.round(t.run), x: Math.round(t.x), y: Math.round(t.y) })),
       contacts: __tk.store.snap.contacts.map((c) => [c.label, Math.round(c.bearing), c.bearingAlt === undefined ? null : Math.round(c.bearingAlt), c.sensors.join('+'), c.assigned ?? '', c.range === undefined ? null : Math.round(c.range), Math.round(__tk.store.snap.time - c.lastSeen)]) })`).catch((x) => x.message));
+    log(lesson, 'stalls:', await stalls(tabs[i], 500) || 'none', '· reloads:', tabs[i].reloads);
     throw new Error(`${lesson} at step "${step}" (sim ${Math.round(await simTime(tabs[i]).catch(() => 0))} s): ${e.message}`);
   })));
   for (const t of tabs) t.close();
+  const reloaded = tabs.filter((t) => t.reloads);
+  if (reloaded.length) log('note', 'pages reloaded during the test:', reloaded.map((t) => `${t.name} ${t.reloads}×`).join(', '));
   const failed = results.filter((r) => r.status === 'rejected');
   if (failed.length) throw new Error(failed.map((r) => r.reason.message).join('\n'));
 }
@@ -393,11 +340,11 @@ const guard = setTimeout(() => {
   console.error('[tut] overall timeout');
   cleanup();
   process.exit(1);
-}, Number(process.env.E2E_TIMEOUT_MS ?? 600_000));
+}, Number(process.env.E2E_TIMEOUT_MS ?? 900_000));
 
 try {
   await main();
-  log('PASSED', `in ${((performance.now() - T0) / 1000).toFixed(0)} s`);
+  log('PASSED', `in ${(performance.now() / 1000).toFixed(0)} s`);
   clearTimeout(guard);
   cleanup();
   if (!process.env.E2E_KEEP) {

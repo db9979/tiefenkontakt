@@ -76,8 +76,9 @@ export const FIRST_PATROL_STEPS: { title: string; sequential: true; steps: Step[
     },
     {
       where: '3 · Feuerleitung · Draht',
-      text: 'Der Torpedo hängt am Draht: unter 12 kn bleiben. Korrigiere mit ◀ ▶, bis „ZIEL ERFASST“ erscheint, und warte auf den Treffer.',
-      done: (s) => s.score.sunkTons > 0 || s.torpedoes.some((t) => t.homing),
+      text: 'Der Torpedo hängt am Draht: unter 12 kn bleiben. Korrigiere mit ◀ ▶, bis „ZIEL ERFASST“ erscheint, und warte auf den Treffer. Kein „ZIEL ERFASST“, obwohl der Torpedo längst beim Ziel sein müsste, oder ist er abgelaufen? Dann war die Entfernung zu groß geschätzt und der Suchkopf schaltete erst hinter dem Ziel ein. Noch ein Schuss, es sind Rohre geladen: „Auto-TMA“, „Lösung übernehmen“, „Suchkopf ein nach“ halbieren, „Feuer“.',
+      // Only the hit counts: a torpedo that found the target can still lose it again
+      done: (s) => s.score.sunkTons > 0,
     },
     {
       where: 'Ruderstand · Ablaufen',

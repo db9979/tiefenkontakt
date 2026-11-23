@@ -6,7 +6,7 @@
  * bridge view no longer stalls). Nothing here blocks the UI; failures are ignored.
  */
 
-let started = false;
+let started: Promise<void> | undefined;
 
 const idle = (): Promise<void> =>
   new Promise((r) => ('requestIdleCallback' in window ? (window as Window & { requestIdleCallback(cb: () => void, o?: { timeout: number }): void }).requestIdleCallback(() => r(), { timeout: 3000 }) : setTimeout(r, 400)));
@@ -39,8 +39,7 @@ async function warmShaders(): Promise<void> {
 /** Start once per page load; runs step by step in idle time. */
 export function warmUp(): void {
   if (started) return;
-  started = true;
-  void (async () => {
+  started = (async () => {
     try {
       await idle();
       await warmShaders();
@@ -55,3 +54,6 @@ export function warmUp(): void {
     }
   })();
 }
+
+/** Settles once the warm-up has finished (undefined if it never started): tests wait for it. */
+export const warmUpDone = (): Promise<void> | undefined => started;

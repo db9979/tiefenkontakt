@@ -25,8 +25,8 @@ export const EN_TUTORIAL: [string, string][] = [
     'Check the range by eye: “To periscope depth”, then “Raise mast” and “On target”. The periscope look measures the range. Do not leave the mast up too long!'],
   ['Mast einfahren. „Lösung übernehmen“ programmiert Schusskurs und Suchkopf-Distanz aus der Lösung. Dann „Feuer“.',
     'Lower the mast. “Use solution” programs the firing course and seeker distance from the solution. Then “Fire”.'],
-  ['Der Torpedo hängt am Draht: unter 12 kn bleiben. Korrigiere mit ◀ ▶, bis „ZIEL ERFASST“ erscheint, und warte auf den Treffer.',
-    'The torpedo is wire-guided: stay below 12 kn. Steer with ◀ ▶ until “TARGET ACQUIRED” appears, and wait for the hit.'],
+  ['Der Torpedo hängt am Draht: unter 12 kn bleiben. Korrigiere mit ◀ ▶, bis „ZIEL ERFASST“ erscheint, und warte auf den Treffer. Kein „ZIEL ERFASST“, obwohl der Torpedo längst beim Ziel sein müsste, oder ist er abgelaufen? Dann war die Entfernung zu groß geschätzt und der Suchkopf schaltete erst hinter dem Ziel ein. Noch ein Schuss, es sind Rohre geladen: „Auto-TMA“, „Lösung übernehmen“, „Suchkopf ein nach“ halbieren, „Feuer“.',
+    'The torpedo is wire-guided: stay below 12 kn. Steer with ◀ ▶ until “TARGET ACQUIRED” appears, and wait for the hit. No “TARGET ACQUIRED” although the torpedo should long have reached the target, or has it run out? Then the range was estimated too long and the seeker switched on behind the target. Fire again, tubes are loaded: “Auto-TMA”, “Use solution”, halve “Enable after”, “Fire”.'],
   ['Nach dem Schuss weiß der Gegner, wo du bist. Ablaufen: Mast einfahren, Fahrt „Halbe“, dann tiefer als 60 m und vom Ziel wegdrehen.',
     'After the shot the enemy knows where you are. Evade: lower the mast, speed “Half”, then deeper than 60 m and turn away from the target.'],
   // Result and world
