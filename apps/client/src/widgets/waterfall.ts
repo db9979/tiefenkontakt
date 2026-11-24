@@ -1,5 +1,6 @@
 import { angleDiff, iceCover, type Snapshot } from '@tk/shared';
 import { COL, deg3, fitCanvas } from './format.js';
+import { gameDeg, trueDeg } from '../north.js';
 
 const BINS = 360;
 const ROWS = 240;
@@ -11,7 +12,8 @@ interface Line {
 }
 
 /**
- * Broadband waterfall: bearing (x) over time (y, newest on top).
+ * Broadband waterfall: true bearing (x) over time (y, newest on top). Columns are true degrees;
+ * contact bearings arrive in the game frame and are turned on the way in.
  * Built purely from the player's own contacts plus cosmetic noise.
  */
 export class Waterfall {
@@ -36,11 +38,11 @@ export class Waterfall {
       if (c.via !== 'own' || s.time - c.lastSeen > 2) continue;
       if (!c.sensors.some((x) => this.sensors.includes(x))) continue;
       const amp = Math.min(1, 0.25 + c.se / 18);
-      lines.push({ b: c.bearing, amp, width: 1 + 4 * Math.exp(-c.se / 6) });
-      if (c.bearingAlt !== undefined) lines.push({ b: c.bearingAlt, amp, width: 1 + 4 * Math.exp(-c.se / 6) });
+      lines.push({ b: trueDeg(c.bearing), amp, width: 1 + 4 * Math.exp(-c.se / 6) });
+      if (c.bearingAlt !== undefined) lines.push({ b: trueDeg(c.bearingAlt), amp, width: 1 + 4 * Math.exp(-c.se / 6) });
     }
     const row = this.bctx.createImageData(BINS, 1);
-    const stern = s.own.heading + 180;
+    const stern = trueDeg(s.own.heading + 180);
     const selfNoise = Math.min(0.35, Math.max(0, (s.own.noiseDb - 110) / 120));
     const ice = iceCover(s.env.met, s.own);
     for (let x = 0; x < BINS; x++) {
@@ -89,16 +91,16 @@ export class Waterfall {
     ctx.fillText('−2 MIN', pl - 4, pt + ph / 2);
     ctx.fillText('−4', pl - 4, pt + ph);
     if (!s) return;
-    const stern = (s.own.heading + 180) % 360;
+    const stern = trueDeg(s.own.heading + 180);
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'center';
     ctx.fillText('TOTER WINKEL', pl + (stern / 360) * pw, pt + ph + 13);
-    const hx = pl + (s.own.heading / 360) * pw;
+    const hx = pl + (trueDeg(s.own.heading) / 360) * pw;
     ctx.fillStyle = COL.blue;
     ctx.fillText('▼', hx, pt + 9);
     const shown = s.contacts
       .filter((c) => c.via === 'own' && s.time - c.lastSeen <= 5 && c.sensors.some((x) => this.sensors.includes(x)))
-      .sort((a, b) => a.bearing - b.bearing);
+      .sort((a, b) => trueDeg(a.bearing) - trueDeg(b.bearing));
     if (!shown.length) {
       // Empty state: say what to do instead of a black screen
       ctx.fillStyle = COL.dim;
@@ -113,7 +115,7 @@ export class Waterfall {
     const ordered = [...shown].sort((a, b) => (b.label === selected ? 1 : 0) - (a.label === selected ? 1 : 0));
     const placed: { c: typeof shown[number]; x: number; row: number }[] = [];
     for (const c of ordered) {
-      const x = pl + (c.bearing / 360) * pw;
+      const x = pl + (trueDeg(c.bearing) / 360) * pw;
       const row = rowEnd.findIndex((end) => Math.abs(x - end) > 26);
       if (row < 0) {
         const near = overflow.find((o) => Math.abs(o.x - x) < 30);
@@ -142,10 +144,10 @@ export class Waterfall {
     }
   }
 
-  /** Bearing under a canvas x coordinate (for click-to-select). */
+  /** Bearing under a canvas x coordinate (for click-to-select), in the game frame like contact bearings. */
   bearingAt(canvas: HTMLCanvasElement, clientX: number): number {
     const r = canvas.getBoundingClientRect();
     const pw = r.width - 36 - 8;
-    return (((clientX - r.left - 36) / pw) * 360 + 360) % 360;
+    return gameDeg((((clientX - r.left - 36) / pw) * 360 + 360) % 360);
   }
 }

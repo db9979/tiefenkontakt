@@ -1,6 +1,7 @@
+import { gameDeg } from '../north.js';
 import { CLASSES, headingVec, type ClassId, type ServerMsg, type TruthView } from '@tk/shared';
 import { net } from '../net.js';
-import { CLASS_LABEL, deg3, esc, h } from './format.js';
+import { CLASS_LABEL, esc, h, tdeg3 } from './format.js';
 import { Plot } from './plot.js';
 
 /**
@@ -104,11 +105,11 @@ export function mountSandbox(parent: HTMLElement): { dispose(): void } {
     net.send({ t: 'sandbox', op: 'truth', on: truth.on });
   };
   q('#sb-spawn').onclick = () => net.send({
-    t: 'sandbox', op: 'spawn', cls: q<HTMLSelectElement>('#sb-cls').value as ClassId, bearing: num('#sb-brg') % 360, range: num('#sb-rng') * 1000,
-    heading: num('#sb-crs') % 360, speedKn: num('#sb-kn'), depth: num('#sb-dep'),
+    t: 'sandbox', op: 'spawn', cls: q<HTMLSelectElement>('#sb-cls').value as ClassId, bearing: gameDeg(num('#sb-brg')), range: num('#sb-rng') * 1000,
+    heading: gameDeg(num('#sb-crs')), speedKn: num('#sb-kn'), depth: num('#sb-dep'),
   });
   const unit = () => q<HTMLSelectElement>('#sb-unit').value;
-  q('#sb-steer').onclick = () => unit() && net.send({ t: 'sandbox', op: 'steer', id: unit(), heading: num('#sb-ucrs') % 360, speedKn: num('#sb-ukn'), depth: num('#sb-udep') });
+  q('#sb-steer').onclick = () => unit() && net.send({ t: 'sandbox', op: 'steer', id: unit(), heading: gameDeg(num('#sb-ucrs')), speedKn: num('#sb-ukn'), depth: num('#sb-udep') });
   q('#sb-del').onclick = () => unit() && net.send({ t: 'sandbox', op: 'remove', id: unit() });
 
   let units = '';
@@ -126,7 +127,7 @@ export function mountSandbox(parent: HTMLElement): { dispose(): void } {
     if (key !== units && document.activeElement !== sel) {
       units = key;
       const cur = sel.value;
-      sel.innerHTML = list.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} · ${esc(CLASS_LABEL[s.cls])} · ${deg3(s.heading)}° ${Math.round(s.speedKn)} KN</option>`).join('');
+      sel.innerHTML = list.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} · ${esc(CLASS_LABEL[s.cls])} · ${tdeg3(s.heading)}° ${Math.round(s.speedKn)} KN</option>`).join('');
       if (list.some((s) => s.id === cur)) sel.value = cur;
     }
   });

@@ -2,7 +2,7 @@ import type { OrderView, Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { net } from '../net.js';
-import { esc, h, setHtml } from './format.js';
+import { esc, h, setHtml, tdeg3 } from './format.js';
 import { onTap } from './touch.js';
 
 /**
@@ -65,7 +65,7 @@ export function ordersPanel(openTab: () => void): { el: HTMLElement; key: string
       const [st, cls] = STATUS[o.status];
       const late = o.readAt - o.issuedAt > 120 ? `<span class="amber"> · ${mmss(o.readAt - o.issuedAt)} SPÄT GELESEN</span>` : '';
       const due = o.status === 'active' ? `<span class="${left < 300 ? 'red blink' : left < 900 ? 'amber' : ''}">NOCH ${mmss(left)}</span>` : `<span class="${cls}">${st}</span>`;
-      const exec = o.canExecute ? `<div class="steps"><button data-exec="${esc(o.id)}" class="on" title="Kursänderung an den Kommodore weitergeben: der Konvoi dreht für zehn Minuten auf den befohlenen Kurs">An Kommodore: Kurs ${String(o.heading ?? 0).padStart(3, '0')}</button></div>` : '';
+      const exec = o.canExecute ? `<div class="steps"><button data-exec="${esc(o.id)}" class="on" title="Kursänderung an den Kommodore weitergeben: der Konvoi dreht für zehn Minuten auf den befohlenen Kurs">An Kommodore: Kurs ${tdeg3(o.heading ?? 0)}</button></div>` : '';
       return `<div class="order-row ${o.status}"><div><b class="amber">FLASH</b> ${esc(o.text)}</div><div class="dim">${due}${late}</div>${exec}</div>`;
     });
     setHtml(el.querySelector('#op-list')!, rows.length ? rows.join('') : '<div class="dim">KEINE BEFEHLE · FÜHRUNG SCHWEIGT</div>');

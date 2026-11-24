@@ -1,6 +1,6 @@
 import { angleDiff, wrap360, type AlertView, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
-import { deg3, h, setHtml, setText } from './format.js';
+import { h, setHtml, setText, tdeg3 } from './format.js';
 import { onTap } from './touch.js';
 
 /**
@@ -25,12 +25,12 @@ function plan(s: Snapshot, torp?: AlertView, ping?: AlertView): Plan | undefined
     const a = wrap360(torp.bearing + 150);
     const b = wrap360(torp.bearing - 150);
     const heading = Math.abs(angleDiff(o.heading, a)) < Math.abs(angleDiff(o.heading, b)) ? a : b;
-    return { text: `TORPEDO ${deg3(torp.bearing)}: KURS ${deg3(heading)}, AK, TIEFE ${cross} M, TÄUSCHKÖRPER`, heading, speedKn: 99, depth: cross, decoy: true };
+    return { text: `TORPEDO ${tdeg3(torp.bearing)}: KURS ${tdeg3(heading)}, AK, TIEFE ${cross} M, TÄUSCHKÖRPER`, heading, speedKn: 99, depth: cross, decoy: true };
   }
   if (ping?.bearing !== undefined) {
     // Stern to the pinger (smallest echo), creep, hide across the layer
     const heading = wrap360(ping.bearing + 180);
-    return { text: `HECK ZUM PINGER: KURS ${deg3(heading)}, SCHLEICHFAHRT 4 KN, TIEFE ${cross} M`, heading, speedKn: 4, depth: cross, decoy: false };
+    return { text: `HECK ZUM PINGER: KURS ${tdeg3(heading)}, SCHLEICHFAHRT 4 KN, TIEFE ${cross} M`, heading, speedKn: 4, depth: cross, decoy: false };
   }
   return undefined;
 }
@@ -40,7 +40,7 @@ function airRow(s: Snapshot): string {
   const air = (s.planes ?? []).filter((p) => p.side !== 'friend' && (p.via.includes('esm') || p.via.includes('visual')));
   if (!air.length) return '<div class="row"><span class="dim">LUFT</span><span class="dim">—</span></div>';
   const radar = air.filter((p) => p.via.includes('esm'));
-  return `<div class="row"><span class="dim">LUFT</span><span class="${radar.length ? 'red' : 'amber'}">${radar.length ? `FLUGZEUGRADAR ${radar.map((p) => `${deg3(p.bearing)}°`).join(' · ')} · MAST EINFAHREN` : `${air.length} IN SICHT`}</span></div>`;
+  return `<div class="row"><span class="dim">LUFT</span><span class="${radar.length ? 'red' : 'amber'}">${radar.length ? `FLUGZEUGRADAR ${radar.map((p) => `${tdeg3(p.bearing)}°`).join(' · ')} · MAST EINFAHREN` : `${air.length} IN SICHT`}</span></div>`;
 }
 
 export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
@@ -72,10 +72,10 @@ export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       q('#th-sum').className = torp ? 'red blink' : pings.length ? 'amber' : 'dim';
       setHtml(q('#th-rows'), [
         `<div class="row"><span class="dim">BORDSONAR · TAUCHSONAR · BOJE</span><span>${hull.length} · ${dip.length} · ${buoy.length}</span></div>`,
-        loud ? `<div class="row"><span class="dim">LAUTESTER</span><span class="${(loud.level ?? 0) >= ECHO_LIKELY ? 'red' : ''}">${deg3(loud.bearing ?? 0)}° · ${loud.level ?? 0} DB${(loud.level ?? 0) >= ECHO_LIKELY ? ' · ER HAT VERMUTLICH EIN ECHO' : ''}</span></div>` : '',
+        loud ? `<div class="row"><span class="dim">LAUTESTER</span><span class="${(loud.level ?? 0) >= ECHO_LIKELY ? 'red' : ''}">${tdeg3(loud.bearing ?? 0)}° · ${loud.level ?? 0} DB${(loud.level ?? 0) >= ECHO_LIKELY ? ' · ER HAT VERMUTLICH EIN ECHO' : ''}</span></div>` : '',
         last2.length === 2 ? `<div class="row"><span class="dim">TREND</span><span class="${trend > 1 ? 'red' : ''}">${trend > 1 ? 'STEIGEND · ER KOMMT NÄHER' : trend < -1 ? 'FALLEND' : 'GLEICH'}</span></div>` : '',
         airRow(s),
-        `<div class="row"><span class="dim">BOJENEINSCHLÄGE (4 SM)</span><span class="${splashes.length ? 'amber' : ''}">${splashes.length}${splashes.length ? ` · ZULETZT ${deg3(splashes[splashes.length - 1]!.bearing ?? 0)}°` : ''}</span></div>`,
+        `<div class="row"><span class="dim">BOJENEINSCHLÄGE (4 SM)</span><span class="${splashes.length ? 'amber' : ''}">${splashes.length}${splashes.length ? ` · ZULETZT ${tdeg3(splashes[splashes.length - 1]!.bearing ?? 0)}°` : ''}</span></div>`,
       ].join(''));
       current = plan(s, torp, pings[pings.length - 1]);
       setText(q('#th-plan'), current ? `VORSCHLAG: ${current.text}` : '');

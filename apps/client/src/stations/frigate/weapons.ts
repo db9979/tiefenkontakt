@@ -3,7 +3,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { deg1, h, km, setHtml } from '../../widgets/format.js';
+import { h, km, setHtml, tdeg1 } from '../../widgets/format.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
 import { airDefPanel, samAction } from '../../widgets/airdef-panel.js';
@@ -90,7 +90,7 @@ export function weaponsStation(): Station {
       q('#src').textContent = a ? a.source : c ? 'NUR PEILUNG' : '';
       setHtml(q('#target'), c
         ? `<div class="row"><span class="dim">KONTAKT</span><span class="amber">${c.label}</span></div>
-           <div class="row"><span class="dim">PEILUNG</span><span>${deg1(a?.bearing ?? c.bearing)}°</span></div>
+           <div class="row"><span class="dim">PEILUNG</span><span>${tdeg1(a?.bearing ?? c.bearing)}°</span></div>
            <div class="row"><span class="dim">ENTFERNUNG</span><span>${a ? km(a.range) : 'UNBEKANNT · PINGEN ODER TMA'}</span></div>`
         : '<div class="dim">KONTAKT IN DER LISTE WÄHLEN</div>');
       const fk = s.ssm?.left !== undefined ? s.ssm : undefined;

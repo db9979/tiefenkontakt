@@ -2,7 +2,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { h, setHtml } from '../../widgets/format.js';
+import { h, setHtml, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 
@@ -43,7 +43,7 @@ export function opsCenterStation(): Station {
         <div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>
         <div class="row"><span class="dim">DATALINK-TEILNEHMER</span><span>${escorts.length}</span></div>
         <div class="row"><span class="dim">WASSERTIEFE</span><span class="${(s.env.bottom ?? 999) < 30 ? 'red' : ''}">${s.env.bottom !== undefined ? s.env.bottom + ' M' : '—'}</span></div>
-        ${s.env.current ? `<div class="row"><span class="dim">STROM</span><span>${s.env.current.kn >= 0.1 ? `${String(s.env.current.set).padStart(3, '0')}° · ${s.env.current.kn.toFixed(1).replace('.', ',')} KN` : '—'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'}, KENTERT IN ${Math.round(s.env.tide.turnsInS / 60)} MIN` : ''}</span></div>` : ''}
+        ${s.env.current ? `<div class="row"><span class="dim">STROM</span><span>${s.env.current.kn >= 0.1 ? `${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1).replace('.', ',')} KN` : '—'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'}, KENTERT IN ${Math.round(s.env.tide.turnsInS / 60)} MIN` : ''}</span></div>` : ''}
         <div class="row"><span class="dim">TAGESZEIT</span><span>${(s.env.light ?? 1) > 0.8 ? 'TAG' : (s.env.light ?? 1) > 0.3 ? 'DÄMMERUNG' : 'NACHT · SICHT STARK EINGESCHRÄNKT'}</span></div>
         <div class="row"><span class="dim">HUBSCHRAUBER</span><span>${!s.air ? '—' : s.air.heloReadyInS > 0 ? `<span class="amber">UNTERWEGS · BEREIT IN ${Math.ceil(s.air.heloReadyInS / 60)} MIN</span>` : 'AN DECK · BEREIT'}</span></div>
         <div class="row"><span class="dim">SONARBOJEN</span><span>${s.air ? `${s.air.stock} AN BORD · ${s.air.buoys.length} IM WASSER` : '—'}</span></div>

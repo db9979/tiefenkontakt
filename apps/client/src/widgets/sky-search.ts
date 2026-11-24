@@ -1,6 +1,6 @@
 import { angleDiff } from '@tk/shared';
 import type { PeriscopeTarget } from './periscope3d.js';
-import { deg3, km } from './format.js';
+import { km, tdeg3 } from './format.js';
 
 /**
  * Sky search with the periscope: the head prism elevates so the operator can look for
@@ -104,7 +104,7 @@ export class SkySearch {
       .sort((a, b) => a.range - b.range)[0];
     if (spotted) {
       const n = planes.filter((p) => p.plane && simTime - (this.seen.get(p.label) ?? -1e9) < HOLD_S).length;
-      return { text: `FLUGZEUG! · ${deg3(spotted.bearing)}° · ${km(Math.hypot(spotted.range, spotted.alt ?? 0))}${n > 1 ? ` · ${n} IN SICHT` : ''}`, tone: 'alarm' };
+      return { text: `FLUGZEUG! · ${tdeg3(spotted.bearing)}° · ${km(Math.hypot(spotted.range, spotted.alt ?? 0))}${n > 1 ? ` · ${n} IN SICHT` : ''}`, tone: 'alarm' };
     }
     if (this.sweep) return { text: 'HIMMEL ABSUCHEN …', tone: 'dim' };
     if (this.clearAt !== undefined && simTime - this.clearAt < CLEAR_S) return { text: 'LUFT FREI', tone: 'clear' };

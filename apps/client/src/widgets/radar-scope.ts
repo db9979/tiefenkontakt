@@ -1,6 +1,7 @@
 import { inkOn } from './ink.js';
 import { depthAt, headingVec, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
+import { northOff, toNorthUp } from '../north.js';
 
 /**
  * Surface-search radar PPI as a phosphor tube: returns are written into a persistence
@@ -12,7 +13,10 @@ const S = 560; // persistence layer size (px)
 const C = S / 2;
 const R = 262;
 const TAU = Math.PI * 2;
-const toRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
+/** True bearing → canvas angle (north up). */
+const trueRad = (deg: number) => ((deg - 90) * Math.PI) / 180;
+/** Game-frame bearing → canvas angle: the scope is drawn north-up. */
+const toRad = (game: number) => trueRad(game + northOff());
 
 /** Ranges [near, far] where a beam from p along unit v runs through a circle, within maxR; undefined if it misses. */
 function through(p: { x: number; y: number }, v: { x: number; y: number }, c: { x: number; y: number }, r: number, maxR: number): [number, number] | undefined {
@@ -193,7 +197,7 @@ export class RadarScope {
       if (i < 4) ctx.fillText(`${(rangeNm * i) / 4}`, cx + 3, cy - (rr * i) / 4 + 11);
     }
     ctx.beginPath(); ctx.moveTo(cx - rr, cy); ctx.lineTo(cx + rr, cy); ctx.moveTo(cx, cy - rr); ctx.lineTo(cx, cy + rr); ctx.stroke();
-    // Bezel: bearing ring with 5° ticks, numerals every 30°
+    // Bezel: true bearing ring with 5° ticks, numerals every 30°
     ctx.strokeStyle = 'rgba(93,202,165,0.75)';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy, rr + 1, 0, TAU); ctx.stroke();
@@ -201,7 +205,7 @@ export class RadarScope {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (let d = 0; d < 360; d += 5) {
-      const a = toRad(d);
+      const a = trueRad(d);
       const len = d % 30 === 0 ? 10 : d % 10 === 0 ? 6 : 3;
       ctx.beginPath();
       ctx.moveTo(cx + Math.cos(a) * (rr + 2), cy + Math.sin(a) * (rr + 2));
@@ -229,8 +233,9 @@ export class RadarScope {
       // Air: radar tracks inside the scale, ESM strobes of aircraft radars
       const scale = rr / (rangeNm * 1852);
       drawAir(ctx, s, (x, y) => {
-        const dx = (x - s.own.x) * scale;
-        const dy = (y - s.own.y) * scale;
+        const n = toNorthUp(x - s.own.x, y - s.own.y);
+        const dx = n.x * scale;
+        const dy = n.y * scale;
         return Math.hypot(dx, dy) < rr ? { x: cx + dx, y: cy - dy } : undefined;
       }, { x: cx, y: cy }, rr, (p) => (on && p.via.includes('radar')) || p.via.includes('esm'));
       // Selected radar contact: amber brackets
