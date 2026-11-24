@@ -3,7 +3,7 @@
  * ETOPO 2022 15-arc-second grid (public domain, via the CoastWatch ERDDAP server) and store
  * them as gzipped grids in packages/shared/data/bathy/<id>.bin.gz.
  * Usage: npx tsx scripts/fetch-bathymetry.ts [--wide] [regionId …]   (no ids: every missing region)
- * --wide: the coarse overview window (±330 km, 4 arc minutes) as <id>.wide.bin.gz
+ * --wide: the coarse overview window (±260 km, 2 arc minutes) as <id>.wide.bin.gz
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -23,7 +23,7 @@ for (const id of ids) {
   const file = resolve(OUT, `${id}${wideMode ? '.wide' : ''}.bin.gz`);
   if (!args.length && existsSync(file)) continue;
   const b = regionBox(r, wideMode);
-  const stride = wideMode ? 16 : r.stride;
+  const stride = wideMode ? 8 : r.stride;
   const q = `z%5B(${b.lat0.toFixed(4)}):${stride}:(${b.lat1.toFixed(4)})%5D%5B(${b.lon0.toFixed(4)}):${stride}:(${b.lon1.toFixed(4)})%5D`;
   const url = `https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.json?${q}`;
   // The ERDDAP server is busy now and then: try a few times

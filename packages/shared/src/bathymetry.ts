@@ -11,7 +11,7 @@ import { REGIONS, regionToGeo, type RegionId } from './regions.js';
 interface Grid { lat0: number; lon0: number; dLat: number; dLon: number; nLat: number; nLon: number; z: Int16Array }
 
 const grids = new Map<RegionId, Grid>();
-/** Coarse overview grids (about 7 km) for the chart zoomed far out. */
+/** Coarse overview grids (about 3.7 km) for the chart zoomed far out. */
 const wide = new Map<RegionId, Grid>();
 
 export function parseGrid(buf: ArrayBuffer): Grid {
@@ -46,10 +46,15 @@ function sample(g: Grid, lat: number, lon: number): { z: number; edge: number } 
   const fj = (lon - g.lon0) / g.dLon;
   if (fi < 0 || fj < 0 || fi > g.nLat - 1 || fj > g.nLon - 1) return undefined;
   const i = Math.min(g.nLat - 2, Math.floor(fi)), j = Math.min(g.nLon - 2, Math.floor(fj)), a = fi - i, b = fj - j;
-  const at = (ii: number, jj: number) => g.z[ii * g.nLon + jj]!;
-  const z = at(i, j) * (1 - a) * (1 - b) + at(i + 1, j) * a * (1 - b) + at(i, j + 1) * (1 - a) * b + at(i + 1, j + 1) * a * b;
+  const at = (ii: number, jj: number) => g.z[Math.max(0, Math.min(g.nLat - 1, ii)) * g.nLon + Math.max(0, Math.min(g.nLon - 1, jj))]!;
+  // Catmull-Rom in both directions: smooth slopes, so the relief shading shows no grid cells
+  const cr = (p0: number, p1: number, p2: number, p3: number, t: number) =>
+    p1 + 0.5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
+  const row = (ii: number) => cr(at(ii, j - 1), at(ii, j), at(ii, j + 1), at(ii, j + 2), b);
+  const z = cr(row(i - 1), row(i), row(i + 1), row(i + 2), a);
   const m = Math.min(fi, fj, g.nLat - 1 - fi, g.nLon - 1 - fj);
-  return { z, edge: Math.min(1, m / 4) };
+  // Fade over the outer sixth of the grid, so its coast meets the coarser overview without a seam
+  return { z, edge: Math.min(1, m / Math.max(4, Math.min(g.nLat, g.nLon) / 6)) };
 }
 
 /**

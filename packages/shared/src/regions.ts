@@ -73,7 +73,7 @@ export function regionToGeo(r: Region, x: number, y: number): { lat: number; lon
 }
 
 /** Half size of the coarse overview window around every region (km): the chart zoomed far out. */
-export const WIDE_HALF_KM = 330;
+export const WIDE_HALF_KM = 260;
 
 /**
  * Bounding box (degrees) of the window the region needs: x ±half, y from −half/2 to 1.5·half;

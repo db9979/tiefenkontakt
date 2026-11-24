@@ -36,8 +36,8 @@ const linesMode = (): LinesMode => {
 const FAN_WINDOW_S = 600;
 const FAN_MAX = 10;
 
-/** Widest zoom (m per pixel): the real charts reach about 330 km around the route. */
-const MAX_SCALE = 300;
+/** Widest zoom (m per pixel): the real charts reach about 260 km around the route. */
+const MAX_SCALE = 260;
 
 /**
  * North-up tactical plot centered on own ship. Mouse: wheel/buttons zoom, drag pans,
