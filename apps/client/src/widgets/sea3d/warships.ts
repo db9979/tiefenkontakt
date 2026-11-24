@@ -325,6 +325,8 @@ export function vdsFrigate(g: THREE.Group, east = false): void {
       profileSolid(g, [[-2.2, 0], [2, 0], [2, 0.8], [1.2, 1.8], [-1.8, 1.9], [-2.2, 1.4]], 3.6, N).position.set(0, yf, z);
       for (const sx of [-1, 1]) cyl(g, 0.12, 4.2, sx * 0.55, yf + 1.2, z + 3.6, D).rotation.x = Math.PI / 2;
     }
+    // Two angled quadruple anti-ship missile boxes abreast the after house, raised toward the bow
+    for (const sx of [-1, 1]) box(g, 2.2, 1.6, 6.5, sx * 3.1, r1 + 0.9, -9.5, D).rotation.x = -0.18;
   } else {
     box(g, 0.3, 0.03, 16, 0, yf + 0.05, -37.75, MARK);
     const ring = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.4, 32), MARK);

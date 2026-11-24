@@ -23,7 +23,14 @@ export function airdefAlerts(w: World, fresh: GameEvent[], ctx: AlertContext): v
   const boats = (team: string) => (own: Ship) => own.team !== team && CLASSES[own.cls].submarine && hearsCommand(own);
   const lost = (e: { time: number }) => () => ({ time: e.time, kind: 'command' as const, text: 'FÜHRUNG · VERBINDUNG ZUM AUFKLÄRER ABGERISSEN · VERMUTLICH ABGESCHOSSEN' });
   for (const e of fresh) {
-    if (e.kind === 'airdef') {
+    if (e.kind === 'weapon' && e.what === 'ssm') {
+      const shooter = w.ships.find((s) => s.id === e.sourceId);
+      if (!shooter) continue;
+      each((own) => own.id === shooter.id, () => ({ time: e.time, kind: 'boat', text: 'SEEZIELFLUGKÖRPER AB · STARTER LÄDT NACH' }));
+      // Escorts see the launch flash on radar (or by eye close in): the raid warning
+      each((own) => own.team !== shooter.team && own.team !== 'neutral' && !CLASSES[own.cls].submarine && distance(own.pos, shooter.pos) < (own.radarOn ? 30_000 : 9000),
+        (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, shooter.pos), text: `FLUGKÖRPERWARNUNG · SEEZIELFLUGKÖRPER STARTET PEILUNG ${b3(bearing(own.pos, shooter.pos))}${own.radarOn ? '' : ' · RADAR AN FÜR ABWEHR'}` }));
+    } else if (e.kind === 'airdef') {
       const shooter = e.shipId ? w.ships.find((s) => s.id === e.shipId) : undefined;
       if (e.what === 'launch' && shooter) {
         each((own) => own.id === shooter.id, (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, e), text: `FLUGABWEHR · FLUGKÖRPER ABGEFEUERT · ZIEL PEILUNG ${b3(bearing(own.pos, e))}` }));

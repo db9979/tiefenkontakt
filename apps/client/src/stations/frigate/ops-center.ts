@@ -4,7 +4,7 @@ import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { h, setHtml } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
-import { buoyAction, courseAction, mpaAction, rocketAction } from '../../widgets/actions.js';
+import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 
 /** Detour steps (m, − = port of the convoy's leg) and their button labels. */
 const DETOURS: [number, string][] = [[-3000, '◀ 3 km'], [-1500, '◀ 1,5 km'], [0, 'Route'], [1500, '1,5 km ▶'], [3000, '3 km ▶']];
@@ -23,7 +23,7 @@ export function opsCenterStation(): Station {
     </div>
   </div>`);
   const plot = new Plot(el.querySelector<HTMLCanvasElement>('#plot')!, {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...courseAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p)],
   });
   plot.scale = 80;
   el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => net.send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));

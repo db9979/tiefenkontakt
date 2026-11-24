@@ -27,6 +27,7 @@ import {
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
+import { thinkStrike } from './strike.js';
 import { commitHelo, directorCourse, heloCovered, type EscortTask } from './escort-team.js';
 import { wantMineAvoid } from './mine-cm.js';
 
@@ -109,6 +110,8 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   s.activeSonar = role === 'attacker' ? false : role === 'director' || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? 0.5 : 1);
   // Learned: boats that like periscope depth get radar sweeps a third of the time
   if (learned?.pd) s.radarOn = now % 600 < 200;
+  // Raid warning (launch flash, ESM on the seeker): radar on for the air defence while rounds fly
+  if (w.env.ssm?.missiles.some((x) => !x.done && x.team !== s.team && distance(x.pos, s.pos) < 30_000)) s.radarOn = true;
 
   if (prosecuting) {
     m.alertUntil = Math.max(m.alertUntil, now + 300 * tr.hunt);
@@ -194,6 +197,11 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     s.order.speedKn = 8;
   }
 
+  // Missile-armed patrol ship: the strike on the convoy overrides the sweep (stand-off and fire)
+  if (!merchants.length && s.team === 'east') {
+    const foe = w.ships.filter((x) => x.alive && isConvoyShip(x));
+    thinkStrike(w, s, tracks, foe.length ? { x: foe.reduce((a, x) => a + x.pos.x, 0) / foe.length, y: foe.reduce((a, x) => a + x.pos.y, 0) / foe.length } : undefined);
+  }
   // Mine-avoidance sonar wherever mines can lie, unless sprinting (it only hears up to 15 kn)
   s.mineAvoid = wantMineAvoid(w, s);
   // Known mines close ahead: turn clear of them (the escort sets them off like any hull)

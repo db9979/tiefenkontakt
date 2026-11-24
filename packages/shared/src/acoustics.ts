@@ -36,6 +36,8 @@ export interface Environment {
   /** Escort air defence (missiles in flight, fighters) and naval mines. */
   airdef?: import('./airdef.js').AirDefState;
   mines?: import('./mines.js').MineState;
+  /** Anti-ship missiles in flight (antiship.ts). */
+  ssm?: import('./antiship.js').SsmState;
   /** Match seed (AI commanders' traits are drawn from it). */
   seed?: number;
   /** Mission id and its running state (shadowing time, exit line, weapons tight). */

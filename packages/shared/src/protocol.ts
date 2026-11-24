@@ -34,6 +34,7 @@ export type ClientMsg =
   | { t: 'fire'; heading: number; enableAfter: number; mode: SeekerMode; searchDepth: number; speedKn: number }
   | { t: 'steer'; torpId: string; heading: number }
   | { t: 'rocket'; bearing: number; range: number }
+  | { t: 'ssm'; bearing: number; range: number }
   | { t: 'dc'; depth: number }
   | { t: 'noisemaker' }
   | { t: 'radio'; text: string }
@@ -323,6 +324,7 @@ export interface Snapshot {
   planes?: import('./airspace.js').PlaneView[];
   /** Own air defence, interceptors and missiles in sight; mines on the plot. */
   airdef?: import('./airdef.js').AirDefView;
+  ssm?: /* own anti-ship missiles, rounds in sight */ ReturnType<typeof import('./antiship.js').ssmFor>;
   mines?: import('./mines.js').MineView[];
   time: number;
   /** Sim seconds per real second (for echo travel times and clocks). */

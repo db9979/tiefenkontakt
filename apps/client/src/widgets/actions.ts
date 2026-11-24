@@ -36,6 +36,17 @@ export function rocketAction(p: Vec2): MenuItem[] {
   }];
 }
 
+/** Anti-ship missile (patrol ship): a sea skimmer to this point, seeker opens 9 km short of it. */
+export function ssmAction(p: Vec2): MenuItem[] {
+  const s = store.snap;
+  const fk = s?.ssm;
+  if (!s || fk?.left === undefined || fk.left <= 0) return [];
+  const d = distance(s.own, p);
+  if (d < (fk.minRange ?? 0) || d > (fk.maxRange ?? 0)) return [{ label: `Seeziel-FK: ${km(fk.minRange ?? 0)}–${km(fk.maxRange ?? 0)}`, run: () => undefined }];
+  if (fk.readyInS) return [{ label: `Seeziel-FK: Starter lädt (${fk.readyInS} s)`, run: () => undefined }];
+  return [{ label: `Seeziel-FK hierher (${km(d)}, noch ${fk.left})`, danger: true, run: () => net.send({ t: 'ssm', bearing: bearing(s.own, p), range: d }) }];
+}
+
 export function buoyAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s?.air) return [];

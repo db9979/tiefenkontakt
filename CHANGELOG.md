@@ -6,6 +6,12 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Seezielflugkörper für das Wachschiff:** Projekt 11 trägt acht Sea-Skimmer (6–40 km, zwei Vierfachstarter).
+  Der Suchkopf öffnet 9 km vor dem Zielpunkt und nimmt das größte Echo im Kegel, auch Neutrale. Eskorten wehren
+  automatisch ab: Flugabwehrraketen bei Radar an (ein Starter, eine Salve überlastet ihn), aus der Nähe die Geschütze.
+  Flugkörperwarnung für die Eskorten, Symbole auf der Karte, Pult im Waffenleitstand und Rechtsklick-Befehl. Die KI
+  hält 14–30 km Abstand zum Konvoi und schießt zwei Salven zu vier. Damit verliert der Ostpakt mit Wachschiff keinen
+  Angreifer mehr.
 - **Gemischte Teams:** je Seite ein gemischter Platz. Westbund: Jagd-U-Boot S-14 in direkter Unterstützung des
   Konvois (jagt die Wölfe). Ostpakt: Wachschiff Projekt 11 mit Tiefensonar und Raketen (bindet die Eskorte, jagt deren
   Boot). Eigene Signaturen, Modelle, Erkennungsbuch und Handbuchkarten. Mitwanderndes Sperrgebiet (4 km) um eigene

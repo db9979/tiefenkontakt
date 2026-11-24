@@ -55,6 +55,37 @@ export function drawMissiles(ctx: CanvasRenderingContext2D, s: Snapshot, toScree
   ctx.restore();
 }
 
+/** Anti-ship missiles: red darts for incoming rounds, amber for own side; burst on a hit, ring when shot down. */
+export function drawSsm(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: ToScreen): void {
+  const list = s.ssm?.missiles ?? [];
+  if (!list.length) return;
+  ctx.save();
+  ctx.font = '10px ui-monospace, monospace';
+  for (const m of list) {
+    const p = toScreen(m.x, m.y);
+    if (!p) continue;
+    const col = m.done ? '#9aa4a8' : m.team ? '#f4d08a' : '#ff5a4a';
+    ctx.strokeStyle = col;
+    ctx.fillStyle = col;
+    if (m.done) {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 7); ctx.stroke();
+      ctx.fillText(m.done === 'hit' ? 'TREFFER' : m.done === 'shot' ? 'ABGEWEHRT' : 'FEHL', p.x + 7, p.y + 4);
+      continue;
+    }
+    const h = ((m.heading - 90) * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.moveTo(p.x - Math.cos(h) * 14, p.y - Math.sin(h) * 14); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x + Math.cos(h) * 7, p.y + Math.sin(h) * 7);
+    ctx.lineTo(p.x + Math.cos(h + 2.5) * 4, p.y + Math.sin(h + 2.5) * 4);
+    ctx.lineTo(p.x + Math.cos(h - 2.5) * 4, p.y + Math.sin(h - 2.5) * 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillText(`SSM ${m.id}`, p.x + 8, p.y - 5);
+  }
+  ctx.restore();
+}
+
 export function drawMines(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: ToScreen): void {
   const list = s.mines ?? [];
   if (!list.length) return;

@@ -7,7 +7,7 @@ import { deg1, h, km, setHtml } from '../../widgets/format.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
 import { airDefPanel, samAction } from '../../widgets/airdef-panel.js';
-import { buoyAction, courseAction, mpaAction, rocketAction } from '../../widgets/actions.js';
+import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
 function aim(): { bearing: number; range: number; source: string } | undefined {
@@ -42,6 +42,10 @@ export function weaponsStation(): Station {
       <div class="panel"><div class="hd"><span>Torpedoabwehr</span></div>
         <button id="decoy" class="warn">Täuschkörper-Schleppe</button>
       </div>
+      <div id="ssmp" class="panel" style="display:none"><div class="hd"><span>Seezielflugkörper</span><span id="ssmn"></span></div>
+        <div class="dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div>
+        <div style="display:flex;gap:4px;margin-top:6px"><button id="ssm" class="fire" style="flex:1">FK auf Ziel</button></div>
+      </div>
       <div id="airdef"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
@@ -54,6 +58,10 @@ export function weaponsStation(): Station {
     const a = aim();
     if (a) net.send({ t: 'rocket', bearing: a.bearing, range: Math.min(20_000, Math.max(1000, a.range)) });
   };
+  q<HTMLButtonElement>('#ssm').onclick = () => {
+    const a = aim();
+    if (a) net.send({ t: 'ssm', bearing: a.bearing, range: Math.min(60_000, Math.max(1000, a.range)) });
+  };
   q<HTMLButtonElement>('#tube').onclick = () => {
     const a = aim();
     const c = store.selectedContact();
@@ -65,7 +73,7 @@ export function weaponsStation(): Station {
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
   q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
   const plot: Plot = new Plot(q<HTMLCanvasElement>('#plot'), {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...samAction(p, plot.scale * 14), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...samAction(p, plot.scale * 14), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
   });
   const ad = airDefPanel();
   q('#airdef').replaceWith(ad.el);
@@ -85,6 +93,9 @@ export function weaponsStation(): Station {
            <div class="row"><span class="dim">PEILUNG</span><span>${deg1(a?.bearing ?? c.bearing)}°</span></div>
            <div class="row"><span class="dim">ENTFERNUNG</span><span>${a ? km(a.range) : 'UNBEKANNT · PINGEN ODER TMA'}</span></div>`
         : '<div class="dim">KONTAKT IN DER LISTE WÄHLEN</div>');
+      const fk = s.ssm?.left !== undefined ? s.ssm : undefined;
+      q('#ssmp').style.display = fk ? '' : 'none';
+      if (fk) q('#ssmn').textContent = `${fk.left} AN BORD${fk.readyInS ? ` · LÄDT ${fk.readyInS} S` : ''}`;
       q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
       q('#tb').textContent = l.tubes.map((t, i) => `R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}`).join(' ') + ` · VORRAT ${l.light}`;
       q('#dcn').textContent = `${l.depthCharges} VERFÜGBAR`;

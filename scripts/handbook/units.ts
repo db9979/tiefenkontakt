@@ -30,8 +30,8 @@ const CARDS: Card[] = [
   },
   {
     cls: 'ffk', side: 'Ostpakt', role: 'Wachschiff im Rudel (gemischter Platz)',
-    text: 'Schnelles U-Jagd-Schiff mit Tiefensonar und Raketen, ohne Hubschrauber, laut (Gasturbinen). Es läuft dem Rudel voraus, bindet die Eskorte und jagt deren U-Boot. Den Konvoi versenken kann es nicht. Höchstens eines pro Team; um die eigenen Boote gilt das Sperrgebiet.',
-    tips: ['Laut und auffällig sein lohnt sich: Jede Eskorte, die dich jagt, fehlt am Konvoi.', 'Das Tiefensonar unter die Schicht senken und das Jagd-U-Boot des Westbunds suchen.', 'Die eigenen Boote sind still und meist unbekannt: Erst schießen, wenn der Kontakt sicher feindlich ist.'],
+    text: 'Schnelles U-Jagd-Schiff mit Tiefensonar und Raketen, ohne Hubschrauber, laut (Gasturbinen). Es läuft dem Rudel voraus, bindet die Eskorte und jagt deren U-Boot. Dazu trägt es acht Seezielflugkörper (6–40 km): Sie fliegen dicht über dem Wasser, der Suchkopf öffnet 9 km vor dem Zielpunkt und nimmt das größte Echo im Kegel, auch ein neutrales Schiff. Eskorten mit Radar wehren mit Flugabwehrraketen ab, aus der Nähe mit den Geschützen. Höchstens eines pro Team; um die eigenen Boote gilt das Sperrgebiet.',
+    tips: ['Laut und auffällig sein lohnt sich: Jede Eskorte, die dich jagt, fehlt am Konvoi.', 'Das Tiefensonar unter die Schicht senken und das Jagd-U-Boot des Westbunds suchen.', 'Die eigenen Boote sind still und meist unbekannt: Erst schießen, wenn der Kontakt sicher feindlich ist.', 'Flugkörper kurz mit Radar zielen und dann abschalten: Der Start und das Radar verraten das Schiff. Mehrere Runden kurz nacheinander überlasten die Abwehr.'],
   },
   {
     cls: 'ssn', side: 'Ostpakt', role: 'Atom-U-Boot',
@@ -183,7 +183,7 @@ export function unitTable(): string {
   return `<table class="grid"><tr><th>Klasse</th><th>t</th><th>kn</th><th>Tiefe</th><th>Lärm*</th><th>Stärke</th></tr>${ids.map((id) => {
     const k = CLASSES[id];
     const strengths: Record<string, string> = {
-      ffg: 'Hubschrauber, Bojen', ffv: 'VDS unter der Schicht', kor: 'wendig, leise', ssw: 'jagt die Wölfe (gemischt)', ffk: 'bindet die Eskorte (gemischt)', ssn: 'Tempo, Ausdauer', ssk: 'sehr leise', ssc: 'Flachwasser', ssa: 'leise und ausdauernd',
+      ffg: 'Hubschrauber, Bojen', ffv: 'VDS unter der Schicht', kor: 'wendig, leise', ssw: 'jagt die Wölfe (gemischt)', ffk: 'Seeziel-FK, bindet die Eskorte (gemischt)', ssn: 'Tempo, Ausdauer', ssk: 'sehr leise', ssc: 'Flachwasser', ssa: 'leise und ausdauernd',
     };
     return `<tr><td>${k.name}</td><td>${fmt(k.tonnage)}</td><td>${k.maxSpeedKn}</td><td>${k.submarine ? `${k.maxDepth} m` : '—'}</td><td>${k.slBase} dB</td><td>${strengths[id]}</td></tr>`;
   }).join('')}</table><p class="small">* Quellpegel bei Marschfahrt (${'U-Boote 4–5 kn, Überwasserschiffe 15 kn'}). Je 6 dB weniger halbiert etwa die Entfernung, auf die man gehört wird.</p>`;

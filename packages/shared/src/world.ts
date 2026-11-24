@@ -30,7 +30,7 @@ export type GameEvent =
   | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' | 'sam' | 'mine' | 'sounding' }
   /** Something the crew reports aboard (air, wounded, hull failure, incidents). */
   | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
-  | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
+  | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' | 'ssm' }
   | { kind: 'grounded'; time: number; shipId: string }
   /** A warhead struck a ship (torpedo or depth charge) at x, y. */
   | { kind: 'hit'; time: number; shipId: string; byId?: string; x: number; y: number }

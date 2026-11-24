@@ -26,6 +26,7 @@ import {
   sendMad,
   executeOrder,
   fireSam,
+  fireSsm,
   callFighter,
   layMine,
   isRegion,
@@ -78,6 +79,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   }),
   z.object({ t: z.literal('steer'), torpId: z.string().max(20), heading: deg }),
   z.object({ t: z.literal('rocket'), bearing: deg, range: z.number().finite().min(1000).max(20_000) }),
+  z.object({ t: z.literal('ssm'), bearing: deg, range: z.number().finite().min(1000).max(60_000) }),
   z.object({ t: z.literal('dc'), depth: z.number().finite().min(20).max(400) }),
   z.object({ t: z.literal('noisemaker') }),
   z.object({ t: z.literal('radio'), text: z.string().trim().min(1).max(200) }),
@@ -143,7 +145,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -213,6 +215,11 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'rocket': {
       const v = headingVec(m.bearing);
       const r = launchAswRocket(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range });
+      return r === true ? undefined : r;
+    }
+    case 'ssm': {
+      const v = headingVec(m.bearing);
+      const r = fireSsm(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range });
       return r === true ? undefined : r;
     }
     case 'dc': {

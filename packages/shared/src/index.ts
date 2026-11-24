@@ -15,6 +15,7 @@ export * from './traffic.js';
 export * from './voice.js';
 export * from './airspace.js';
 export * from './airdef.js';
+export * from './antiship.js';
 export * from './mines.js';
 export * from './traits.js';
 export * from './lights.js';
