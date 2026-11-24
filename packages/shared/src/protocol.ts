@@ -428,7 +428,7 @@ export interface Debrief {
   stats: PlayerStats[];
   winner: Exclude<Team, 'neutral'>;
   reason: string;
-  duration: number;
+  duration: number; /** sea area (north-up chart) */ region?: string;
   /** What the AI adapted to from this player's earlier matches (shown in the debrief). */
   learned?: string[];
   /** FLASH orders of both sides and how they ended. */

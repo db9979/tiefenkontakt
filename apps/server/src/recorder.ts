@@ -117,6 +117,7 @@ export class Recorder {
       winner: result.winner,
       reason: result.reason,
       duration: Math.round(w.time),
+      region: w.env.seabed?.region,
       orders: orders.list.length ? orders.list : undefined,
       photos: this.s.photos?.length ? this.s.photos : undefined,
     };

@@ -61,6 +61,19 @@ export type RegionId = keyof typeof REGIONS;
 
 export const isRegion = (id: unknown): id is RegionId => typeof id === 'string' && id in REGIONS;
 
+/**
+ * North-up display: the simulation runs in the game frame (+y along the convoy route, rotated by
+ * the area's `bearing` against true north). Everything the player sees and enters is true:
+ * true = game + northOffset, game = true − northOffset. 0 on procedural seabeds.
+ */
+export function northOffset(region: unknown): number {
+  return isRegion(region) ? REGIONS[region].bearing : 0;
+}
+/** Game-frame direction (deg) → true direction (0–360). */
+export const toTrue = (deg: number, off: number): number => (((deg + off) % 360) + 360) % 360;
+/** True direction (deg) → game frame (0–360). */
+export const toGame = (deg: number, off: number): number => (((deg - off) % 360) + 360) % 360;
+
 const M_PER_DEG_LAT = 110_574;
 const M_PER_DEG_LON = 111_320;
 

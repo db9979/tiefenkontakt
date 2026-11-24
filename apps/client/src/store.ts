@@ -1,4 +1,5 @@
 import type { Debrief, Marks, OwnFix, Snapshot, TmaSolution } from '@tk/shared';
+import { setNorthRegion } from './north.js';
 
 /** Bearing samples kept per contact on the client (about one per second). */
 const HISTORY_KEEP = 900;
@@ -72,6 +73,7 @@ export const store = {
     }
     for (const label of this.histories.keys()) if (!s.contacts.some((c) => c.label === label)) this.histories.delete(label);
     this.snap = s;
+    setNorthRegion(s.env.seabed?.region);
     this.snapAt = performance.now();
     const last = this.ownTrack[this.ownTrack.length - 1];
     if (!last || s.time - last.t >= 1) {
