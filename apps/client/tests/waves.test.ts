@@ -14,8 +14,11 @@ describe('sea surface', () => {
 
   it('runs the long waves with the wind and grows with the sea state', () => {
     const w = seaWaves(5, { x: 0, y: 10 }, { x: 0, y: 0 }, 0);
-    // Wind toward north = scene −z
-    expect(w.wd[1]![1]).toBeCloseTo(-1, 6);
+    // Wind toward north = scene −z: the energy-weighted mean direction runs with it
+    const mz = w.wd.reduce((a, d, i) => a + d[1] * w.wa[i]!, 0);
+    const mx = w.wd.reduce((a, d, i) => a + d[0] * w.wa[i]!, 0);
+    expect(mz).toBeLessThan(-0.85);
+    expect(Math.abs(mx)).toBeLessThan(0.25);
     expect(w.wa.reduce((s, x) => s + x, 0)).toBeCloseTo(1, 6);
     expect(seaWaves(6, undefined, { x: 0, y: 0 }, 0).amp).toBeGreaterThan(seaWaves(2, undefined, { x: 0, y: 0 }, 0).amp);
   });

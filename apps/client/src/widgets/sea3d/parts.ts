@@ -102,7 +102,7 @@ export function navLights(g: THREE.Group, len: number, beam: number, mastY: numb
   n.name = 'navlights';
   n.visible = false;
   const lamp = (color: number, x: number, y: number, z: number, size: number) => {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow(), color, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false, transparent: true }));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow(), color, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false, transparent: true, fog: false }));
     sp.scale.setScalar(size);
     sp.position.set(x, y, z);
     n.add(sp);

@@ -11,10 +11,15 @@ import * as THREE from 'three';
  * pixel can no longer carry them, so nothing aliases into crests running the wrong way.
  */
 
-/** Wave numbers (rad/m): wavelengths 251, 140, 74, 39, 20, 10 and 5.7 m. */
-export const WK = [0.025, 0.045, 0.085, 0.16, 0.31, 0.6, 1.1];
-/** Direction of each train relative to the wind (degrees). */
-const SPREAD = [28, 0, -18, 32, -38, 12, -55];
+/** Wave numbers (rad/m): twelve trains from 251 m down to 5.7 m wavelength, √2 apart. */
+export const WK = Array.from({ length: 12 }, (_, i) => 0.025 * Math.pow(44, i / 11));
+const N = WK.length;
+/** Direction of each train relative to the wind (degrees): a spread sea, not a few regular rows. */
+const SPREAD = [24, -6, 17, -21, 8, -33, 29, -12, 41, -47, 3, 58];
+/** Fixed phase of each train, so the trains never line up at one point. */
+const PH0 = [0, 2.1, 4.4, 1.3, 5.6, 3.2, 0.7, 4.9, 2.8, 6.0, 1.8, 3.9];
+/** First train counted as short wind sea (k ≥ 0.15 rad/m): where it breaks, whitecaps. */
+const CHOP0 = WK.findIndex((k) => k >= 0.15);
 /**
  * Significant wave height (m) by sea state, WMO code 3700 (upper middle of each band):
  * 1 rippled, 2 smooth, 3 slight (0.5–1.25 m), 4 moderate (1.25–2.5), 5 rough (2.5–4),
@@ -36,7 +41,7 @@ function peakK(sea: number): number {
 }
 
 /** Default share of the crest height per train (before the first frame). */
-const SHARE = [0.3, 0.27, 0.18, 0.11, 0.07, 0.045, 0.025];
+const SHARE = WK.map((k) => 1 / (1 + Math.pow(k / 0.08, 1.5)) / 4.1);
 const G = 9.81;
 /** Wrap of the offset handed to the noise patterns (the noise repeats exactly at this length). */
 export const NOISE_WRAP = 32768;
@@ -44,6 +49,8 @@ export const NOISE_WRAP = 32768;
 export interface Waves {
   /** Overall crest amplitude (m). */
   amp: number;
+  /** Scale of the crest sharpening (keeps the surface from folding). */
+  chop: number;
   /** Amplitude share of each train (sums to 1). */
   wa: number[];
   /** Unit direction of travel of each train in scene x/z. */
@@ -80,13 +87,16 @@ export function seaWaves(sea: number, windToward: { x: number; y: number } | und
   const kp = peakK(sea);
   const raw = WK.map((k, i) => {
     const x = Math.log(k / kp) / 0.55;
-    return Math.exp(-0.5 * x * x) * (k < kp ? 1 : Math.pow(kp / k, 0.6)) + (i < 2 ? 0.12 : 0.03);
+    return Math.exp(-0.5 * x * x) * (k < kp ? 1 : Math.pow(kp / k, 0.6)) + (k < 0.05 ? 0.06 : 0.012) * (i % 2 ? 0.8 : 1.2);
   });
   const sum = raw.reduce((a, b) => a + b, 0);
   const wa = raw.map((s) => s / sum);
   // Crest scale from the WMO significant wave height of the sea state (Hs ≈ 4σ of the summed trains)
   const sigma = Math.sqrt(wa.reduce((a, x) => a + x * x, 0) / 2);
   const amp = sigHeight(sea) / (4 * sigma);
+  // Crest sharpening, limited so the surface never folds over itself
+  const fold = wa.reduce((a, x, i) => a + Math.min(5 * amp * x, 0.75 / WK[i]!) * WK[i]!, 0);
+  const chop = Math.min(1, 0.8 / Math.max(fold, 1e-6));
   const ox = own.x;
   const oz = -own.y;
   const wd: [number, number][] = [];
@@ -95,10 +105,10 @@ export function seaWaves(sea: number, windToward: { x: number; y: number } | und
     const a = base + (SPREAD[i]! * Math.PI) / 180;
     const d: [number, number] = [Math.cos(a), Math.sin(a)];
     wd.push(d);
-    ph.push(wrap(k * (d[0] * ox + d[1] * oz) - Math.sqrt(G * k) * t, Math.PI * 2));
+    ph.push(wrap(k * (d[0] * ox + d[1] * oz) - Math.sqrt(G * k) * t + PH0[i]!, Math.PI * 2));
   });
   return {
-    amp, wa, wd, ph, wind: [wx, wz],
+    amp, chop, wa, wd, ph, wind: [wx, wz],
     offR: [wrap(ox, NOISE_WRAP), wrap(oz, NOISE_WRAP)],
     offW: [wrap(ox * wx + oz * wz, NOISE_WRAP), wrap(-ox * wz + oz * wx, NOISE_WRAP)],
   };
@@ -149,6 +159,7 @@ export function ownRoll(sea: number, len: number, beam: number, t: number, phase
 export function waveUniforms(): Record<string, THREE.IUniform> {
   return {
     uAmp: { value: 1 },
+    uChop: { value: 1 },
     uWa: { value: SHARE.slice() },
     uWd: { value: WK.map(() => new THREE.Vector2(1, 0)) },
     uPh: { value: WK.map(() => 0) },
@@ -161,6 +172,7 @@ export function waveUniforms(): Record<string, THREE.IUniform> {
 /** Copy this frame's sea into the shared uniforms. */
 export function applyWaves(u: Record<string, THREE.IUniform>, w: Waves): void {
   u.uAmp!.value = w.amp;
+  u.uChop!.value = w.chop;
   const wa = u.uWa!.value as number[];
   const ph = u.uPh!.value as number[];
   const wd = u.uWd!.value as THREE.Vector2[];
@@ -219,32 +231,32 @@ export function oceanGrid(segments: number): { geo: THREE.BufferGeometry; cell: 
  * sample spacing (grid cell or pixel footprint), which keeps far water free of aliasing.
  */
 export const WAVES_GLSL = `
-uniform float uAmp; uniform float uWa[7]; uniform vec2 uWd[7]; uniform float uPh[7];
-const float WK[7] = float[7](${WK.map((k) => k.toFixed(3)).join(', ')});
-float waveKeep(int i, float s) { float lam = 6.2832 / WK[i]; return 1.0 - smoothstep(lam * 0.22, lam * 0.45, s); }
+uniform float uAmp; uniform float uChop; uniform float uWa[${N}]; uniform vec2 uWd[${N}]; uniform float uPh[${N}];
+const float WK[${N}] = float[${N}](${WK.map((k) => k.toFixed(4)).join(', ')});
+float waveKeep(int i, float s) { float lam = 6.2832 / WK[i]; return 1.0 - smoothstep(lam * 0.15, lam * 0.35, s); }
 float heightLod(vec2 p, float s) {
   float h = 0.0;
-  for (int i = 0; i < 7; i++) h += uWa[i] * waveKeep(i, s) * sin(WK[i] * dot(p, uWd[i]) + uPh[i]);
+  for (int i = 0; i < ${N}; i++) h += uWa[i] * waveKeep(i, s) * sin(WK[i] * dot(p, uWd[i]) + uPh[i]);
   return uAmp * h;
 }
 float height(vec2 p) { return heightLod(p, 0.0); }
 /** Gerstner shift: surface points move toward each crest, so crests sharpen and troughs widen. */
 vec2 chopShift(vec2 p, float s) {
   vec2 d = vec2(0.0);
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < ${N}; i++) {
     float a = uAmp * uWa[i];
     d -= min(5.0 * a, 0.75 / WK[i]) * waveKeep(i, s) * cos(WK[i] * dot(p, uWd[i]) + uPh[i]) * uWd[i];
   }
-  return d;
+  return d * uChop;
 }
 /** The short trains only, -1..1: where the wind sea is steep enough to break. */
 float chopLod(vec2 p, float s) {
   float h = 0.0; float wsum = 0.0;
-  for (int i = 3; i < 7; i++) { float k = uWa[i] * waveKeep(i, s); h += k * sin(WK[i] * dot(p, uWd[i]) + uPh[i]); wsum += uWa[i]; }
+  for (int i = ${CHOP0}; i < ${N}; i++) { float k = uWa[i] * waveKeep(i, s); h += k * sin(WK[i] * dot(p, uWd[i]) + uPh[i]); wsum += uWa[i]; }
   return h / max(wsum, 0.001);
 }
 vec2 slopeLod(vec2 p, float s) {
   vec2 g = vec2(0.0);
-  for (int i = 0; i < 7; i++) g += uWa[i] * waveKeep(i, s) * WK[i] * cos(WK[i] * dot(p, uWd[i]) + uPh[i]) * uWd[i];
+  for (int i = 0; i < ${N}; i++) g += uWa[i] * waveKeep(i, s) * WK[i] * cos(WK[i] * dot(p, uWd[i]) + uPh[i]) * uWd[i];
   return uAmp * g;
 }`;

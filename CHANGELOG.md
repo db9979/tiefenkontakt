@@ -38,6 +38,12 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Beladen tief, in Ballast hoch mit rotem Unterwasserschiff; Rostfahnen, Zierstreifen, viele Reedereifarben.
 - Neutrale: Tanker, Containerschiffe, Fähren (auch mit farbigem Rumpf) und Schlepper in Größe und Farben variiert,
   dazu Motoryachten und ältere Seitenfänger neben Segelyachten und Heckfängern.
+- **Sicht:** Dunst nach Koschmieder für alles im 3D-Bild (Schiffe, Meer, Kielwasser, Rauch, Schauer, Wolken):
+  Kontrast fällt exponentiell mit der Entfernung, die Sichtweite kommt aus dem Wetter (klare Luft ~30 km, Gischtdunst
+  bei hohem Seegang, Regen ~6 km, Schnee weniger, Nebelbank 150 m). Server und Bild rechnen mit derselben
+  Sichtweite: das Sehrohr sieht im Regen jetzt etwa 5,5 statt 10 km weit. Positionslichter tragen weiter als der Rumpf.
+- Zwölf statt sieben Wellenzüge mit breiterer Richtungsstreuung (keine regelmäßigen Reihen mehr), Kammschärfung
+  begrenzt, damit die Oberfläche nicht überschlägt; kein Sonnenglitzern mehr im Regen.
 - Eigener Produktentanker (~150 m) im Geleitzug statt des verkleinerten Großtankers. Das Erkennungsheft zeigt auf
   der Geleitzug-Seite alle sechs Typen als Seitenriss.
 - Grafik „Auto“ schaltet für die Sitzung eine Stufe herunter, wenn ein Gerät unter 60 % der Bildrate bleibt.

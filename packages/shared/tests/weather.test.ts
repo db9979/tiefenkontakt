@@ -37,3 +37,16 @@ describe('changing weather', () => {
     expect(env.seaState).toBe(3);
   });
 });
+
+describe('meteorological visibility', () => {
+  it('reaches far in clean air, less in spray haze, a few km in rain', async () => {
+    const { metVisibility } = await import('../src/weather.js');
+    expect(metVisibility(2, false)).toBeGreaterThan(25_000);
+    expect(metVisibility(6, false)).toBeLessThan(metVisibility(2, false));
+    expect(metVisibility(3, true)).toBeLessThanOrEqual(6_000);
+    // Fading into a shower passes smoothly through the values in between
+    const half = metVisibility(3, 0.5);
+    expect(half).toBeLessThan(metVisibility(3, false));
+    expect(half).toBeGreaterThan(metVisibility(3, true));
+  });
+});

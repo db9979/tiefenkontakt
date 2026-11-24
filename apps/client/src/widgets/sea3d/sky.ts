@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { inSquall, type MetCells, type Vec2 } from '@tk/shared';
+import { inSquall, metVisibility, type MetCells, type Vec2 } from '@tk/shared';
 import { NOISE } from './shaders.js';
 
 /**
@@ -11,6 +11,25 @@ import { NOISE } from './shaders.js';
  * widens in rain and fog. Stars only show through gaps. Rain falls in streaks slanted by the
  * wind and the ship's own speed; in cold water it snows. Showers with thunder flash.
  */
+
+/**
+ * Fog in every three.js material of the scene: contrast falls off exponentially with distance
+ * (Koschmieder), fogDensity is the extinction coefficient 3.912 / visibility. three's own
+ * FogExp2 squares the distance, which keeps the near field crystal clear and walls off the far.
+ */
+THREE.ShaderChunk.fog_fragment = `
+#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float fogFactor = 1.0 - exp( - fogDensity * vFogDepth );
+  #else
+    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+#endif
+`;
+
+/** Extinction coefficient (1/m) for a visibility (m). */
+export const extinction = (visM: number) => 3.912 / Math.max(30, visM);
 
 const CLOUD_H = 1800;
 /** Metres per cloud noise unit. */
@@ -174,7 +193,9 @@ export interface SkyLight {
   sunDir: THREE.Vector3; moonDir: THREE.Vector3; sunUp: number; sunColor: THREE.Color;
   /** Fog colour, and what the sea mirrors at a grazing look. */
   haze: THREE.Color; reflect: THREE.Color; reflectTop: THREE.Color;
-  dusk: number; overcast: number; precip: number; flash: number; fogDensity: number;
+  dusk: number; overcast: number; precip: number; flash: number;
+  /** Extinction coefficient (1/m) and the visibility it comes from (m). */
+  fogDensity: number; visibility: number;
 }
 
 export class SkyFx {
@@ -250,7 +271,7 @@ export class SkyFx {
     const sunEl = Math.sin(((o.hour - 6) / 12) * Math.PI) * 0.8;
     const sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
     const moonDir = new THREE.Vector3(-Math.cos(sunAz), 0.35, -Math.sin(sunAz)).normalize();
-    const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (1 - 0.95 * over) * (1 - 0.8 * o.inFog);
+    const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (1 - 0.95 * over) * (1 - 0.9 * pr) * (1 - 0.8 * o.inFog);
     const sunColor = new THREE.Color(0xfff4e0).lerp(new THREE.Color(0xffa060), dusk);
 
     let flash = 0;
@@ -303,10 +324,12 @@ export class SkyFx {
       u.uOpacity!.value = pr * (snowy ? 0.85 : 0.32);
     }
 
-    // Haze thickens with rain and overcast; a fog bank closes in to a few hundred metres
-    const fogDensity = THREE.MathUtils.lerp(0.000022 * (1 + o.sea * 0.2) * (1 + 4 * pr + 0.6 * over), 0.0019, o.inFog);
+    // Visibility: clean air, spray haze, rain or snow (shared with the sensors); a fog bank closes in to 150 m
+    let vis = metVisibility(o.sea, pr) * (1 - 0.15 * over) * (snowy ? 1 - 0.55 * pr : 1);
+    vis = Math.exp(Math.log(vis) + (Math.log(150) - Math.log(vis)) * Math.min(1, o.inFog));
+    const fogDensity = extinction(vis);
     const reflect = horizon.clone().lerp(top, 0.25).lerp(haze, 0.3);
     const reflectTop = top.clone().lerp(horizon, 0.25);
-    return { sunDir, moonDir, sunUp, sunColor, haze, reflect, reflectTop, dusk, overcast: over, precip: pr, flash, fogDensity };
+    return { sunDir, moonDir, sunUp, sunColor, haze, reflect, reflectTop, dusk, overcast: over, precip: pr, flash, fogDensity, visibility: vis };
   }
 }

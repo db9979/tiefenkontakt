@@ -17,6 +17,7 @@ import { lookoutSweep, type Sighting } from './lookout.js';
 import { crewSonarDb } from './crew.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
 import { SHALLOW_M, pathDepth } from './seabed.js';
+import { metVisibility } from './weather.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
@@ -295,13 +296,15 @@ export function horizonRange(eyeHeight: number, targetHeight: number): number {
 function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   // Night cuts visual range sharply (darkened ships, no moon assumed)
   const light = ctx.env.light ?? 1;
-  const vis = (1 - ctx.env.seaState * 0.08) * (0.3 + 0.7 * light) * (ctx.env.rain ? 0.5 : 1);
+  // As far as the horizon allows and the air carries (spray haze, rain); night cuts it to a third
+  const air = Math.min(horizonRange(1.5, 30), metVisibility(ctx.env.seaState, !!ctx.env.rain)) * (1 - ctx.env.seaState * 0.03);
+  const vis = 0.3 + 0.7 * light;
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive || CLASSES[tgt.cls].submarine) continue;
     const range = distance(obs.pos, tgt.pos);
     // Navigation lights carry far at night: a lit ship is seen almost as well as by day
-    const seen = tgt.lights ? Math.max(vis, (1 - ctx.env.seaState * 0.08) * 0.85 * (ctx.env.rain ? 0.6 : 1)) : vis;
-    if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > horizonRange(1.5, 30) * seen) continue;
+    const seen = tgt.lights ? Math.max(vis, 0.85) : vis;
+    if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > air * seen) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'periscope', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.3)),

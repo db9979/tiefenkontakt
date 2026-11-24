@@ -39,10 +39,10 @@ void main() {
   // Per-pixel wave normal; trains shorter than the pixel footprint are left out (no shimmer far off)
   vec2 fw = fwidth(vPos.xz);
   // Geometric mean of the footprint: at grazing angles the long axis alone would flatten the near sea
-  float foot = max(sqrt(fw.x * fw.y) * 1.6, 0.02);
+  float foot = max(sqrt(fw.x * fw.y) * 4.0, 0.05);
   vec2 sl = slopeLod(vPos.xz, foot);
   // Slopes a touch steeper than linear theory: the sharpened crests are steeper than the sines
-  vec3 n = normalize(vec3(-sl.x * 1.4, 1.0, -sl.y * 1.4));
+  vec3 n = normalize(vec3(-sl.x * 1.2, 1.0, -sl.y * 1.2));
   float vH = heightLod(vPos.xz, foot) / max(uAmp, 0.01);
   // Capillary ripples: high-frequency normal detail, fading with distance (gives the eye a sense of scale)
   float dist = length(cameraPosition - vPos);
@@ -54,7 +54,7 @@ void main() {
     n = normalize(n + vec3(rip.x, 0.0, rip.y) * 0.12 * near);
   }
   // Rain pocks the surface close by: fine, fast-changing roughness that dulls the mirror
-  float pock = uRain * (1.0 - smoothstep(0.04, 0.3, foot)) * (1.0 - smoothstep(80.0, 450.0, dist));
+  float pock = uRain * (1.0 - smoothstep(0.1, 0.75, foot)) * (1.0 - smoothstep(80.0, 450.0, dist));
   if (pock > 0.0) {
     vec2 rq = (vPos.xz + uOffR) * 3.0;
     vec2 sp = vec2(noise(rq + uTime * 11.0), noise(rq * 1.7 - uTime * 9.0)) - 0.5;
@@ -64,7 +64,7 @@ void main() {
   // Mirror of the sky: a face tilted toward the eye reflects the darker sky overhead, one tilted
   // away the bright horizon; that light-dark pattern is what makes the swell read
   vec3 rv = reflect(-view, n);
-  vec3 skyR = mix(uSky, uSkyTop, smoothstep(0.02, 0.45, rv.y));
+  vec3 skyR = mix(uSky, uSkyTop, smoothstep(0.0, 0.7, rv.y));
   vec3 col = mix(uDeep, skyR, clamp(0.08 + fres * 0.85, 0.0, 1.0));
   // Subsurface green on wave flanks facing the light
   col += vec3(0.02, 0.07, 0.06) * max(0.0, vH) * uLight;
@@ -93,7 +93,7 @@ void main() {
       vec2 sq = wq + vec2(0.0, (noise(wq * 0.05) - 0.5) * 14.0);
       float lane = noise(sq * vec2(0.03, 0.45) + vec2(uTime * 0.05, 0.0));
       float patchy = smoothstep(0.4, 0.75, noise(wq * vec2(0.012, 0.05) + 9.0));
-      float sharp = 1.0 - smoothstep(0.25, 1.0, foot);
+      float sharp = 1.0 - smoothstep(0.6, 2.5, foot);
       foam += uSpin * mix(0.08, smoothstep(0.6, 0.82, lane) * patchy * 0.45, sharp) * farF;
     }
     col = mix(col, vec3(0.86, 0.9, 0.92) * (0.1 + 0.9 * uLight), clamp(foam, 0.0, 1.0) * 0.85);
@@ -114,7 +114,7 @@ void main() {
     col = mix(col, vec3(0.84, 0.9, 0.94) * (0.12 + 0.88 * uLight * uLight), floe);
   }
   float d = length(cameraPosition - vPos);
-  float fog = 1.0 - exp(-pow(d * uFogDensity, 2.0));
+  float fog = 1.0 - exp(-d * uFogDensity);
   gl_FragColor = vec4(mix(col, uFog, fog), 1.0);
   #include <colorspace_fragment>
 }`;

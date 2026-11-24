@@ -16,6 +16,8 @@ export const wakeUniforms: Record<string, THREE.IUniform> = {
   uTime: { value: 0 },
   uLight: { value: 1 },
   uCell: { value: new THREE.Vector2(0, 1) },
+  uFog: { value: new THREE.Color() },
+  uFogDensity: { value: 0 },
 };
 
 const VERT = (bow: boolean) => `${WAVES_GLSL}
@@ -35,7 +37,7 @@ void main() {
 }`;
 
 const FRAG = (bow: boolean) => `${NOISE}
-uniform float uTime; uniform float uLight; uniform vec2 uOffR;
+uniform float uTime; uniform float uLight; uniform vec2 uOffR; uniform vec3 uFog; uniform float uFogDensity;
 varying vec3 vW; varying vec3 vPos;
 void main() {
   // vW: x across (0 centre/hull … 1 edge), y along (0 at the ship … 1 at the end), z churn width
@@ -51,7 +53,9 @@ void main() {
   vec3 col = mix(vec3(0.55, 0.72, 0.72), vec3(0.9, 0.94, 0.95), clamp(a * 1.4, 0.0, 1.0)) * (0.12 + 0.88 * uLight);
   // Far off the foam thins to a soft streak instead of a hard white line
   a *= mix(1.0, 0.45, smoothstep(300.0, 2500.0, length(vPos.xz)));
-  gl_FragColor = vec4(col, clamp(a, 0.0, 0.9));
+  // Haze: far off the foam fades into the air like everything else
+  float tr = exp(-length(cameraPosition - vPos) * uFogDensity);
+  gl_FragColor = vec4(mix(uFog, col, tr), clamp(a * tr, 0.0, 0.9));
   #include <colorspace_fragment>
 }`;
 

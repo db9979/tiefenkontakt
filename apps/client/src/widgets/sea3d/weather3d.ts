@@ -26,7 +26,7 @@ const VOL_VERT = `varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(pos
 /** Ray through a vertical cylinder (centre, radius) between heights y0..y0+h: the length inside, mean height. */
 const VOL_FRAG = `${NOISE}
 uniform vec3 uC; uniform float uR; uniform float uY0; uniform float uH; uniform float uK; uniform vec3 uColor;
-uniform float uTime; uniform float uRain; uniform float uFade;
+uniform float uTime; uniform float uRain; uniform float uFade; uniform vec3 uFog; uniform float uFogDensity;
 varying vec3 vW;
 void main() {
   vec3 ro = cameraPosition; vec3 rd = normalize(vW - ro);
@@ -50,13 +50,15 @@ void main() {
   float tm = -b / a; vec2 cp = (oc + d * tm) / uR;
   float rim = smoothstep(0.0, uRain > 0.5 ? 0.45 : 0.2, 1.0 - dot(cp, cp));
   float alpha = (1.0 - exp(-len * w * uK)) * n * uFade * rim;
-  gl_FragColor = vec4(uColor, clamp(alpha, 0.0, 0.97));
+  // Seen through the air between: a far shower melts into the haze
+  float tr = exp(-e0 * uFogDensity);
+  gl_FragColor = vec4(mix(uFog, uColor, tr), clamp(alpha, 0.0, 0.97));
   #include <colorspace_fragment>
 }`;
 
 /** Shower cloud: a ray through an ellipsoid with a flat base; ragged, soft edges from noise. */
 const CLOUD_FRAG = `${NOISE}
-uniform vec3 uC; uniform vec3 uS; uniform float uK; uniform vec3 uColor; uniform vec3 uTop; uniform float uTime; uniform float uFlash;
+uniform vec3 uC; uniform vec3 uS; uniform float uK; uniform vec3 uColor; uniform vec3 uTop; uniform float uTime; uniform float uFlash; uniform vec3 uFog; uniform float uFogDensity;
 varying vec3 vW;
 void main() {
   vec3 ro = cameraPosition; vec3 rd = normalize(vW - ro);
@@ -80,6 +82,7 @@ void main() {
   float hgt = clamp((pm.y - yb) / (1.25 * uS.y), 0.0, 1.0);
   // Lightning lights the cloud from inside, brightest low in the core
   vec3 col = mix(uColor, uTop, hgt * hgt) + vec3(0.75, 0.8, 1.0) * uFlash * (1.0 - hgt * 0.6) * (0.6 + 0.8 * n);
+  col = mix(uFog, col, exp(-t0 * uFogDensity * 0.6));
   gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.97));
   #include <colorspace_fragment>
 }`;
@@ -104,7 +107,7 @@ void main() {
   float diff = 0.6 + 0.4 * max(dot(n, normalize(uSun)), 0.0);
   vec3 col = (n.y > 0.6 ? vec3(0.9, 0.94, 0.96) : vec3(0.5, 0.72, 0.78)) * diff * (0.12 + 0.88 * uLight * uLight);
   float d = length(cameraPosition - vW);
-  gl_FragColor = vec4(mix(col, uFog, 1.0 - exp(-pow(d * uFogDensity, 2.0))), 1.0);
+  gl_FragColor = vec4(mix(col, uFog, 1.0 - exp(-d * uFogDensity)), 1.0);
   #include <colorspace_fragment>
 }`;
 
@@ -114,13 +117,13 @@ function hash(a: number, b: number, c = 0): number {
   return s - Math.floor(s);
 }
 
-function volume(rain: boolean): THREE.Mesh<THREE.CylinderGeometry, THREE.ShaderMaterial> {
+function volume(rain: boolean, air: Record<string, THREE.IUniform>): THREE.Mesh<THREE.CylinderGeometry, THREE.ShaderMaterial> {
   const g = new THREE.CylinderGeometry(1, 1, 1, 48, 1, false).translate(0, 0.5, 0);
   return new THREE.Mesh(g, new THREE.ShaderMaterial({
     vertexShader: VOL_VERT, fragmentShader: VOL_FRAG, transparent: true, depthWrite: false,
     uniforms: {
       uC: { value: new THREE.Vector3() }, uR: { value: 1 }, uY0: { value: 0 }, uH: { value: 1 }, uK: { value: 0.004 },
-      uColor: { value: new THREE.Color() }, uTime: { value: 0 }, uRain: { value: rain ? 1 : 0 }, uFade: { value: 1 },
+      uColor: { value: new THREE.Color() }, uTime: { value: 0 }, uRain: { value: rain ? 1 : 0 }, uFade: { value: 1 }, uFog: air.uFog!, uFogDensity: air.uFogDensity!,
     },
   }));
 }
@@ -185,7 +188,7 @@ export class WeatherFx {
     const u = ocean.uniforms;
     this.floeMat = new THREE.ShaderMaterial({
       vertexShader: FLOE_VERT, fragmentShader: FLOE_FRAG,
-      uniforms: { uAmp: u.uAmp!, uWa: u.uWa!, uWd: u.uWd!, uPh: u.uPh!, uSun: u.uSun!, uLight: u.uLight!, uFog: u.uFog!, uFogDensity: u.uFogDensity! },
+      uniforms: { uAmp: u.uAmp!, uChop: u.uChop!, uWa: u.uWa!, uWd: u.uWd!, uPh: u.uPh!, uSun: u.uSun!, uLight: u.uLight!, uFog: u.uFog!, uFogDensity: u.uFogDensity! },
     });
     u.uIce = { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) };
   }
@@ -196,7 +199,7 @@ export class WeatherFx {
     const rel = (x: number, y: number) => ({ x: x - own!.x, z: -(y - own!.y), drop: ((x - own!.x) ** 2 + (y - own!.y) ** 2) / (2 * EARTH_R) });
     const lit = 0.06 + 0.94 * light * light;
     // Fog banks
-    this.sync(this.fogs, m?.fog ?? [], () => volume(false), (mesh, f) => {
+    this.sync(this.fogs, m?.fog ?? [], () => volume(false, this.ocean.uniforms), (mesh, f) => {
       const p = rel(f.x, f.y);
       const u = mesh.material.uniforms;
       // Walls reach below the waves so the sea surface (not the wall) is what the eye sees downward
@@ -211,11 +214,11 @@ export class WeatherFx {
     });
     // Rain squalls: curtain and cloud
     this.sync(this.squalls, m?.squalls ?? [], (s) => {
-      const curtain = volume(true);
+      const curtain = volume(true, this.ocean.uniforms);
       // The shower cloud: a dark-based heap with ragged edges
       const cloud = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
         vertexShader: VOL_VERT, fragmentShader: CLOUD_FRAG, transparent: true, depthWrite: false,
-        uniforms: { uC: { value: new THREE.Vector3() }, uS: { value: new THREE.Vector3() }, uK: { value: 0.0012 }, uColor: { value: new THREE.Color() }, uTop: { value: new THREE.Color() }, uTime: { value: 0 }, uFlash: { value: 0 } },
+        uniforms: { uC: { value: new THREE.Vector3() }, uS: { value: new THREE.Vector3() }, uK: { value: 0.0012 }, uColor: { value: new THREE.Color() }, uTop: { value: new THREE.Color() }, uTime: { value: 0 }, uFlash: { value: 0 }, uFog: this.ocean.uniforms.uFog!, uFogDensity: this.ocean.uniforms.uFogDensity! },
       }));
       this.scene.add(cloud);
       return { curtain, cloud };

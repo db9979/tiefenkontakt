@@ -83,6 +83,8 @@ export class Periscope3D {
   /** This frame's time and sea state (for the own ship's roll). */
   private t = 0;
   private sea = 3;
+  /** Extinction of the air this frame (1/m): lights fade with it. */
+  private sigma = 0;
   private glow = 0;
   private effects = new Map<string, THREE.Group>();
   private skyFx: SkyFx;
@@ -302,6 +304,9 @@ export class Periscope3D {
     this.hemi.intensity = (0.2 + 1.0 * o.light) * (1 - 0.3 * sky.overcast) + sky.flash * 1.5;
     this.sun.intensity = 1.2 * o.light * (1 - 0.75 * sky.overcast) * (1 - 0.8 * inFog);
     u.uFogDensity!.value = sky.fogDensity;
+    (wakeUniforms.uFog!.value as THREE.Color).copy(sky.haze);
+    wakeUniforms.uFogDensity!.value = sky.fogDensity;
+    this.sigma = sky.fogDensity;
     this.scene.fog = new THREE.FogExp2(sky.haze, sky.fogDensity);
     this.updateEffects(o.effects ?? [], o.light);
     this.place(o.targets, o.t, o.sea, amp, o.light);
@@ -414,7 +419,15 @@ export class Periscope3D {
       ud.wpos = { x: this.ownPos.x + s.g.position.x, y: this.ownPos.y - s.g.position.z };
       s.g.visible = tg.alpha > 0.05;
       const nav = s.g.getObjectByName('navlights');
-      if (nav) nav.visible = !!tg.lit && light < 0.6;
+      if (nav) {
+        nav.visible = !!tg.lit && light < 0.6;
+        // A lamp is a point of high contrast: it carries about twice as far as the hull, then fades
+        const k = Math.exp(-0.5 * this.sigma * tg.range);
+        nav.traverse((o) => {
+          const m = (o as THREE.Sprite).material as THREE.SpriteMaterial | undefined;
+          if (m?.isSpriteMaterial) m.opacity = k;
+        });
+      }
     }
     for (const [label, s] of this.ships) {
       if (!seen.has(label)) {
