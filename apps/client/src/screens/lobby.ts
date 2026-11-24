@@ -2,6 +2,7 @@ import type { MatchLobby, MatchSummary, MissionKey, ServerMsg } from '@tk/shared
 import { net } from '../net.js';
 import { t } from '../i18n/index.js';
 import { accountPanel } from './account.js';
+import { feedbackAdmin } from '../widgets/feedback.js';
 import { adminPanel } from './admin.js';
 import { careerPanels } from './career.js';
 import { campaignPanel } from './campaign.js';
@@ -76,6 +77,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       el.appendChild(seriesPanel());
       el.appendChild(accountPanel());
       el.appendChild(adminPanel());
+      el.appendChild(feedbackAdmin());
       el.querySelectorAll<HTMLButtonElement>('[data-lesson]').forEach((b) => {
         b.onclick = () => net.send({ t: 'training', lesson: b.dataset.lesson as 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt' });
       });

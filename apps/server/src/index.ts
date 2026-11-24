@@ -12,6 +12,7 @@ import { MatchStore } from './match-store.js';
 import { createMailer, SmtpMailer } from './mailer.js';
 import { resetMail, verifyMail } from './mail-templates.js';
 import { handleAdmin } from './admin.js';
+import { FeedbackStore, feedbackSchema } from './feedback.js';
 import { ModerationStore } from './moderation.js';
 import { Backups } from './backup.js';
 import { Ratings } from './rating.js';
@@ -49,6 +50,7 @@ const campaign = new CampaignService(campaigns);
 const badges = new BadgeStore(auth.db);
 const rankings = new Rankings(auth.db, stats, badges);
 const weekly = new WeeklyStore(auth.db);
+const feedback = new FeedbackStore(auth.db);
 rankings.init();
 campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
@@ -110,6 +112,7 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
 }
 const authLimiter = new RateLimiter(10, 60_000);
 const errorLimiter = new RateLimiter(5, 60_000);
+const feedbackLimiter = new RateLimiter(3, 60_000);
 const mailer = createMailer();
 if (mailer instanceof SmtpMailer) {
   const c = mailer.cfg;
@@ -197,6 +200,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
         return json(res, 400, { error: 'Ungültige Anfrage' });
       }
     }
+    if (req.url === '/api/admin/feedback' && req.method === 'GET') return json(res, 200, feedback.list());
     if (req.url === '/api/admin/backup' && req.method === 'POST') {
       if (!backups.enabled) return json(res, 400, { error: 'BACKUP_DIR ist nicht gesetzt' });
       return json(res, 200, { file: backups.run(), backups: backups.list() });
@@ -220,6 +224,19 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
   const opsCtx = { method: req.method ?? 'GET', url: req.url ?? '', user: opsUser, admin: mod.isAdmin(opsUser?.callsign), body: () => readBody(req), reply: (st: number, b: unknown) => json(res, st, b) };
   if (await handleOps(opsCtx, campaigns, series)) return;
   if (req.method !== 'POST') return json(res, 404, { error: 'Nicht gefunden' });
+  if (req.url === '/api/feedback') {
+    // A player's feedback after a game (test evenings)
+    if (!feedbackLimiter.allow(ip)) return json(res, 429, { ok: false });
+    let parsed;
+    try {
+      parsed = feedbackSchema.safeParse(await readBody(req));
+    } catch {
+      return json(res, 400, { ok: false });
+    }
+    if (!parsed.success) return json(res, 400, { ok: false });
+    feedback.add(parsed.data, auth.userForToken(token)?.callsign);
+    return json(res, 200, { ok: true });
+  }
   if (req.url === '/api/client-error') {
     // Browser errors from players, so problems on their devices show up in the server log
     if (!errorLimiter.allow(ip)) return json(res, 429, { ok: false });

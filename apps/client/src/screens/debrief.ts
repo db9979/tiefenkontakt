@@ -4,6 +4,7 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
 import { debriefOrders, debriefTips, timelineMarkers } from '../widgets/debrief-extras.js';
+import { feedbackBlock } from '../widgets/feedback.js';
 import { photoStrip } from '../widgets/photo.js';
 import { drawSymbol } from '../widgets/symbols.js';
 import { shareBlock, wireShare } from '../widgets/replay-share.js';
@@ -48,6 +49,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
         : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
       ${mine ? debriefTips(d.stats.find((s) => s.playerId === store.playerId)) : ''}
       ${mine ? photoStrip(d, store.playerId) : ''}
+      ${mine ? '<div id="db-fb"></div>' : ''}
       ${mine && d.learned?.length ? `<div class="panel" style="margin:6px 0;border-color:var(--amber-line)"><div class="hd"><span class="amber">Der Gegner lernt</span></div>${d.learned.map((l) => `<div class="row" style="display:block">${esc(l)}</div>`).join('')}</div>` : ''}
       ${live ? '' : debriefOrders(d, d.stats.find((s) => s.playerId === store.playerId)?.team)}
       <div id="db-stats"></div>
@@ -60,6 +62,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
   </div></div>`);
   document.body.appendChild(el);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
+  el.querySelector('#db-fb')?.replaceWith(feedbackBlock(d, store.playerId));
   const cv = q<HTMLCanvasElement>('#db-cv');
   const name = (id?: string) => d.ships.find((s) => s.id === id)?.name ?? (id ?? '—');
 
