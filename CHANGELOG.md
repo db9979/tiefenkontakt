@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Karten genordet:** Lagebild, Tiefenkarte, Radar, ESM, Kompass, Wasserfall, Nachbesprechung und Missionskarten zeigen
+  Nord oben wie eine Weltkarte. Alle Kurse und Peilungen sind rechtweisend, in Anzeigen, Eingaben, Meldungen, Funk und
+  Lagebesprechung (Gibraltar: Route nach Osten statt „Norden“). Die Simulation selbst ist unverändert, die Balance gilt weiter.
 - **Zeitraffer wählbar:** In der Lobby 3× (Standard), 2× oder Echtzeit. Die Einsatzdauer steht jetzt als Seezeit
   (zum Beispiel 120 Minuten); Route, Zeitlimit auf See und Balance bleiben bei jedem Zeitraffer gleich, nur die echte
   Spieldauer ändert sich. Die Uhr zeigt die Seezeit und die echte Restzeit mit dem Zeitraffer, die Lagebesprechung beides.
