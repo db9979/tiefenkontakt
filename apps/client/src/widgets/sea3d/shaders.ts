@@ -1,4 +1,4 @@
-/** GLSL for the 3D sea view: a multi-wave ocean with whitecaps and glitter, and a sky with clouds, sun and moon. */
+/** GLSL for the 3D sea view: a multi-wave ocean with whitecaps, spindrift, rain-pocked surface and glitter (sky in sky.ts). */
 
 import { WAVES_GLSL } from './waves.js';
 
@@ -28,7 +28,7 @@ float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { 
 export const OCEAN_FRAG = `${NOISE}${WAVES}
 uniform float uTime; uniform vec2 uWind; uniform vec2 uOffR; uniform vec2 uOffW;
 uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uFog;
-uniform float uFogDensity; uniform float uLight; uniform float uFoam; uniform float uSunUp;
+uniform float uFogDensity; uniform float uLight; uniform float uFoam; uniform float uSunUp; uniform float uRain; uniform float uSpin;
 uniform vec4 uIce[4];
 varying vec3 vPos;
 void main() {
@@ -48,6 +48,13 @@ void main() {
     vec2 q = vPos.xz + uOffR + uWind * uTime * 0.7;
     vec2 rip = vec2(noise(q) - 0.5, noise(q * 2.0 + 4.0) - 0.5);
     n = normalize(n + vec3(rip.x, 0.0, rip.y) * 0.35 * near);
+  }
+  // Rain pocks the surface close by: fine, fast-changing roughness that dulls the mirror
+  float pock = uRain * (1.0 - smoothstep(0.04, 0.3, foot)) * (1.0 - smoothstep(80.0, 450.0, dist));
+  if (pock > 0.0) {
+    vec2 rq = (vPos.xz + uOffR) * 3.0;
+    vec2 sp = vec2(noise(rq + uTime * 11.0), noise(rq * 1.7 - uTime * 9.0)) - 0.5;
+    n = normalize(n + vec3(sp.x, 0.0, sp.y) * 0.8 * pock);
   }
   float fres = pow(1.0 - max(dot(n, view), 0.0), 4.0);
   vec3 col = mix(uDeep, uSky, clamp(fres * 0.65, 0.0, 1.0));
@@ -72,7 +79,16 @@ void main() {
     float foam = smoothstep(0.0, 0.12, m) * smoothstep(0.25, 0.7, fine);
     float farF = 1.0 - smoothstep(400.0, 2500.0, dist);
     foam = mix(0.05 * uFoam, foam, farF) * uFoam;
-    col = mix(col, vec3(0.86, 0.9, 0.92) * (0.25 + 0.75 * uLight), clamp(foam, 0.0, 1.0) * 0.85);
+    // Gale: spindrift, long foam streaks blown out along the wind
+    if (uSpin > 0.0) {
+      // Wavy lanes a few metres apart, broken into patches; left out where a pixel spans a lane
+      vec2 sq = wq + vec2(0.0, (noise(wq * 0.05) - 0.5) * 14.0);
+      float lane = noise(sq * vec2(0.03, 0.45) + vec2(uTime * 0.05, 0.0));
+      float patchy = smoothstep(0.4, 0.75, noise(wq * vec2(0.012, 0.05) + 9.0));
+      float sharp = 1.0 - smoothstep(0.25, 1.0, foot);
+      foam += uSpin * mix(0.08, smoothstep(0.6, 0.82, lane) * patchy * 0.45, sharp) * farF;
+    }
+    col = mix(col, vec3(0.86, 0.9, 0.92) * (0.1 + 0.9 * uLight), clamp(foam, 0.0, 1.0) * 0.85);
   }
   // Pack ice beyond the modelled floes: a floe pattern drifting with its field (x, z, radius, cover)
   float icec = 0.0; vec2 iceL = vec2(0.0);
@@ -92,31 +108,5 @@ void main() {
   float d = length(cameraPosition - vPos);
   float fog = 1.0 - exp(-pow(d * uFogDensity, 2.0));
   gl_FragColor = vec4(mix(col, uFog, fog), 1.0);
-  #include <colorspace_fragment>
-}`;
-
-export const SKY_VERT = `varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`;
-
-export const SKY_FRAG = `${NOISE}
-uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uSun; uniform vec3 uMoon;
-uniform float uLight; uniform float uCloud; uniform float uTime; uniform float uSunUp;
-varying vec3 vDir;
-void main() {
-  vec3 d = normalize(vDir);
-  float h = clamp(d.y * 3.5, 0.0, 1.0);
-  vec3 col = mix(uHorizon, uTop, pow(h, 0.7));
-  // Sun disc and glow, moon disc
-  float s = max(dot(d, normalize(uSun)), 0.0);
-  col += vec3(1.0, 0.85, 0.6) * (pow(s, 900.0) * 3.0 + pow(s, 12.0) * 0.25) * uSunUp;
-  float m = max(dot(d, normalize(uMoon)), 0.0);
-  col += vec3(0.85, 0.88, 0.95) * smoothstep(0.9993, 0.9996, m) * (1.0 - uSunUp);
-  // Clouds: drifting fbm on a plane above, thinning toward the horizon
-  if (d.y > 0.0) {
-    vec2 uv = d.xz / (d.y + 0.08) * 1.6 + vec2(uTime * 0.004, uTime * 0.002);
-    float c = smoothstep(1.0 - uCloud, 1.15 - uCloud * 0.6, fbm(uv));
-    vec3 cloud = mix(vec3(0.55, 0.6, 0.63), vec3(0.92, 0.93, 0.94), fbm(uv * 1.7 + 3.0)) * (0.12 + 0.88 * uLight);
-    col = mix(col, cloud, c * smoothstep(0.0, 0.18, d.y) * 0.9);
-  }
-  gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
 }`;

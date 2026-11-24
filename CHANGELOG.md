@@ -20,6 +20,12 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - Schiffe reiten auf den Wellen (Tauchen, Stampfen, Rollen aus der Wasseroberfläche unter dem Rumpf), auch das eigene
   Schiff auf der Brücke.
 - Kielwasser und Bugwelle liegen auf den Wellen, der Schaum bleibt im Wasser stehen; kleine Schaumkronen in Windrichtung.
+- **Wetter:** Bewölkung nach Wetterlage (Schönwetterwolken, aufgelockert bei frischem Wind, bedeckt unter und nahe
+  Schauern), fest auf der Karte und mit dem Höhenwind ziehend, von der Sonnenseite beleuchtet; Sonnenhof, Abendrot nur
+  auf der Sonnenseite, Dunstband am Horizont, Sterne nur in Wolkenlücken. Das Meer spiegelt den Himmel.
+- Regen fällt in Streifen, schräg vom Wind und vom eigenen Fahrtwind, und raut die Wasseroberfläche auf; in kalten
+  Lagen schneit es. Unter einem Schauer wird es diesig statt einer Wand. Gewitter in manchen Schauerzellen.
+- Ab Seegang 5 Gischtstreifen in Windrichtung; Schaumkronen sind nachts nicht mehr hell.
 
 ## [1.0.0] – 2026-11-23
 

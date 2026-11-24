@@ -30,3 +30,19 @@ describe('sea surface', () => {
     expect(big).toBeLessThan(small);
   });
 });
+
+describe('weather sky', () => {
+  it('flashes lightning rarely, and only in some showers', async () => {
+    const { squallFlash } = await import('../src/widgets/sea3d/sky.js');
+    const flashes = (id: number) => {
+      let n = 0;
+      for (let t = 0; t < 3600; t += 0.05) if (squallFlash(id, t) > 0.5) n++;
+      return n;
+    };
+    expect(flashes(3)).toBe(0);
+    const n = flashes(4);
+    // About one double flash a minute, each a few frames long
+    expect(n).toBeGreaterThan(20);
+    expect(n).toBeLessThan(600);
+  });
+});

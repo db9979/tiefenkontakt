@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { fogAt, type MetCells, type Vec2 } from '@tk/shared';
 import { NOISE, WAVES } from './shaders.js';
+import { squallFlash } from './sky.js';
 
 /**
  * Local weather in the 3D sea view, from the met cells: low fog banks as volumes you can
@@ -55,7 +56,7 @@ void main() {
 
 /** Shower cloud: a ray through an ellipsoid with a flat base; ragged, soft edges from noise. */
 const CLOUD_FRAG = `${NOISE}
-uniform vec3 uC; uniform vec3 uS; uniform float uK; uniform vec3 uColor; uniform vec3 uTop; uniform float uTime;
+uniform vec3 uC; uniform vec3 uS; uniform float uK; uniform vec3 uColor; uniform vec3 uTop; uniform float uTime; uniform float uFlash;
 varying vec3 vW;
 void main() {
   vec3 ro = cameraPosition; vec3 rd = normalize(vW - ro);
@@ -77,7 +78,9 @@ void main() {
   float rim = 1.0 - dot(o + d * tm, o + d * tm);
   float alpha = (1.0 - exp(-len * uK)) * smoothstep(0.0, 0.55, rim + (n - 0.5) * 0.7);
   float hgt = clamp((pm.y - yb) / (1.25 * uS.y), 0.0, 1.0);
-  gl_FragColor = vec4(mix(uColor, uTop, hgt * hgt), clamp(alpha, 0.0, 0.97));
+  // Lightning lights the cloud from inside, brightest low in the core
+  vec3 col = mix(uColor, uTop, hgt * hgt) + vec3(0.75, 0.8, 1.0) * uFlash * (1.0 - hgt * 0.6) * (0.6 + 0.8 * n);
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.97));
   #include <colorspace_fragment>
 }`;
 
@@ -212,7 +215,7 @@ export class WeatherFx {
       // The shower cloud: a dark-based heap with ragged edges
       const cloud = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
         vertexShader: VOL_VERT, fragmentShader: CLOUD_FRAG, transparent: true, depthWrite: false,
-        uniforms: { uC: { value: new THREE.Vector3() }, uS: { value: new THREE.Vector3() }, uK: { value: 0.0012 }, uColor: { value: new THREE.Color() }, uTop: { value: new THREE.Color() }, uTime: { value: 0 } },
+        uniforms: { uC: { value: new THREE.Vector3() }, uS: { value: new THREE.Vector3() }, uK: { value: 0.0012 }, uColor: { value: new THREE.Color() }, uTop: { value: new THREE.Color() }, uTime: { value: 0 }, uFlash: { value: 0 } },
       }));
       this.scene.add(cloud);
       return { curtain, cloud };
@@ -230,10 +233,15 @@ export class WeatherFx {
       o.cloud.position.set(p.x, cy, p.z);
       o.cloud.scale.set(s.r * 1.4, CLOUD_H, s.r * 1.4);
       cu.uC!.value.set(p.x, cy, p.z); (cu.uS!.value as THREE.Vector3).set(s.r * 1.4, CLOUD_H, s.r * 1.4); cu.uTime!.value = t;
+      cu.uFlash!.value = squallFlash(s.id, t);
       (cu.uColor!.value as THREE.Color).setHex(0x434b50).multiplyScalar(lit);
       (cu.uTop!.value as THREE.Color).setHex(0xa3adb2).multiplyScalar(lit);
       o.cloud.material.side = Math.hypot(p.x, p.z) < s.r * 1.4 ? THREE.BackSide : THREE.FrontSide;
       o.curtain.visible = o.cloud.visible = Math.hypot(p.x, p.z) - s.r < 35_000;
+      // Under the shower the sky goes overcast and the haze closes in (sky.ts): the walls only hint at it
+      const inside = Math.hypot(p.x, p.z) < s.r;
+      u.uFade!.value = inside ? 0.2 : 1;
+      if (inside) o.cloud.visible = false;
     }, (o) => this.scene.remove(o.cloud), (o) => o.curtain);
     // Icebergs
     this.sync(this.bergs, m?.bergs ?? [], (b) => bergMesh(b.id, b.r, b.h, b.draft), (mesh, b) => {

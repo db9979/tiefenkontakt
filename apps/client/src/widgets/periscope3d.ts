@@ -5,7 +5,8 @@ import { MissileTrails } from './sea3d/missiles.js';
 import { shipModel, sightingModel } from './sea3d/models.js';
 import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { mergeStatic } from './sea3d/merge.js';
-import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
+import { OCEAN_FRAG, OCEAN_VERT } from './sea3d/shaders.js';
+import { SkyFx } from './sea3d/sky.js';
 import { applyWaves, hullOnSea, oceanGrid, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
 import { wakeUniforms } from './sea3d/wake.js';
 import { bridgeFront, cullNear } from './sea3d/own-ship.js';
@@ -73,7 +74,6 @@ export class Periscope3D {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(30, 1, 1, 60_000);
   private ocean: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
-  private sky: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
   private hemi = new THREE.HemisphereLight(0xb8c8d0, 0x1a2a30, 1.2);
   private sun = new THREE.DirectionalLight(0xffffff, 1.2);
   private ships = new Map<string, Placed>();
@@ -82,8 +82,7 @@ export class Periscope3D {
   private ownPos = { x: 0, y: 0 };
   private glow = 0;
   private effects = new Map<string, THREE.Group>();
-  private stars: THREE.Points;
-  private rain: THREE.LineSegments;
+  private skyFx: SkyFx;
   private fire = new THREE.PointLight(0xff7a30, 0, 6000, 1.2);
   /** Eye height above the water (m): 4 for a periscope, about 20 on a frigate's bridge. */
   private eye: number;
@@ -111,46 +110,14 @@ export class Periscope3D {
         uniforms: {
           ...waveUniforms(), uCell: { value: grid.cell }, uTime: { value: 0 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) },
           uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uMoon: { value: new THREE.Vector3(-0.3, 0.4, 0.8) }, uFog: { value: new THREE.Color(0x4b5f67) },
-          uFogDensity: { value: 0.00006 }, uLight: { value: 1 }, uFoam: { value: 0 }, uSunUp: { value: 1 },
+          uFogDensity: { value: 0.00006 }, uLight: { value: 1 }, uFoam: { value: 0 }, uSunUp: { value: 1 }, uRain: { value: 0 }, uSpin: { value: 0 },
         },
       }),
     );
     this.scene.add(this.ocean);
     this.wx = new WeatherFx(this.scene, this.ocean.material);
-    this.sky = new THREE.Mesh(
-      new THREE.SphereGeometry(50_000, 32, 16),
-      new THREE.ShaderMaterial({
-        vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false,
-        uniforms: {
-          uTop: { value: new THREE.Color(0x24343b) }, uHorizon: { value: new THREE.Color(0x56707a) }, uSun: { value: new THREE.Vector3(0, 1, 0) },
-          uMoon: { value: new THREE.Vector3(0, 1, 0) }, uLight: { value: 1 }, uCloud: { value: 0.4 }, uTime: { value: 0 }, uSunUp: { value: 1 },
-        },
-      }),
-    );
-    this.scene.add(this.sky);
+    this.skyFx = new SkyFx(this.scene);
     this.scene.add(this.hemi, this.sun, this.fire);
-    // Stars on the upper sky dome (visible only at night)
-    const sp: number[] = [];
-    for (let i = 0; i < 900; i++) {
-      const az = Math.random() * Math.PI * 2;
-      const el = Math.asin(Math.random() * 0.95 + 0.02);
-      sp.push(Math.cos(el) * Math.sin(az) * 45_000, Math.sin(el) * 45_000, -Math.cos(el) * Math.cos(az) * 45_000);
-    }
-    this.stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)),
-      new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, fog: false }));
-    this.scene.add(this.stars);
-    // Rain: short streaks in a box around the optic, moved every frame
-    const rp: number[] = [];
-    for (let i = 0; i < 1400; i++) {
-      const x = (Math.random() - 0.5) * 120;
-      const y = Math.random() * 40;
-      const z = -Math.random() * 120;
-      rp.push(x, y, z, x + 0.15, y - 2.2, z);
-    }
-    this.rain = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(rp, 3)),
-      new THREE.LineBasicMaterial({ color: 0xb8c8cc, transparent: true, opacity: 0.35, fog: false }));
-    this.rain.visible = false;
-    this.camera.add(this.rain);
     this.scene.add(this.camera);
     if (opts.own) {
       // Foredeck, gun and bridge front in the lower part of the picture: the eye sits on the bridge roof
@@ -312,40 +279,24 @@ export class Periscope3D {
     u.uFoam!.value = Math.max(0, Math.min(1, (o.sea - 2) / 4));
     // Inside a fog bank: everything goes white-grey within a few hundred meters
     const inFog = this.wx.update(o.met, o.own, o.t, o.light);
-    const haze = new THREE.Color(0x7f939b).lerp(new THREE.Color(0xc4cdd1), inFog).multiplyScalar(0.06 + 0.94 * o.light * o.light);
-    u.uFog!.value = haze;
-    // Dusk and dawn tint the horizon orange; the sun stands low in the west or east
-    const dusk = o.light > 0.15 && o.light < 0.9 ? 1 - Math.abs(o.light - 0.5) * 2 : 0;
-    // Night: a dark sky with only a faint glow at the horizon
-    const horizon = new THREE.Color(0x8fa3ab).lerp(new THREE.Color(0xd08a5a), dusk * 0.7).multiplyScalar(0.06 + 0.94 * o.light * o.light);
-    const su = this.sky.material.uniforms;
-    su.uHorizon!.value = (o.rain ? horizon.clone().lerp(new THREE.Color(0x5c666a), 0.6) : horizon).lerp(haze, inFog);
-    su.uTop!.value = new THREE.Color(0x3d5560).multiplyScalar((0.05 + 0.95 * o.light * o.light) * (o.rain ? 0.7 : 1));
-    const hour = o.hour ?? 12;
-    const sunAz = ((hour - 6) / 12) * Math.PI; // east at 6 h, south at noon, west at 18 h
-    const sunEl = Math.sin(((hour - 6) / 12) * Math.PI) * 0.8;
-    this.sun.position.set(Math.cos(sunAz) * 10, Math.max(0.03, sunEl) * 10, Math.sin(sunAz) * 10);
-    const sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
-    const moonDir = new THREE.Vector3(-Math.cos(sunAz), 0.35, -Math.sin(sunAz)).normalize();
-    const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (o.rain ? 0.2 : 1) * (1 - 0.8 * inFog);
-    u.uSun!.value = sunDir;
-    u.uMoon!.value = moonDir;
-    u.uSunUp!.value = sunUp;
-    su.uSun!.value = sunDir;
-    su.uMoon!.value = moonDir;
-    su.uSunUp!.value = sunUp;
-    su.uLight!.value = o.light;
-    su.uTime!.value = o.t;
-    su.uCloud!.value = o.rain ? 0.85 : 0.3 + o.sea * 0.06;
-    this.sun.color = new THREE.Color(0xffffff).lerp(new THREE.Color(0xffb070), dusk);
-    this.hemi.intensity = 0.2 + 1.0 * o.light;
-    this.sun.intensity = 1.2 * o.light * (o.rain ? 0.4 : 1);
-    (this.stars.material as THREE.PointsMaterial).opacity = o.rain ? 0 : Math.max(0, 1 - o.light * 3) * 0.9;
-    const fogDensity = THREE.MathUtils.lerp(0.000022 * (1 + o.sea * 0.2) * (o.rain ? 2.2 : 1), 0.0019, inFog);
-    u.uFogDensity!.value = fogDensity;
-    this.scene.fog = new THREE.FogExp2(haze, fogDensity);
-    this.rain.visible = !!o.rain;
-    if (o.rain) this.rain.position.y = -((o.t * 22) % 30);
+    const sky = this.skyFx.update({
+      t: o.t, light: o.light, hour: o.hour ?? 12, sea: o.sea, rain: !!o.rain, inFog, met: o.met, own: this.ownPos,
+      ownKn: o.ownKn ?? 0, ownHeading: o.ownHeading ?? 0, camera: this.camera,
+    });
+    u.uFog!.value = sky.haze;
+    (u.uSky!.value as THREE.Color).copy(sky.reflect);
+    u.uSun!.value = sky.sunDir;
+    u.uMoon!.value = sky.moonDir;
+    u.uSunUp!.value = sky.sunUp;
+    u.uRain!.value = sky.precip;
+    u.uSpin!.value = Math.max(0, Math.min(1, (o.sea - 4) / 2));
+    this.sun.position.copy(sky.sunDir).multiplyScalar(10).setY(Math.max(0.3, sky.sunDir.y * 10));
+    this.sun.color = sky.sunColor;
+    // Overcast: flat, shadowless light; lightning lights everything for a blink
+    this.hemi.intensity = (0.2 + 1.0 * o.light) * (1 - 0.3 * sky.overcast) + sky.flash * 1.5;
+    this.sun.intensity = 1.2 * o.light * (1 - 0.75 * sky.overcast) * (1 - 0.8 * inFog);
+    u.uFogDensity!.value = sky.fogDensity;
+    this.scene.fog = new THREE.FogExp2(sky.haze, sky.fogDensity);
     this.updateEffects(o.effects ?? [], o.light);
     this.place(o.targets, o.t, o.sea, amp, o.light);
     this.slicks = updateSlicks(this.slicks, this.scene, o.t, this.ownPos.x, this.ownPos.y, o.light);
