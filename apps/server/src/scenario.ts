@@ -39,9 +39,9 @@ loadBathymetry();
 export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
 /** Strait breakthrough: escorts guard the narrows here, the boats must get past this line. */
 export const STRAIT_GUARD_Y = 7_000;
-export const STRAIT_EXIT_Y = 15_000;
-/** Harbour attack: where the boats start, about 16 km out from the anchorage (arena West:Ost - 18 km 23:7, 16 km 19:21, 14 km 10:20, 10 km 3:17). */
-export const HARBOUR_SUB_Y = 20_000;
+export const STRAIT_EXIT_Y = 16_500;
+/** Harbour attack: where the boats start, about 16 km out from the anchorage (arena West:Ost - 18 km 23:7, 16 km 19:21, 14 km 10:20, 10 km 3:17; with terrain and seasons 16 km 2:4, 17 km 8:8, 18 km 14:6). */
+export const HARBOUR_SUB_Y = 21_000;
 /** Shadowing: minutes of held contact the pack needs. */
 export const SHADOW_GOAL_S = 25 * 60;
 /** Shadowing only counts within this distance of a convoy ship. */
@@ -56,9 +56,9 @@ export type TimeOfDay = 'tag' | 'daemmerung' | 'nacht';
  */
 export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; region: RegionId; subSpread: number; convoyKn?: number; escortY?: number }> = {
   groenland: { title: 'Grönland-Lücke', info: 'Färöer-Bank: aus dem tiefen Färöer-Bank-Kanal (700 m) auf die flache Bank (100–200 m), nur dort Minen', seabed: 'tief', region: 'faroebank', subSpread: 4000 },
-  schelf: { title: 'Schelfmeer', info: 'Barentssee bei der Bäreninsel (120–240 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', region: 'barents', subSpread: 5000 },
+  schelf: { title: 'Schelfmeer', info: 'Barentssee bei der Bäreninsel (120–240 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', region: 'barents', subSpread: 10_000 },
   // A slow convoy; in the wide real fjord the escorts screen ahead of it again (level with its head the boats won 9 in 10)
-  fjord: { title: 'Fjordausfahrt', info: 'Vestfjord zwischen Lofoten und Festland (300–600 m); wer die Rinne verlässt, läuft auf', seabed: 'fjord', region: 'vestfjord', subSpread: 2500, convoyKn: 8 },
+  fjord: { title: 'Fjordausfahrt', info: 'Vestfjord zwischen Lofoten und Festland (300–600 m); wer die Rinne verlässt, läuft auf', seabed: 'fjord', region: 'vestfjord', subSpread: 2500, convoyKn: 8, escortY: 4000 },
   duell: { title: 'U-Boot-Duell', info: 'Lofotenbecken (3000 m), kein Konvoi: wer zuerst hört, gewinnt', seabed: 'tief', region: 'lofotenbasin', subSpread: 3000 },
   hafen: { title: 'Hafenangriff', info: 'Kolabucht: Frachter ankern im engen Fjord vor Murmansk, die Eskorte bewacht die Einfahrt', seabed: 'fjord', region: 'kola', subSpread: 2000 },
   fuehlung: { title: 'Fühlung halten', info: 'Lofotenbecken, Waffen gesperrt: Kontakt zum Konvoi 25 Minuten aus höchstens 12 km halten', seabed: 'tief', region: 'lofotenbasin', subSpread: 4000 },

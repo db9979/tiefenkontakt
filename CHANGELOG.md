@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Karten ausgeglichen:** Seit Gelände, Strömung und Jahreszeiten lagen die Konvoi-Missionen beim Ostpakt (KI-Arena
+  10:20). Schelfmeer: Boote warten 10 statt 5 km neben der Route. Fjordausfahrt: Eskorten starten 4 km vor dem Konvoi.
+  Hafenangriff: Start 17 statt 16 km vor dem Ankerplatz. Meerenge: Ausgang 1,5 km weiter nördlich. Arena jetzt 23:17.
 - **Seezielflugkörper für das Wachschiff:** Projekt 11 trägt acht Sea-Skimmer (6–40 km, zwei Vierfachstarter).
   Der Suchkopf öffnet 9 km vor dem Zielpunkt und nimmt das größte Echo im Kegel, auch Neutrale. Eskorten wehren
   automatisch ab: Flugabwehrraketen bei Radar an (ein Starter, eine Salve überlastet ihn), aus der Nähe die Geschütze.
