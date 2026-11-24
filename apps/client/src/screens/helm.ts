@@ -1,7 +1,8 @@
 import { CLASSES, PERISCOPE_DEPTH, headingVec, wrap360 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { COL, deg3, fitCanvas, kn, setHtml } from '../widgets/format.js';
+import { COL, fitCanvas, kn, setHtml, tdeg3 } from '../widgets/format.js';
+import { gameDeg, trueDeg } from '../north.js';
 import { isFriendlyContact } from '../widgets/friendly.js';
 import { isKey } from '../widgets/keys.js';
 import { touchable } from '../widgets/touch.js';
@@ -40,7 +41,8 @@ export function mountHelm(el: HTMLElement) {
     const r = compass.getBoundingClientRect();
     const dx = e.clientX - (r.left + r.width / 2);
     const dy = e.clientY - (r.top + SIZE / 2);
-    order({ heading: Math.round(wrap360((Math.atan2(dx, -dy) * 180) / Math.PI)) });
+    // The rose is north-up: the click is a true course
+    order({ heading: gameDeg(Math.round(wrap360((Math.atan2(dx, -dy) * 180) / Math.PI))) });
   };
   touchable(compass);
   compass.addEventListener('pointerdown', (e) => {
@@ -112,7 +114,7 @@ export function mountHelm(el: HTMLElement) {
     if (!s) return;
     for (const c of s.contacts) {
       if (s.time - c.lastSeen > 10 || isFriendlyContact(c, s)) continue;
-      const v = headingVec(c.bearing);
+      const v = headingVec(trueDeg(c.bearing));
       ctx.strokeStyle = c.label === store.selected ? COL.amber : c.label.includes('E') ? COL.red : COL.g;
       ctx.beginPath(); ctx.moveTo(cx + v.x * (R - 2), cy - v.y * (R - 2)); ctx.lineTo(cx + v.x * (R - 14), cy - v.y * (R - 14)); ctx.stroke();
     }
@@ -120,22 +122,22 @@ export function mountHelm(el: HTMLElement) {
     ctx.fillStyle = 'rgba(95,122,114,0.15)';
     ctx.beginPath();
     ctx.moveTo(cx, cy);
-    const a0 = ((shownHeading ?? s.own.heading) + 180 - half - 90) * (Math.PI / 180);
+    const a0 = (trueDeg(shownHeading ?? s.own.heading) + 180 - half - 90) * (Math.PI / 180);
     ctx.arc(cx, cy, R - 16, a0, a0 + (2 * half * Math.PI) / 180);
     ctx.fill();
-    const ov = headingVec(s.own.order.heading);
+    const ov = headingVec(trueDeg(s.own.order.heading));
     ctx.strokeStyle = COL.amber;
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + ov.x * (R - 6), cy - ov.y * (R - 6)); ctx.stroke();
     ctx.setLineDash([]);
-    const hv = headingVec(shownHeading ?? s.own.heading);
+    const hv = headingVec(trueDeg(shownHeading ?? s.own.heading));
     ctx.strokeStyle = COL.blue;
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + hv.x * (R - 10), cy - hv.y * (R - 10)); ctx.stroke();
     ctx.lineWidth = 1;
     ctx.fillStyle = COL.g2;
     ctx.font = '13px ui-monospace, monospace';
-    ctx.fillText(deg3(shownHeading ?? s.own.heading), cx, cy + 26);
+    ctx.fillText(tdeg3(shownHeading ?? s.own.heading), cx, cy + 26);
   }
 
   return {
@@ -144,7 +146,7 @@ export function mountHelm(el: HTMLElement) {
       if (!s) return;
       const o = s.own;
       const spec = CLASSES[o.cls];
-      setHtml(q('#h-hdg'), `${deg3(o.heading)}° <span class="amber">→ ${deg3(o.order.heading)}°</span>`);
+      setHtml(q('#h-hdg'), `${tdeg3(o.heading)}° <span class="amber">→ ${tdeg3(o.order.heading)}°</span>`);
       setHtml(q('#h-spd'), `${kn(o.speedKn)} <span class="amber">→ ${kn(o.order.speedKn)}</span>${o.speedKn > o.cavitationKn ? ' <span class="red">KAVITATION</span>' : ''}`);
       el.querySelectorAll<HTMLButtonElement>('[data-s]').forEach((b) => {
         const k = Math.min(SPEEDS[Number(b.dataset.s)]!.kn, spec.maxSpeedKn);

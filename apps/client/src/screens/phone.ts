@@ -1,7 +1,7 @@
 import { CLASSES, type ServerMsg, type Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { store } from '../store.js';
-import { h } from '../widgets/format.js';
+import { h, tdeg3 } from '../widgets/format.js';
 import { lookFromOrientation, turnFrom } from '../widgets/gyro.js';
 import { reticle } from '../widgets/reticle.js';
 import { bridgeTargets, periscopeTargets } from '../widgets/scope-targets.js';
@@ -233,6 +233,6 @@ export function phoneScreen(root: HTMLElement, code: string): void {
       reticle(ctx, w, hgt, f, r);
     }
     const sel = selected ? ` · ${selected}` : '';
-    q('#ph-top').textContent = `PEILUNG ${String(Math.round(bearing()) % 360).padStart(3, '0')}° · ELEV ${elev >= 0 ? '+' : ''}${elev.toFixed(0)}° · ${!isSub && !glass ? 'AUGE' : `${String(mag).replace('.', ',')}×`}${stab ? ' · STAB' : ''}${sel}`;
+    q('#ph-top').textContent = `PEILUNG ${tdeg3(bearing())}° · ELEV ${elev >= 0 ? '+' : ''}${elev.toFixed(0)}° · ${!isSub && !glass ? 'AUGE' : `${String(mag).replace('.', ',')}×`}${stab ? ' · STAB' : ''}${sel}`;
   }
 }

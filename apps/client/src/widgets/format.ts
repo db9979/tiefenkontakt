@@ -1,8 +1,13 @@
 import { dpr2d } from './perf.js';
+import { trueDeg } from '../north.js';
 import type { ClassChoice, ClassId, NeutralClass } from '@tk/shared';
 
 export const deg3 = (d: number) => Math.round(((d % 360) + 360) % 360).toString().padStart(3, '0');
 export const deg1 = (d: number) => (((d % 360) + 360) % 360).toFixed(1).replace('.', ',');
+/** Game-frame direction shown as true degrees, three digits (north-up display). */
+export const tdeg3 = (game: number) => deg3(trueDeg(game));
+/** Game-frame direction shown as true degrees, one decimal. */
+export const tdeg1 = (game: number) => deg1(trueDeg(game));
 export const km = (m: number) => (m / 1000).toFixed(1).replace('.', ',') + ' KM';
 export const kn = (v: number) => v.toFixed(1).replace('.', ',') + ' KN';
 

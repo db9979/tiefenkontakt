@@ -1,7 +1,7 @@
 import { CLASSES, angleDiff, bearing, distance, type ClassId, type Snapshot } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from './periscope3d.js';
 import type { UnderwaterScene } from './sea3d/underwater.js';
-import { deg3, km, mastState } from './format.js';
+import { km, mastState, tdeg3 } from './format.js';
 import { lang } from '../i18n/index.js';
 
 const L = (de: string, en: string) => (lang === 'en' ? en : de);
@@ -99,8 +99,8 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
         ensureGl(mode);
         box.style.display = '';
         box.querySelector('#hc-t')!.textContent = mode === 'under'
-          ? L(`TREFFER GEHÖRT · PEILUNG ${deg3(a.bearing)} · REKONSTRUKTION`, `HIT HEARD · BEARING ${deg3(a.bearing)} · RECONSTRUCTION`)
-          : L(`AUSGUCK · TREFFER PEILUNG ${deg3(a.bearing)} · CA. ${km(range)}`, `LOOKOUT · HIT BEARING ${deg3(a.bearing)} · ABOUT ${km(range)}`);
+          ? L(`TREFFER GEHÖRT · PEILUNG ${tdeg3(a.bearing)} · REKONSTRUKTION`, `HIT HEARD · BEARING ${tdeg3(a.bearing)} · RECONSTRUCTION`)
+          : L(`AUSGUCK · TREFFER PEILUNG ${tdeg3(a.bearing)} · CA. ${km(range)}`, `LOOKOUT · HIT BEARING ${tdeg3(a.bearing)} · ABOUT ${km(range)}`);
       }
     },
     frame(s) {

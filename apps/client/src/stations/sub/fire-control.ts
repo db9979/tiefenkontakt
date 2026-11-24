@@ -1,3 +1,4 @@
+import { gameDeg, trueDeg } from '../../north.js';
 import { onTap } from '../../widgets/touch.js';
 import {
   CHOICE_MAX_KN,
@@ -21,7 +22,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { COL, deg1, deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
+import { COL, fitCanvas, h, km, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 import { minePanel } from '../../widgets/mine-panel.js';
@@ -128,7 +129,7 @@ export function fireControlStation(): Station {
     const r = Number(q<HTMLInputElement>('#s-rng').value);
     store.solutions.set(c.label, {
       t0: last.t, x0: own.x + v.x * r, y0: own.y + v.y * r,
-      course: Number(q<HTMLInputElement>('#s-crs').value), speedKn: Number(q<HTMLInputElement>('#s-spd').value),
+      course: gameDeg(Number(q<HTMLInputElement>('#s-crs').value)), speedKn: Number(q<HTMLInputElement>('#s-spd').value),
     });
   }
   ['#s-rng', '#s-crs', '#s-spd'].forEach((id) => (q<HTMLInputElement>(id).oninput = fromSliders));
@@ -169,7 +170,7 @@ export function fireControlStation(): Station {
       return;
     }
     const hdg = interceptHeading(s.own, Number(q<HTMLSelectElement>('#t-spd').value), sol, s.time);
-    if (hdg !== undefined) q<HTMLInputElement>('#t-hdg').value = String(Math.round(hdg));
+    if (hdg !== undefined) q<HTMLInputElement>('#t-hdg').value = String(Math.round(trueDeg(hdg)) % 360);
     const rng = distance(s.own, targetPosAt(sol, s.time));
     q<HTMLInputElement>('#t-en').value = String(Math.max(500, Math.round((rng * 0.7) / 250) * 250));
   };
@@ -177,7 +178,7 @@ export function fireControlStation(): Station {
     const hdg = Number(q<HTMLInputElement>('#t-hdg').value);
     if (!Number.isFinite(hdg) || q<HTMLInputElement>('#t-hdg').value === '') return;
     net.send({
-      t: 'fire', heading: ((hdg % 360) + 360) % 360, enableAfter: Number(q<HTMLInputElement>('#t-en').value),
+      t: 'fire', heading: gameDeg(hdg), enableAfter: Number(q<HTMLInputElement>('#t-en').value),
       mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active', searchDepth: Number(q<HTMLInputElement>('#t-dep').value),
       speedKn: Number(q<HTMLSelectElement>('#t-spd').value),
     });
@@ -214,7 +215,7 @@ export function fireControlStation(): Station {
         const now = targetPosAt(sol, s.time);
         const rng = distance(s.own, now);
         q('#v-rng').textContent = km(rng);
-        q('#v-crs').textContent = `${deg3(sol.course)}°`;
+        q('#v-crs').textContent = `${tdeg3(sol.course)}°`;
         q('#v-spd').textContent = `${sol.speedKn.toFixed(1)} KN`;
         // Eased readouts: the fit settles instead of flickering with each noisy bearing
         shownQ = shownQ === undefined || shownLabel !== c.label ? fit.quality : shownQ + (fit.quality - shownQ) * 0.2;
@@ -228,7 +229,7 @@ export function fireControlStation(): Station {
           sliderSol = sol;
           const ae = document.activeElement;
           if (ae !== q('#s-rng')) q<HTMLInputElement>('#s-rng').value = String(distance(own, targetPosAt(sol, last?.t ?? s.time)));
-          if (ae !== q('#s-crs')) q<HTMLInputElement>('#s-crs').value = String(sol.course);
+          if (ae !== q('#s-crs')) q<HTMLInputElement>('#s-crs').value = String(trueDeg(sol.course));
           if (ae !== q('#s-spd')) q<HTMLInputElement>('#s-spd').value = String(sol.speedKn);
         }
         const tl = c.history[c.history.length - 1]?.t ?? s.time;
@@ -254,7 +255,7 @@ export function fireControlStation(): Station {
       setHtml(q('#tubes'), tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`);
       setHtml(q('#wires'), s.torpedoes.map((t) => `
         <div class="row"><span>${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-        <span>${deg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
+        <span>${tdeg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
     },
     frame() {
       plot.draw(Math.max(320, window.innerHeight - 300));

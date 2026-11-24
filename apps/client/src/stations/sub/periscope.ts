@@ -8,7 +8,7 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
 import { isKey } from '../../widgets/keys.js';
-import { CHOICE_LABEL, CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km, mastState } from '../../widgets/format.js';
+import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { SkySearch } from '../../widgets/sky-search.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
@@ -225,16 +225,16 @@ export function periscopeStation(): Station {
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
       el.querySelector('#data')!.innerHTML = `
-        <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${deg1(periBearing)}°</span></div>
+        <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${tdeg1(periBearing)}°</span></div>
         <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : '—'}</span></div>
         <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : target ? 'ERKENNUNG ÖFFNEN' : '—'}</span></div>
-        <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? deg1(target.bearing) + '°' : '—'}</span></div>
+        <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
         <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${target?.range && target.assignedCls && target.classified ? km(stadimeterRange(target.range, target.classified, target.assignedCls)) : '—'}</span></div>
         <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${skyNow.text}</span></div>
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>
-        ${esm.map((a) => `<div class="row red blink"><span>ESM · RADAR</span><span>${deg3(a.bearing ?? 0)}°</span></div>`).join('')}
+        ${esm.map((a) => `<div class="row red blink"><span>ESM · RADAR</span><span>${tdeg3(a.bearing ?? 0)}°</span></div>`).join('')}
         ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`;
     },
     hide() {
@@ -389,7 +389,7 @@ export function periscopeStation(): Station {
       ctx.font = '12px ui-monospace, monospace';
       ctx.fillStyle = COL.g2;
       ctx.textAlign = 'center';
-      ctx.fillText(deg3(periBearing), cx, cy + R + 16 > H ? H - 4 : cy + R + 16);
+      ctx.fillText(tdeg3(periBearing), cx, cy + R + 16 > H ? H - 4 : cy + R + 16);
       if (s && mst.ext > 0 && mst.ext < 1) {
         ctx.fillText(`MAST FÄHRT ${mst.moving === 'ein' ? 'EIN' : 'AUS'} · ${Math.round(mst.ext * 100)} %`, cx, cy + 34);
       } else if (!s || !mst.raised) {

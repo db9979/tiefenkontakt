@@ -1,7 +1,7 @@
 import { bearing, distance, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { deg3, km } from './format.js';
+import { km, tdeg3 } from './format.js';
 import type { MenuItem } from './menu.js';
 
 /** Right-click map actions shared by stations. */
@@ -9,7 +9,7 @@ export function courseAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s) return [];
   const b = Math.round(bearing(s.own, p));
-  return [{ label: `Kurs hierher (${deg3(b)}°)`, run: () => net.send({ t: 'order', heading: b % 360 }) }];
+  return [{ label: `Kurs hierher (${tdeg3(b)}°)`, run: () => net.send({ t: 'order', heading: b % 360 }) }];
 }
 
 export function torpedoAction(p: Vec2, opts: { speedKn: number; searchDepth: number; mode: 'passive' | 'active' }): MenuItem[] {
@@ -18,7 +18,7 @@ export function torpedoAction(p: Vec2, opts: { speedKn: number; searchDepth: num
   const b = bearing(s.own, p);
   const d = distance(s.own, p);
   return [{
-    label: `Torpedo hierher (${deg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
+    label: `Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
     danger: true,
     run: () => net.send({ t: 'fire', heading: b, enableAfter: Math.max(500, d * 0.7), mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn }),
   }];

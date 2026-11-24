@@ -1,8 +1,9 @@
 import { onTap } from './touch.js';
-import { CHOICE_LABEL, CLASS_LABEL, deg1, esc, km, setHtml } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, esc, km, setHtml, tdeg1 } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
+import { trueDeg } from '../north.js';
 import { steadyBearing } from './smooth.js';
 import { CLASSES, type SensorKind } from '@tk/shared';
 import { bindSortable, filterChips, getFilters, sortHead, sortRows, type SortState } from './sortable.js';
@@ -48,7 +49,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       && (!groups.length || groups.some((g) => c.sensors.some((x) => GROUPS[g]!.includes(x)))));
   const rows = sortRows(shown, ID, DEF, {
     label: (r) => r.c.label,
-    brg: (r) => shownBearing(r.c),
+    brg: (r) => trueDeg(shownBearing(r.c)),
     range: (r) => fixRange(r.c, s),
     sensor: (r) => r.c.sensors.map((x) => SENSOR_LABEL[x]).join('/'),
     cls: (r) => whatOf(r.c, r.own),
@@ -81,7 +82,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       const color = c.assigned === 'torpedo' ? 'red' : '';
       return `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
         <span>${esc(c.label)}</span>
-        <span>${c.bearingAlt !== undefined && side ? deg1(steadyBearing(c.label, side === 'stb' ? c.bearing : c.bearingAlt, c.lastSeen)) + '°' : `${deg1(steadyBearing(c.label, c.bearing, c.lastSeen))}°${c.bearingAlt !== undefined ? `/${deg1(steadyBearing(c.label + '/alt', c.bearingAlt, c.lastSeen))}°` : ''}`}${tasNote}${c.originX !== undefined ? ' <span class="blue">(BOJE)</span>' : ''}</span>
+        <span>${c.bearingAlt !== undefined && side ? tdeg1(steadyBearing(c.label, side === 'stb' ? c.bearing : c.bearingAlt, c.lastSeen)) + '°' : `${tdeg1(steadyBearing(c.label, c.bearing, c.lastSeen))}°${c.bearingAlt !== undefined ? `/${tdeg1(steadyBearing(c.label + '/alt', c.bearingAlt, c.lastSeen))}°` : ''}`}${tasNote}${c.originX !== undefined ? ' <span class="blue">(BOJE)</span>' : ''}</span>
         <span>${range}</span>
         <span>${c.sensors.map((x) => SENSOR_LABEL[x]).join('/')}</span>
         <span class="${color}">${what}</span>

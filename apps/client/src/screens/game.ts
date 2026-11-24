@@ -12,7 +12,7 @@ import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
-import { CLASS_LABEL, clock, deg3, esc, h, mastState } from '../widgets/format.js';
+import { CLASS_LABEL, clock, esc, h, mastState, tdeg3 } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
@@ -231,8 +231,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       const s = store.snap;
       const c = store.selectedContact();
       let text = b.dataset.r!;
-      if (text === 'Position' && s) text = `Position ${Math.round(s.own.x / 100) / 10} / ${Math.round(s.own.y / 100) / 10} km, Kurs ${deg3(s.own.heading)}`;
-      else if (c) text += ` · ${c.label} Peilung ${deg3(c.bearing)}`;
+      if (text === 'Position' && s) text = `Position ${Math.round(s.own.x / 100) / 10} / ${Math.round(s.own.y / 100) / 10} km, Kurs ${tdeg3(s.own.heading)}`;
+      else if (c) text += ` · ${c.label} Peilung ${tdeg3(c.bearing)}`;
       net.send({ t: 'radio', text });
     }));
     show(0);
@@ -318,8 +318,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();
     if (torp && s.own.alive) {
       banner.textContent = store.realism === 'profi'
-        ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${deg3(torp.bearing ?? 0)}`
-        : `TORPEDO! PEILUNG ${deg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
+        ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${tdeg3(torp.bearing ?? 0)}`
+        : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
       if (!banner.isConnected) document.body.appendChild(banner);
     } else banner.remove();
     if (!s.own.alive && !banner.isConnected) {

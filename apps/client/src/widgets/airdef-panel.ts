@@ -1,7 +1,7 @@
 import { distance, hitChance, type PlaneView, type SamSpec, type Snapshot, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { esc, h, km, setHtml } from './format.js';
+import { esc, h, km, setHtml, tdeg3 } from './format.js';
 import type { MenuItem } from './menu.js';
 
 /**
@@ -95,7 +95,7 @@ export function airDefPanel(): { el: HTMLElement; update(): void } {
         const st = samStatus(s, p);
         const sel = p.id === airSel.id;
         return `<div class="row" data-air="${esc(p.id)}" style="cursor:pointer${sel ? ';background:rgba(250,199,117,0.12)' : ''}">
-          <span class="${sel ? 'amber' : ''}">${NAME[p.kind]} ${esc(p.id)} · ${String(Math.round(p.bearing)).padStart(3, '0')}° · ${st.range !== undefined ? km(st.range) : '—'} · ${altText(p.alt)}</span>
+          <span class="${sel ? 'amber' : ''}">${NAME[p.kind]} ${esc(p.id)} · ${tdeg3(p.bearing)}° · ${st.range !== undefined ? km(st.range) : '—'} · ${altText(p.alt)}</span>
           <span class="${st.ok ? '' : 'dim'}">${st.text}${st.pk !== undefined ? ` · ${Math.round(st.pk * 100)} %` : ''}</span></div>`;
       }).join('') : '<div class="dim">KEIN FEINDLICHES LUFTZIEL · ESM UND RADAR BEOBACHTEN</div>');
       const target = air.find((p) => p.id === airSel.id);

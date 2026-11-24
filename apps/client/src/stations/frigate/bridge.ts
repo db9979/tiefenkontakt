@@ -1,3 +1,4 @@
+import { trueDeg } from '../../north.js';
 import { angleDiff, fogAt, lookoutRanges, type Sighting } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from '../../widgets/periscope3d.js';
 import { store } from '../../store.js';
@@ -9,7 +10,7 @@ import { planeTargets } from '../../widgets/air-targets.js';
 import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
-import { CLASS_LABEL, deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
+import { CLASS_LABEL, fitCanvas, h, km, setHtml, tdeg3 } from '../../widgets/format.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
@@ -203,7 +204,7 @@ export function bridgeStation(): Station {
     const air = (s.planes ?? []).filter((p) => p.via.includes('visual'));
     const f = air.find((p) => p.id === airTrack);
     const NAME = { airliner: 'VERKEHRSFLUGZEUG', light: 'KLEINFLUGZEUG', recon: 'FERNAUFKLÄRER', mpa: 'SEEAUFKLÄRER', helo: 'HUBSCHRAUBER' } as const;
-    return `<div class="row"><span class="dim">LUFT IN SICHT</span><span>${air.length || '—'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${deg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
+    return `<div class="row"><span class="dim">LUFT IN SICHT</span><span>${air.length || '—'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
   };
 
   /** Selected contact with its assigned class (from the recognition book) and the photo counter. */
@@ -240,7 +241,7 @@ export function bridgeStation(): Station {
         ${airLine(s)}
         ${selLine()}
         <div class="dim" style="margin:8px 0 4px">MELDUNGEN</div>
-        ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${deg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
+        ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${tdeg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
         <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`);
     },
     hide() {
@@ -277,7 +278,7 @@ export function bridgeStation(): Station {
       const heading = s ? ownNow().heading : 0;
       const look = (heading + rel + 360) % 360;
       const f = fov();
-      el.querySelector('#b-brg')!.textContent = `BLICK ${deg3(look)}° · ${rel === 0 ? 'VORAUS' : `${Math.abs(Math.round(rel))}° ${rel > 0 ? 'STB' : 'BB'}`}`;
+      el.querySelector('#b-brg')!.textContent = `BLICK ${tdeg3(look)}° · ${rel === 0 ? 'VORAUS' : `${Math.abs(Math.round(rel))}° ${rel > 0 ? 'STB' : 'BB'}`}`;
       const live = !!gl && !!s;
       glCanvas.style.visibility = live ? 'visible' : 'hidden';
       const tg = live ? targets() : [];
@@ -356,7 +357,8 @@ export function bridgeStation(): Station {
           }
         }
       }
-      // Bearing tape
+      // Bearing tape in true degrees
+      const lookT = trueDeg(look);
       ctx.fillStyle = 'rgba(3,8,8,0.6)';
       ctx.fillRect(0, 0, w, 16);
       ctx.strokeStyle = '#9fd8c4';
@@ -364,8 +366,8 @@ export function bridgeStation(): Station {
       ctx.font = '10px ui-monospace, monospace';
       ctx.textAlign = 'center';
       const step = glass ? 1 : 5;
-      for (let a = Math.ceil((look - f / 2) / step) * step; a <= look + f / 2; a += step) {
-        const x = w / 2 + (angleDiff(look, a) / (f / 2)) * (w / 2);
+      for (let a = Math.ceil((lookT - f / 2) / step) * step; a <= lookT + f / 2; a += step) {
+        const x = w / 2 + (angleDiff(lookT, a) / (f / 2)) * (w / 2);
         const major = a % (glass ? 5 : 30) === 0;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, major ? 7 : 4); ctx.stroke();
         if (major) ctx.fillText(String(((a % 360) + 360) % 360).padStart(3, '0'), x, 15);

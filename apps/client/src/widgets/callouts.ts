@@ -3,6 +3,7 @@ import { announce } from '../a11y.js';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { store } from '../store.js';
+import { tdeg3 } from './format.js';
 
 /**
  * Crew reports: watches successive snapshots and announces what changed, spoken with the
@@ -19,14 +20,15 @@ export interface LogEntry {
 
 const en = lang === 'en';
 const L = (de: string, enText: string) => (en ? enText : de);
-/** Naval digit reading: "zwo-eins-null" / "two-one-zero". */
+/** Game-frame direction → three true digits (every caller here passes an absolute bearing or course). */
+const deg3 = (b: number) => tdeg3(b);
+/** Naval digit reading of a game-frame direction in true degrees: "zwo-eins-null" / "two-one-zero". */
 function digits(b: number): string {
-  const d = String(Math.round(((b % 360) + 360) % 360)).padStart(3, '0');
+  const d = deg3(b);
   const de = ['null', 'eins', 'zwo', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun'];
   const e = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'niner'];
   return [...d].map((c) => (en ? e : de)[Number(c)]).join('-');
 }
-const deg3 = (b: number) => String(Math.round(((b % 360) + 360) % 360)).padStart(3, '0');
 
 export function voiceOn(): boolean {
   return localStorage.getItem('tk_voice') !== '0';
