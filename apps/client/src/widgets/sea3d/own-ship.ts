@@ -30,3 +30,13 @@ export function cullNear(g: THREE.Group, eye: THREE.Vector3, r: number): void {
   });
   for (const o of drop) o.removeFromParent();
 }
+
+/** Hand-held optics: slow sway and a fine tremor (radians) of `deg` amplitude. */
+export function handShake(t: number, deg: number): { pitch: number; yaw: number } {
+  if (!deg) return { pitch: 0, yaw: 0 };
+  const k = (deg * Math.PI) / 180;
+  return {
+    pitch: k * (Math.sin(t * 1.7) * 0.6 + Math.sin(t * 5.3 + 1) * 0.25 + Math.sin(t * 11.1 + 2) * 0.15),
+    yaw: k * (Math.sin(t * 1.3 + 0.5) * 0.6 + Math.sin(t * 4.7 + 3) * 0.3),
+  };
+}

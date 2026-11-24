@@ -12,7 +12,8 @@ import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
 const H = 380;
 const WIDE_FOV = 75;
-const GLASS_FOV = 7;
+/** Binocular magnifications: true field of view is about 52° / magnification (7×50: 7.4°). */
+const MAGS = [6, 8, 10, 12];
 /** Visual contacts stay in the picture this long after the last sighting (s). */
 const SIGHT_HOLD = 8;
 const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'AUFGETAUCHT' };
@@ -23,11 +24,12 @@ export function bridgeStation(): Station {
     <div class="panel"><div class="hd"><span>Brücke · Ausguck</span><span id="b-brg" class="dim"></span></div>
       <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:${H}px"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-        <button id="glass">Fernglas 7×</button>
-        <button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button>
+        <button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button>
+        <button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button>
+        <button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button><button id="tup" title="Blick nach oben (W)">▲</button><button id="tdn" title="Blick nach unten (S)">▼</button>
         <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button>
         <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button>
-        <span class="kbd" style="align-self:center">ZIEHEN DREHT · A / D</span>
+        <span class="kbd" style="align-self:center">ZIEHEN SCHWENKT · W A S D · RAD ZOOMT</span>
       </div>
     </div>
     <div class="panel"><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
@@ -56,6 +58,10 @@ export function bridgeStation(): Station {
   let relTarget = 0;
   let rel = 0;
   let glass = false;
+  let mag = 8;
+  /** Manual tilt of the look (degrees, up positive) on top of the horizon look. */
+  let tilt = 0;
+  let stab = localStorage.getItem('tk_stab_glass') === '1';
   let last = performance.now();
   const t0 = performance.now();
   let photoReq = false;
@@ -63,7 +69,18 @@ export function bridgeStation(): Station {
   /** Smoothed screen positions per target (bearing, range), so 1 Hz updates glide. */
   const shown = new Map<string, { b: number; r: number }>();
 
-  const fov = () => (glass ? GLASS_FOV : WIDE_FOV);
+  const fov = () => (glass ? 52 / mag : WIDE_FOV);
+  const setMag = (m: number) => {
+    mag = m;
+    el.querySelector('#mag')!.textContent = `${mag}×`;
+  };
+  const nextMag = () => setMag(MAGS[(MAGS.indexOf(mag) + 1) % MAGS.length]!);
+  const setStab = (on: boolean) => {
+    stab = on;
+    localStorage.setItem('tk_stab_glass', on ? '1' : '0');
+    el.querySelector('#stab')!.classList.toggle('on', on);
+  };
+  const tiltBy = (d: number) => (tilt = Math.max(-30, Math.min(75, tilt + d)));
   let maskCanvas: HTMLCanvasElement | undefined;
   const mask = (w: number, hgt: number) => {
     if (!maskCanvas) {
@@ -85,9 +102,25 @@ export function bridgeStation(): Station {
     glass = !glass;
     (e.target as HTMLButtonElement).classList.toggle('on', glass);
   };
+  el.querySelector<HTMLButtonElement>('#mag')!.onclick = () => {
+    if (!glass) {
+      glass = true;
+      el.querySelector('#glass')!.classList.add('on');
+    } else nextMag();
+  };
+  el.querySelector<HTMLButtonElement>('#stab')!.onclick = () => setStab(!stab);
+  queueMicrotask(() => setStab(stab));
+  el.querySelector<HTMLButtonElement>('#tup')!.onclick = () => tiltBy(glass ? 1 : 5);
+  el.querySelector<HTMLButtonElement>('#tdn')!.onclick = () => tiltBy(glass ? -1 : -5);
+  view.addEventListener('wheel', (e) => {
+    if (!glass) return;
+    e.preventDefault();
+    const i = MAGS.indexOf(mag) + (e.deltaY < 0 ? 1 : -1);
+    setMag(MAGS[Math.max(0, Math.min(MAGS.length - 1, i))]!);
+  }, { passive: false });
   el.querySelector<HTMLButtonElement>('#left')!.onclick = () => turn(glass ? -3 : -20);
   el.querySelector<HTMLButtonElement>('#right')!.onclick = () => turn(glass ? 3 : 20);
-  el.querySelector<HTMLButtonElement>('#ahead')!.onclick = () => (relTarget = 0);
+  el.querySelector<HTMLButtonElement>('#ahead')!.onclick = () => ((relTarget = 0), (tilt = 0));
   el.querySelector<HTMLButtonElement>('#report')!.onclick = () => {
     const a = [...(store.snap?.alerts ?? [])].reverse().find((x) => x.kind === 'sighting');
     if (a?.bearing !== undefined) {
@@ -115,10 +148,11 @@ export function bridgeStation(): Station {
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   for (const id of ['#left', '#right', '#ahead', '#report']) el.querySelector(id)!.addEventListener('click', () => (airTrack = undefined));
   let dragX: number | undefined;
-  view.style.cursor = 'ew-resize';
+  let dragY = 0;
+  view.style.cursor = 'move';
   view.style.touchAction = 'none';
   let downX = 0;
-  view.addEventListener('pointerdown', (e) => (dragX = downX = e.clientX));
+  view.addEventListener('pointerdown', (e) => ((dragX = downX = e.clientX), (dragY = e.clientY)));
   // A click (no drag) on a sighting selects that contact, e.g. to assign its class
   view.addEventListener('click', (e) => {
     const s = store.snap;
@@ -133,8 +167,12 @@ export function bridgeStation(): Station {
   view.addEventListener('pointermove', (e) => {
     if (dragX === undefined) return;
     const dx = e.clientX - dragX;
+    const dy = e.clientY - dragY;
     dragX = e.clientX;
+    dragY = e.clientY;
     turn((-dx / view.clientWidth) * fov());
+    // Drag down: the picture follows the hand, the look goes up
+    tiltBy((dy / view.clientHeight) * fov() * (view.clientHeight / view.clientWidth));
     rel = relTarget;
   });
 
@@ -205,6 +243,10 @@ export function bridgeStation(): Station {
     key(e) {
       if (isKey(e, 'scopeLeft')) turn(glass ? -1 : -5);
       else if (isKey(e, 'scopeRight')) turn(glass ? 1 : 5);
+      else if (isKey(e, 'scopeUp')) tiltBy(glass ? 0.5 : 3);
+      else if (isKey(e, 'scopeDown')) tiltBy(glass ? -0.5 : -3);
+      else if (isKey(e, 'scopeZoom')) el.querySelector<HTMLButtonElement>('#mag')!.click();
+      else if (isKey(e, 'stabilize')) setStab(!stab);
       else return false;
       return true;
     },
@@ -257,12 +299,12 @@ export function bridgeStation(): Station {
       const followed = airTrack ? tg.find((x) => x.label === airTrack) : undefined;
       if (airTrack && !followed && live) airTrack = undefined;
       if (followed && s) relTarget = angleDiff(s.own.heading, followed.bearing);
-      const wantPitch = followed ? Math.min(70, (Math.atan2((followed.alt ?? 0) - 20, followed.range) * 180) / Math.PI) : glass ? -0.15 : -8;
+      const wantPitch = followed ? Math.min(70, (Math.atan2((followed.alt ?? 0) - 20, followed.range) * 180) / Math.PI) : (glass ? -0.15 : -8) + tilt;
       pitch += (wantPitch - pitch) * 0.1;
       if (live) {
         gl!.render({
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
-          rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn, met: s!.env.met,
+          rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn, met: s!.env.met, stabilize: stab, shake: glass ? 0.012 * mag : 0.05,
           effects: blasts(s!, tg.filter((x) => !x.sunk && !x.plane && !x.sighting), nowMs), own: ownNow(), ownWreck: s!.own.wreck,
           missiles: { list: s!.airdef?.missiles ?? [], me: ownNow() },
         });
@@ -284,9 +326,9 @@ export function bridgeStation(): Station {
         if (Math.abs(d) > f / 2) continue;
         const x = w / 2 + (Math.tan((d * Math.PI) / 180) / Math.tan((f * Math.PI) / 360)) * (w / 2);
         // Vertical: the object sits just below the horizon by the dip from 20 m eye height
-        const pitch = ((glass ? -0.15 : -8) * Math.PI) / 180;
+        const pitchR = (pitch * Math.PI) / 180;
         const tanV = Math.tan((f * Math.PI) / 360) / (w / H);
-        const y = H / 2 - (Math.tan(-Math.atan(20 / c.range) - pitch) / tanV) * (H / 2);
+        const y = H / 2 - (Math.tan(-Math.atan(20 / c.range) - pitchR) / tanV) * (H / 2);
         ctx.strokeStyle = `rgba(255,120,110,${c.alpha})`;
         ctx.lineWidth = 1.5;
         ctx.strokeRect(x - 10, y - 12, 20, 18);
@@ -316,6 +358,7 @@ export function bridgeStation(): Station {
           mc.restore();
         }
         ctx.drawImage(m, 0, 0, w, H);
+        reticle(ctx, w, H, fov(), r);
       } else {
         // Open bridge roof: no window frame, only spray on the lens of the eye in rain
         if (s!.env.rain) {
@@ -358,3 +401,37 @@ export function bridgeStation(): Station {
   };
 }
 
+/**
+ * Binocular reticle: a mil scale across (10 mil steps, 1 mil = 1 m at 1 km) and a vertical one
+ * below the centre, for estimating range from a known mast height or ship length.
+ */
+function reticle(ctx: CanvasRenderingContext2D, w: number, hgt: number, fovDeg: number, r: number): void {
+  const pxPerMil = (w / fovDeg) * (180 / Math.PI / 1000);
+  const cx = w / 2, cy = hgt / 2;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(20,24,22,0.85)';
+  ctx.fillStyle = 'rgba(20,24,22,0.85)';
+  ctx.lineWidth = 1.2;
+  ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  const span = Math.min(50, Math.floor((r * 0.85) / pxPerMil / 10) * 10);
+  ctx.beginPath();
+  ctx.moveTo(cx - span * pxPerMil, cy);
+  ctx.lineTo(cx + span * pxPerMil, cy);
+  ctx.moveTo(cx, cy - 6);
+  ctx.lineTo(cx, cy + span * 0.6 * pxPerMil);
+  for (let m = -span; m <= span; m += 5) {
+    const x = cx + m * pxPerMil;
+    const big = m % 10 === 0;
+    ctx.moveTo(x, cy - (big ? 6 : 3));
+    ctx.lineTo(x, cy);
+  }
+  for (let m = 5; m <= span * 0.6; m += 5) {
+    const y = cy + m * pxPerMil;
+    ctx.moveTo(cx - (m % 10 === 0 ? 5 : 3), y);
+    ctx.lineTo(cx + (m % 10 === 0 ? 5 : 3), y);
+  }
+  ctx.stroke();
+  for (let m = 10; m <= span; m += 10) for (const sx of [-1, 1]) ctx.fillText(String(m), cx + sx * m * pxPerMil, cy - 9);
+  ctx.restore();
+}

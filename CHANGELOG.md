@@ -28,6 +28,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - **Land und Grund:** KI-Schiffe, Konvoi und Neutrale weichen Untiefen und Land aus, der Navigator warnt Spieler
   rechtzeitig; U-Boote laufen auf Land auf statt darüber zu fahren; Torpedos detonieren an der Küste.
 
+- **Fernglas:** 6×, 8×, 10× und 12× (Mausrad, Taste E) mit Strichplatte (Strichskala für die Entfernung), frei nach oben,
+  unten und zur Seite schwenkbar (Ziehen, W A S D, ▲▼). **Sehrohr:** 1,5×, 6× und 12×. Bei beiden zuschaltbare
+  Stabilisierung (Knopf „Stab“, Taste G): ohne sie schwankt das Bild mit Schiff und Seegang, das Fernglas zittert in
+  der Hand.
+
 ### Grafik
 - **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
   eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route

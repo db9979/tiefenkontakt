@@ -9,7 +9,7 @@ import { OCEAN_FRAG, OCEAN_VERT } from './sea3d/shaders.js';
 import { SkyFx } from './sea3d/sky.js';
 import { applyWaves, hullOnSea, oceanGrid, ownRoll, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
 import { wakeUniforms } from './sea3d/wake.js';
-import { bridgeFront, cullNear } from './sea3d/own-ship.js';
+import { bridgeFront, cullNear, handShake } from './sea3d/own-ship.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
@@ -248,6 +248,10 @@ export class Periscope3D {
     /** The own ship's damage: she lists and trims, and the view with her. */
     ownWreck?: WreckView;
     missiles?: { list: SamView[]; me: { x: number; y: number } };
+    /** Gyro-stabilised optic: the view ignores the ship's and the mast's motion (heave stays). */
+    stabilize?: boolean;
+    /** Hand-held binoculars: tremor amplitude (degrees), grows with magnification. */
+    shake?: number;
   }): void {
     if (o.own) this.ownPos = o.own;
     this.t = o.t;
@@ -265,8 +269,6 @@ export class Periscope3D {
     const hf = (o.fovDeg * Math.PI) / 180;
     this.camera.fov = (2 * Math.atan(Math.tan(hf / 2) / aspect) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
-    // Swell: the boat (and the optic) heave, pitch and roll; a high bridge moves less but sways more
-    // Wave height by sea state (WMO): SS3 ≈ 1.6 m, SS5 ≈ 4 m significant wave height
     // The sea, fixed to the map: wind from the weather, phases from the own position
     const sw = (this.waves = seaWaves(o.sea, o.met?.wind, this.ownPos, o.t));
     const amp = sw.amp;
@@ -281,17 +283,25 @@ export class Periscope3D {
       const m = this.ownMotion(hdg);
       const rel = look - (hdg * Math.PI) / 180;
       this.camera.position.set(0, this.eye + m.heave + this.own.bridgeZ * Math.sin(m.pitch), 0);
-      camPitch += m.pitch * Math.cos(rel) - m.roll * Math.sin(rel);
-      camRoll += -m.roll * Math.cos(rel) - m.pitch * Math.sin(rel);
+      if (!o.stabilize) {
+        camPitch += m.pitch * Math.cos(rel) - m.roll * Math.sin(rel);
+        camRoll += -m.roll * Math.cos(rel) - m.pitch * Math.sin(rel);
+      } else camRoll = 0;
     } else {
       // Periscope: the head stands on the mast, the boat below barely feels the sea; spray and wash do the rest
       const hEye = waveHeight(sw, 0, 0);
       this.camera.position.set(0, this.eye + hEye * 0.3, 0);
       // A crest that climbs within about three metres of the head washes over it
       this.wash = Math.max(0, Math.min(1, (0.7 * hEye - (this.eye - 3)) / 1.2));
-      camPitch += Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
-      camRoll += Math.sin(o.t * 0.4) * 0.004 * (1 + o.sea * 0.6);
+      if (!o.stabilize) {
+        camPitch += Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
+        camRoll += Math.sin(o.t * 0.4) * 0.004 * (1 + o.sea * 0.6);
+      }
     }
+    // Hands on the glasses: a slow sway and a fine tremor (none when stabilised)
+    const hand = handShake(o.t, o.stabilize ? 0 : o.shake ?? 0);
+    camPitch += hand.pitch;
+    this.camera.rotation.y += hand.yaw;
     this.camera.rotation.x = camPitch;
     this.camera.rotation.z = camRoll;
 
