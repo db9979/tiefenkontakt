@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { inSquall, metVisibility, type MetCells, type Vec2 } from '@tk/shared';
 import { NOISE } from './shaders.js';
+import { lightningSeen } from '../lightning.js';
 
 /**
  * Sky and precipitation of the 3D sea view. The cloud deck lies on a plane about 1.8 km up,
@@ -208,6 +209,8 @@ export class SkyFx {
   private precipK = 0;
   private overK = -1;
   private off = new THREE.Vector3();
+  /** Last lightning level per shower (to catch the start of a stroke). */
+  private struck = new Map<number, number>();
 
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.Mesh(
@@ -277,7 +280,11 @@ export class SkyFx {
     let flash = 0;
     for (const s of met?.squalls ?? []) {
       const d = Math.hypot(s.x - o.own.x, s.y - o.own.y);
-      flash = Math.max(flash, squallFlash(s.id, o.t) * Math.max(0, 1 - d / 25_000));
+      const f = squallFlash(s.id, o.t);
+      flash = Math.max(flash, f * Math.max(0, 1 - d / 25_000));
+      // The first blink of a stroke: thunder follows (audio)
+      if (f >= 1 && (this.struck.get(s.id) ?? 0) < 1) lightningSeen(d);
+      this.struck.set(s.id, f);
     }
     flash *= 0.25 + 0.75 * (1 - light);
 

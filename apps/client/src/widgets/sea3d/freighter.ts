@@ -281,6 +281,7 @@ export function roro(g: THREE.Group, lk: Look): void {
  * manifold with a hose crane amidships, house and funnel right aft. Deep laden or high in ballast.
  */
 export function productTanker(g: THREE.Group, lk: Look): void {
+  g.userData.oil = true;
   const r = lk.r;
   const hullC = pick(r, [0x26292b, 0x3d4a52, 0x4a2e24, 0x2b3a31, 0x23344a, 0x6b2a22]);
   const deckC = pick(r, [C.rust, C.green, 0x5f3a2c, C.grey]);

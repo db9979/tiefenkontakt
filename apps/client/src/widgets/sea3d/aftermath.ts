@@ -54,27 +54,30 @@ export function createAftermath(seed: number): THREE.Group {
   return g;
 }
 
-/** Animate by blast age (s), clock t (s) and daylight (0 night … 1 day). */
-export function updateAftermath(g: THREE.Group, age: number, t: number, light: number, seed: number): void {
+/**
+ * Animate by blast age (s), clock t (s) and daylight (0 night … 1 day). `oilK` > 1 for a tanker:
+ * the slick spreads wider and the fire burns higher and longer.
+ */
+export function updateAftermath(g: THREE.Group, age: number, t: number, light: number, seed: number, oilK = 1): void {
   const ring = g.getObjectByName('ring') as THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   const r = Math.min(160, age * 22);
   ring.scale.setScalar(Math.max(0.01, r));
   ring.material.opacity = Math.max(0, 0.8 - age / 9);
   ring.visible = age < 9;
   const oil = g.getObjectByName('oil') as THREE.Mesh<THREE.ShapeGeometry, THREE.MeshLambertMaterial>;
-  const spread = Math.min(140, 15 + age * 1.6);
+  const spread = Math.min(140 * oilK, 15 + age * 1.6 * oilK);
   oil.scale.set(spread, spread * 0.8, 1);
   oil.rotation.z = seed;
   // The slick stays for minutes, then thins out and is gone after twelve
   oil.material.opacity = Math.min(0.75, Math.max(0, (age - 3) / 8)) * Math.max(0, Math.min(1, (720 - age) / 240));
   // Burning oil: flames flicker on the slick; they glow strongest at night and die down over minutes
-  const burn = Math.max(0, 1 - age / 240) * (age > 2 ? 1 : 0);
+  const burn = Math.max(0, 1 - age / (240 * oilK)) * (age > 2 ? 1 : 0);
   for (let i = 0; i < N_FIRES; i++) {
     const f = g.getObjectByName(`fire${i}`) as THREE.Group;
     const a = seed * 3 + i * 1.3;
     const d = spread * (0.15 + 0.12 * i);
     const flick = 0.75 + 0.25 * Math.sin(t * (7 + i) + i) * Math.sin(t * 3.3 + i * 2);
-    const h = (3 + (i % 3) * 2.5) * burn * flick;
+    const h = (3 + (i % 3) * 2.5) * burn * flick * (oilK > 1 ? 2.2 : 1);
     f.visible = h > 0.2;
     const wobble = 1 + 0.15 * Math.sin(t * 11 + i * 3);
     f.scale.set((2.2 + i * 0.6) * wobble, Math.max(0.01, h), (2.2 + i * 0.6) / wobble);

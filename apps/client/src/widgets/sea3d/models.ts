@@ -50,7 +50,27 @@ export function shipModel(cls: ClassId, id?: string | number): THREE.Group {
   else if (cls === 'schlepper') tug(g, lk);
   else if (cls === 'yacht') yacht(g, lk);
   else surfacedBoat(g, cls);
+  cabinLights(g, lk.seed);
   return g;
+}
+
+/**
+ * Lit cabins and the bridge at night: a warm glow in about two windows of three, shown with the
+ * navigation lights (a darkened convoy ship shows neither).
+ */
+function cabinLights(g: THREE.Group, seed: number): void {
+  const w = g.userData.windows as number[] | undefined;
+  if (!w?.length) return;
+  const pos: number[] = [];
+  for (let i = 0; i < w.length; i += 3) {
+    const h = Math.sin(i * 12.9898 + seed * 0.001) * 43758.5453;
+    if (h - Math.floor(h) < 0.68) pos.push(w[i]!, w[i + 1]!, w[i + 2]!);
+  }
+  const p = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)),
+    new THREE.PointsMaterial({ color: 0xffd28a, size: 2, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  p.name = 'cabinlights';
+  p.visible = false;
+  g.add(p);
 }
 
 /** What a lookout actually sees of a submerged boat: a periscope with its feather, or a snorkel with exhaust haze. */

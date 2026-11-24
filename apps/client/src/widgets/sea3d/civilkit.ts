@@ -292,6 +292,8 @@ export function winRow(k: Kit, along: 'x' | 'z', x: number, y: number, z: number
     const f = n === 1 ? 0 : (i / (n - 1) - 0.5) * span;
     if (along === 'x') k.box(w, hgt, 0.12, x + f, y, z, C.glass);
     else k.box(0.12, hgt, w, x, y, z + f, C.glass);
+    // Remember the pane: at night some of them glow (cabin lights, see models.ts)
+    ((k.g.userData.windows ??= []) as number[]).push(along === 'x' ? x + f : x + Math.sign(x) * 0.25, y, along === 'x' ? z + 0.25 : z + f);
   }
 }
 

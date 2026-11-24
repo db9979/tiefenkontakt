@@ -1,5 +1,7 @@
 import { detonation, hullCreak, makeReverb, motor, sinkingNoises, sonarPing, torpedoLaunch, type Fx } from './audio-fx.js';
-import type { Snapshot } from '@tk/shared';
+import { inSquall, type Snapshot } from '@tk/shared';
+import { WeatherSound } from './audio-weather.js';
+import { onLightning } from './widgets/lightning.js';
 
 export type ListenMode = 'breitband' | 'gefiltert' | 'ueberlagerung';
 
@@ -38,6 +40,9 @@ class Audio {
   private seenAlerts = new Set<string>();
   private lastPing = -1;
   private lastTorps = 0;
+  private weather?: WeatherSound;
+  /** How much of the weather the crew hears (1 on deck … 0 deep down). */
+  private exposure = 0;
   muted = localStorage.getItem('tk_muted') === '1';
   volume = Number(localStorage.getItem('tk_volume') ?? '0.7');
 
@@ -429,6 +434,18 @@ class Audio {
     const tow = s.own.towedLength;
     this.winch(this.lastTowed !== undefined && tow !== this.lastTowed ? 1 : 0);
     this.lastTowed = tow;
+    // Weather on deck: wind, sea, rain, thunder (a submarine below hears none of it)
+    if (!this.weather) {
+      this.weather = new WeatherSound(this.fx, this.master);
+      onLightning((d) => this.weather?.thunder(d, this.exposure));
+    }
+    this.exposure = !submarine ? 1 : s.own.depth < 2 ? 1 : s.own.depth < 20 ? 0.25 : 0;
+    const met = s.env.met;
+    const windMs = met ? Math.hypot(met.wind.x, met.wind.y) : 2 + s.env.seaState * 2.6;
+    this.weather.update({
+      exposure: s.own.alive ? this.exposure : 0, seaState: s.env.seaState, windMs,
+      rain: s.env.rain || inSquall(met, s.own) ? 1 : 0,
+    });
     if (submarine && s.own.alive) {
       // Creaks: rare at periscope depth, frequent deep down, and whenever the depth changes
       const changing = this.lastDepth !== undefined ? Math.abs(s.own.depth - this.lastDepth) : 0;
@@ -450,6 +467,8 @@ class Audio {
     this.winch = undefined;
     this.hum = undefined;
     this.phone = undefined;
+    this.weather = undefined;
+    onLightning(undefined);
     this.seenAlerts.clear();
     this.lastPing = -1;
     this.lastTorps = 0;

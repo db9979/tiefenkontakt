@@ -110,7 +110,7 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
       box.style.opacity = String(Math.min(1, (SHOW_S - age) / 1.5));
       if (!s) return;
       if (shot.mode === 'under') {
-        uw?.render(shot.cls, age, s.env.light ?? 1);
+        uw?.render(shot.cls, age, s.env.light ?? 1, s.env.seaState);
         return;
       }
       if (!gl) return;

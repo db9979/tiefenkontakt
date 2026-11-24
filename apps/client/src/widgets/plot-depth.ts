@@ -23,7 +23,11 @@ const MAJOR = new Set([50, 100, 200, 500, 1000, 2000]);
 /** Depth tint stops: depth (m) → colour. Land is olive, shoals light, the deep sea near black. */
 const STOPS: [number, number, number, number][] = [
   [0, 66, 92, 76], [25, 54, 86, 76], [50, 42, 76, 70], [100, 30, 64, 62], [200, 20, 52, 54],
-  [500, 13, 38, 44], [1000, 9, 29, 35], [2000, 6, 20, 26], [4000, 4, 12, 17],
+  [500, 14, 40, 47], [1000, 11, 32, 40], [2000, 8, 24, 32], [3000, 6, 17, 25], [4000, 3, 10, 16],
+];
+/** Land by height (m): low coastal green-grey, brown hills, bare rock, snow on the tops. */
+const LAND: [number, number, number, number][] = [
+  [0, 58, 64, 46], [80, 62, 66, 44], [300, 74, 68, 48], [700, 88, 82, 70], [1100, 150, 156, 152],
 ];
 
 interface Render {
@@ -44,7 +48,19 @@ interface Job extends Omit<Render, 'img'> {
 }
 
 function tint(d: number): [number, number, number] {
-  if (d < 0) return [44, 42, 30];
+  if (d < 0) {
+    const e = -d;
+    for (let i = 1; i < LAND.length; i++) {
+      const [z1, r1, g1, b1] = LAND[i]!;
+      if (e <= z1) {
+        const [z0, r0, g0, b0] = LAND[i - 1]!;
+        const f = (e - z0) / (z1 - z0);
+        return [r0 + (r1 - r0) * f, g0 + (g1 - g0) * f, b0 + (b1 - b0) * f];
+      }
+    }
+    const top = LAND[LAND.length - 1]!;
+    return [top[1], top[2], top[3]];
+  }
   for (let i = 1; i < STOPS.length; i++) {
     const [z1, r1, g1, b1] = STOPS[i]!;
     if (d <= z1) {
@@ -122,7 +138,8 @@ function paint(j: Job, reuse?: HTMLCanvasElement): HTMLCanvasElement {
       const gx = (at(i + 1, k) - at(i - 1, k)) / (2 * step);
       const gy = (at(i, k + 1) - at(i, k - 1)) / (2 * step);
       // Depth grows downwards: a slope deepening towards the south-east faces the light
-      const light = (gx + gy) * 0.7071;
+      // Land: the height is −depth, so the slope facing the light has the opposite sign
+      const light = (gx + gy) * 0.7071 * (d < 0 ? -1.6 : 1);
       const shade = 1 + Math.max(-0.35, Math.min(0.35, Math.sign(light) * Math.sqrt(Math.abs(light)) * 3.2));
       const [r, g, b] = tint(d);
       const p = (k * cols + i) * 4;

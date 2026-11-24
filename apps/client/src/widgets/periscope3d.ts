@@ -83,6 +83,8 @@ export class Periscope3D {
   /** This frame's time and sea state (for the own ship's roll). */
   private t = 0;
   private sea = 3;
+  /** How far a wave covers the periscope head this frame (0 clear … 1 under). */
+  wash = 0;
   /** Extinction of the air this frame (1/m): lights fade with it. */
   private sigma = 0;
   private glow = 0;
@@ -162,6 +164,18 @@ export class Periscope3D {
         if (e.sinks) for (const s of this.ships.values()) if (Math.abs(((s.bearing - e.bearing + 540) % 360) - 180) < 4) (s.g.userData as { doomed?: number }).doomed = e.age;
         if (e.quiet) continue;
         g = this.effectGroup();
+        // Size of the struck ship: a big hull throws a bigger column; a tanker leaves a burning sea
+        let best: { len: number; oil: boolean } | undefined;
+        let bestD = 6;
+        for (const s of this.ships.values()) {
+          const d = Math.abs(((s.bearing - e.bearing + 540) % 360) - 180);
+          if (d >= bestD) continue;
+          bestD = d;
+          const box = new THREE.Box3().setFromObject(s.g).getSize(new THREE.Vector3());
+          best = { len: box.z, oil: !!s.g.userData.oil };
+        }
+        g.userData.k = best ? Math.max(0.35, Math.min(1.6, best.len / 130)) : 1;
+        g.userData.oil = best?.oil ? 2.5 : 1;
         this.effects.set(e.id, g);
         this.scene.add(g);
       }
@@ -172,21 +186,24 @@ export class Periscope3D {
       const water = g.getObjectByName('water') as THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
       const rise = Math.min(1, e.age / 2.5);
       const fall = Math.max(0, 1 - Math.max(0, e.age - 4) / 6);
-      water.scale.set(1 + e.age * 0.25, Math.max(0.01, rise * fall), 1 + e.age * 0.25);
-      water.position.y = 45 * rise * fall;
+      const k = (g.userData.k as number | undefined) ?? 1;
+      const kh = Math.sqrt(k);
+      water.scale.set((1 + e.age * 0.25) * k, Math.max(0.01, rise * fall) * kh, (1 + e.age * 0.25) * k);
+      water.position.y = 45 * rise * fall * kh;
       water.material.opacity = 0.9 * fall;
       for (let i = 0; i < 7; i++) {
         const puff = g.getObjectByName(`smoke${i}`) as THREE.Mesh<THREE.SphereGeometry, THREE.MeshLambertMaterial>;
         const a = Math.max(0, e.age - 2 - i * 1.5);
         puff.visible = a > 0;
-        puff.scale.setScalar(8 + a * 2.5 + i * 2);
+        puff.scale.setScalar((8 + a * 2.5 + i * 2) * kh);
         puff.position.set(a * 3 + i * 2, 15 + a * 6 + i * 10, Math.sin(i) * 6);
         puff.material.opacity = Math.max(0, 0.75 - a / 120);
       }
       const am = g.getObjectByName('aftermath') as THREE.Group;
-      updateAftermath(am, e.age, performance.now() / 1000, light, (e.bearing * 7) % 6);
+      updateAftermath(am, e.age, performance.now() / 1000, light, (e.bearing * 7) % 6, (g.userData.oil as number | undefined) ?? 1);
       // Burning oil keeps lighting the scene at night for a few minutes
-      if (e.age < 240) glow = Math.max(glow, (1 - light) * (1 - e.age / 240));
+      const burnS = 240 * ((g.userData.oil as number | undefined) ?? 1);
+      if (e.age < burnS) glow = Math.max(glow, (1 - light) * (1 - e.age / burnS));
       if (glow > 0) this.fire.position.copy(g.position).setY(20);
     }
     this.glow = glow;
@@ -268,7 +285,10 @@ export class Periscope3D {
       camRoll += -m.roll * Math.cos(rel) - m.pitch * Math.sin(rel);
     } else {
       // Periscope: the head stands on the mast, the boat below barely feels the sea; spray and wash do the rest
-      this.camera.position.set(0, this.eye + waveHeight(sw, 0, 0) * 0.3, 0);
+      const hEye = waveHeight(sw, 0, 0);
+      this.camera.position.set(0, this.eye + hEye * 0.3, 0);
+      // A crest that climbs within about three metres of the head washes over it
+      this.wash = Math.max(0, Math.min(1, (0.7 * hEye - (this.eye - 3)) / 1.2));
       camPitch += Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
       camRoll += Math.sin(o.t * 0.4) * 0.004 * (1 + o.sea * 0.6);
     }
@@ -376,6 +396,8 @@ export class Periscope3D {
         animateAircraft(s.g, t, light < 0.6);
         const navA = s.g.getObjectByName('navlights');
         if (navA) navA.visible = !!tg.lit && light < 0.6;
+        const cabA = s.g.getObjectByName('cabinlights');
+        if (cabA) cabA.visible = !!tg.lit && light < 0.6;
         s.g.visible = tg.alpha > 0.05;
         continue;
       }
@@ -418,6 +440,8 @@ export class Periscope3D {
       ud.wreck = tg.wreck;
       ud.wpos = { x: this.ownPos.x + s.g.position.x, y: this.ownPos.y - s.g.position.z };
       s.g.visible = tg.alpha > 0.05;
+      const cab = s.g.getObjectByName('cabinlights');
+      if (cab) cab.visible = !!tg.lit && light < 0.6;
       const nav = s.g.getObjectByName('navlights');
       if (nav) {
         nav.visible = !!tg.lit && light < 0.6;

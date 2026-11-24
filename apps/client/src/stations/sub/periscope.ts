@@ -80,6 +80,8 @@ export function periscopeStation(): Station {
   /** Where the operator trains the scope; the optic follows smoothly. */
   let periTarget = 0;
   let lastFrame = performance.now();
+  /** Until when (s) the lens still drips after a wave washed over it. */
+  let wetUntil = 0;
   const filters = new Map<string, BearingRangeFilter>();
   const filteredAt = new Map<string, number>();
   let zoom6 = true;
@@ -267,11 +269,11 @@ export function periscopeStation(): Station {
         ctx.moveTo(cx + R, cy);
         ctx.arc(cx, cy, R, 0, Math.PI * 2, true);
         ctx.fill('evenodd');
-        if (s.env.seaState >= 4 && Math.sin(t * 0.37) > 0.92) {
-          ctx.fillStyle = 'rgba(200,220,225,0.5)';
-          ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-        }
-        if (s.env.rain) lensDrops(ctx, cx, cy, R, t);
+        // Crests wash over the head in a rough sea: green water, then the lens drains for a few seconds
+        const wash = gl!.wash;
+        if (wash > 0) waterWash(ctx, cx, cy, R, wash, t);
+        if (wash > 0.3) wetUntil = t + 3 + wash * 3;
+        if (s.env.rain || t < wetUntil) lensDrops(ctx, cx, cy, R, t);
         if (mst.ext < 1) waterWash(ctx, cx, cy, R, (1 - mst.ext) / 0.45, t);
       } else if (s && mst.ext > 0) {
         // Head still under water: green murk, light from above, rising bubbles

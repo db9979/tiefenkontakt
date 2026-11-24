@@ -24,6 +24,7 @@ export class UnderwaterScene {
   private rising: THREE.Points;
   private seeds = new Float32Array(BUBBLES * 3);
   private cls: ClassId | undefined;
+  private surface: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
 
   constructor(private canvas: HTMLCanvasElement) {
     canvas.classList.add('gl');
@@ -33,9 +34,37 @@ export class UnderwaterScene {
     this.scene.fog = new THREE.FogExp2(0x0b3532, 0.011);
     this.scene.add(new THREE.HemisphereLight(0x8fd8cc, 0x02100f, 1.1), this.flash);
     // The surface from below: bright, wavy; a brighter disc straight overhead (Snell's window)
-    const surface = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000, 1, 1), new THREE.MeshBasicMaterial({ color: 0x4f9c94, side: THREE.DoubleSide, fog: true }));
-    surface.rotation.x = Math.PI / 2;
-    this.scene.add(surface);
+    // The surface from below: the waves rolling overhead, bright inside Snell's window (the sky),
+    // a dark mirror of the deep outside it, caustic ripples; murkier in a rough sea
+    this.surface = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600, 120, 120), new THREE.ShaderMaterial({
+      side: THREE.DoubleSide, fog: false, transparent: false,
+      uniforms: { uT: { value: 0 }, uSea: { value: 3 }, uLit: { value: 1 }, uMurk: { value: 0.011 }, uDeep: { value: new THREE.Color(0x0b3532) } },
+      vertexShader: `uniform float uT; uniform float uSea; varying vec3 vW;
+        void main() {
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          float a = 0.15 + uSea * 0.35;
+          w.y += a * (sin(w.x * 0.06 + uT * 0.9) * 0.6 + sin(w.z * 0.09 - uT * 1.2 + w.x * 0.03) * 0.4 + sin((w.x + w.z) * 0.17 + uT * 1.9) * 0.2);
+          vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: `uniform float uT; uniform float uLit; uniform float uMurk; uniform vec3 uDeep; varying vec3 vW;
+        void main() {
+          vec3 n = normalize(vec3(dFdx(vW.y), 1.0, dFdy(vW.y)) * vec3(1.0, 1.0, 1.0));
+          vec3 v = normalize(vW - cameraPosition);
+          // Snell's window: rays steeper than ~49° from the vertical leave the water and see the sky
+          float up = abs(dot(v, vec3(0.0, 1.0, 0.0)));
+          float win = smoothstep(0.62, 0.7, up + n.x * 0.08);
+          vec2 q = vW.xz * 0.12;
+          float c = sin(q.x * 3.1 + uT * 1.3 + sin(q.y * 2.3 + uT)) * sin(q.y * 2.7 - uT * 1.1 + sin(q.x * 1.9 - uT * 0.7));
+          vec3 sky = vec3(0.62, 0.86, 0.82) + 0.18 * smoothstep(0.4, 1.0, c);
+          vec3 col = mix(uDeep * 1.6, sky, win) * uLit;
+          float d = length(vW - cameraPosition);
+          col = mix(col, uDeep * uLit, 1.0 - exp(-d * uMurk));
+          gl_FragColor = vec4(col, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    }));
+    this.surface.rotation.x = Math.PI / 2;
+    this.scene.add(this.surface);
     const windowDisc = new THREE.Mesh(new THREE.CircleGeometry(60, 40), new THREE.MeshBasicMaterial({ color: 0xbff2ea, transparent: true, opacity: 0.55, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     windowDisc.rotation.x = Math.PI / 2;
     windowDisc.position.set(30, -0.2, 50);
@@ -89,7 +118,8 @@ export class UnderwaterScene {
     this.cls = cls;
   }
 
-  render(cls: ClassId, age: number, light: number): void {
+  /** Replay frame: the struck class, seconds since the hit, daylight and the sea state overhead. */
+  render(cls: ClassId, age: number, light: number, sea = 3): void {
     if (this.cls !== cls) this.build(cls);
     const w = this.canvas.clientWidth || 400;
     const h = this.canvas.clientHeight || 220;
@@ -106,6 +136,15 @@ export class UnderwaterScene {
     const lit = 0.25 + 0.75 * light;
     // Background and fog share one colour so the far water has no visible edge
     (this.scene.fog as THREE.FogExp2).color.setRGB(0.04 * lit, 0.19 * lit, 0.18 * lit);
+    // A rough sea stirs up the water and dims the light from above
+    const murk = 0.011 * (1 + Math.max(0, sea - 2) * 0.18);
+    (this.scene.fog as THREE.FogExp2).density = murk;
+    const su = this.surface.material.uniforms;
+    su.uT!.value = age;
+    su.uSea!.value = sea;
+    su.uLit!.value = lit * (1 - Math.max(0, sea - 3) * 0.08);
+    su.uMurk!.value = murk;
+    (su.uDeep!.value as THREE.Color).setRGB(0.04 * lit, 0.19 * lit, 0.18 * lit);
     (this.scene.background as THREE.Color).copy((this.scene.fog as THREE.FogExp2).color);
     // Gas bubble under the keel: expand, collapse, pulse again, then break up
     const b = age < 0.6 ? age / 0.6 : age < 1.2 ? 1 - ((age - 0.6) / 0.6) * 0.8 : age < 1.9 ? 0.2 + ((age - 1.2) / 0.7) * 0.5 : Math.max(0, 0.7 - (age - 1.9) * 1.4);

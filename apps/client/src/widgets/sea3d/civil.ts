@@ -64,6 +64,7 @@ export function deckRun(k: Kit, h: Hull, x: number, dy: number, z0: number, z1: 
 
 /** VLCC (game scale 240 m): very low freeboard, full hull with bulb, pipe deck and catwalk, house and funnel right aft. */
 export function tanker(g: THREE.Group, lk: Look): void {
+  g.userData.oil = true;
   const r = lk.r;
   const hullC = pick(r, [0x26292b, 0x3d4a52, 0x4a2e24, 0x2b3a31, 0x23344a, 0x6b2a22, 0x5a5f5c]);
   const deckC = pick(r, [C.rust, C.green, 0x5f3a2c, C.grey]);
@@ -239,6 +240,9 @@ export function ferry(g: THREE.Group, lk: Look): void {
     loftBlock(k, h, t.z0, t.z1, t.inset, i === 0 ? (z) => h.deckAt(z) - 0.2 : () => t.y0, () => t.y1, i === 0 ? hullTop : C.white, i === 0 ? C.deck : C.white);
     if (i > 0) {
       sideBand(k, h, t.z0 + 2, t.z1 - 1.5, t.inset, t.y0 + 1.0, t.y0 + 2.1, C.glass);
+      // Passenger decks: the window bands glow at night
+      const win = (g.userData.windows ??= []) as number[];
+      for (let z = t.z0 + 3; z < t.z1 - 2; z += 2.5) for (const sx of [-1, 1]) win.push(sx * (h.halfBeamAt(z, h.deckAt(z)) - t.inset + 0.35), t.y0 + 1.55, z);
       const fw = h.halfBeamAt(t.z1, h.deckAt(t.z1)) - t.inset;
       const n = Math.max(1, Math.floor((fw * 2 - 2) / 1.6));
       if (i < T.length - 1) winRow(k, 'x', 0, t.y0 + 1.55, t.z1 + 0.03, (n - 1) * 1.6, n, 1.2, 1.1);
