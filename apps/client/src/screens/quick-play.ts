@@ -45,7 +45,7 @@ export function quickPanel(): HTMLElement {
     wk.innerHTML = `
       <div class="row" style="gap:6px;flex-wrap:wrap">
         <span title="Eine Lage pro Woche, für alle gleich: Mission, Wetter, Positionen und Route. Mit Konto kommt dein bestes Ergebnis je Seite auf die Wochenliste."><span class="amber">WOCHENLAGE KW ${esc(kw)}</span>
-          ${l ? `<span class="dim"> · ${esc(MISSION[l.mission] ?? l.mission)} · ${esc(TOD[l.timeOfDay] ?? l.timeOfDay)} · SEEGANG ${l.seaState} · ${left(l.endsAt)}</span>` : ''}</span>
+          ${l ? `<span class="dim"> · ${esc(MISSION[l.mission] ?? l.mission)}${l.area ? ` · ${esc(l.area)}` : ''} · ${esc(TOD[l.timeOfDay] ?? l.timeOfDay)} · SEEGANG ${l.seaState} · ${left(l.endsAt)}</span>` : ''}</span>
         <span style="display:flex;gap:6px"><button data-week="west" class="on">Geleitschutz</button><button data-week="east" class="on">U-Boot</button></span>
       </div>
       <div class="grid2" style="margin-top:4px">

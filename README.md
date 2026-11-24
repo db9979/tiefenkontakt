@@ -156,6 +156,9 @@ npm run loadtest -- 10 60 # Lasttest: 10 Partien, 60 Sekunden
 
 [MIT](LICENSE)
 
+Tiefen und Küsten der 26 echten Seegebiete: NOAA ETOPO 2022, 15 Bogensekunden (gemeinfrei), geladen mit
+`npx tsx scripts/fetch-bathymetry.ts` nach `packages/shared/data/bathy/`.
+
 ---
 
 ## English
@@ -274,3 +277,6 @@ npm run loadtest -- 10 60 # load test: 10 matches, 60 seconds
 ### License
 
 [MIT](LICENSE)
+
+Depths and coasts of the 26 real sea areas: NOAA ETOPO 2022, 15 arc seconds (public domain), fetched with
+`npx tsx scripts/fetch-bathymetry.ts` into `packages/shared/data/bathy/`.

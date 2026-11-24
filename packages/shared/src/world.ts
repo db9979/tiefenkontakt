@@ -118,6 +118,8 @@ function checkGround(w: World, s: Ship): void {
   // A submarine in water too shallow to float her runs aground like a ship, she does not sail over land
   const stranded = sub && bottom < CLASSES[s.cls].draft + 1;
   if (!stranded && (sub ? s.depth <= limit : limit > 0)) return;
+  // How fast she struck (before the ground stops her)
+  const struckKn = s.speed / KN;
   if (sub && !stranded) {
     s.depth = Math.max(0, limit);
     if (s.order.depth > s.depth) s.order.depth = s.depth;
@@ -127,7 +129,7 @@ function checkGround(w: World, s: Ship): void {
     s.speed = Math.min(s.speed, 0.3);
   }
   const last = groundedAt.get(s) ?? -1e9;
-  if (w.time - last > 60 && (s.speed / KN > 2 || !sub)) {
+  if (w.time - last > 60 && (struckKn > 2 || !sub)) {
     groundedAt.set(s, w.time);
     s.hp -= 8;
     applyHitDamage(s, 25, w.rng, { u: 0.03, fireChance: 0.05, w });

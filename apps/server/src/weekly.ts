@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { Debrief, MatchSetup, WeeklyBoard, WeeklyRow } from '@tk/shared';
+import { areasFor, REGIONS } from '@tk/shared';
 import { DEFAULT_SETTINGS, type MissionId, type ScenarioSettings } from './scenario.js';
 import { pointsFor, userIdOf } from './stats.js';
 import { resolveLobby } from './variation.js';
@@ -43,9 +44,12 @@ export function seedOf(text: string): number {
 /** Mission, clock and weather of a solo game from its seed; the variation rolls the rest. */
 export function soloSetup(seed: number): MatchSetup {
   const pick = <T>(list: readonly T[], salt: number): T => list[(Math.imul(seed ^ salt, 2654435761) >>> 0) % list.length]!;
+  const mission = pick(SOLO_MISSIONS, 0x51);
   const settings: ScenarioSettings = {
     ...DEFAULT_SETTINGS,
-    mission: pick(SOLO_MISSIONS, 0x51),
+    mission,
+    // Any real sea area the mission suits
+    area: pick(areasFor(mission), 0x93),
     timeOfDay: 'zufall',
     weather: 'zufall',
     seaState: pick([2, 3, 3, 4, 4, 5], 0x77),
@@ -106,5 +110,5 @@ export class WeeklyStore {
 export function weeklyView(store: WeeklyStore, now = Date.now()): WeeklyBoard {
   const w = weeklySetup(now);
   const r = resolveLobby({ ...(w.settings as ScenarioSettings) }, w.seed);
-  return { ...store.board(w.week), lage: { mission: r.mission, timeOfDay: r.timeOfDay, weather: r.weather, seaState: r.seaState, endsAt: weekOf(now).end } };
+  return { ...store.board(w.week), lage: { mission: r.mission, area: w.settings.area ? REGIONS[w.settings.area].name : undefined, timeOfDay: r.timeOfDay, weather: r.weather, seaState: r.seaState, endsAt: weekOf(now).end } };
 }

@@ -22,7 +22,12 @@ for (const id of ids) {
   const b = regionBox(r);
   const q = `z%5B(${b.lat0.toFixed(4)}):${r.stride}:(${b.lat1.toFixed(4)})%5D%5B(${b.lon0.toFixed(4)}):${r.stride}:(${b.lon1.toFixed(4)})%5D`;
   const url = `https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.json?${q}`;
-  const res = await fetch(url);
+  // The ERDDAP server is busy now and then: try a few times
+  let res = await fetch(url);
+  for (let i = 0; i < 4 && !res.ok; i++) {
+    await new Promise((ok) => setTimeout(ok, 5000 * (i + 1)));
+    res = await fetch(url);
+  }
   if (!res.ok) throw new Error(`${id}: HTTP ${res.status}`);
   const rows = ((await res.json()) as { table: { rows: [number, number, number][] } }).table.rows;
   const lats = [...new Set(rows.map((x) => x[0]))].sort((a, c) => a - c);

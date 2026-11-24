@@ -73,6 +73,8 @@ export type ClientMsg =
   | {
     t: 'settings';
     mission?: MissionKey;
+    /** Sea area (regions.ts). */
+    area?: RegionId;
     timeOfDay?: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     seaState?: number;
     timeLimitMin?: number;
@@ -150,6 +152,8 @@ export interface MatchLobby extends MatchSummary {
   chat?: LobbyChatLine[];
   settings: {
     mission: MissionKey;
+    /** Sea area (regions.ts); unset = the mission's home area. */
+    area?: RegionId;
     timeOfDay: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     timeScale: number;
     layerDepth: number;
@@ -393,13 +397,14 @@ export interface WeeklyBoard {
   west: WeeklyRow[];
   east: WeeklyRow[];
   /** What this week's situation is (resolved: no 'zufall'). */
-  lage?: { mission: string; timeOfDay: string; weather: string; seaState: number; endsAt: number };
+  lage?: { mission: string; area?: string; timeOfDay: string; weather: string; seaState: number; endsAt: number };
 }
 
 export interface MatchSetup {
   seed: number;
   settings: {
     mission: MissionKey;
+    area?: RegionId;
     timeOfDay: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     weather: 'wechselhaft' | 'stabil' | 'zufall';
     seaState: number;

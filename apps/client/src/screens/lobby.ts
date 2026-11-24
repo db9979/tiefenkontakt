@@ -1,4 +1,4 @@
-import type { MatchLobby, MatchSummary, MissionKey, ServerMsg } from '@tk/shared';
+import { REGIONS, areasFor, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
 import { net } from '../net.js';
 import { t } from '../i18n/index.js';
 import { accountPanel } from './account.js';
@@ -122,6 +122,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <select id="s-mission" style="display:none">
             <option value="groenland">Grönland-Lücke · tief</option><option value="schelf">Schelfmeer · flach</option><option value="fjord">Fjordausfahrt · Kanal</option>
             <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="fuehlung">Fühlung halten</option><option value="meerenge">Meerengen-Durchbruch</option><option value="aufklaerung">Aufklärung</option><option value="eigene">Eigene Mission</option></select>
+          <div class="row"><span class="dim" title="Echte Seegebiete (Tiefen: NOAA ETOPO 2022). Jede Mission spielt in den Gebieten, die zu ihr passen">SEEGEBIET</span><select id="s-area">${areasFor(match.settings.mission).map((id: RegionId) => `<option value="${id}">${esc(REGIONS[id].name)}</option>`).join('')}</select></div>
           <div id="custom" style="display:none">
             <div class="row"><span class="dim">FRACHTER</span><select id="c-n">${[4, 6, 8, 10, 12].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
             <div class="row"><span class="dim">KONVOIFAHRT</span><select id="c-kn">${[7, 9, 11, 13].map((v) => `<option value="${v}">${v} KN</option>`).join('')}</select></div>
@@ -188,6 +189,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     });
     const sel = (id: string) => el.querySelector<HTMLSelectElement>(id)!;
     sel('#s-mission').value = match.settings.mission;
+    const areas = areasFor(match.settings.mission);
+    sel('#s-area').value = match.settings.area && areas.includes(match.settings.area) ? match.settings.area : areas[0]!;
     el.querySelector<HTMLElement>('#custom')!.style.display = match.settings.mission === 'eigene' ? '' : 'none';
     const cu = match.settings.custom ?? { convoyKn: 9, seabed: 'tief', subFrac: 0.5 };
     sel('#c-n').value = String(match.settings.merchants);
@@ -203,7 +206,10 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     sel('#s-var').value = match.settings.variation ?? 'leicht';
     sel('#s-sandbox').value = match.settings.sandbox ? '1' : '0';
     const send = () => net.send({
-      t: 'settings', mission: sel('#s-mission').value as MissionKey, timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht' | 'zufall',
+      t: 'settings', mission: sel('#s-mission').value as MissionKey,
+      // A new mission starts in its home area; otherwise the chosen one
+      area: sel('#s-mission').value === match!.settings.mission ? sel('#s-area').value as RegionId : undefined,
+      timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht' | 'zufall',
       seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), fillBots: sel('#s-bots').value === '1',
       botSkill: sel('#s-skill').value as 'leicht' | 'normal' | 'schwer',
       weather: sel('#s-wx').value as 'wechselhaft' | 'stabil' | 'zufall',
@@ -212,7 +218,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       sandbox: sel('#s-sandbox').value === '1',
       custom: { convoyKn: Number(sel('#c-kn').value), seabed: sel('#c-bed').value as 'tief' | 'schelf' | 'fjord', subFrac: Number(sel('#c-sub').value) },
     });
-    for (const id of ['#s-mission', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#s-var', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
+    for (const id of ['#s-mission', '#s-area', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#s-var', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
     el.querySelectorAll<HTMLButtonElement>('[data-crew]').forEach((b) => (b.onclick = () => net.send({ t: 'crew', captainId: b.dataset.crew! })));
     el.querySelector<HTMLButtonElement>('#own-ship')?.addEventListener('click', () => net.send({ t: 'crew', captainId: null }));
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });

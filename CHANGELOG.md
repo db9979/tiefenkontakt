@@ -19,6 +19,13 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Ausbildungsschritt, Spielminute, Seite und Klasse) und Balance aus echten Partien (Mensch–Mensch und Mensch–KI);
   `scripts/real-balance.ts` gibt dasselbe auf der Konsole aus.
 
+- **Echte Seegebiete:** 26 Gebiete mit echten Tiefen und Küsten (NOAA ETOPO 2022), darunter Färöer-Bank,
+  Barentssee, Vestfjord, Kolabucht, Gibraltar, Dänemarkstraße, Färöer-Shetland-Kanal, Nordkap, Ostsee, Ofotfjord,
+  Loch Ewe, Firth of Clyde, Messina, Dardanellen und Pentland Firth. In der Lobby wählt man zur Mission das
+  Seegebiet; jede Mission spielt in den Gebieten, die zu ihr passen. Sofort-Spiel und Wochenlage ziehen ein Gebiet.
+- **Land und Grund:** KI-Schiffe, Konvoi und Neutrale weichen Untiefen und Land aus, der Navigator warnt Spieler
+  rechtzeitig; U-Boote laufen auf Land auf statt darüber zu fahren; Torpedos detonieren an der Küste.
+
 ### Grafik
 - **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
   eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route

@@ -19,6 +19,8 @@ import {
   mineSystem,
   type RegionId,
   KIND_REGION,
+  REGIONS,
+  areasFor,
 } from '@tk/shared';
 import { loadBathymetry } from './bathy-load.js';
 import type { LessonId } from './lessons.js';
@@ -79,6 +81,8 @@ export const START_HOUR: Record<TimeOfDay, number> = { tag: 10, daemmerung: 18.5
 
 export interface ScenarioSettings {
   mission: MissionId;
+  /** Sea area (regions.ts); unset or unsuited = the mission's home area. */
+  area?: RegionId;
   /** 'zufall' is rolled from the seed when the match starts (variation.ts). */
   timeOfDay: TimeOfDay | 'zufall';
   /** Sim seconds per real second. Gives room to hunt within a playable real-time match. */
@@ -185,11 +189,14 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     }));
   });
 
+  // Sea area: the lobby's choice if the mission can be played there, else its home area
+  const region: RegionId = settings.area && areasFor(mission).includes(settings.area) ? settings.area
+    : custom ? KIND_REGION[custom.seabed] : MISSIONS[mission].region;
   const layer = settings.layerDepth > 0 ? settings.layerDepth : 80 + ((seed * 7919) % 91);
   const w = createWorld(ships, seed, {
     layerDepth: layer, layerLoss: 12, seaState: settings.seaState,
     seabed: {
-      kind: custom?.seabed ?? MISSIONS[mission].seabed, seed, region: custom ? KIND_REGION[custom.seabed] : MISSIONS[mission].region,
+      kind: regionSeabed(region), seed, region,
       ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}),
     }, light: LIGHT[tod],
   });
@@ -236,4 +243,10 @@ export function toWater(spec: World['env']['seabed'], p: { x: number; y: number 
     }
   }
   return p;
+}
+
+/** Procedural stand-in for a sea area until its grid is loaded (and for traffic and air mix). */
+export function regionSeabed(id: RegionId): SeabedKind {
+  const k = REGIONS[id].kind;
+  return k === 'open' ? 'tief' : k === 'schelf' ? 'schelf' : 'fjord';
 }

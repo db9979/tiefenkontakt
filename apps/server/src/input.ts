@@ -28,6 +28,7 @@ import {
   fireSam,
   callFighter,
   layMine,
+  isRegion,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -36,6 +37,7 @@ const team = z.enum(['west', 'east']);
 /** Lobby settings (the settings message and a rematch's setup share them). */
 const settingsFields = {
   mission: z.enum(['groenland', 'schelf', 'fjord', 'duell', 'hafen', 'eigene', 'fuehlung', 'meerenge', 'aufklaerung']).optional(),
+  area: z.string().refine(isRegion, 'unbekanntes Seegebiet').optional(),
   custom: z.object({ convoyKn: z.number().min(5).max(14), seabed: z.enum(['tief', 'schelf', 'fjord']), subFrac: z.number().min(0.2).max(0.9) }).optional(),
   merchants: z.number().int().min(2).max(12).optional(),
   timeOfDay: z.enum(['tag', 'daemmerung', 'nacht', 'zufall']).optional(),
