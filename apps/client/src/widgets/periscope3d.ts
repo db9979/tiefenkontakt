@@ -7,7 +7,7 @@ import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { mergeStatic } from './sea3d/merge.js';
 import { OCEAN_FRAG, OCEAN_VERT } from './sea3d/shaders.js';
 import { SkyFx } from './sea3d/sky.js';
-import { applyWaves, hullOnSea, oceanGrid, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
+import { applyWaves, hullOnSea, oceanGrid, ownRoll, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
 import { wakeUniforms } from './sea3d/wake.js';
 import { bridgeFront, cullNear } from './sea3d/own-ship.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
@@ -80,6 +80,9 @@ export class Periscope3D {
   private sinking: Sinking[] = [];
   private slicks: Slick[] = [];
   private ownPos = { x: 0, y: 0 };
+  /** This frame's time and sea state (for the own ship's roll). */
+  private t = 0;
+  private sea = 3;
   private glow = 0;
   private effects = new Map<string, THREE.Group>();
   private skyFx: SkyFx;
@@ -108,7 +111,7 @@ export class Periscope3D {
       new THREE.ShaderMaterial({
         vertexShader: OCEAN_VERT, fragmentShader: OCEAN_FRAG,
         uniforms: {
-          ...waveUniforms(), uCell: { value: grid.cell }, uTime: { value: 0 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) },
+          ...waveUniforms(), uCell: { value: grid.cell }, uTime: { value: 0 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) }, uSkyTop: { value: new THREE.Color(0x3d5560) },
           uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uMoon: { value: new THREE.Vector3(-0.3, 0.4, 0.8) }, uFog: { value: new THREE.Color(0x4b5f67) },
           uFogDensity: { value: 0.00006 }, uLight: { value: 1 }, uFoam: { value: 0 }, uSunUp: { value: 1 }, uRain: { value: 0 }, uSpin: { value: 0 },
         },
@@ -228,6 +231,8 @@ export class Periscope3D {
     missiles?: { list: SamView[]; me: { x: number; y: number } };
   }): void {
     if (o.own) this.ownPos = o.own;
+    this.t = o.t;
+    this.sea = o.sea;
     const w = this.canvas.clientWidth || 400;
     const h = this.canvas.clientHeight || 400;
     // Full retina resolution costs four times the fill rate for little gain behind scanlines
@@ -242,7 +247,7 @@ export class Periscope3D {
     this.camera.fov = (2 * Math.atan(Math.tan(hf / 2) / aspect) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
     // Swell: the boat (and the optic) heave, pitch and roll; a high bridge moves less but sways more
-    // Wave amplitude (m) by sea state: SS3 ≈ 1.4 m significant wave height
+    // Wave height by sea state (WMO): SS3 ≈ 1.6 m, SS5 ≈ 4 m significant wave height
     // The sea, fixed to the map: wind from the weather, phases from the own position
     const sw = (this.waves = seaWaves(o.sea, o.met?.wind, this.ownPos, o.t));
     const amp = sw.amp;
@@ -285,6 +290,7 @@ export class Periscope3D {
     });
     u.uFog!.value = sky.haze;
     (u.uSky!.value as THREE.Color).copy(sky.reflect);
+    (u.uSkyTop!.value as THREE.Color).copy(sky.reflectTop);
     u.uSun!.value = sky.sunDir;
     u.uMoon!.value = sky.moonDir;
     u.uSunUp!.value = sky.sunUp;
@@ -332,7 +338,7 @@ export class Periscope3D {
     // Midships is bridgeZ aft of the eye
     const c = (heading * Math.PI) / 180;
     const r = hullOnSea(this.waves, -this.own!.bridgeZ * Math.sin(c), this.own!.bridgeZ * Math.cos(c), heading, ud.len, ud.beam ?? 14);
-    return { heave: r.heave, pitch: r.pitch * 0.85, roll: r.roll * 0.8 };
+    return { heave: r.heave, pitch: r.pitch * 1.1, roll: r.roll * 0.9 + ownRoll(this.sea, ud.len, ud.beam ?? 14, this.t, 0.7) };
   }
 
   private place(targets: PeriscopeTarget[], t: number, sea: number, amp: number, light: number): void {
@@ -349,7 +355,7 @@ export class Periscope3D {
       let s = this.ships.get(tg.label);
       if (!s || s.key !== key) {
         if (s) this.scene.remove(s.g);
-        s = { g: mergeStatic(tg.plane ? aircraftModel(tg.plane) : tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls)), key, bearing: tg.bearing };
+        s = { g: mergeStatic(tg.plane ? aircraftModel(tg.plane, tg.label) : tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls, tg.label)), key, bearing: tg.bearing };
         this.ships.set(tg.label, s);
         this.scene.add(s.g);
       }
@@ -385,8 +391,6 @@ export class Periscope3D {
       const ph = phaseOf(tg.label);
       const len = (s.g.userData.len as number | undefined) ?? (s.g.userData.len = new THREE.Box3().setFromObject(s.g).getSize(new THREE.Vector3()).z);
       const beam = (s.g.userData.beam as number | undefined) ?? (s.g.userData.beam = new THREE.Box3().setFromObject(s.g).getSize(new THREE.Vector3()).x);
-      const rollT = 5 + len / 20;
-      const small = 60 / (len + 60);
       const course = tg.course ?? tg.bearing + 90;
       const sx = Math.sin(b) * tg.range, sz = -Math.cos(b) * tg.range;
       // Riding the waves where she is: heave, pitch and roll from the sea surface under her hull
@@ -395,10 +399,10 @@ export class Periscope3D {
       // Models are built bow toward +z; turn them so the bow points along the course (north = −z)
       s.g.rotation.y = Math.PI - (course * Math.PI) / 180;
       // Heading first, then pitch about the ship's own beam axis, then roll about its keel;
-      // on top of the sea's tilt a small hull rolls a little in her own rhythm
+      // on top of the sea's tilt every hull rolls in her own rhythm (further in a rough sea)
       s.g.rotation.order = 'YXZ';
-      s.g.rotation.z = ride.roll * 0.8 + Math.sin((t * 2 * Math.PI) / rollT + ph) * (0.01 + sea * 0.012) * small;
-      s.g.rotation.x = -ride.pitch * 0.9;
+      s.g.rotation.z = ride.roll * 0.9 + ownRoll(sea, len, beam, t, ph);
+      s.g.rotation.x = -ride.pitch * 1.15;
       // Damage: list, trim and settling; fire and smoke on deck (lights the night)
       const fire = applyWreck(s.g, tg.wreck, t, light, seed, burning);
       if (fire > 0 && fire * (1 - light) > this.glow) {

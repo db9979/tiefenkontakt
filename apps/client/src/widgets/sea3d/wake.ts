@@ -25,7 +25,10 @@ varying vec3 vW; varying vec3 vPos;
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   float d = max(max(abs(wp.x), abs(wp.z)), 1.0);
-  wp.y = heightLod(wp.xz, uCell.x * pow(d, uCell.y)) + 0.12;
+  float cell = uCell.x * pow(d, uCell.y);
+  wp.y = heightLod(wp.xz, cell) + 0.12;
+  // Same crest sharpening as the ocean grid, so the foam stays on the water
+  wp.xz += chopShift(wp.xz, cell);
   ${bow ? '// The bow wave climbs the stem and stands up along the hull\n  wp.y += (1.0 - aw.x) * (1.0 - aw.y) * aw.z;' : ''}
   vW = aw; vPos = wp.xyz;
   gl_Position = projectionMatrix * viewMatrix * wp;

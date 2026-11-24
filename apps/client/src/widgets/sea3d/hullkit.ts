@@ -43,6 +43,12 @@ export interface HullSpec {
   colors: { top: number; boot: number; bottom: number };
   /** Boot-top band from y0 to y1 around the waterline. */
   boot?: [number, number];
+  /** Rust streaks running down the topsides from the deck edge (0 none … 1 a tramp at the end of her days). */
+  rust?: number;
+  /** Painted sheer stripe just below the deck edge (colour). */
+  stripe?: number;
+  /** Seed for the streaks (same ship, same streaks). */
+  seed?: number;
 }
 
 export interface Hull {
@@ -102,12 +108,17 @@ export function loftHull(g: THREE.Object3D, s: HullSpec): Hull {
   const cBot = new THREE.Color(s.colors.bottom);
   const [b0, b1] = s.boot ?? [-0.4, 0.6];
   const rng = (i: number) => (Math.sin(i * 12.9898) * 43758.5453) % 1;
+  const rustK = s.rust ?? 0;
+  const seed = (s.seed ?? 0) % 997;
+  const cRust = new THREE.Color(0x6e3b24);
+  const stripe = s.stripe !== undefined ? new THREE.Color(s.stripe) : undefined;
   // Section rings, port deck edge → keel → starboard deck edge; extra rows at the boot-top edges
   const heights = (z: number): number[] => {
     const top = deckAt(z);
     const hs = [-s.draft];
     for (let j = 1; j < M; j++) hs.push(-s.draft + (top + s.draft) * (j / M));
     hs.push(b0, b0 + 0.001, b1, b1 + 0.001, top);
+    if (s.stripe !== undefined) hs.push(top - 1.3, top - 1.299, top - 0.6, top - 0.599);
     return [...new Set(hs)].filter((y) => y <= top).sort((a, b) => a - b);
   };
   const rings: number[][] = [];
@@ -126,9 +137,18 @@ export function loftHull(g: THREE.Object3D, s: HullSpec): Hull {
         let w = halfAt(t, y, z);
         if (s.bulb && t > 0.93 && y < -s.draft * 0.3) w = Math.max(w, B * 0.12 * (1 - Math.abs(y + s.draft * 0.65) / (s.draft * 0.4)));
         pos.push(sx * w, y, zz);
-        const c = y < b0 ? cBot : y <= b1 ? cBoot : cTop;
+        const top = deckAt(z);
+        let c = y < b0 ? cBot : y <= b1 ? cBoot : stripe && y > top - 1.3 && y <= top - 0.6 ? stripe : cTop;
         // Weathering: slightly darker streaks below the deck edge, never on the boot-top
         const dirt = y > b1 ? 1 - 0.07 * Math.abs(rng(i * 31 + Math.round(y * 3))) : 1;
+        // Rust: runs from scuppers and hawse pipes, strongest under the deck edge, fading downward
+        if (rustK > 0 && y > b1) {
+          const run = Math.abs(rng(i * 7.3 + seed + sx * 101));
+          if (run > 1 - rustK * 0.45) {
+            const k = Math.min(1, (y - b1) / Math.max(1, top - b1)) * (0.35 + 0.65 * rustK) * (0.5 + run * 0.5);
+            c = c.clone().lerp(cRust, k);
+          }
+        }
         col.push(c.r * dirt, c.g * dirt, c.b * dirt);
         ring.push(vi++);
       }

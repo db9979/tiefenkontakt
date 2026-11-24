@@ -12,8 +12,11 @@ varying vec3 vPos;
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   float d = max(max(abs(wp.x), abs(wp.z)), 1.0);
-  wp.y += heightLod(wp.xz, uCell.x * pow(d, uCell.y));
+  float cell = uCell.x * pow(d, uCell.y);
+  wp.y += heightLod(wp.xz, cell);
+  // Sharpen the crests: the vertex slides toward the nearest crest (vPos keeps the sea point)
   vPos = wp.xyz;
+  wp.xz += chopShift(wp.xz, cell);
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 
@@ -27,7 +30,7 @@ float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { 
 
 export const OCEAN_FRAG = `${NOISE}${WAVES}
 uniform float uTime; uniform vec2 uWind; uniform vec2 uOffR; uniform vec2 uOffW;
-uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uFog;
+uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSkyTop; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uFog;
 uniform float uFogDensity; uniform float uLight; uniform float uFoam; uniform float uSunUp; uniform float uRain; uniform float uSpin;
 uniform vec4 uIce[4];
 varying vec3 vPos;
@@ -38,7 +41,8 @@ void main() {
   // Geometric mean of the footprint: at grazing angles the long axis alone would flatten the near sea
   float foot = max(sqrt(fw.x * fw.y) * 1.6, 0.02);
   vec2 sl = slopeLod(vPos.xz, foot);
-  vec3 n = normalize(vec3(-sl.x, 1.0, -sl.y));
+  // Slopes a touch steeper than linear theory: the sharpened crests are steeper than the sines
+  vec3 n = normalize(vec3(-sl.x * 1.4, 1.0, -sl.y * 1.4));
   float vH = heightLod(vPos.xz, foot) / max(uAmp, 0.01);
   // Capillary ripples: high-frequency normal detail, fading with distance (gives the eye a sense of scale)
   float dist = length(cameraPosition - vPos);
@@ -47,7 +51,7 @@ void main() {
     // Fixed to the sea (own position added), drifting downwind
     vec2 q = vPos.xz + uOffR + uWind * uTime * 0.7;
     vec2 rip = vec2(noise(q) - 0.5, noise(q * 2.0 + 4.0) - 0.5);
-    n = normalize(n + vec3(rip.x, 0.0, rip.y) * 0.35 * near);
+    n = normalize(n + vec3(rip.x, 0.0, rip.y) * 0.12 * near);
   }
   // Rain pocks the surface close by: fine, fast-changing roughness that dulls the mirror
   float pock = uRain * (1.0 - smoothstep(0.04, 0.3, foot)) * (1.0 - smoothstep(80.0, 450.0, dist));
@@ -57,7 +61,11 @@ void main() {
     n = normalize(n + vec3(sp.x, 0.0, sp.y) * 0.8 * pock);
   }
   float fres = pow(1.0 - max(dot(n, view), 0.0), 4.0);
-  vec3 col = mix(uDeep, uSky, clamp(fres * 0.65, 0.0, 1.0));
+  // Mirror of the sky: a face tilted toward the eye reflects the darker sky overhead, one tilted
+  // away the bright horizon; that light-dark pattern is what makes the swell read
+  vec3 rv = reflect(-view, n);
+  vec3 skyR = mix(uSky, uSkyTop, smoothstep(0.02, 0.45, rv.y));
+  vec3 col = mix(uDeep, skyR, clamp(0.08 + fres * 0.85, 0.0, 1.0));
   // Subsurface green on wave flanks facing the light
   col += vec3(0.02, 0.07, 0.06) * max(0.0, vH) * uLight;
   vec3 r = reflect(-view, n);
@@ -75,7 +83,7 @@ void main() {
     float chop = chopLod(vPos.xz, foot);
     float pf = fbm(wq * vec2(0.0625, 0.125) + vec2(uTime * 0.03, 0.0));
     float fine = noise((vPos.xz + uOffR) * 0.5 + uWind * uTime * 0.4);
-    float m = 0.42 * chop + 0.18 * vH + 0.9 * pf - 0.9 + 0.3 * uFoam;
+    float m = 0.42 * chop + 0.12 * vH + 0.9 * pf - 1.0 + 0.3 * uFoam;
     float foam = smoothstep(0.0, 0.12, m) * smoothstep(0.25, 0.7, fine);
     float farF = 1.0 - smoothstep(400.0, 2500.0, dist);
     foam = mix(0.05 * uFoam, foam, farF) * uFoam;

@@ -15,7 +15,27 @@ import * as THREE from 'three';
 export const WK = [0.025, 0.045, 0.085, 0.16, 0.31, 0.6, 1.1];
 /** Direction of each train relative to the wind (degrees). */
 const SPREAD = [28, 0, -18, 32, -38, 12, -55];
-/** Share of the crest height per train at a full sea; long trains build up with the sea state. */
+/**
+ * Significant wave height (m) by sea state, WMO code 3700 (upper middle of each band):
+ * 1 rippled, 2 smooth, 3 slight (0.5–1.25 m), 4 moderate (1.25–2.5), 5 rough (2.5–4),
+ * 6 very rough (4–6), 7 high (6–9).
+ */
+const HS = [0.05, 0.25, 0.8, 1.6, 2.8, 4.2, 6, 8.5, 11, 14];
+export function sigHeight(sea: number): number {
+  const s = Math.max(0, Math.min(HS.length - 1, sea));
+  const i = Math.min(HS.length - 2, Math.floor(s));
+  return HS[i]! + (HS[i + 1]! - HS[i]!) * (s - i);
+}
+
+/** Wave number of the spectral peak (rad/m) by sea state. */
+function peakK(sea: number): number {
+  const P = [0.9, 0.6, 0.38, 0.24, 0.15, 0.1, 0.075, 0.055, 0.045, 0.04];
+  const s = Math.max(0, Math.min(P.length - 1, sea));
+  const i = Math.min(P.length - 2, Math.floor(s));
+  return P[i]! + (P[i + 1]! - P[i]!) * (s - i);
+}
+
+/** Default share of the crest height per train (before the first frame). */
 const SHARE = [0.3, 0.27, 0.18, 0.11, 0.07, 0.045, 0.025];
 const G = 9.81;
 /** Wrap of the offset handed to the noise patterns (the noise repeats exactly at this length). */
@@ -47,7 +67,6 @@ const wrap = (v: number, m: number): number => v - Math.floor(v / m) * m;
  * @param t seconds
  */
 export function seaWaves(sea: number, windToward: { x: number; y: number } | undefined, own: { x: number; y: number }, t: number): Waves {
-  const amp = 0.12 + sea * 0.2;
   // Scene x = east, scene z = south
   let wx = windToward?.x ?? 0.8;
   let wz = -(windToward?.y ?? 0.6);
@@ -55,10 +74,19 @@ export function seaWaves(sea: number, windToward: { x: number; y: number } | und
   wx /= n;
   wz /= n;
   const base = Math.atan2(wz, wx);
-  const build = Math.max(0.25, Math.min(1, (sea - 1) / 4));
-  const raw = SHARE.map((s, i) => (i < 2 ? s * build : s));
+  // Wind sea: energy peaks at a wavelength that grows with the sea state (about 25 m in a slight
+  // sea, 80 m in a rough one, 100+ m very rough), so the sea gets steep, not just long; a little
+  // old swell always runs underneath
+  const kp = peakK(sea);
+  const raw = WK.map((k, i) => {
+    const x = Math.log(k / kp) / 0.55;
+    return Math.exp(-0.5 * x * x) * (k < kp ? 1 : Math.pow(kp / k, 0.6)) + (i < 2 ? 0.12 : 0.03);
+  });
   const sum = raw.reduce((a, b) => a + b, 0);
   const wa = raw.map((s) => s / sum);
+  // Crest scale from the WMO significant wave height of the sea state (Hs ≈ 4σ of the summed trains)
+  const sigma = Math.sqrt(wa.reduce((a, x) => a + x * x, 0) / 2);
+  const amp = sigHeight(sea) / (4 * sigma);
   const ox = own.x;
   const oz = -own.y;
   const wd: [number, number][] = [];
@@ -103,6 +131,18 @@ export function hullOnSea(w: Waves, x: number, z: number, course: number, len: n
     pitch: Math.atan2(bow - stern, 2 * hl),
     roll: Math.atan2(port - stbd, 2 * hb),
   };
+}
+
+/**
+ * A ship's own roll (rad): the waves excite her at her natural roll period (about 4 s plus 0.4 s
+ * per metre of beam), so she swings further than the sea surface tilts, in groups that build
+ * and fade over a minute. Big ships roll less; a yacht or tug in a rough sea a lot.
+ */
+export function ownRoll(sea: number, len: number, beam: number, t: number, phase: number): number {
+  const T = 4 + beam * 0.4;
+  const deg = Math.min(20, 3.2 * sigHeight(sea)) / (1 + len / 250);
+  const group = 0.6 + 0.4 * Math.sin((t * 2 * Math.PI) / 55 + phase * 3.1);
+  return ((deg * Math.PI) / 180) * group * Math.sin((t * 2 * Math.PI) / T + phase);
 }
 
 /** Uniforms for every material that uses the WAVES chunk. */
@@ -181,13 +221,22 @@ export function oceanGrid(segments: number): { geo: THREE.BufferGeometry; cell: 
 export const WAVES_GLSL = `
 uniform float uAmp; uniform float uWa[7]; uniform vec2 uWd[7]; uniform float uPh[7];
 const float WK[7] = float[7](${WK.map((k) => k.toFixed(3)).join(', ')});
-float waveKeep(int i, float s) { float lam = 6.2832 / WK[i]; return 1.0 - smoothstep(lam * 0.08, lam * 0.2, s); }
+float waveKeep(int i, float s) { float lam = 6.2832 / WK[i]; return 1.0 - smoothstep(lam * 0.22, lam * 0.45, s); }
 float heightLod(vec2 p, float s) {
   float h = 0.0;
   for (int i = 0; i < 7; i++) h += uWa[i] * waveKeep(i, s) * sin(WK[i] * dot(p, uWd[i]) + uPh[i]);
   return uAmp * h;
 }
 float height(vec2 p) { return heightLod(p, 0.0); }
+/** Gerstner shift: surface points move toward each crest, so crests sharpen and troughs widen. */
+vec2 chopShift(vec2 p, float s) {
+  vec2 d = vec2(0.0);
+  for (int i = 0; i < 7; i++) {
+    float a = uAmp * uWa[i];
+    d -= min(5.0 * a, 0.75 / WK[i]) * waveKeep(i, s) * cos(WK[i] * dot(p, uWd[i]) + uPh[i]) * uWd[i];
+  }
+  return d;
+}
 /** The short trains only, -1..1: where the wind sea is steep enough to break. */
 float chopLod(vec2 p, float s) {
   float h = 0.0; float wsum = 0.0;

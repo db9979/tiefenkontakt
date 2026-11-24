@@ -9,8 +9,8 @@ export type QualitySetting = Quality | 'auto';
 
 const LEVELS = {
   niedrig: { fps: 24, dpr2d: 1, dprGl: 1, ocean: 128 },
-  mittel: { fps: 30, dpr2d: 1.5, dprGl: 1.25, ocean: 192 },
-  hoch: { fps: 60, dpr2d: 2, dprGl: 1.5, ocean: 256 },
+  mittel: { fps: 30, dpr2d: 1.5, dprGl: 1.25, ocean: 224 },
+  hoch: { fps: 60, dpr2d: 2, dprGl: 1.5, ocean: 320 },
 } as const;
 
 export function qualitySetting(): QualitySetting {

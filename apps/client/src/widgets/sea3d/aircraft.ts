@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { PlaneKind } from '@tk/shared';
 import { K, std } from './hullkit.js';
+import { rng } from './civilkit.js';
+import { pick, seedOf } from './variety.js';
 import { blades, foil, pod, rev, rod, type P3, type Ring, type Station } from './boats.js';
 
 /**
@@ -14,11 +16,13 @@ import { blades, foil, pod, rev, rod, type P3, type Ring, type Station } from '.
  */
 
 const WHITE = std(0xdfe3e4, { roughness: 0.45 });
+const WHITE_ = WHITE;
 const GREY = std(0x9aa3a8, { roughness: 0.5 });
 const LGREY = std(0xb4bcc0, { roughness: 0.55 });
 const SILVER = std(0xa7adb0, { roughness: 0.4, metalness: 0.45 });
 const DARK = std(0x4a5258, { roughness: 0.6 });
 const NAVY = std(0x5d686e, { roughness: 0.7 });
+const NAVY_ = NAVY;
 const BLUE = std(0x2b4a78, { roughness: 0.5 });
 const RED = std(0xb03a2e, { roughness: 0.5 });
 const DISC = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
@@ -134,10 +138,16 @@ function turboprop(g: THREE.Group, x: number, y: number, zf: number, back: numbe
   for (let i = 0; i < rows; i++) prop(g, x, y, zf + 0.35 + i * 0.95, n, propR, r * 0.8, propR * 0.13, i % 2 ? -1 : 1);
 }
 
-function airliner(g: THREE.Group): void {
-  // Narrow-body twin jet, 38 m: round fuselage with upswept tail cone
+function airliner(g: THREE.Group, r: () => number): void {
+  // Narrow-body jet, 38 m (twin, or an older four-jet): round fuselage with upswept tail cone,
+  // in the colours of one of a dozen airlines
+  const body = pick(r, [WHITE, WHITE, SILVER, std(0xe9e4d8, { roughness: 0.45 })]);
+  const tail = std(pick(r, [0x2b4a78, 0xb03a2e, 0x2a6a4a, 0xd8732e, 0x5a2a6a, 0xc9a640, 0x1c1f21, 0x2a8a9a]), { roughness: 0.5 });
+  const belly = r() < 0.3 ? tail : GREY;
+  const quad = r() < 0.3;
+  const BLUE = tail;
   const F = fuselage(g, [[19.4, 0.05, -0.4], [19.1, 0.75, -0.32], [18.5, 1.22, -0.2], [17.5, 1.62, -0.08], [16, 1.9, 0], [13, 1.95, 0], [-9, 1.95, 0],
-    [-12, 1.85, 0.15], [-15, 1.45, 0.55], [-17.5, 0.9, 0.95], [-19, 0.38, 1.25], [-19.4, 0.05, 1.3]], WHITE);
+    [-12, 1.85, 0.15], [-15, 1.45, 0.55], [-17.5, 0.9, 0.95], [-19, 0.38, 1.25], [-19.4, 0.05, 1.3]], body);
   // Windscreen, window line and cheat line
   for (const sx of [-1, 1]) {
     decal(g, F, 17.6, sx * 0.3, 0.6, 0.45);
@@ -154,9 +164,9 @@ function airliner(g: THREE.Group): void {
     { s: 17, le: -4.0, te: -5.6, t: 0.11, o: 0.24 },
   ];
   wings(g, W, GREY);
-  pod(g, [{ z: -6.5, w: 0.1, h: 0.1, y: -1.5 }, { z: -4.5, w: 1.5, h: 0.55, y: -1.55 }, { z: 3.5, w: 1.6, h: 0.6, y: -1.55 }, { z: 6, w: 0.1, h: 0.1, y: -1.45 }], GREY, 14);
+  pod(g, [{ z: -6.5, w: 0.1, h: 0.1, y: -1.5 }, { z: -4.5, w: 1.5, h: 0.55, y: -1.55 }, { z: 3.5, w: 1.6, h: 0.6, y: -1.55 }, { z: 6, w: 0.1, h: 0.1, y: -1.45 }], belly, 14);
   // Engines on short pylons under the wing (nacelle top meets the pylon, pylon reaches into the wing)
-  for (const x of [-5.6, 5.6]) {
+  for (const x of quad ? [-4.6, 4.6, -9.6, 9.6] : [-5.6, 5.6]) {
     const w = at(W, x);
     jet(g, x, w.o! - w.t - 1.05, w.le + 0.35, w.o!, w.le, GREY);
   }
@@ -180,7 +190,9 @@ function airliner(g: THREE.Group): void {
   lights(g, [17, 0.24, -4.8], [0, 1.3, -19.5], [0, 2.0, -1]);
 }
 
-function lightPlane(g: THREE.Group): void {
+function lightPlane(g: THREE.Group, r: () => number): void {
+  const RED = std(pick(r, [0xb03a2e, 0x2b4a78, 0x2a6a4a, 0xd8732e, 0xc9a640, 0x1c1f21]), { roughness: 0.5 });
+  const WHITE = pick(r, [WHITE_, WHITE_, std(0xe9e4d8, { roughness: 0.45 }), std(0xc8d4dc, { roughness: 0.45 })]);
   // High-wing four-seater, 8.3 m: cowling, cabin, slim tail cone
   pod(g, [
     { z: -4.45, w: 0.02, h: 0.05, y: 0.42 }, { z: -4.3, w: 0.08, h: 0.2, y: 0.4 }, { z: -3, w: 0.22, h: 0.35, y: 0.32 }, { z: -1.5, w: 0.42, h: 0.55, y: 0.25 },
@@ -305,7 +317,9 @@ function skin(g: THREE.Group, rs: Ring[], z0: number, z1: number, a0: number, a1
   g.add(new THREE.Mesh(geo, m));
 }
 
-function helo(g: THREE.Group): void {
+function helo(g: THREE.Group, r: () => number): void {
+  // Light navy grey, dark sea grey or olive
+  const NAVY = pick(r, [NAVY_, NAVY_, std(0x4f5a61, { roughness: 0.7 }), std(0x6f7a72, { roughness: 0.7 })]);
   // Naval ASW helicopter: boat-hull cabin, engine housing, five-blade rotor, tail pylon with tail rotor, sponsons
   const cabin: Ring[] = [
     { z: -9.4, w: 0.02, h: 0.1, y: 1.6 }, { z: -9.0, w: 0.28, h: 0.45, y: 1.6 }, { z: -8.2, w: 0.3, h: 0.45, y: 1.55 }, { z: -6, w: 0.45, h: 0.6, y: 1.3, n: 2.6 },
@@ -367,13 +381,16 @@ function helo(g: THREE.Group): void {
   lights(g, [1.75, -0.45, -0.4], [0, 3.85, -10.1], [0, 2.6, -1.6]);
 }
 
-export function aircraftModel(kind: PlaneKind): THREE.Group {
+/** An aircraft; with an id the civil ones wear their own livery (and the airliner may have four engines). */
+export function aircraftModel(kind: PlaneKind, id?: string): THREE.Group {
   const g = new THREE.Group();
-  if (kind === 'airliner') airliner(g);
-  else if (kind === 'light') lightPlane(g);
+  const r = rng(id === undefined ? 1 : seedOf(id));
+  if (kind === 'airliner') airliner(g, r);
+  else if (kind === 'light') lightPlane(g, r);
   else if (kind === 'recon') recon(g);
   else if (kind === 'mpa') mpa(g);
-  else helo(g);
+  else helo(g, id === undefined ? rng(1) : r);
+  if (id !== undefined && kind === 'airliner') g.scale.setScalar(0.9 + r() * 0.4);
   return g;
 }
 

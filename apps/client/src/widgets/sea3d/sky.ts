@@ -173,7 +173,7 @@ export interface SkyInput {
 export interface SkyLight {
   sunDir: THREE.Vector3; moonDir: THREE.Vector3; sunUp: number; sunColor: THREE.Color;
   /** Fog colour, and what the sea mirrors at a grazing look. */
-  haze: THREE.Color; reflect: THREE.Color;
+  haze: THREE.Color; reflect: THREE.Color; reflectTop: THREE.Color;
   dusk: number; overcast: number; precip: number; flash: number; fogDensity: number;
 }
 
@@ -306,6 +306,7 @@ export class SkyFx {
     // Haze thickens with rain and overcast; a fog bank closes in to a few hundred metres
     const fogDensity = THREE.MathUtils.lerp(0.000022 * (1 + o.sea * 0.2) * (1 + 4 * pr + 0.6 * over), 0.0019, o.inFog);
     const reflect = horizon.clone().lerp(top, 0.25).lerp(haze, 0.3);
-    return { sunDir, moonDir, sunUp, sunColor, haze, reflect, dusk, overcast: over, precip: pr, flash, fogDensity };
+    const reflectTop = top.clone().lerp(horizon, 0.25);
+    return { sunDir, moonDir, sunUp, sunColor, haze, reflect, reflectTop, dusk, overcast: over, precip: pr, flash, fogDensity };
   }
 }

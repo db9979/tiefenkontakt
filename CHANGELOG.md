@@ -26,6 +26,20 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - Regen fällt in Streifen, schräg vom Wind und vom eigenen Fahrtwind, und raut die Wasseroberfläche auf; in kalten
   Lagen schneit es. Unter einem Schauer wird es diesig statt einer Wand. Gewitter in manchen Schauerzellen.
 - Ab Seegang 5 Gischtstreifen in Windrichtung; Schaumkronen sind nachts nicht mehr hell.
+- **Seegang:** Wellenhöhe nach WMO-Tabelle (Seegang 3 ≈ 1,6 m, 5 ≈ 4 m, 6 ≈ 6 m signifikant), die Energie liegt
+  bei der zum Seegang passenden Wellenlänge, die Kämme sind geschärft; das Gitter trägt die Wellen jetzt bis in die
+  Ferne (vorher fielen sie ab etwa 100 m weg, das Meer wirkte flach). Das Wasser spiegelt je nach Neigung Horizont
+  oder Himmel, so zeichnen sich die Wellen ab.
+- Schiffe rollen zusätzlich in ihrer Eigenperiode, im groben Wetter deutlich (Fregatte bei Seegang 5 um 10–15°),
+  auch die eigene Brücke.
+- **Schiffsvielfalt:** Jedes Schiff sieht nach seiner Kennung aus, immer gleich. Geleitzug: Stückgutfrachter
+  (Brücke mittschiffs, ¾ achtern oder achtern; 4–6 Luken; Ladebäume, Pfosten oder Kräne; Holz, Container oder
+  Fahrzeuge an Deck), Containerfeeder, Massengutfrachter, Kühlschiffe, kleinere Tanker und Ro-Ro-Frachter.
+  Beladen tief, in Ballast hoch mit rotem Unterwasserschiff; Rostfahnen, Zierstreifen, viele Reedereifarben.
+- Neutrale: Tanker, Containerschiffe, Fähren (auch mit farbigem Rumpf) und Schlepper in Größe und Farben variiert,
+  dazu Motoryachten und ältere Seitenfänger neben Segelyachten und Heckfängern.
+- Flugzeuge: Verkehrsflugzeuge in den Farben verschiedener Fluglinien, teils vierstrahlig; Sportflugzeuge und
+  Hubschrauber in mehreren Lackierungen.
 
 ## [1.0.0] – 2026-11-23
 
