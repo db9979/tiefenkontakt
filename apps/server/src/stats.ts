@@ -46,7 +46,8 @@ export const RANKS: [number, string][] = [
   [3000, 'Kapitän zur See'], [1500, 'Fregattenkapitän'], [700, 'Korvettenkapitän'], [300, 'Kapitänleutnant'], [100, 'Oberleutnant zur See'], [0, 'Leutnant zur See'],
 ];
 export function rankFor(points: number): string {
-  return RANKS.find(([p]) => points >= p)![1];
+  // Below zero (losses cost points) or not a number: still the lowest rank, never a crash
+  return RANKS.find(([p]) => points >= p)?.[1] ?? RANKS[RANKS.length - 1]![1];
 }
 
 /** Points: a win counts most; sinkings, survival and fleet command's orders add, a loss costs a little. */

@@ -17,3 +17,12 @@ describe('feedback', () => {
     expect(l.rows[1]).toMatchObject({ rating: 2, callsign: 'Kaleu', tags: ['ruckeln'], text: 'Ruckelt im Sehrohr', side: 'east' });
   });
 });
+
+describe('naval rank', () => {
+  it('gives the lowest rank to negative or broken point totals instead of crashing', async () => {
+    const { rankFor } = await import('../src/stats.js');
+    expect(rankFor(-40)).toBe('Leutnant zur See');
+    expect(rankFor(Number.NaN)).toBe('Leutnant zur See');
+    expect(rankFor(800)).toBe('Korvettenkapitän');
+  });
+});
