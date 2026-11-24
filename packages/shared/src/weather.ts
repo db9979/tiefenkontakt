@@ -1,5 +1,6 @@
 import type { Environment } from './acoustics.js';
 import type { Rng } from './rng.js';
+import { lightFromSun, sunPosition } from './climate.js';
 
 /**
  * Changing weather: the clock runs (daylight follows it), sea state drifts,
@@ -52,7 +53,7 @@ export function stepWeather(env: Environment & { weather?: WeatherState; rain?: 
   const wx = env.weather;
   if (!wx) return;
   wx.clock = (wx.clock + dt / 3600) % 24;
-  env.light = daylight(wx.clock);
+  env.light = env.lat !== undefined && env.month ? lightFromSun(sunPosition(env.lat, env.month, wx.clock).el) : daylight(wx.clock);
   if (!wx.dynamic || Math.floor((time - dt) / STEP_S) === Math.floor(time / STEP_S)) return;
   env.rain = time < wx.rainUntil;
   if (time >= wx.nextChange) {

@@ -13,6 +13,7 @@ import { bridgeFront, cullNear, handShake } from './sea3d/own-ship.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
+import { store } from '../store.js';
 
 /**
  * 3D sea view used by the periscope (eye 4 m) and the escorts' bridge (eye 20 m):
@@ -22,7 +23,6 @@ import { dprGl, oceanSegments } from './perf.js';
  */
 
 const EARTH_R = 6_371_000;
-
 /** Stable 0…2π phase from a label, so every ship keeps its own rhythm. */
 function phaseOf(label: string): number {
   let h = 0;
@@ -317,7 +317,7 @@ export class Periscope3D {
     // Inside a fog bank: everything goes white-grey within a few hundred meters
     const inFog = this.wx.update(o.met, o.own, o.t, o.light);
     const sky = this.skyFx.update({
-      t: o.t, light: o.light, hour: o.hour ?? 12, sea: o.sea, rain: !!o.rain, inFog, met: o.met, own: this.ownPos,
+      t: o.t, light: o.light, hour: o.hour ?? 12, sun: store.snap?.env.sun, sea: o.sea, rain: !!o.rain, inFog, met: o.met, own: this.ownPos,
       ownKn: o.ownKn ?? 0, ownHeading: o.ownHeading ?? 0, camera: this.camera,
     });
     u.uFog!.value = sky.haze;

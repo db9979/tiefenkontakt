@@ -16,7 +16,9 @@ import { isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
 import { crewSonarDb } from './crew.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
-import { SHALLOW_M, pathDepth } from './seabed.js';
+import { SHALLOW_M } from './seabed.js';
+import { bottomFeatures } from './bottom-echo.js';
+import { lineOfSight, soundPathDepth as pathDepth, terrainLossDb } from './terrain.js';
 import { metVisibility } from './weather.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
@@ -137,7 +139,8 @@ function heardSources(obs: Ship, ctx: SensorContext): Heard[] {
   for (const s of ctx.ships) {
     if (s === obs || !s.alive) continue;
     const r = distance(obs.pos, s.pos);
-    const rl = sourceLevelToward(s, obs.pos) - transmissionLoss(r, s.depth, obs.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, obs.pos, s.pos));
+    const rl = sourceLevelToward(s, obs.pos) - transmissionLoss(r, s.depth, obs.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, obs.pos, s.pos)) -
+      terrainLossDb(ctx.env.seabed, s.pos, s.depth, obs.pos, obs.depth);
     out.push({ id: s.id, b: bearing(obs.pos, s.pos), rl });
   }
   return out;
@@ -183,7 +186,9 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
   const rel = angleDiff(obs.heading, trueB);
   // Operators: fresh, alert crews hear more; knuckles in the path swallow sound
   // A boat under or among floes hides in the crackling of the ice
-  const adj = crewSonarDb(obs) - knuckleLoss(obs.pos, tgt.pos, ctx.knuckles) - ICE_MASK_DB * iceCover(ctx.env.met, tgt.pos);
+  // Land and sills in between: an island is a wall, a sill lets only the sound near its crest over
+  const adj = crewSonarDb(obs) - knuckleLoss(obs.pos, tgt.pos, ctx.knuckles) - ICE_MASK_DB * iceCover(ctx.env.met, tgt.pos) -
+    terrainLossDb(ctx.env.seabed, tgt.pos, tgt.depth, obs.pos, sonarDepth(obs));
   let cache = heardCache.get(obs);
   if (!cache || cache.t !== ctx.time) heardCache.set(obs, (cache = { t: ctx.time, heard: heardSources(obs, ctx) }));
   const heard = cache.heard;
@@ -232,7 +237,8 @@ function passiveEmitters(obs: Ship, ctx: SensorContext, out: Detection[]): void 
     const range = distance(obs.pos, e.pos);
     const trueB = bearing(obs.pos, e.pos);
     if (Math.abs(angleDiff(obs.heading, trueB)) >= 180 - spec.hull.baffleHalfAngle) continue;
-    const se = passiveExcessFrom(e.sl, e.depth, obs, range, 'hull', ctx.env) + ctx.rng.gauss(0, SE_FLUCTUATION);
+    const se = passiveExcessFrom(e.sl, e.depth, obs, range, 'hull', ctx.env) + ctx.rng.gauss(0, SE_FLUCTUATION) -
+      terrainLossDb(ctx.env.seabed, e.pos, e.depth, obs.pos, sonarDepth(obs));
     if (se <= 0) continue;
     out.push({
       observerId: obs.id, targetId: e.id, sensor: 'hull', time: ctx.time,
@@ -255,7 +261,7 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const tv = headingVec(tgt.heading);
     const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
     const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom, { lfm, closingKn: closing }) + ctx.rng.gauss(0, 2) -
-      2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger);
+      2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger) - 2 * terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), tgt.pos, tgt.depth);
     if (se > 0 && !inBaffles && !belowHull(pinger, tgt, range)) {
       out.push({
         observerId: pinger.id, targetId: tgt.id, sensor: 'active', time: ctx.time,
@@ -265,7 +271,7 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
       });
     }
     if (CLASSES[tgt.cls].hull.di > 0) {
-      const ie = pingInterceptExcess(pinger, tgt, range, ctx.env);
+      const ie = pingInterceptExcess(pinger, tgt, range, ctx.env) - terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), tgt.pos, tgt.depth);
       if (ie > 0) {
         out.push({
           observerId: tgt.id, targetId: pinger.id, sensor: 'intercept', time: ctx.time,
@@ -274,12 +280,14 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
       }
     }
   }
+  bottomEchoes(pinger, ctx, out);
   // Knuckles answer like a stopped target: an echo with no Doppler that fades within minutes
   for (const k of ctx.knuckles ?? []) {
     const range = distance(pinger.pos, k.pos);
     const trueB = bearing(pinger.pos, k.pos);
     if (Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - CLASSES[pinger.cls].hull.baffleHalfAngle) continue;
-    const se = pointEchoExcess(pinger, range, k.depth, KNUCKLE_TS, ctx.env, pathDepth(ctx.env.seabed, pinger.pos, k.pos)) + ctx.rng.gauss(0, 2);
+    const se = pointEchoExcess(pinger, range, k.depth, KNUCKLE_TS, ctx.env, pathDepth(ctx.env.seabed, pinger.pos, k.pos)) + ctx.rng.gauss(0, 2) -
+      2 * terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), k.pos, k.depth);
     if (se <= 0) continue;
     out.push({
       observerId: pinger.id, targetId: k.id, sensor: 'active', time: ctx.time, bearing: noisyBearing(trueB, se + 10, ctx.rng),
@@ -287,6 +295,34 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     });
   }
 }
+
+const BOTTOM_ECHO_RANGE = 16_000;
+const BOTTOM_ECHO_MAX = 10;
+
+/** Rocks, seamount tops and steep walls of the real seabed answer a ping like a stopped boat. */
+function bottomEchoes(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
+  const half = CLASSES[pinger.cls].hull.baffleHalfAngle;
+  const lfm = pinger.pulse === 'lfm';
+  const found: Detection[] = [];
+  for (const f of bottomFeatures(ctx.env.seabed)) {
+    const range = Math.hypot(f.x - pinger.pos.x, f.y - pinger.pos.y);
+    if (range > BOTTOM_ECHO_RANGE || range < 200) continue;
+    const trueB = bearing(pinger.pos, f);
+    if (Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - half) continue;
+    const se = pointEchoExcess(pinger, range, f.depth, f.ts, ctx.env, pathDepth(ctx.env.seabed, pinger.pos, f)) + ctx.rng.gauss(0, 3) -
+      2 * terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), f, f.depth - 5);
+    if (se <= 0) continue;
+    found.push({
+      observerId: pinger.id, targetId: f.id, sensor: 'active', time: ctx.time, bearing: noisyBearing(trueB, se + 10, ctx.rng),
+      range: Math.max(10, range + ctx.rng.gauss(0, lfm ? 5 : 250)), se, dopplerKn: lfm ? undefined : 0,
+    });
+  }
+  out.push(...found.sort((a, b) => b.se - a.se).slice(0, BOTTOM_ECHO_MAX));
+}
+
+/** Height of a ship's masts and of a radar antenna above the sea (m). */
+const SHIP_TOP_M = 25;
+const RADAR_ANTENNA_M = 20;
 
 /** Geometric horizon range in meters between an eye height and a target height. */
 export function horizonRange(eyeHeight: number, targetHeight: number): number {
@@ -305,6 +341,8 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
     // Navigation lights carry far at night: a lit ship is seen almost as well as by day
     const seen = tgt.lights ? Math.max(vis, 0.85) : vis;
     if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > air * seen) continue;
+    // Behind a headland or island the masts are out of sight
+    if (!lineOfSight(ctx.env.seabed, obs.pos, 1.5, tgt.pos, SHIP_TOP_M)) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'periscope', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.3)),
@@ -324,6 +362,8 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
       const pDetect = 0.35 * (1 - ctx.env.seaState * 0.1) * (inSquall(ctx.env.met, tgt.pos) ? 0.25 : 1);
       if (ctx.rng.next() > pDetect) continue;
     } else if (range > RADAR_RANGE) continue;
+    // Land in between hides the target in its radar shadow
+    if (!lineOfSight(ctx.env.seabed, obs.pos, RADAR_ANTENNA_M, tgt.pos, sub ? 3 : SHIP_TOP_M)) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'radar', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.5)),
@@ -337,6 +377,8 @@ function esm(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   for (const emitter of ctx.ships) {
     if (emitter === obs || !emitter.alive || !emitter.radarOn) continue;
     if (distance(obs.pos, emitter.pos) > ESM_RANGE) continue;
+    // Radar waves travel in straight lines: no intercept from behind a mountain
+    if (!lineOfSight(ctx.env.seabed, obs.pos, CLASSES[obs.cls].submarine ? 3 : RADAR_ANTENNA_M, emitter.pos, RADAR_ANTENNA_M)) continue;
     out.push({
       observerId: obs.id, targetId: emitter.id, sensor: 'esm', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, emitter.pos) + ctx.rng.gauss(0, 2)), se: 10,

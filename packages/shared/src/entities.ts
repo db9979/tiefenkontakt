@@ -53,6 +53,13 @@ export interface Ship {
   drErr?: { x: number; y: number };
   /** Time of the last navigation fix (mast raised or surfaced). */
   lastFixAt?: number;
+  /** Navigator's estimate of the position error (1 σ, m) and how the last fix was taken. */
+  navSigma?: number;
+  lastFix?: import('./navfix.js').FixMethod;
+  /** Seconds of satellite reception / star sights with the mast up; last look for land. */
+  navFix?: { sat: number; stars: number; landAt: number };
+  /** Neutral on a real shipping lane (lanes.ts): lane index, direction, next waypoint. */
+  lane?: { i: number; dir: 1 | -1; k: number };
   /** Floating wire / buoy antenna streamed (receive only). */
   buoyAntenna?: boolean;
   /** Copying the current fleet-command broadcast: window index, seconds of steady reception. */

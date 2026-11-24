@@ -60,6 +60,20 @@ export function drawAir(
       ctx.fillText(`✈ RADAR ${String(Math.round(p.bearing)).padStart(3, '0')}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
       continue;
     }
+    if (p.rough) {
+      // By eye only: the bearing is good, the range a guess (±25 %), the height only low or high
+      const err = 1 + 0.5 * (hash(p.id) - 0.5);
+      const ex = s.own.x + (p.x - s.own.x) * err, ey = s.own.y + (p.y - s.own.y) * err;
+      const q = toScreen(ex, ey);
+      if (!q) continue;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(origin.x, origin.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+      ctx.setLineDash([]);
+      airSymbol(ctx, q.x, q.y, p.side);
+      const km = Math.hypot(ex - s.own.x, ey - s.own.y) / 1000;
+      ctx.fillText(`${NAME[p.kind]} SICHT ~${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} KM ${(p.alt ?? 0) > 1500 ? 'HOCH' : 'TIEF'}`, q.x + 9, q.y - 6);
+      continue;
+    }
     const q = toScreen(p.x, p.y);
     if (!q) continue;
     airSymbol(ctx, q.x, q.y, p.side);
@@ -78,4 +92,11 @@ export function drawAir(
   // Missiles in flight everywhere; mines only on the plot (not the radar scope)
   drawMissiles(ctx, s, toScreen);
   if (!only) drawMines(ctx, s, toScreen);
+}
+
+/** A steady number in [0, 1) per aircraft, so the guessed range does not jump every second. */
+function hash(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 1000) / 1000;
 }

@@ -1,4 +1,4 @@
-import { bearing, distance, type Vec2 } from '@tk/shared';
+import { bearing, distance, groundsOf, lanesOf, type RegionId, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { deg3, km } from './format.js';
 
@@ -136,4 +136,32 @@ function segDist(p: Vec2, a: Vec2, b: Vec2): number {
   const l2 = dx * dx + dy * dy || 1;
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/** Shipping lanes, ferry routes and fishing banks as the printed chart shows them (faint magenta). */
+export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, region: RegionId | undefined): void {
+  const lanes = lanesOf(region);
+  const grounds = groundsOf(region);
+  if (!lanes.length && !grounds.length) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(214,120,200,0.45)';
+  ctx.fillStyle = 'rgba(214,120,200,0.6)';
+  ctx.lineWidth = 1;
+  ctx.font = '9px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  for (const l of lanes) {
+    ctx.setLineDash(l.shuttle ? [2, 4] : [8, 5]);
+    ctx.beginPath();
+    l.xy.forEach((p, i) => { const q = P(p); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); });
+    ctx.stroke();
+    const mid = P(l.xy[Math.floor(l.xy.length / 2)]!);
+    ctx.fillText(l.name.toUpperCase(), mid.x, mid.y - 5);
+  }
+  ctx.setLineDash([3, 3]);
+  for (const g of grounds) {
+    const c = P(g.c), e = P({ x: g.c.x + g.r, y: g.c.y });
+    ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(e.x - c.x), 0, Math.PI * 2); ctx.stroke();
+    ctx.fillText('FANGGRUND', c.x, c.y);
+  }
+  ctx.restore();
 }

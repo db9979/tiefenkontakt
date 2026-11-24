@@ -92,7 +92,7 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
           : cmd.nextS > 0 ? `<span class="dim">IN ${clock(cmd.nextS)}</span>`
           : `<span class="${cmd.via ? 'amber' : 'red blink'}">${cmd.via ? `EMPFANG ${Math.round(cmd.progress * 100)} % · ${cmd.via === 'vlf' ? 'VLF' : 'BOJE'}` : 'SENDET · ZU TIEF ODER ZU SCHNELL'}</span>`);
         setHtml(q('#cp-nav'), o.navUncertainty !== undefined
-          ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM</span> <span class="dim">· FIX AM MAST</span>`
+          ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM</span> <span class="dim">· ${o.nav?.lastFix ? `FIX: ${({ land: 'LAND', sat: 'SATELLIT', stars: 'STERNE', sounding: 'ECHOLOT' } as const)[o.nav.lastFix]}` : 'KOPPELORT'}</span>`
           : '<span>FIX</span>');
         el.querySelector('[data-cp="buoyant"]')!.classList.toggle('on', !!o.buoyAntenna);
       }

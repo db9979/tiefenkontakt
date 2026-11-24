@@ -1,3 +1,4 @@
+import { currentAt } from './currents.js';
 import { ambientNoise, reverbLevel, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { dbSum } from './math.js';
 import { CLASSES, hasHelicopter, isEscort } from './classes.js';
@@ -9,7 +10,8 @@ import type { Detection, SensorContext } from './sensors.js';
 import { measureEvidence, sigKeyOf } from './signatures.js';
 import { isCavitating } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
-import { depthAt, pathDepth } from './seabed.js';
+import { depthAt } from './seabed.js';
+import { soundPathDepth as pathDepth, terrainLossDb } from './terrain.js';
 import type { World } from './world.js';
 
 /** Frigate helicopter dropping passive DIFAR sonobuoys. */
@@ -256,12 +258,10 @@ export function airSystem(w: World): void {
   air.sorties = air.sorties.filter((s) => w.time < s.readyAt + 1);
   air.buoys = air.buoys.filter((b) => w.time < b.expiresAt && w.ships.some((s) => s.id === b.ownerId && s.alive));
   // Buoys drift with the current; active ones ping on their own
-  const cur = w.env.current;
   for (const b of air.buoys) {
-    if (cur) {
-      b.pos.x += cur.x * 0.1;
-      b.pos.y += cur.y * 0.1;
-    }
+    const cur = currentAt(w.env, b.pos, b.depth, w.time);
+    b.pos.x += cur.x * 0.1;
+    b.pos.y += cur.y * 0.1;
     if (b.active && w.time >= (b.nextPing ?? 0)) {
       b.nextPing = w.time + 45;
       const owner = w.ships.find((x) => x.id === b.ownerId);
@@ -281,7 +281,8 @@ export function buoySensors(buoys: readonly Buoy[], ctx: SensorContext): Detecti
     for (const tgt of ctx.ships) {
       if (!tgt.alive || tgt.id === b.ownerId) continue;
       const range = distance(b.pos, tgt.pos);
-      const se = sourceLevelToward(tgt, b.pos) - transmissionLoss(range, tgt.depth, b.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, b.pos, tgt.pos)) - (nl - BUOY_GAIN) - DT_PASSIVE + ctx.rng.gauss(0, 2);
+      const se = sourceLevelToward(tgt, b.pos) - transmissionLoss(range, tgt.depth, b.depth, ctx.env, undefined, pathDepth(ctx.env.seabed, b.pos, tgt.pos)) -
+        terrainLossDb(ctx.env.seabed, tgt.pos, tgt.depth, b.pos, b.depth) - (nl - BUOY_GAIN) - DT_PASSIVE + ctx.rng.gauss(0, 2);
       if (se <= 0) continue;
       out.push({
         observerId: b.ownerId, targetId: tgt.id, sensor: 'buoy', time: ctx.time,
@@ -314,7 +315,8 @@ function activePing(w: World, from: Vec2, depth: number, owner: Ship, sl: number
     const bottom = pathDepth(w.env.seabed, s.target, tgt.pos);
     // Dipping sonar: higher frequency (more absorption), LFM-like processing, and reverberation like the hull sonar
     const tl = transmissionLoss(range, depth, tgt.depth, w.env, 1.8, bottom);
-    const se = sl - 2 * tl + targetStrengthToward(tgt, s.target) - dbSum(nl - 12, reverbLevel(sl, range, w.env, bottom, { lfm: true })) - DT_ACTIVE + w.rng.gauss(0, 2);
+    const se = sl - 2 * tl + targetStrengthToward(tgt, s.target) - dbSum(nl - 12, reverbLevel(sl, range, w.env, bottom, { lfm: true })) - DT_ACTIVE + w.rng.gauss(0, 2) -
+      2 * terrainLossDb(w.env.seabed, s.target, depth, tgt.pos, tgt.depth);
     if (se > 0 && range < maxRange) {
       out.push({
         observerId: owner.id, targetId: tgt.id, sensor: 'active', time: w.time,

@@ -82,3 +82,12 @@ export function setHtml(el: Element, html: string): void {
 export function setText(el: Element, text: string): void {
   if (el.textContent !== text) el.textContent = text;
 }
+
+/** Geographic position as the navigator writes it: 69°20,1' N 033°33,5' E. */
+export function latLon(lat: number, lon: number): string {
+  const f = (v: number, w: number, pos: string, neg: string) => {
+    const a = Math.abs(v), d = Math.floor(a), m = (a - d) * 60;
+    return `${String(d).padStart(w, '0')}°${m.toFixed(1).padStart(4, '0').replace('.', ',')}' ${v >= 0 ? pos : neg}`;
+  };
+  return `${f(lat, 2, 'N', 'S')} ${f(lon, 3, 'E', 'W')}`;
+}

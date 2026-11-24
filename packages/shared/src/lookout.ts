@@ -1,3 +1,4 @@
+import { lineOfSight } from './terrain.js';
 import type { Environment } from './acoustics.js';
 import { CLASSES } from './classes.js';
 import { isAtPeriscopeDepth, mastExposed, type Ship } from './entities.js';
@@ -69,6 +70,8 @@ export function lookoutSweep(obs: Ship, ships: readonly Ship[], env: Environment
     if (r > s.range) continue;
     // Fog banks and rain curtains in the line of sight hide even close boats
     if (r + sightPenalty(env.met, obs.pos, tgt.pos) > s.range) continue;
+    // Behind a headland or an island nothing is seen
+    if (!lineOfSight(env.seabed, obs.pos, LOOKOUT_EYE_M, tgt.pos, s.what === 'surfaced' ? 8 : 2)) continue;
     if (rng.next() > 0.15 + 0.5 * (1 - r / s.range)) continue;
     out.push({
       targetId: tgt.id, sighting: s.what,

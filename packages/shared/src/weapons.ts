@@ -1,3 +1,4 @@
+import { currentAt } from './currents.js';
 import { seesTorpedoTrack } from './lookout.js';
 import { crossesLayer, passiveExcessFrom, torpedoSourceLevel, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { CLASSES, isEscort } from './classes.js';
@@ -325,8 +326,9 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   t.depth = Math.max(0, Math.min(t.depth, depthAt(w.env.seabed, t.pos.x, t.pos.y) - BOTTOM_CLEARANCE));
   const v = headingVec(t.heading);
   const step = t.speedKn * KN * dt;
-  t.pos.x += v.x * step;
-  t.pos.y += v.y * step;
+  const c = currentAt(w.env, t.pos, t.depth, w.time);
+  t.pos.x += v.x * step + c.x * dt;
+  t.pos.y += v.y * step + c.y * dt;
   t.run += step;
   // Into the shore: the torpedo strikes the rocks and detonates there
   if (w.env.seabed && depthAt(w.env.seabed, t.pos.x, t.pos.y) < 2) {

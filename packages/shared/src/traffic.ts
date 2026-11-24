@@ -1,6 +1,7 @@
 import { CLASSES, type NeutralClass } from './classes.js';
 import { createShip, isConvoyShip, type Ship } from './entities.js';
-import { distance, headingVec, wrap360, type Vec2 } from './math.js';
+import { bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
+import { groundsOf, lanesOf } from './lanes.js';
 import { depthAt } from './seabed.js';
 import type { BioKind } from './signatures.js';
 import type { World } from './world.js';
@@ -83,6 +84,11 @@ function clearAhead(w: World, p: Vec2, heading: number, draft: number, metres: n
 export function spawnNeutral(w: World, cls?: NeutralClass, far = false): Ship | undefined {
   const st = w.env.incidents;
   if (!st) return undefined;
+  // On the real charts most ships keep to the lanes and ferry routes, trawlers to the banks
+  if (!cls && w.rng.next() < 0.75) {
+    const real = spawnOnLane(w, st, far);
+    if (real) return real;
+  }
   const kind = cls ?? pick<NeutralClass>(w, MIX[waters(w)]);
   const spec = CLASSES[kind];
   const c = centre(w);
@@ -105,6 +111,73 @@ export function spawnNeutral(w: World, cls?: NeutralClass, far = false): Ship | 
     return n;
   }
   return undefined;
+}
+
+/** A ship on one of the area's lanes, or a trawler on its fishing bank, near the action. */
+function spawnOnLane(w: World, st: NonNullable<World['env']['incidents']>, far: boolean): Ship | undefined {
+  const region = w.env.seabed?.region;
+  const lanes = lanesOf(region);
+  const grounds = groundsOf(region);
+  if (!lanes.length && !grounds.length) return undefined;
+  const c = centre(w);
+  for (let i = 0; i < 14; i++) {
+    let kind: NeutralClass, pos: Vec2, heading: number, lane: Ship['lane'];
+    if (grounds.length && (!lanes.length || w.rng.next() < 0.3)) {
+      const g = grounds[Math.floor(w.rng.next() * grounds.length)]!;
+      const a = w.rng.next() * 360, r = Math.sqrt(w.rng.next()) * g.r;
+      const v = headingVec(a);
+      pos = { x: g.c.x + v.x * r, y: g.c.y + v.y * r };
+      kind = 'fischer';
+      heading = w.rng.next() * 360;
+    } else {
+      const li = Math.floor(w.rng.next() * lanes.length);
+      const l = lanes[li]!;
+      const seg = Math.floor(w.rng.next() * (l.xy.length - 1));
+      const t = w.rng.next();
+      const a = l.xy[seg]!, b = l.xy[seg + 1]!;
+      const dir: 1 | -1 = l.shuttle && w.rng.next() < 0.5 ? -1 : 1;
+      const from = dir === 1 ? a : b, to = dir === 1 ? b : a;
+      heading = bearing(from, to);
+      // Keep to starboard of the lane's centre line, a little scattered
+      const side = headingVec(heading + 90);
+      const off = (l.shuttle ? 0 : 400) + w.rng.gauss(0, 200);
+      pos = { x: a.x + (b.x - a.x) * t + side.x * off, y: a.y + (b.y - a.y) * t + side.y * off };
+      kind = pick<NeutralClass>(w, l.mix);
+      lane = { i: li, dir, k: dir === 1 ? seg + 1 : seg };
+    }
+    const r = distance(pos, c);
+    if (r > (far ? 34_000 : 28_000) || (far && r < 18_000)) continue;
+    if (w.env.seabed && depthAt(w.env.seabed, pos.x, pos.y) < CLASSES[kind].draft + 10) continue;
+    const prof = PROFILE[kind];
+    const n = createShip({
+      id: `n${++st.neutrals}`, cls: kind, name: prof.names[st.neutrals % prof.names.length]!, team: 'neutral',
+      pos, heading, speedKn: prof.kn,
+    });
+    n.autoNav = true;
+    if (lane) n.lane = lane;
+    w.ships.push(n);
+    return n;
+  }
+  return undefined;
+}
+
+/** Follow the lane: steer for the next waypoint; ferries turn round at the ends, others leave. Returns false when gone. */
+function followLane(w: World, s: Ship): boolean {
+  const l = lanesOf(w.env.seabed?.region)[s.lane!.i];
+  if (!l) return true;
+  const ln = s.lane!;
+  let to = l.xy[ln.k]!;
+  if (distance(s.pos, to) < 700) {
+    const next = ln.k + ln.dir;
+    if (next < 0 || next >= l.xy.length) {
+      if (!l.shuttle) return false;
+      ln.dir = ln.dir === 1 ? -1 : 1;
+    }
+    ln.k = Math.max(0, Math.min(l.xy.length - 1, ln.k + ln.dir));
+    to = l.xy[ln.k]!;
+  }
+  s.order.heading = bearing(s.pos, to);
+  return true;
 }
 
 /** A pod of whales, a school of dolphins or a shrimp bed near the action. */
@@ -156,6 +229,13 @@ export function stepTraffic(w: World): void {
     if (c && distance(s.pos, c) > LEAVE_M) {
       w.ships.splice(i, 1);
       present--;
+      continue;
+    }
+    if (s.lane) {
+      if (!followLane(w, s)) {
+        w.ships.splice(i, 1);
+        present--;
+      }
       continue;
     }
     const draft = CLASSES[s.cls].draft;

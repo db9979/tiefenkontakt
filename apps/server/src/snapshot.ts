@@ -34,6 +34,12 @@ import {
   compartmentView,
   dcTarget,
   wreckView,
+  currentAt,
+  tideState,
+  wrap360,
+  sunPosition,
+  nextSatPassIn,
+  REGIONS,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
 
@@ -195,8 +201,11 @@ export function buildSnapshot(
       comps: own.comps && compartmentView(own), dcComp: own.dcComp, dcAt: own.comps && dcTarget(own), wreck: wreckView(own),
       crew: own.crew && { ...own.crew, performance: Math.round(crewPerformance(own) * 100) / 100 },
       air: own.air && { ...own.air }, trim: own.trim, hpAir: own.hpAir, blowing: own.blowing, buoyAntenna: own.buoyAntenna,
-      navUncertainty: CLASSES[own.cls].submarine && own.lastFixAt !== undefined && !mastRaised(own) && own.depth > 0.5
-        ? Math.min(14_800, 60 + (w.time - own.lastFixAt) * 0.25 * KN * (own.cls === 'ssn' ? 0.3 : 1)) : undefined,
+      navUncertainty: CLASSES[own.cls].submarine && own.navSigma !== undefined ? Math.round(own.navSigma) : undefined,
+      nav: CLASSES[own.cls].submarine ? {
+        lastFix: own.lastFix, lastFixAgo: own.lastFixAt !== undefined ? Math.round(w.time - own.lastFixAt) : undefined,
+        satIn: Math.round(nextSatPassIn(w)), sat: own.navFix?.sat ? Math.round(own.navFix.sat) : undefined, stars: own.navFix?.stars ? Math.round(own.navFix.stars) : undefined,
+      } : undefined,
       rudderJam: (own.rudderJamUntil ?? 0) > w.time, towedLost: (own.towedLostUntil ?? 0) > w.time,
       command: CLASSES[own.cls].submarine ? {
         nextS: nextBroadcastIn(w.time),
@@ -227,7 +236,30 @@ export function buildSnapshot(
     env: {
       layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light, rain: w.env.rain || inSquall(w.env.met, own.pos), clock: w.env.weather?.clock, met: metView(w.env.met),
       bottom: w.env.seabed ? Math.round(depthAt(w.env.seabed, own.pos.x, own.pos.y)) : undefined, seabed: w.env.seabed,
+      ...currentView(w, own),
+      ...sunView(w),
     },
     score,
   };
+}
+
+/** The set and drift at the own ship from the atlas, and the tide (only on real charts). */
+function currentView(w: World, own: Ship): { current?: { set: number; kn: number }; tide?: { kn: number; flood: boolean; turnsInS: number } } {
+  if (!w.env.seabed?.region) return {};
+  const c = currentAt(w.env, own.pos, own.depth, w.time);
+  const kn = Math.hypot(c.x, c.y) / KN;
+  const tide = tideState(w.env, w.time);
+  return {
+    current: { set: Math.round(wrap360((Math.atan2(c.x, c.y) * 180) / Math.PI)), kn: Math.round(kn * 10) / 10 },
+    ...(tide ? { tide: { kn: Math.round(tide.kn * 10) / 10, flood: tide.flood, turnsInS: Math.round(tide.turnsInS) } } : {}),
+  };
+}
+
+/** Where the sun stands over the real area (map frame) and the month of the match. */
+function sunView(w: World): { sun?: { el: number; az: number }; month?: number } {
+  const { lat, month, weather, seabed } = w.env;
+  if (lat === undefined || !month || !weather) return {};
+  const p = sunPosition(lat, month, weather.clock);
+  const turn = seabed?.region ? REGIONS[seabed.region].bearing : 0;
+  return { sun: { el: Math.round(p.el * 10) / 10, az: Math.round(wrap360(p.az - turn)) }, month };
 }

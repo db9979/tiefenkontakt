@@ -17,6 +17,9 @@ const RX_NEEDED_S = 60;
 const VLF_DEPTH_M = 25;
 const BUOY_DEPTH_M = 60;
 const BUOY_MAX_KN = 6;
+/** ELF reaches a nuclear boat deep down, but carries only a few letters: the call to come up. */
+const ELF_WARN_S = 150;
+const ELF_CLASSES = new Set(['ssn']);
 
 /** Index of the broadcast whose window contains `t`, or undefined. */
 export function broadcastAt(t: number): number | undefined {
@@ -60,8 +63,13 @@ function report(w: World, s: Ship): string {
 export function stepCommandRadio(w: World, dt: number): void {
   const k = broadcastAt(w.time);
   const was = broadcastAt(w.time - dt);
+  const elf = nextBroadcastIn(w.time) <= ELF_WARN_S && nextBroadcastIn(w.time - dt) > ELF_WARN_S;
   for (const s of w.ships) {
     if (!s.alive || !CLASSES[s.cls].submarine || s.team === 'neutral') continue;
+    // The ELF bell ringer: a few characters at any depth, "come up for traffic"
+    if (elf && ELF_CLASSES.has(s.cls) && !canCopy(s)) {
+      w.events.push({ kind: 'boat', time: w.time, shipId: s.id, what: 'command', text: 'ELF-RUF: FUNKSPRUCH DER FÜHRUNG IN 2 MIN · AUF EMPFANGSTIEFE GEHEN (25 M ODER SCHLEPPANTENNE)' });
+    }
     const rx = s.cmdRx;
     if (k !== undefined) {
       if (!rx || rx.k !== k) s.cmdRx = { k, secs: 0, done: false };

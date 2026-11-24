@@ -8,7 +8,14 @@ import {
   type PlayerSlot,
   type Ship,
   type World,
-  daylight,
+  SEASON_MONTH,
+  lanesOf,
+  lightFromSun,
+  seaClimate,
+  seaLayer,
+  startHourFor,
+  sunPosition,
+  type Season,
   CLASSES,
   depthAt,
   initWeather,
@@ -97,6 +104,8 @@ export interface ScenarioSettings {
   fillBots: boolean;
   botSkill: 'leicht' | 'normal' | 'schwer';
   weather: 'wechselhaft' | 'stabil' | 'zufall';
+  /** Season of the match: unset or zufall = a month drawn from the seed. */
+  season?: Season | 'zufall';
   /** How much positions, route, speed and sea state vary per match (default leicht). */
   variation?: Variation;
   /** The lobby choices before 'zufall' and the sea-state roll were resolved (rematch). */
@@ -194,9 +203,12 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   // Sea area: the lobby's choice if the mission can be played there, else its home area
   const region: RegionId = settings.area && areasFor(mission).includes(settings.area) ? settings.area
     : custom ? KIND_REGION[custom.seabed] : MISSIONS[mission].region;
-  const layer = settings.layerDepth > 0 ? settings.layerDepth : 80 + ((seed * 7919) % 91);
+  // Month and the area's layering in that season (the lobby's fixed layer depth wins)
+  const month = settings.season && settings.season !== 'zufall' ? SEASON_MONTH[settings.season] : 1 + (seed % 12);
+  const sl = custom ? undefined : seaLayer(region, month, ((seed * 7919) % 1000) / 1000);
+  const layer = settings.layerDepth > 0 ? settings.layerDepth : sl ? sl.depth : 80 + ((seed * 7919) % 91);
   const w = createWorld(ships, seed, {
-    layerDepth: layer, layerLoss: 12, seaState: settings.seaState,
+    layerDepth: layer, layerLoss: settings.layerDepth > 0 || !sl ? 12 : sl.loss, seaState: settings.seaState,
     seabed: {
       kind: regionSeabed(region), seed, region,
       ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}),
@@ -204,14 +216,24 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   });
   w.env.seed = seed;
   w.env.mission = mission;
+  w.env.month = month;
+  // Lay the area's shipping lanes over the chart once (cached), before traffic spawns on them
+  lanesOf(region);
+  w.env.lat = REGIONS[region].lat;
+  // Where the tide stands at the start: any hour of the 12-hour cycle
+  w.env.tidePhase = ((seed * 2654435761) % 1000) / 1000 * Math.PI * 2;
   if (mission === 'fuehlung') {
     w.env.weaponsTight = 'east';
     w.env.shadowS = 0;
   }
   if (mission === 'meerenge') w.env.exitY = STRAIT_EXIT_Y;
-  w.env.weather = initWeather(w.env, START_HOUR[tod], settings.weather !== 'stabil');
-  w.env.light = daylight(START_HOUR[tod]);
-  w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: mission === 'groenland', fogBanks: mission === 'groenland' ? 3 : 1 + (seed % 2) });
+  // The light by the sun over the real area: noon, dusk or the darkest hour of that day
+  const hour = startHourFor(w.env.lat, month, tod);
+  w.env.weather = initWeather(w.env, hour, settings.weather !== 'stabil');
+  w.env.light = lightFromSun(sunPosition(w.env.lat, month, hour).el);
+  // Fog and ice as the area has them in that season
+  const clim = seaClimate(region, month);
+  w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: mission === 'groenland' || clim.ice, fogBanks: mission === 'groenland' ? 3 : Math.max(clim.fogBanks, seed % 2) });
   // AI crews steer clear of shoals on their own (players get the navigator's warnings)
   for (const p of [...west, ...east]) if (p.bot) { const sh = ships.find((x) => x.playerId === p.playerId); if (sh) sh.autoNav = true; }
   // On the real coasts a start position may fall on land or in the shallows: move it to the nearest water deep enough

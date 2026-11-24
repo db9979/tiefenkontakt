@@ -184,6 +184,8 @@ export function squallFlash(id: number, t: number): number {
 
 export interface SkyInput {
   t: number; light: number; hour: number; sea: number; rain: boolean;
+  /** The real sun over the area (map frame, degrees); without it the hour places a generic sun. */
+  sun?: { el: number; az: number };
   /** Fog density at the eye (0..1). */
   inFog: number;
   met?: MetCells; own: Vec2; ownKn: number; ownHeading: number; camera: THREE.Camera;
@@ -270,10 +272,18 @@ export class SkyFx {
     const light = o.light;
     const lit = 0.06 + 0.94 * light * light;
     const dusk = light > 0.15 && light < 0.9 ? 1 - Math.abs(light - 0.5) * 2 : 0;
-    const sunAz = ((o.hour - 6) / 12) * Math.PI;
-    const sunEl = Math.sin(((o.hour - 6) / 12) * Math.PI) * 0.8;
-    const sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
-    const moonDir = new THREE.Vector3(-Math.cos(sunAz), 0.35, -Math.sin(sunAz)).normalize();
+    let sunDir: THREE.Vector3, sunEl: number;
+    if (o.sun) {
+      // Bearing in the map frame: x east of the map, -z its north
+      const a = (o.sun.az * Math.PI) / 180, e = (o.sun.el * Math.PI) / 180;
+      sunEl = Math.sin(e);
+      sunDir = new THREE.Vector3(Math.sin(a) * Math.cos(e), sunEl, -Math.cos(a) * Math.cos(e)).normalize();
+    } else {
+      const sunAz = ((o.hour - 6) / 12) * Math.PI;
+      sunEl = Math.sin(((o.hour - 6) / 12) * Math.PI) * 0.8;
+      sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
+    }
+    const moonDir = new THREE.Vector3(-sunDir.x, 0.35, -sunDir.z).normalize();
     const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (1 - 0.95 * over) * (1 - 0.9 * pr) * (1 - 0.8 * o.inFog);
     const sunColor = new THREE.Color(0xfff4e0).lerp(new THREE.Color(0xffa060), dusk);
 

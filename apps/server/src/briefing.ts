@@ -10,6 +10,10 @@ import {
   isConvoyShip,
   TRAITS,
   commanderTrait,
+  MONTH_NAME,
+  REGIONS,
+  currentNote,
+  lightNote,
 } from '@tk/shared';
 import { MISSIONS, type ScenarioSettings } from './scenario.js';
 
@@ -57,7 +61,16 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   };
   const sp = special[settings.mission];
   if (sp) goal = sub ? sp[0] : sp[1];
+  // The real area in its season: the month, the light, the layering, the currents
+  const region = w.env.seabed?.region;
+  if (region && w.env.month) {
+    const ln = lightNote(REGIONS[region].lat, w.env.month);
+    intel.push(`${MONTH_NAME[w.env.month - 1]} im Gebiet ${REGIONS[region].name}${ln ? ` · ${ln}` : ''}`);
+    const cn = currentNote(region);
+    if (cn) intel.push(`Strömung: ${cn}`);
+  }
   if (w.env.layerDepth > 0) intel.push('Sprungschicht vorhanden, Tiefe noch nicht gemessen');
+  else if (region) intel.push('Keine Sprungschicht: das Wasser ist bis zum Grund durchmischt, unter der Schicht verstecken geht nicht');
   // Fleet intelligence sometimes knows the enemy commander's character (AI ships only)
   const ai = enemies.find((e) => e.id.startsWith('p_bot-'));
   if (ai && rnd() < 0.6) intel.push(`Feindlagebild: Der gegnerische Kommandant ${ai.name} gilt als ${TRAITS[commanderTrait(ai.id, w.env.seed ?? 0)].de}`);

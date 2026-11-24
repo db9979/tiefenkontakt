@@ -28,7 +28,7 @@ describe('incidents at sea', () => {
   it('whales are noise sources for passive sonar, and neutral traffic is not convoy', () => {
     const { w } = world();
     w.env.incidents!.whales.push({ id: 'W1', x: 5000, y: 5000, heading: 0, until: 1e9 });
-    expect(whaleEmitters(w)[0]?.sig).toBe('bio');
+    expect(whaleEmitters(w).find((e) => e.id === 'W1')?.sig).toBe('bio');
     const n = createShip({ id: 'n1', cls: 'merchant', name: 'N', pos: { x: 0, y: 0 }, heading: 0, team: 'neutral' });
     expect(isConvoyShip(n)).toBe(false);
   });

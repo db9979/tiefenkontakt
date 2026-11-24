@@ -46,7 +46,7 @@ export function resolveLobby(s: ScenarioSettings, seed: number): ScenarioSetting
   const r = rng.next();
   const dSea = a === 0 ? 0 : a === 1 ? (r < 0.25 ? -1 : r > 0.75 ? 1 : 0) : r < 0.1 ? -2 : r < 0.35 ? -1 : r > 0.9 ? 2 : r > 0.65 ? 1 : 0;
   const asSet: LobbyChoice = {
-    mission: s.mission, area: s.area, timeOfDay: s.timeOfDay, weather: s.weather, seaState: s.seaState, timeLimitMin: s.timeLimitMin,
+    mission: s.mission, area: s.area, timeOfDay: s.timeOfDay, weather: s.weather, season: s.season, seaState: s.seaState, timeLimitMin: s.timeLimitMin,
     merchants: s.merchants, fillBots: s.fillBots, botSkill: s.botSkill, custom: s.custom, variation: s.variation,
   };
   return { ...s, timeOfDay: tod, weather, seaState: Math.max(1, Math.min(6, s.seaState + dSea)), asSet: s.asSet ?? asSet };

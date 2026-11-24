@@ -88,15 +88,19 @@ export class RadarScope {
           pc.fillRect(C + ca * rr, C + sa * rr, 2, 2);
         }
       }
-      // Coastline and islands from the public chart
-      if (s.env.seabed && s.env.seabed.kind === 'fjord') {
-        for (let i = 4; i < 60; i++) {
-          const r = (i / 60) * rangeM;
-          if (depthAt(s.env.seabed, s.own.x + v.x * r, s.own.y + v.y * r) < 0) {
-            pc.fillStyle = `rgba(150,235,200,${0.35 + Math.random() * 0.35})`;
+      // Coast from the chart: land faces the antenna can see paint bright, behind them radar shadow
+      if (s.env.seabed) {
+        let maxTan = -Infinity;
+        const n = 90;
+        for (let i = 2; i < n; i++) {
+          const r = (i / n) * rangeM;
+          const d = depthAt(s.env.seabed, s.own.x + v.x * r, s.own.y + v.y * r);
+          if (d >= 0) continue;
+          const tan = (-d - 20 - (r * r) / 17_000_000) / r;
+          if (tan > maxTan) {
+            maxTan = tan;
+            pc.fillStyle = `rgba(150,235,200,${0.3 + Math.random() * 0.4})`;
             pc.fillRect(C + ca * r * scale, C + sa * r * scale, 2.2, 2.2);
-            // Radar shadow behind the first land return
-            break;
           }
         }
       }

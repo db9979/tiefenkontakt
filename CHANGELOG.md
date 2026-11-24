@@ -6,6 +6,27 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Land dazwischen:** Inseln und Landzungen blockieren Schall, flache Schwellen lassen nur Schall nahe ihrem Kamm
+  durch; Radar, Sehrohr, Ausguck und Radarwarner brauchen freie Sicht über das Land. Der Radarschirm zeigt auf
+  allen Karten Küstenechos mit Radarschatten dahinter.
+- **Flugzeuge nur mit dem Auge gesehen** erscheinen auf dem Plot als grobe Schätzung (Peilung gut, Entfernung
+  ±25 %, nur „hoch“ oder „tief“); unbeleuchtete Flugzeuge sieht man nachts nur aus der Nähe.
+- **Strömungen und Gezeiten** der echten Gebiete: Gibraltar zweischichtig (oben ostwärts, unter 150 m westwärts),
+  Dardanellen, Messina, Pentland Firth bis 5,5 kn, Overflow an der Färöer-Bank, Gezeitenströme in Fjorden und
+  auf dem Schelf. Schiffe, Boote, Torpedos und Bojen versetzen; Zentrale und OPZ zeigen Strom und Kenterzeit.
+- **Jahreszeit** (Lobby): Sonnenstand nach Breite und Monat (Polarnacht, Mitternachtssonne, Sonne am echten
+  Himmel), Sprungschicht je Gebiet und Jahreszeit (scharfe Sommerschicht im Mittelmeer, Winterdurchmischung im
+  Atlantik, keine Schicht im arktischen Winter, Halokline der Ostsee), Nebel und Eis nach Gebiet.
+- **Navigation ohne GPS:** Der Mast allein gibt keinen Standort mehr. Fix durch Landpeilung (±100 m), Satellit
+  (Durchgang etwa alle 90 Minuten, ±200 m), Sterne (nachts bei klarem Himmel, ±1,5 km) oder Echolot gegen die
+  Seekarte (hilft am geneigten Grund, ist auf wenige Kilometer hörbar). Zentrale mit Koppelort in Grad und Minuten.
+- **Bodenechos:** Felsnadeln, Kuppen und Steilhänge der echten Seekarte antworten auf einen Ping wie ein
+  gestopptes Boot.
+- **Funk:** ELF-Ruf für Atom-U-Boote zwei Minuten vor einem Funkspruch der Führung; VLF-Sendeplan in der Zentrale.
+- **Verkehr auf echten Wegen:** Verkehrstrennungsgebiete, Durchgangswege und Fährlinien (Tarifa–Tanger,
+  Messina, Çanakkale, Rønne–Ystad, Helsinki–Tallinn, Bodø–Moskenes u. a.) über Wasser geführt, Trawler auf den
+  Fanggründen; Wege und Fanggründe stehen auf der Karte.
+
 - **Sofort spielen:** „Als Geleitschutz“ oder „Als U-Boot“ startet ohne Lobby eine Partie gegen die KI mit zufälliger
   Mission, Tageszeit, Wetter und Lage.
 - **Wochenlage:** eine Lage pro Kalenderwoche, für alle gleich; das beste Ergebnis je Konto und Seite kommt auf die

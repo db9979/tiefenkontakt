@@ -1,3 +1,4 @@
+import type { Season } from './climate.js';
 import type { RegionId } from './regions.js';
 import type { ClassId, NeutralClass, Team } from './classes.js';
 import type { VoiceClientMsg, VoiceServerMsg } from './voice.js';
@@ -26,7 +27,7 @@ export type ClientMsg =
   | { t: 'ready'; ready: boolean }
   | { t: 'order'; heading?: number; speedKn?: number; depth?: number }
   /** silent = "Ruhe im Boot", battle = Gefechtsstationen, buoyant = Schleppantenne (receive-only). */
-  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant' | 'vds' | 'mineavoid'; on: boolean }
+  | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant' | 'vds' | 'mineavoid' | 'sounding'; on: boolean }
   | { t: 'blow' }
   | { t: 'mad'; bearing: number; range: number }
   | { t: 'towed'; length: number }
@@ -83,6 +84,7 @@ export type ClientMsg =
     fillBots?: boolean;
     botSkill?: 'leicht' | 'normal' | 'schwer';
     weather?: 'wechselhaft' | 'stabil' | 'zufall';
+    season?: Season | 'zufall';
     variation?: Variation;
     custom?: CustomMissionSettings;
     merchants?: number;
@@ -167,6 +169,8 @@ export interface MatchLobby extends MatchSummary {
     /** Not listed; joined only through an invite link. */
     private?: boolean;
     weather: 'wechselhaft' | 'stabil' | 'zufall';
+    /** Season (month of the match); unset or zufall = drawn per match. */
+    season?: Season | 'zufall';
     variation?: Variation;
     /** Set when the situation was fixed (rematch with the same seed). */
     lage?: number;
@@ -224,6 +228,8 @@ export interface OwnShipView {
   buoyAntenna?: boolean;
   /** Submerged boats: estimated position uncertainty (m) since the last fix; x/y are the dead-reckoned position. */
   navUncertainty?: number;
+  /** Boats: how the last fix was taken, how long ago, the next satellite pass, fixes under way (s). */
+  nav?: { lastFix?: 'land' | 'sat' | 'stars' | 'sounding'; lastFixAgo?: number; satIn: number; sat?: number; stars?: number };
   rudderJam?: boolean;
   towedLost?: boolean;
   /** Fleet-command broadcasts: seconds to the next window (0 = open), copy progress 0..1, how. */
@@ -361,6 +367,13 @@ export interface Snapshot {
     met?: import('./met.js').MetCells;
     /** Ship's clock, hour of day. */
     clock?: number;
+    /** Current where the own ship is, at her depth (from the tide tables and current atlas). */
+    current?: { set: number; kn: number };
+    /** Sun: elevation and bearing in the map frame (degrees); month of the match. */
+    sun?: { el: number; az: number };
+    month?: number;
+    /** Tidal stream: strength now, flood or ebb, seconds to the next slack water. */
+    tide?: { kn: number; flood: boolean; turnsInS: number };
   };
   score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
   /** FLASH orders from fleet command read aboard (orders.ts). */
@@ -383,25 +396,9 @@ export interface Snapshot {
 /** How much a mission's positions, route, speed and sea state vary from match to match. */
 export type Variation = 'aus' | 'leicht' | 'stark';
 
+export type { WeeklyBoard, WeeklyRow } from './weekly-board.js';
+
 /** A match's seed and lobby choices: enough to play the same situation again. */
-/** One line of the weekly board: best result of an account on one side. */
-export interface WeeklyRow {
-  rank: number;
-  callsign: string;
-  cls: string;
-  score: number;
-  won: boolean;
-}
-
-/** The week's situation and its board (GET /api/weekly). */
-export interface WeeklyBoard {
-  week: string;
-  west: WeeklyRow[];
-  east: WeeklyRow[];
-  /** What this week's situation is (resolved: no 'zufall'). */
-  lage?: { mission: string; area?: string; timeOfDay: string; weather: string; seaState: number; endsAt: number };
-}
-
 export interface MatchSetup {
   seed: number;
   settings: {
@@ -409,6 +406,7 @@ export interface MatchSetup {
     area?: RegionId;
     timeOfDay: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     weather: 'wechselhaft' | 'stabil' | 'zufall';
+    season?: Season | 'zufall';
     seaState: number;
     timeLimitMin: number;
     merchants: number;

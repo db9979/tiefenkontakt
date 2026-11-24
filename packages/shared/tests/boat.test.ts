@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  nextSatPassIn,
+  satPassNow,
   KN, PERISCOPE_DEPTH, createShip, createWorld, crewOf, crewPerformance, emergencyBlow, fireTorpedo, installAir, installBoats,
   installWeapons, runSensors, Rng, sendMad, sourceLevel, stepWorld, type Environment,
 } from '../src/index.js';
@@ -40,17 +42,26 @@ describe('crew and boat systems', () => {
     expect(world(100, 'ssn').u.air).toBeUndefined();
   });
 
-  it('dead reckoning drifts while deep and is corrected by a fix at the mast', () => {
+  it('dead reckoning drifts while deep; the mast alone gives no fix, a satellite pass does', () => {
     const { w, u } = world();
     w.env.current = { x: 0.15, y: 0 };
+    w.env.light = 1;
     run(w, 1800);
     const err = Math.hypot(u.drErr!.x, u.drErr!.y);
     expect(err).toBeGreaterThan(150);
     u.order.depth = PERISCOPE_DEPTH;
     u.depth = PERISCOPE_DEPTH;
     u.mastUp = true;
-    run(w, 90);
-    expect(Math.hypot(u.drErr!.x, u.drErr!.y)).toBeLessThan(err * 0.2);
+    // Open sea by day, no land in sight: wait for the satellite
+    if (!satPassNow(w)) {
+      run(w, 60);
+      expect(u.lastFix).toBeUndefined();
+      w.time += nextSatPassIn(w);
+    }
+    run(w, 150);
+    expect(u.lastFix).toBe('sat');
+    expect(u.navSigma).toBeLessThan(260);
+    expect(Math.hypot(u.drErr!.x, u.drErr!.y)).toBeLessThan(800);
   });
 
   it('an emergency blow costs a bottle and brings the boat up fast and loud', () => {

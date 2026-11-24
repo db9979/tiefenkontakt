@@ -130,6 +130,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
             <div class="row"><span class="dim">U-BOOTE WARTEN BEI</span><select id="c-sub">${[0.3, 0.5, 0.7].map((v) => `<option value="${v}">${Math.round(v * 100)} % DER ROUTE</option>`).join('')}</select></div>
           </div>
           <div class="row"><span class="dim">TAGESZEIT</span><select id="s-tod"><option value="tag">Tag</option><option value="daemmerung">Dämmerung</option><option value="nacht">Nacht</option><option value="zufall">Zufall</option></select></div>
+          <div class="row"><span class="dim" title="Monat der Partie: Sonnenstand (Polarnacht, Mitternachtssonne), Sprungschicht, Nebel und Eis wie im echten Seegebiet">JAHRESZEIT</span><select id="s-season"><option value="zufall">ZUFALL</option><option value="winter">WINTER</option><option value="fruehling">FRÜHLING</option><option value="sommer">SOMMER</option><option value="herbst">HERBST</option></select></div>
           <div class="row"><span class="dim">WETTER</span><select id="s-wx"><option value="wechselhaft">WECHSELHAFT</option><option value="stabil">STABIL</option><option value="zufall">ZUFALL</option></select></div>
           <div class="row"><span class="dim">SEEGANG</span><select id="s-sea">${[1, 2, 3, 4, 5, 6].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie">VARIATION</span><select id="s-var"><option value="aus">AUS</option><option value="leicht">GERING</option><option value="stark">STARK</option></select></div>
@@ -204,6 +205,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     sel('#s-skill').value = match.settings.botSkill ?? 'normal';
     sel('#s-wx').value = match.settings.weather ?? 'wechselhaft';
     sel('#s-var').value = match.settings.variation ?? 'leicht';
+    sel('#s-season').value = match.settings.season ?? 'zufall';
     sel('#s-sandbox').value = match.settings.sandbox ? '1' : '0';
     const send = () => net.send({
       t: 'settings', mission: sel('#s-mission').value as MissionKey,
@@ -213,12 +215,13 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), fillBots: sel('#s-bots').value === '1',
       botSkill: sel('#s-skill').value as 'leicht' | 'normal' | 'schwer',
       weather: sel('#s-wx').value as 'wechselhaft' | 'stabil' | 'zufall',
+      season: sel('#s-season').value as 'winter' | 'fruehling' | 'sommer' | 'herbst' | 'zufall',
       variation: sel('#s-var').value as 'aus' | 'leicht' | 'stark',
       merchants: Number(sel('#c-n').value),
       sandbox: sel('#s-sandbox').value === '1',
       custom: { convoyKn: Number(sel('#c-kn').value), seabed: sel('#c-bed').value as 'tief' | 'schelf' | 'fjord', subFrac: Number(sel('#c-sub').value) },
     });
-    for (const id of ['#s-mission', '#s-area', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#s-var', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
+    for (const id of ['#s-mission', '#s-area', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#s-season', '#s-var', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
     el.querySelectorAll<HTMLButtonElement>('[data-crew]').forEach((b) => (b.onclick = () => net.send({ t: 'crew', captainId: b.dataset.crew! })));
     el.querySelector<HTMLButtonElement>('#own-ship')?.addEventListener('click', () => net.send({ t: 'crew', captainId: null }));
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });

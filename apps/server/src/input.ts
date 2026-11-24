@@ -29,6 +29,7 @@ import {
   callFighter,
   layMine,
   isRegion,
+  sounding,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -46,6 +47,7 @@ const settingsFields = {
   fillBots: z.boolean().optional(),
   botSkill: z.enum(['leicht', 'normal', 'schwer']).optional(),
   weather: z.enum(['wechselhaft', 'stabil', 'zufall']).optional(),
+  season: z.enum(['winter', 'fruehling', 'sommer', 'herbst', 'zufall']).optional(),
   variation: z.enum(['aus', 'leicht', 'stark']).optional(),
   sandbox: z.boolean().optional(),
 };
@@ -67,7 +69,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
   z.object({ t: z.literal('blow') }),
   z.object({ t: z.literal('mad'), bearing: deg, range: z.number().finite().min(200).max(30_000) }),
-  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds', 'mineavoid']), on: z.boolean() }),
+  z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds', 'mineavoid', 'sounding']), on: z.boolean() }),
   z.object({ t: z.literal('convoy_detour'), offset: z.number().finite().min(-4000).max(4000) }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
@@ -184,6 +186,9 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       } else if (m.what === 'mineavoid') {
         if (!isEscort(s.cls)) return 'Nur Geleitschiffe haben ein Minenmeidesonar';
         s.mineAvoid = m.on;
+      } else if (m.what === 'sounding') {
+        if (!spec.submarine) return 'Nur für U-Boote';
+        w.events.push({ kind: 'boat', time: w.time, shipId: s.id, what: 'navfix', text: sounding(w, s) });
       } else if (m.what === 'buoyant') {
         if (!spec.submarine) return 'Nur für U-Boote';
         s.buoyAntenna = m.on;

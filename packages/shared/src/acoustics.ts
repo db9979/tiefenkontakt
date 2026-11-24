@@ -24,6 +24,11 @@ export interface Environment {
   met?: import('./met.js').MetState;
   /** Set (current) in m/s; moves submerged boats' dead reckoning off. */
   current?: { x: number; y: number };
+  /** Phase of the tide at match start (radians, drawn per match). */
+  tidePhase?: number;
+  /** Month (1–12) and latitude of the area: the sun follows them (climate.ts). */
+  month?: number;
+  lat?: number;
   /** Incidents at sea (driftnets, whales, fronts); present only in full matches. */
   incidents?: IncidentState;
   /** Aircraft: civil traffic and the Ostpakt's long-range reconnaissance. */

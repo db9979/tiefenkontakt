@@ -22,8 +22,8 @@ import { airdefAlerts } from './airdef-events.js';
 
 const EXPLOSION_HEARING = 40_000;
 /** Hearing ranges of transients (U-Jagd: tube flooding ~8 NM, launch ~35 NM). */
-const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000 } as const;
-const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN', splash: 'TRANSIENT · BOJENEINSCHLAG', sam: 'TRANSIENT · RAKETENSTART ÜBER WASSER', mine: 'TRANSIENT · UNTERWASSERDETONATION' } as const;
+const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000, sounding: 4_000 } as const;
+const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN', splash: 'TRANSIENT · BOJENEINSCHLAG', sam: 'TRANSIENT · RAKETENSTART ÜBER WASSER', mine: 'TRANSIENT · UNTERWASSERDETONATION', sounding: 'TRANSIENT · ECHOLOTIMPULS (U-BOOT LOTET)' } as const;
 
 const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
 

@@ -4,6 +4,7 @@
  *
  * Usage: npx tsx scripts/handbook/build.ts   (model pictures: docs/handbuch/img, made with apps/client/dev/shots.html)
  */
+import { areaChapter } from './areas.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -79,7 +80,7 @@ function page(): string {
   Druckfreundlich: weißer Hintergrund, Graustufen-tauglich, A4.</div>
 </section>
 <nav class="toc"><h1>Inhalt</h1>${TOC.map(([id, t], i) => `<a href="#${id}"><span>${i + 1}</span>${t}</a>`).join('')}</nav>
-${chapterIntro}${chapterStart}${chapterSea}${chapterSymbols}${chapterSub}${chapterEscort}${chapterClassify}
+${chapterIntro}${chapterStart}${chapterSea}${areaChapter()}${chapterSymbols}${chapterSub}${chapterEscort}${chapterClassify}
 ${signatureTable()}
 <h1 id="k8">8 · Einheitenreferenz</h1>
 <p>Alle Werte stammen direkt aus der Simulation. Die Bilder zeigen die Modelle, wie sie im Sehrohr und auf der Brücke erscheinen.</p>

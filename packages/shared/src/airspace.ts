@@ -156,6 +156,8 @@ export interface PlaneView {
   speedKn?: number;
   radar?: boolean;
   lit?: boolean;
+  /** Seen by eye only: the plot shows a rough estimate (bearing good, range and height guessed). */
+  rough?: boolean;
   via: AirVia[];
 }
 
@@ -186,9 +188,10 @@ function radarHorizon(antenna: number, alt: number): number {
 }
 
 /** Eye range (m) to an aircraft: day by size or contrail, night only its lights. */
-function eyeRange(p: Plane, light: number, rain: boolean): number {
+function eyeRange(p: Plane, light: number, rain: boolean, lit: boolean): number {
   const day = { airliner: 45_000, recon: 18_000, mpa: 15_000, helo: 9000, light: 6000 }[p.kind];
-  const night = 25_000;
+  // At night only navigation lights carry far; a darkened aircraft is a noise and a shadow close by
+  const night = lit ? 25_000 : 2500;
   const r = light > 0.4 ? day : light > 0.15 ? Math.max(day * 0.6, night * 0.6) : night;
   return r * (rain ? 0.4 : 1);
 }
@@ -203,18 +206,20 @@ export function planesFor(w: World, own: Ship): PlaneView[] {
   const light = w.env.light ?? 1;
   for (const p of allPlanes(w)) {
     const d = distance(own.pos, p.pos);
+    const lit = p.kind !== 'recon' && !(p.kind === 'helo' && p.team !== 'neutral' && light > 0.4);
     const via: AirVia[] = [];
     // Own aircraft over the datalink: surface ships always, boats only with the mast up
     if (p.team === own.team && (!sub || mastRaised(own))) via.push('datalink');
     if (radarOn && d < Math.min(110_000, radarHorizon(30, p.alt))) via.push('radar');
-    if (eyeUp && d < Math.min(eyeRange(p, light, !!w.env.rain || inSquall(w.env.met, own.pos)) * (1 - 0.9 * fogAt(w.env.met, own.pos)), radarHorizon(sub ? 2 : 20, p.alt))) via.push('visual');
+    if (eyeUp && d < Math.min(eyeRange(p, light, !!w.env.rain || inSquall(w.env.met, own.pos), lit) * (1 - 0.9 * fogAt(w.env.met, own.pos)), radarHorizon(sub ? 2 : 20, p.alt))) via.push('visual');
     if (esmUp && p.radar && p.team !== own.team && d < AIR_RADAR_M * 2) via.push('esm');
     if (!via.length) continue;
     const fix = via.some((v) => v !== 'esm');
+    const rough = fix && !via.includes('radar') && !via.includes('datalink');
     out.push({
       id: p.id, kind: p.kind, bearing: bearing(own.pos, p.pos), via, radar: p.radar,
       side: p.team === own.team ? 'friend' : p.team === 'neutral' ? 'neutral' : fix || via.includes('esm') ? 'hostile' : 'unknown',
-      lit: p.kind !== 'recon' && !(p.kind === 'helo' && p.team !== 'neutral' && light > 0.4),
+      lit, ...(rough ? { rough: true } : {}),
       ...(fix ? { x: Math.round(p.pos.x), y: Math.round(p.pos.y), alt: Math.round(p.alt), heading: Math.round(p.heading), speedKn: Math.round(p.speedKn) } : {}),
     });
   }

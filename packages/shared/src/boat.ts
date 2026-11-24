@@ -1,3 +1,5 @@
+import { currentAt } from './currents.js';
+import { stepFixes } from './navfix.js';
 import { CLASSES } from './classes.js';
 import { BAD_CO2, BAD_O2, airOf, crewOf } from './crew.js';
 import { PERISCOPE_DEPTH, mastRaised, type Ship } from './entities.js';
@@ -105,23 +107,21 @@ function stepAir(w: World, s: Ship, dt: number): void {
 function stepNav(w: World, s: Ship, dt: number): void {
   if (!CLASSES[s.cls].submarine) return;
   const e = (s.drErr ??= { x: 0, y: 0 });
-  if (mastRaised(s) || s.depth <= 0.5) {
-    // Fix from the mast (radar/visual/satnav): the error melts away within a minute
-    const k = Math.min(1, dt / 20);
-    e.x -= e.x * k;
-    e.y -= e.y * k;
-    s.lastFixAt = w.time;
-    return;
-  }
-  const cur = (w.env.current ??= (() => {
+  w.env.current ??= (() => {
     const a = w.rng.next() * Math.PI * 2;
     const v = w.rng.next() * 0.4 * KN;
     return { x: Math.cos(a) * v, y: Math.sin(a) * v };
-  })());
+  })();
+  // The boat is set by the current without knowing it: the believed position stays behind
+  const cur = currentAt(w.env, s.pos, s.depth, w.time);
   // An inertial navigator (SSN) drifts only about a third as much
   const f = s.cls === 'ssn' ? 0.3 : 1;
   e.x = Math.max(-DR_MAX, Math.min(DR_MAX, e.x - cur.x * f * dt + w.rng.gauss(0, DR_WALK * f * Math.sqrt(dt))));
   e.y = Math.max(-DR_MAX, Math.min(DR_MAX, e.y - cur.y * f * dt + w.rng.gauss(0, DR_WALK * f * Math.sqrt(dt))));
+  // The navigator's estimate grows with the unknown set (about a quarter knot) and the walk
+  s.navSigma = Math.min(DR_MAX, (s.navSigma ?? 60) + 0.25 * KN * f * dt);
+  // A fix needs a method: land in sight, a satellite pass, stars (navfix.ts)
+  stepFixes(w, s, dt);
 }
 
 /** Trim pumps, compressors, emergency blow and the test depth. */
@@ -222,6 +222,7 @@ export function installBoats(w: World): void {
     if (!CLASSES[s.cls].submarine || s.cls === 'merchant') continue;
     // Last fix about half an hour before the action
     s.lastFixAt ??= w.time - 1800;
+    s.navSigma ??= 60 + 1800 * 0.25 * KN * (s.cls === 'ssn' ? 0.3 : 1);
     const a = airOf(s);
     // Boats have usually been down for hours before the action starts
     if (a && a.co2 < 0.5) {

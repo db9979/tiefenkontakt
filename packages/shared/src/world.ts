@@ -11,6 +11,7 @@ import { stepMet } from './met-step.js';
 import { stepConvoy, type ConvoyState } from './convoy-ai.js';
 import type { Ship } from './entities.js';
 import { stepShip } from './kinematics.js';
+import { currentAt } from './currents.js';
 import { Rng } from './rng.js';
 import { interceptTransmission, runSensors, type Detection, type Emitter } from './sensors.js';
 import type { Sighting } from './lookout.js';
@@ -26,7 +27,7 @@ export type GameEvent =
   | { kind: 'sunk'; time: number; shipId: string; byId?: string }
   | { kind: 'arrived'; time: number; shipId: string }
   | { kind: 'torpedo_alert'; time: number; shipId: string; bearing: number }
-  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' | 'sam' | 'mine' }
+  | { kind: 'transient'; time: number; sourceId: string; x: number; y: number; what: 'flood' | 'launch' | 'mishap' | 'blow' | 'splash' | 'sam' | 'mine' | 'sounding' }
   /** Something the crew reports aboard (air, wounded, hull failure, incidents). */
   | { kind: 'boat'; time: number; shipId: string; what: string; text: string }
   | { kind: 'weapon'; time: number; sourceId: string; what: 'torpedo' | 'rocket' | 'dc' | 'buoy' }
@@ -180,7 +181,15 @@ export function stepWorld(w: World, dt = SIM_DT): void {
     if (s.autoNav) keepOffShoals(w, s);
     else if (s.playerId) shoalWarning(w, s);
   }
-  for (const s of w.ships) stepShip(s, dt, w.time);
+  for (const s of w.ships) {
+    stepShip(s, dt, w.time);
+    // Everything afloat drifts with the current at its depth (tide, two-layer straits)
+    if (s.alive) {
+      const c = currentAt(w.env, s.pos, s.depth, w.time);
+      s.pos.x += c.x * dt;
+      s.pos.y += c.y * dt;
+    }
+  }
   for (const s of w.ships) {
     checkGround(w, s);
     learnLayer(w, s);

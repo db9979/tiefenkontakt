@@ -16,7 +16,7 @@ export interface SavedCrew {
   pack: PackReport[];
 }
 
-const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000 } as const;
+const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000, sounding: 4_000 } as const;
 
 /** AI captains for empty teams (and passive training targets). */
 export class BotCrew {
