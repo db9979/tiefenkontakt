@@ -1,54 +1,52 @@
 /** GLSL for the 3D sea view: a multi-wave ocean with whitecaps and glitter, and a sky with clouds, sun and moon. */
 
-export const WAVES = `
-uniform float uTime; uniform float uAmp;
-float wave(vec2 p, vec2 d, float f, float s) { return sin(dot(p, normalize(d)) * f + uTime * s); }
-float height(vec2 p) {
-  return uAmp * (0.42 * wave(p, vec2(0.8, 0.6), 0.032, 0.9)
-    + 0.26 * wave(p, vec2(-0.4, 0.9), 0.071, 1.45)
-    + 0.16 * wave(p, vec2(0.95, -0.3), 0.15, 2.2)
-    + 0.10 * wave(p, vec2(0.2, 1.0), 0.29, 3.1)
-    + 0.06 * wave(p, vec2(-0.85, -0.5), 0.53, 4.3));
-}`;
+import { WAVES_GLSL } from './waves.js';
 
+/** The wave field (uniforms from waves.ts: waveUniforms/applyWaves). */
+export const WAVES = WAVES_GLSL;
+
+/** Ocean grid: displaced by the waves the grid cell can carry (cell ≈ uCell.x · d^uCell.y). */
 export const OCEAN_VERT = `${WAVES}
-varying vec3 vPos; varying vec3 vNormal; varying float vH;
+uniform vec2 uCell;
+varying vec3 vPos;
 void main() {
-  vec3 p = position;
-  vec2 xz = (modelMatrix * vec4(p, 1.0)).xz;
-  float h = height(xz);
-  p.z += h;
-  float e = 0.6;
-  vNormal = normalize(vec3(-(height(xz + vec2(e, 0.0)) - h) / e, 1.0, -(height(xz + vec2(0.0, e)) - h) / e));
-  vH = h / max(uAmp, 0.01);
-  vec4 wp = modelMatrix * vec4(p, 1.0);
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  float d = max(max(abs(wp.x), abs(wp.z)), 1.0);
+  wp.y += heightLod(wp.xz, uCell.x * pow(d, uCell.y));
   vPos = wp.xyz;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 
 export const NOISE = `
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float hash(vec2 p) { p = mod(p, 1024.0); return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
   vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
 }
-float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; } return v; }`;
+float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.0; a *= 0.5; } return v; }`;
 
-export const OCEAN_FRAG = `${NOISE}
-uniform float uTime;
+export const OCEAN_FRAG = `${NOISE}${WAVES}
+uniform float uTime; uniform vec2 uWind; uniform vec2 uOffR; uniform vec2 uOffW;
 uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uFog;
 uniform float uFogDensity; uniform float uLight; uniform float uFoam; uniform float uSunUp;
 uniform vec4 uIce[4];
-varying vec3 vPos; varying vec3 vNormal; varying float vH;
+varying vec3 vPos;
 void main() {
   vec3 view = normalize(cameraPosition - vPos);
-  vec3 n = normalize(vNormal);
+  // Per-pixel wave normal; trains shorter than the pixel footprint are left out (no shimmer far off)
+  vec2 fw = fwidth(vPos.xz);
+  // Geometric mean of the footprint: at grazing angles the long axis alone would flatten the near sea
+  float foot = max(sqrt(fw.x * fw.y) * 1.6, 0.02);
+  vec2 sl = slopeLod(vPos.xz, foot);
+  vec3 n = normalize(vec3(-sl.x, 1.0, -sl.y));
+  float vH = heightLod(vPos.xz, foot) / max(uAmp, 0.01);
   // Capillary ripples: high-frequency normal detail, fading with distance (gives the eye a sense of scale)
   float dist = length(cameraPosition - vPos);
   float near = 1.0 - smoothstep(60.0, 900.0, dist);
   if (near > 0.0) {
-    vec2 q = vPos.xz * 0.9 + vec2(uTime * 0.6, uTime * 0.35);
-    vec2 rip = vec2(noise(q) - 0.5, noise(q * 1.7 + 4.0) - 0.5);
+    // Fixed to the sea (own position added), drifting downwind
+    vec2 q = vPos.xz + uOffR + uWind * uTime * 0.7;
+    vec2 rip = vec2(noise(q) - 0.5, noise(q * 2.0 + 4.0) - 0.5);
     n = normalize(n + vec3(rip.x, 0.0, rip.y) * 0.35 * near);
   }
   float fres = pow(1.0 - max(dot(n, view), 0.0), 4.0);
@@ -63,11 +61,18 @@ void main() {
   float md = max(dot(r, normalize(uMoon)), 0.0);
   col += vec3(0.75, 0.8, 0.9) * pow(md, 160.0) * (1.0 - uSunUp) * 0.9;
   col *= 0.12 + 0.88 * uLight * uLight;
-  // Whitecaps on the crests as the sea builds, streaked by the wind
-  if (uFoam > 0.0 && vH > 0.1) {
-    float streak = fbm(vPos.xz * vec2(0.08, 0.025) + vec2(uTime * 0.05, 0.0));
-    float foam = smoothstep(0.55, 0.95, vH + streak * 0.6) * uFoam;
-    col = mix(col, vec3(0.86, 0.9, 0.92) * (0.25 + 0.75 * uLight), foam * 0.8);
+  // Whitecaps: small breaking patches on the steep short crests, scattered by a patch field and
+  // drawn out downwind; far off they blend into a faint mean brightening (no shimmer)
+  if (uFoam > 0.0) {
+    vec2 wq = vec2(dot(vPos.xz, uWind), dot(vPos.xz, vec2(-uWind.y, uWind.x))) + uOffW;
+    float chop = chopLod(vPos.xz, foot);
+    float pf = fbm(wq * vec2(0.0625, 0.125) + vec2(uTime * 0.03, 0.0));
+    float fine = noise((vPos.xz + uOffR) * 0.5 + uWind * uTime * 0.4);
+    float m = 0.42 * chop + 0.18 * vH + 0.9 * pf - 0.9 + 0.3 * uFoam;
+    float foam = smoothstep(0.0, 0.12, m) * smoothstep(0.25, 0.7, fine);
+    float farF = 1.0 - smoothstep(400.0, 2500.0, dist);
+    foam = mix(0.05 * uFoam, foam, farF) * uFoam;
+    col = mix(col, vec3(0.86, 0.9, 0.92) * (0.25 + 0.75 * uLight), clamp(foam, 0.0, 1.0) * 0.85);
   }
   // Pack ice beyond the modelled floes: a floe pattern drifting with its field (x, z, radius, cover)
   float icec = 0.0; vec2 iceL = vec2(0.0);

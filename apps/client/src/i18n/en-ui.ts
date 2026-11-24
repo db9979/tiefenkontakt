@@ -1,5 +1,13 @@
 /** German → English: lobby, accounts, game frame, helm and stations. */
 export const EN_UI: [string, string][] = [
+  ['Sofort spielen', 'Play now'], ['GEGEN DIE KI · OHNE LOBBY', 'AGAINST THE AI · NO LOBBY'], ['ZUFÄLLIGE LAGE', 'RANDOM SITUATION'],
+  ['Als Geleitschutz', 'As escort'], ['Als U-Boot', 'As submarine'], ['Sofort als Fregatte gegen KI-U-Boote', 'Straight in as a frigate against AI submarines'],
+  ['Sofort als U-Boot gegen die KI-Eskorte', 'Straight in as a submarine against the AI escort'],
+  ['Zufällige Mission, Tageszeit, Wetter und Lage; leere Plätze spielt die KI', 'Random mission, time of day, weather and situation; the AI fills the empty places'],
+  ['WOCHENLAGE WIRD GELADEN …', 'LOADING WEEKLY SITUATION …'], ['WOCHENLAGE NICHT ERREICHBAR', 'WEEKLY SITUATION UNAVAILABLE'],
+  ['Geleitschutz', 'Escort'], ['U-Boot', 'Submarine'], ['BESTE GELEITE', 'BEST ESCORTS'], ['BESTE U-BOOTE', 'BEST SUBMARINES'], ['NOCH NIEMAND', 'NOBODY YET'],
+  ['Eine Lage pro Woche, für alle gleich: Mission, Wetter, Positionen und Route. Mit Konto kommt dein bestes Ergebnis je Seite auf die Wochenliste.',
+    'One situation per week, the same for everyone: mission, weather, positions and route. With an account your best result per side goes on the weekly board.'],
   ['Neues Passwort', 'New password'], ['Passwort', 'Password'], ['Speichern und anmelden', 'Save and sign in'], ['Konto', 'Account'],
   ['E-Mail', 'Email'], ['BESTÄTIGT', 'VERIFIED'], ['NICHT BESTÄTIGT', 'NOT VERIFIED'], ['Link erneut senden', 'Resend link'],
   ['Passwort ändern', 'Change password'], ['Konto löschen', 'Delete account'], ['Mindestens 8 Zeichen', 'At least 8 characters'],

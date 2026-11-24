@@ -182,7 +182,7 @@ export class WeatherFx {
     const u = ocean.uniforms;
     this.floeMat = new THREE.ShaderMaterial({
       vertexShader: FLOE_VERT, fragmentShader: FLOE_FRAG,
-      uniforms: { uTime: u.uTime!, uAmp: u.uAmp!, uSun: u.uSun!, uLight: u.uLight!, uFog: u.uFog!, uFogDensity: u.uFogDensity! },
+      uniforms: { uAmp: u.uAmp!, uWa: u.uWa!, uWd: u.uWd!, uPh: u.uPh!, uSun: u.uSun!, uLight: u.uLight!, uFog: u.uFog!, uFogDensity: u.uFogDensity! },
     });
     u.uIce = { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) };
   }

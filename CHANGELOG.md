@@ -3,6 +3,24 @@
 Versionen folgen [Semantic Versioning](https://semver.org/lang/de/). Ein Tag `vX.Y.Z` erzeugt ein GitHub-Release mit dem
 Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`.
 
+## [Unreleased]
+
+### Spiel
+- **Sofort spielen:** „Als Geleitschutz“ oder „Als U-Boot“ startet ohne Lobby eine Partie gegen die KI mit zufälliger
+  Mission, Tageszeit, Wetter und Lage.
+- **Wochenlage:** eine Lage pro Kalenderwoche, für alle gleich; das beste Ergebnis je Konto und Seite kommt auf die
+  Wochenliste (`GET /api/weekly`).
+- **Gamepad:** linker Stick Kurs, Trigger Fahrt, Steuerkreuz Tiefe und Feinkurs, Schultertasten Station, Start ⚙-Menü,
+  Select Hilfe.
+
+### Grafik
+- **Neues Meer:** sieben Wellenzüge mit echter Ausbreitungsgeschwindigkeit, die langen laufen mit dem Wind, die Dünung
+  quer dazu; das Meer liegt fest auf der Karte, das Wasser strömt also am fahrenden Schiff vorbei. Dichtes Gitter am
+  Auge, kurze Wellen nur, wo Gitter und Pixel sie tragen (vorher liefen Schein-Wellen in falsche Richtungen).
+- Schiffe reiten auf den Wellen (Tauchen, Stampfen, Rollen aus der Wasseroberfläche unter dem Rumpf), auch das eigene
+  Schiff auf der Brücke.
+- Kielwasser und Bugwelle liegen auf den Wellen, der Schaum bleibt im Wasser stehen; kleine Schaumkronen in Windrichtung.
+
 ## [1.0.0] – 2026-11-23
 
 Die erste vollständige Version: ein asymmetrisches U-Boot-Gefecht im Kalten Krieg im Browser, Wolfsrudel gegen

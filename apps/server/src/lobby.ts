@@ -7,6 +7,8 @@ import { SandboxHub } from './sandbox.js';
 import type { CampaignPlan } from './campaign-match.js';
 import { takePhoto } from './photos.js';
 import { metrics } from './metrics.js';
+import { allowedClasses } from './scenario.js';
+import { soloSetup, weeklySetup } from './weekly.js';
 
 /**
  * Matches at the same time (lobby + running). Load test on the Pi 5 (scripts/net-load-test.ts):
@@ -246,6 +248,22 @@ export class Lobby {
       case 'quick':
         this.leaveCurrent(conn.playerId);
         return void err(this.quick(conn));
+      case 'solo': {
+        // Straight into a game against the AI: no lobby, no settings
+        this.leaveCurrent(conn.playerId);
+        const wk = msg.weekly ? weeklySetup() : undefined;
+        const setup = wk ?? soloSetup((Math.random() * 0xffffffff) >>> 0 || 1);
+        const m = this.create(wk ? `Wochenlage ${wk.week}` : 'Gegen die KI');
+        if (typeof m === 'string') return void err(m);
+        m.fixSetup(setup);
+        Object.assign(m.settings, { private: true, fillBots: true, weekly: wk?.week });
+        this.playerMatch.set(conn.playerId, m.id);
+        const cls = allowedClasses(m.settings.mission, msg.team)[0]!;
+        m.slots.push({ playerId: conn.playerId, callsign: conn.callsign, team: msg.team, cls, ready: true, rank: conn.rank, rating: conn.rating });
+        m.reattach(conn);
+        m.start();
+        return;
+      }
       case 'spectate': {
         const target = this.matches.get(msg.matchId);
         if (!target) return void err('Partie nicht gefunden');

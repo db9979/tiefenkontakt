@@ -84,6 +84,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('lesson_done') }),
   z.object({ t: z.literal('station'), index: z.number().int().min(0).max(4) }),
   z.object({ t: z.literal('quick') }),
+  z.object({ t: z.literal('solo'), team: z.enum(['west', 'east']), weekly: z.boolean().optional() }),
   z.object({ t: z.literal('spectate'), matchId: z.string().max(40) }),
   z.object({ t: z.literal('settings'), ...settingsFields }),
   z.object({ t: z.literal('campaign_start') }),

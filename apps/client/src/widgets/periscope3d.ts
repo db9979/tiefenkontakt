@@ -6,6 +6,9 @@ import { shipModel, sightingModel } from './sea3d/models.js';
 import { aircraftModel, animateAircraft } from './sea3d/aircraft.js';
 import { mergeStatic } from './sea3d/merge.js';
 import { OCEAN_FRAG, OCEAN_VERT, SKY_FRAG, SKY_VERT } from './sea3d/shaders.js';
+import { applyWaves, hullOnSea, oceanGrid, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
+import { wakeUniforms } from './sea3d/wake.js';
+import { bridgeFront, cullNear } from './sea3d/own-ship.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
@@ -18,35 +21,6 @@ import { dprGl, oceanSegments } from './perf.js';
  */
 
 const EARTH_R = 6_371_000;
-
-/** Forward bridge windows (glass planes facing ahead, high up): their z, or a default. */
-function bridgeFront(g: THREE.Group): number {
-  let best = -Infinity;
-  g.updateMatrixWorld(true);
-  g.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh || m.geometry.type !== 'PlaneGeometry' || Math.abs(m.rotation.y) > 0.01) return;
-    const p = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld);
-    const mat = m.material as THREE.MeshStandardMaterial;
-    if (p.y > 8 && mat.color && mat.color.getHex() < 0x202020 && p.z > best) best = p.z;
-  });
-  return Number.isFinite(best) ? best : 24;
-}
-
-/** Remove the own ship's parts whose bounds come within r of the eye. */
-function cullNear(g: THREE.Group, eye: THREE.Vector3, r: number): void {
-  g.updateMatrixWorld(true);
-  const drop: THREE.Object3D[] = [];
-  const box = new THREE.Box3();
-  g.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh || m.name === 'hull' || m.name === 'deck') return;
-    box.setFromObject(m);
-    // Only what reaches up to eye height (dome, mast foot, whips); the bridge we stand on stays
-    if (box.distanceToPoint(eye) < r && box.max.y > eye.y - 0.5) drop.push(m);
-  });
-  for (const o of drop) o.removeFromParent();
-}
 
 /** Stable 0…2π phase from a label, so every ship keeps its own rhythm. */
 function phaseOf(label: string): number {
@@ -98,7 +72,7 @@ export class Periscope3D {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(30, 1, 1, 60_000);
-  private ocean: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private ocean: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
   private sky: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
   private hemi = new THREE.HemisphereLight(0xb8c8d0, 0x1a2a30, 1.2);
   private sun = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -113,6 +87,9 @@ export class Periscope3D {
   private fire = new THREE.PointLight(0xff7a30, 0, 6000, 1.2);
   /** Eye height above the water (m): 4 for a periscope, about 20 on a frigate's bridge. */
   private eye: number;
+  /** Ocean grid cell law (for wakes on the same grid) and this frame's sea. */
+  private cell: THREE.Vector2;
+  private waves!: Waves;
   /** Own ship around the camera (bridge view): model and how far forward of midships the bridge is. */
   private own?: { g: THREE.Group; bridgeZ: number };
   private wx: WeatherFx;
@@ -125,18 +102,19 @@ export class Periscope3D {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x24343b);
     this.camera.rotation.order = 'YXZ';
+    const grid = oceanGrid(oceanSegments());
+    this.cell = grid.cell;
     this.ocean = new THREE.Mesh(
-      new THREE.PlaneGeometry(40_000, 40_000, oceanSegments(), oceanSegments()),
+      grid.geo,
       new THREE.ShaderMaterial({
         vertexShader: OCEAN_VERT, fragmentShader: OCEAN_FRAG,
         uniforms: {
-          uTime: { value: 0 }, uAmp: { value: 1 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) },
+          ...waveUniforms(), uCell: { value: grid.cell }, uTime: { value: 0 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) },
           uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uMoon: { value: new THREE.Vector3(-0.3, 0.4, 0.8) }, uFog: { value: new THREE.Color(0x4b5f67) },
           uFogDensity: { value: 0.00006 }, uLight: { value: 1 }, uFoam: { value: 0 }, uSunUp: { value: 1 },
         },
       }),
     );
-    this.ocean.rotation.x = -Math.PI / 2;
     this.scene.add(this.ocean);
     this.wx = new WeatherFx(this.scene, this.ocean.material);
     this.sky = new THREE.Mesh(
@@ -177,7 +155,6 @@ export class Periscope3D {
     if (opts.own) {
       // Foredeck, gun and bridge front in the lower part of the picture: the eye sits on the bridge roof
       const g = shipModel(opts.own);
-      for (const n of ['wake']) g.getObjectByName(n)?.removeFromParent();
       // Eye just behind the forward bridge windows; parts right at the eye (dome, mast foot) would fill the view
       const bridgeZ = bridgeFront(g) - 1.5;
       cullNear(g, new THREE.Vector3(0, this.eye, bridgeZ), 6);
@@ -299,16 +276,38 @@ export class Periscope3D {
     this.camera.updateProjectionMatrix();
     // Swell: the boat (and the optic) heave, pitch and roll; a high bridge moves less but sways more
     // Wave amplitude (m) by sea state: SS3 ≈ 1.4 m significant wave height
-    const amp = 0.12 + o.sea * 0.2;
-    const high = this.eye > 10;
-    this.camera.position.set(0, this.eye + Math.sin(o.t * 0.55) * amp * (high ? 0.25 : 0.4), 0);
-    this.camera.rotation.y = (-o.bearing * Math.PI) / 180;
-    this.camera.rotation.x = ((o.pitchDeg ?? 0) * Math.PI) / 180 + Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
-    this.camera.rotation.z = Math.sin(o.t * 0.4) * (high ? 0.007 : 0.004) * (1 + o.sea * 0.6) + ((o.ownWreck?.list ?? 0) * Math.PI) / 180;
+    // The sea, fixed to the map: wind from the weather, phases from the own position
+    const sw = (this.waves = seaWaves(o.sea, o.met?.wind, this.ownPos, o.t));
+    const amp = sw.amp;
+    const listRad = ((o.ownWreck?.list ?? 0) * Math.PI) / 180;
+    const look = (o.bearing * Math.PI) / 180;
+    this.camera.rotation.y = -look;
+    let camPitch = ((o.pitchDeg ?? 0) * Math.PI) / 180;
+    let camRoll = listRad;
+    if (this.own) {
+      // Bridge: the ship rides the waves; the eye moves with her bridge, the view tilts with her
+      const hdg = o.ownHeading ?? 0;
+      const m = this.ownMotion(hdg);
+      const rel = look - (hdg * Math.PI) / 180;
+      this.camera.position.set(0, this.eye + m.heave + this.own.bridgeZ * Math.sin(m.pitch), 0);
+      camPitch += m.pitch * Math.cos(rel) - m.roll * Math.sin(rel);
+      camRoll += -m.roll * Math.cos(rel) - m.pitch * Math.sin(rel);
+    } else {
+      // Periscope: the head stands on the mast, the boat below barely feels the sea; spray and wash do the rest
+      this.camera.position.set(0, this.eye + waveHeight(sw, 0, 0) * 0.3, 0);
+      camPitch += Math.sin(o.t * 0.31) * 0.002 * (1 + o.sea);
+      camRoll += Math.sin(o.t * 0.4) * 0.004 * (1 + o.sea * 0.6);
+    }
+    this.camera.rotation.x = camPitch;
+    this.camera.rotation.z = camRoll;
 
     const u = this.ocean.material.uniforms;
     u.uTime!.value = o.t;
-    u.uAmp!.value = amp;
+    applyWaves(u, sw);
+    applyWaves(wakeUniforms, sw);
+    wakeUniforms.uTime!.value = o.t;
+    wakeUniforms.uLight!.value = o.light;
+    (wakeUniforms.uCell!.value as THREE.Vector2).copy(this.cell);
     u.uLight!.value = o.light;
     u.uFoam!.value = Math.max(0, Math.min(1, (o.sea - 2) / 4));
     // Inside a fog bank: everything goes white-grey within a few hundred meters
@@ -356,14 +355,33 @@ export class Periscope3D {
       // Keep the own hull under the camera: the bridge point sits below the eye, the ship heaves and rolls with it
       const c = ((o.ownHeading ?? 0) * Math.PI) / 180;
       const g = this.own.g;
+      const m = this.ownMotion(o.ownHeading ?? 0);
+      g.rotation.order = 'YXZ';
       g.rotation.y = Math.PI - c;
-      g.position.set(-this.own.bridgeZ * Math.sin(c), this.camera.position.y - this.eye, this.own.bridgeZ * Math.cos(c));
-      g.rotation.z = this.camera.rotation.z;
+      g.rotation.x = -m.pitch;
+      g.rotation.z = m.roll + listRad;
+      g.position.set(-this.own.bridgeZ * Math.sin(c), m.heave, this.own.bridgeZ * Math.cos(c));
       this.animate(g, o.t, o.ownKn ?? 12, 0.3);
       const bow = g.getObjectByName('bow');
       if (bow) bow.scale.setScalar(Math.max(0.2, (o.ownKn ?? 12) / 12));
+      g.getObjectByName('wake')?.scale.set(1, 1, Math.max(0.05, (o.ownKn ?? 12) / 10));
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** The own ship on the sea at the eye (bridge view): heave, pitch (bow up) and roll (port up). */
+  private ownMotion(heading: number): { heave: number; pitch: number; roll: number } {
+    const g = this.own!.g;
+    const ud = g.userData as { len?: number; beam?: number };
+    if (ud.len === undefined) {
+      const size = new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3());
+      ud.len = size.z;
+      ud.beam = size.x;
+    }
+    // Midships is bridgeZ aft of the eye
+    const c = (heading * Math.PI) / 180;
+    const r = hullOnSea(this.waves, -this.own!.bridgeZ * Math.sin(c), this.own!.bridgeZ * Math.cos(c), heading, ud.len, ud.beam ?? 14);
+    return { heave: r.heave, pitch: r.pitch * 0.85, roll: r.roll * 0.8 };
   }
 
   private place(targets: PeriscopeTarget[], t: number, sea: number, amp: number, light: number): void {
@@ -411,20 +429,25 @@ export class Periscope3D {
       this.animate(s.g, t, kn, seed);
       const b = (tg.bearing * Math.PI) / 180;
       // Earth curvature; the small lift keeps hulls from sinking into the wave crests at periscope height
-      const drop = (tg.range * tg.range) / (2 * EARTH_R) - 2;
+      const drop = (tg.range * tg.range) / (2 * EARTH_R) - 0.4;
       // Ship motion: fixed phase per ship; roll period and amplitude follow its size and the sea state
       const ph = phaseOf(tg.label);
       const len = (s.g.userData.len as number | undefined) ?? (s.g.userData.len = new THREE.Box3().setFromObject(s.g).getSize(new THREE.Vector3()).z);
+      const beam = (s.g.userData.beam as number | undefined) ?? (s.g.userData.beam = new THREE.Box3().setFromObject(s.g).getSize(new THREE.Vector3()).x);
       const rollT = 5 + len / 20;
       const small = 60 / (len + 60);
-      const bob = Math.sin((t * 2 * Math.PI) / (rollT * 0.8) + ph) * amp * 0.4 * (0.5 + small);
-      s.g.position.set(Math.sin(b) * tg.range, bob - drop, -Math.cos(b) * tg.range);
+      const course = tg.course ?? tg.bearing + 90;
+      const sx = Math.sin(b) * tg.range, sz = -Math.cos(b) * tg.range;
+      // Riding the waves where she is: heave, pitch and roll from the sea surface under her hull
+      const ride = hullOnSea(this.waves, sx, sz, course, len, beam);
+      s.g.position.set(sx, ride.heave - drop, sz);
       // Models are built bow toward +z; turn them so the bow points along the course (north = −z)
-      s.g.rotation.y = Math.PI - ((tg.course ?? tg.bearing + 90) * Math.PI) / 180;
-      // Heading first, then pitch about the ship's own beam axis, then roll about its keel
+      s.g.rotation.y = Math.PI - (course * Math.PI) / 180;
+      // Heading first, then pitch about the ship's own beam axis, then roll about its keel;
+      // on top of the sea's tilt a small hull rolls a little in her own rhythm
       s.g.rotation.order = 'YXZ';
-      s.g.rotation.z = Math.sin((t * 2 * Math.PI) / rollT + ph) * (0.03 + sea * 0.03) * small;
-      s.g.rotation.x = Math.sin((t * 2 * Math.PI) / (rollT * 0.7) + ph * 1.7) * (0.008 + sea * 0.01) * small;
+      s.g.rotation.z = ride.roll * 0.8 + Math.sin((t * 2 * Math.PI) / rollT + ph) * (0.01 + sea * 0.012) * small;
+      s.g.rotation.x = -ride.pitch * 0.9;
       // Damage: list, trim and settling; fire and smoke on deck (lights the night)
       const fire = applyWreck(s.g, tg.wreck, t, light, seed, burning);
       if (fire > 0 && fire * (1 - light) > this.glow) {

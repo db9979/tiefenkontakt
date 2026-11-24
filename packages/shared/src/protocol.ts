@@ -64,6 +64,8 @@ export type ClientMsg =
   | { t: 'lesson_done' }
   | { t: 'station'; index: number }
   | { t: 'quick' }
+  /** Start at once against the AI: a random situation, or this week's (same for everyone). */
+  | { t: 'solo'; team: Exclude<Team, 'neutral'>; weekly?: boolean }
   | { t: 'spectate'; matchId: string }
   | {
     t: 'settings';
@@ -373,6 +375,24 @@ export interface Snapshot {
 export type Variation = 'aus' | 'leicht' | 'stark';
 
 /** A match's seed and lobby choices: enough to play the same situation again. */
+/** One line of the weekly board: best result of an account on one side. */
+export interface WeeklyRow {
+  rank: number;
+  callsign: string;
+  cls: string;
+  score: number;
+  won: boolean;
+}
+
+/** The week's situation and its board (GET /api/weekly). */
+export interface WeeklyBoard {
+  week: string;
+  west: WeeklyRow[];
+  east: WeeklyRow[];
+  /** What this week's situation is (resolved: no 'zufall'). */
+  lage?: { mission: string; timeOfDay: string; weather: string; seaState: number; endsAt: number };
+}
+
 export interface MatchSetup {
   seed: number;
   settings: {

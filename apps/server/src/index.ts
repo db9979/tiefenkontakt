@@ -17,6 +17,7 @@ import { Backups } from './backup.js';
 import { Ratings } from './rating.js';
 import { BadgeStore } from './badges.js';
 import { Rankings } from './rankings.js';
+import { WeeklyStore, weeklyView } from './weekly.js';
 import { log } from './log.js';
 import { Match } from './match.js';
 import { clientIpFrom } from './client-ip.js';
@@ -47,6 +48,7 @@ const campaigns = new CampaignStore(auth.db);
 const campaign = new CampaignService(campaigns);
 const badges = new BadgeStore(auth.db);
 const rankings = new Rankings(auth.db, stats, badges);
+const weekly = new WeeklyStore(auth.db);
 rankings.init();
 campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
@@ -78,6 +80,7 @@ lobby.onFinish = (m, d) => {
     return;
   }
   campaign.finish(m, d);
+  if (m.settings.weekly) weekly.record(m.settings.weekly, d);
   if (m.settings.sandbox) return; // training: no results, no rating
   stats.record(d, m.settings.mission, m.settings.timeOfDay);
   ratings.update(d);
@@ -206,6 +209,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     raw: (st: number, hd: Record<string, string>, data: Buffer) => void res.writeHead(st, hd).end(req.method === 'HEAD' ? undefined : data),
   })) return;
   if (rankings.handle(req.method ?? 'GET', req.url ?? '', (st, b) => json(res, st, b))) return;
+  if (req.url === '/api/weekly' && req.method === 'GET') return json(res, 200, weeklyView(weekly));
   if (req.url === '/api/balance' && req.method === 'GET') return json(res, 200, stats.balance());
   if (req.url === '/api/stats' && req.method === 'GET') {
     const u = auth.userForToken(token);

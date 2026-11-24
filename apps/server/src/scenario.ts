@@ -98,6 +98,8 @@ export interface ScenarioSettings {
   sandbox?: boolean;
   /** A mission of a player's campaign run (ship state carried over). */
   campaign?: boolean;
+  /** This match is the weekly situation of that ISO week (its result goes on the week's board). */
+  weekly?: string;
 }
 
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */

@@ -6,6 +6,7 @@ import { adminPanel } from './admin.js';
 import { careerPanels } from './career.js';
 import { campaignPanel } from './campaign.js';
 import { seriesPanel } from './series.js';
+import { quickPanel } from './quick-play.js';
 import { CLASS_NAME, esc, h } from '../widgets/format.js';
 import { missionCards, paintMissionCharts } from '../widgets/mission-cards.js';
 import { logout } from './logout.js';
@@ -69,6 +70,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
             <button data-lesson="ujagd" style="text-align:left;text-transform:none"><div>4 · U-Jagd mit Fregatte</div><div class="dim">Schleppsonar, Bojen, Rakete</div></button>
           </div>
         </div>`;
+      el.querySelector('.panel')!.after(quickPanel());
       el.appendChild(careerPanels());
       el.appendChild(campaignPanel());
       el.appendChild(seriesPanel());

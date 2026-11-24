@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addWake } from './wake.js';
 
 /**
  * Building blocks for the low-poly ship models: materials, boxes and cylinders, hull and deck
@@ -70,20 +71,9 @@ export function smoke(g: THREE.Group, x: number, y: number, z: number, n: number
   g.userData.smoke = { puffs, origin: new THREE.Vector3(x, y, z) };
 }
 
-/** Stern wake wedge and bow wave; scaled by speed in the scene. */
+/** Stern wake and bow wave lying on the sea (see wake.ts); scaled by speed in the scene. */
 export function wake(g: THREE.Group, len: number, beam: number, bowZ: number, sternZ: number): void {
-  const w = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-beam * 0.45, 0.25, 0), new THREE.Vector3(beam * 0.45, 0.25, 0), new THREE.Vector3(len * 0.32, 0.25, -len),
-    new THREE.Vector3(-beam * 0.45, 0.25, 0), new THREE.Vector3(len * 0.32, 0.25, -len), new THREE.Vector3(-len * 0.32, 0.25, -len),
-  ]), FOAM);
-  w.name = 'wake';
-  w.position.z = sternZ;
-  const b = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0, 0.4, 0), new THREE.Vector3(beam * 0.8, 0.4, -beam * 1.6), new THREE.Vector3(-beam * 0.8, 0.4, -beam * 1.6),
-  ]), FOAM);
-  b.name = 'bow';
-  b.position.z = bowZ;
-  g.add(w, b);
+  addWake(g, len, beam, bowZ, sternZ);
 }
 
 let glowTex: THREE.Texture | undefined;
