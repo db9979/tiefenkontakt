@@ -94,7 +94,9 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip) || guard;
   const wanted = duel ? 'submarine' : 'merchant';
-  const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
+  const hostile = (want: string) => fresh.filter((t) => voted(m, t) === want && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
+  // A guarding boat fights back against the enemy's warship when it is being hunted by it
+  const target = hostile(wanted) ?? (guard && threatNear ? hostile('warship') : undefined);
   // A mine barrage across the convoy track takes the helm while it runs
   if (!duel && considerMine(w, m, s, threatNear, target)) return;
 

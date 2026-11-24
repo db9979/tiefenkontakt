@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Jagd-U-Boot wehrt sich:** Die KI des S-14 hat nur U-Boote angegriffen und wurde vom Wachschiff mit U-Jagd-Raketen
+  gejagt (in 11 von 30 Partien versenkt). Wird es bedrängt und ist kein U-Boot in Sicht, greift sie jetzt das feindliche
+  Kriegsschiff an. Beide Seiten gemischt in der KI-Arena 16:44 -> 35:25, West gemischt unverändert.
 - **Karten genordet:** Lagebild, Tiefenkarte, Radar, ESM, Kompass, Wasserfall, Nachbesprechung und Missionskarten zeigen
   Nord oben wie eine Weltkarte. Alle Kurse und Peilungen sind rechtweisend, in Anzeigen, Eingaben, Meldungen, Funk und
   Lagebesprechung (Gibraltar: Route nach Osten statt „Norden“). Die Simulation selbst ist unverändert, die Balance gilt weiter.

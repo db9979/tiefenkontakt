@@ -26,7 +26,7 @@ const CARDS: Card[] = [
   {
     cls: 'ssw', side: 'Westbund', role: 'Jagd-U-Boot im Geleitschutz (gemischter Platz)',
     text: 'Atom-U-Boot in direkter Unterstützung des Konvois: sehr leise, schnell und tief, mit langem Schleppsonar. Es jagt die Wölfe vor dem Konvoi, bevor sie schießen. Höchstens eines pro Team. Um das Boot liegt ein mitwanderndes Sperrgebiet von 4 km: Dort setzen die eigenen Fregatten keine U-Jagd-Waffe ein.',
-    tips: ['Etwa 4 sm vor dem Konvoi stehen und horchen; die Führung meldet seinen Ort zu den Sendezeiten.', 'Kontakte vorsichtig klassifizieren: Die eigenen Fregatten sind laut, das Rudel leise.', 'Nicht in den Rücken der eigenen Fregatten geraten: Außerhalb des Sperrgebiets ist jedes U-Boot für sie ein Ziel.'],
+    tips: ['Etwa 4 sm vor dem Konvoi stehen und horchen; die Führung meldet seinen Ort zu den Sendezeiten.', 'Kontakte vorsichtig klassifizieren: Die eigenen Fregatten sind laut, das Rudel leise.', 'Nicht in den Rücken der eigenen Fregatten geraten: Außerhalb des Sperrgebiets ist jedes U-Boot für sie ein Ziel.', 'Jagt dich das Wachschiff des Ostpakts, wehr dich: Es ist laut, und ein Torpedo nimmt dem Rudel seine Flugkörper.'],
   },
   {
     cls: 'ffk', side: 'Ostpakt', role: 'Wachschiff im Rudel (gemischter Platz)',

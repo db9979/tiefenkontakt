@@ -314,7 +314,8 @@ describe('missions and settings', () => {
     lobby.resume(a);
     lobby.handle(a, { t: 'create_match', name: 'Nacht' });
     const m = lobby.matchOf('w1')!;
-    lobby.handle(a, { t: 'settings', mission: 'schelf', timeOfDay: 'nacht', seaState: 5 });
+    // Winter: the Barents Sea at 74.7° N has the midnight sun in summer, so 'nacht' is only dark in winter
+    lobby.handle(a, { t: 'settings', mission: 'schelf', timeOfDay: 'nacht', seaState: 5, season: 'winter' });
     expect(m.settings).toMatchObject({ mission: 'schelf', timeOfDay: 'nacht', seaState: 5 });
     lobby.handle(a, { t: 'ready', ready: true });
     m.stop();
