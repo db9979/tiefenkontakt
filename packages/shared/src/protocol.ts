@@ -70,6 +70,8 @@ export type ClientMsg =
   /** Start at once against the AI: a random situation, or this week's (same for everyone). */
   | { t: 'solo'; team: Exclude<Team, 'neutral'>; weekly?: boolean }
   | { t: 'spectate'; matchId: string }
+  /** Ask for a one-time code to put the 3D view on a phone (phone.ts on the server). */
+  | { t: 'phone_link' }
   | {
     t: 'settings';
     mission?: MissionKey;
@@ -474,6 +476,13 @@ export type ServerMsg =
   | { t: 'lobby'; matches: MatchSummary[] }
   | { t: 'match'; match: MatchLobby }
   | { t: 'snap'; s: Snapshot }
+  /** One-time code for the phone's 3D view (valid 10 minutes, once). */
+  | { t: 'phone_link'; code: string }
+  /** From the paired phone: it connected or left, where it looks, what it selected, a photo. */
+  | { t: 'phone'; ev: 'on' | 'off' }
+  | { t: 'phone_look'; bearing: number; elev: number; mag: number; glass: boolean }
+  | { t: 'phone_select'; label: string }
+  | { t: 'phone_photo' }
   | { t: 'end'; winner: Exclude<Team, 'neutral'>; reason: string }
   | { t: 'debrief'; d: Debrief }
   /** Spectators get the truth picture, delayed so it can't be used to help a team. */
@@ -483,3 +492,9 @@ export type ServerMsg =
   | { t: 'removed'; msg: string }
   /** Sandbox matches: time scale (0 = paused) and, for players who switched it on, the truth view. */
   | { t: 'sandbox'; scale: number; truth?: TruthView };
+
+/** What the paired phone sends (its own socket, /ws?phone=<code>). */
+export type PhoneMsg =
+  | { t: 'look'; bearing: number; elev: number; mag: number; glass: boolean }
+  | { t: 'select'; label: string }
+  | { t: 'photo' };

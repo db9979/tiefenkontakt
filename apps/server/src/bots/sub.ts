@@ -85,6 +85,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     considerMine(w, m, s, threatNear);
     return;
   }
+  // Harbour attack: run in to the charted anchorage and fire into it from periscope depth
+  if (w.env.mission === 'hafen' && harbourRun(w, m, s, threatNear, maxSafe, k.salvo)) return;
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip);
   const wanted = duel ? 'submarine' : 'merchant';
@@ -119,17 +121,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     // Search: head for the pack's latest report or the last lead, sprint below the layer, then drift and listen
     const report = pack.filter((r) => r.team === s.team && now - r.t < 1800).pop();
     const lead = report ?? m.lead;
-    // Harbour attack: where the anchorage lies is no secret; head for it, the last stretch slow
-    const anchorage = w.env.mission === 'hafen' && !lead ? anchorageOf(w) : undefined;
-    if (anchorage) {
-      s.order.heading = wrap360((Math.atan2(anchorage.x - s.pos.x, anchorage.y - s.pos.y) * 180) / Math.PI);
-      if (distance(s.pos, anchorage) < 7000) {
-        // Close in quietly and look: anchored ships are heard faintly, seen well
-        s.order.speedKn = threatNear ? 2 : 4;
-        if (!threatNear && now > m.peekUntil + 240) m.peekUntil = now + 60;
-        return;
-      }
-    } else if (lead) s.order.heading = lead.b === undefined ? s.order.heading : wrap360(headingTo(s, lead));
+    if (lead) s.order.heading = lead.b === undefined ? s.order.heading : wrap360(headingTo(s, lead));
     else {
       // Patrol toward the enemy's side of the map in zigzag legs (east starts north, west south)
       if (now > m.legUntil) {
@@ -217,4 +209,49 @@ function anchorageOf(w: World): { x: number; y: number } | undefined {
   const ms = w.ships.filter((x) => x.cls === 'merchant' && x.alive);
   if (!ms.length) return undefined;
   return { x: ms.reduce((a, x) => a + x.pos.x, 0) / ms.length, y: ms.reduce((a, x) => a + x.pos.y, 0) / ms.length };
+}
+
+/** Firing range into the anchorage (m): close enough for a fan of slow passive torpedoes. */
+const HARBOUR_FIRE_M = 4200;
+
+/**
+ * Harbour attack: the anchorage is charted and the ships lie still. Run in deep and steady
+ * (slower when escorts are close), then come up to periscope depth, take a look and fire a fan
+ * at the nearest ship at anchor; between salvos hold off quietly. Returns false without targets.
+ */
+function harbourRun(w: World, m: BotMemory, s: Ship, threatNear: boolean, maxSafe: number, salvo: number): boolean {
+  const anch = anchorageOf(w);
+  if (!anch) return false;
+  const now = w.time;
+  const d = distance(s.pos, anch);
+  const toAnch = wrap360((Math.atan2(anch.x - s.pos.x, anch.y - s.pos.y) * 180) / Math.PI);
+  s.snorkel = false;
+  if (d > HARBOUR_FIRE_M) {
+    s.order = { heading: toAnch, speedKn: threatNear ? 4 : 7, depth: Math.min(maxSafe, 120) };
+    s.mastUp = false;
+    return true;
+  }
+  if (now - m.lastShot < SHOT_COOLDOWN) {
+    // Reloading: hold off, deep and slow, nose on the anchorage
+    s.order = { heading: toAnch, speedKn: 2, depth: Math.min(maxSafe, 90) };
+    s.mastUp = false;
+    return true;
+  }
+  // A look through the periscope, then the fan at the nearest ship at anchor
+  s.order = { heading: toAnch, speedKn: 3, depth: PERISCOPE_DEPTH };
+  s.mastUp = s.depth <= PERISCOPE_DEPTH + 0.5;
+  if (!s.mastUp) return true;
+  const ships = w.ships.filter((x) => x.cls === 'merchant' && x.alive).sort((a, b) => distance(s.pos, a.pos) - distance(s.pos, b.pos));
+  const tgt = ships[0];
+  if (!tgt) return true;
+  const r = distance(s.pos, tgt.pos);
+  const brg = wrap360((Math.atan2(tgt.pos.x - s.pos.x, tgt.pos.y - s.pos.y) * 180) / Math.PI);
+  let fired = 0;
+  for (let i = 0; i < Math.max(2, salvo); i++) {
+    const spread = (i - (Math.max(2, salvo) - 1) / 2) * 4;
+    const res = fireTorpedo(w, s, { heading: wrap360(brg + spread), enableAfter: Math.max(600, r * 0.7), mode: 'passive', searchDepth: 8, speedKn: 30 });
+    if (typeof res !== 'string') fired++;
+  }
+  if (fired) m.lastShot = now;
+  return true;
 }

@@ -33,6 +33,8 @@ export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | '
 /** Strait breakthrough: escorts guard the narrows here, the boats must get past this line. */
 export const STRAIT_GUARD_Y = 7_000;
 export const STRAIT_EXIT_Y = 15_000;
+/** Harbour attack: where the boats start, about 14 km out from the anchorage (18 km: 23:7, 10 km: 3:17 in the arena). */
+export const HARBOUR_SUB_Y = 18_000;
 /** Shadowing: minutes of held contact the pack needs. */
 export const SHADOW_GOAL_S = 25 * 60;
 /** Shadowing only counts within this distance of a convoy ship. */
@@ -182,7 +184,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     const frac = custom ? custom.subFrac : mission === 'hafen' ? 0.9 : v.subFrac(i, 0.45 + ((i * 0.37) % 0.3));
     const spread = MISSIONS[mission].subSpread;
     const x = v.subX(i, (i % 2 === 0 ? 1 : -1) * (spread + (i * spread) / 2));
-    const y = mission === 'duell' ? 25_000 + v.subDy(i) : mission === 'meerenge' ? -1500 - i * 800 + v.subDy(i) : mission === 'hafen' ? Math.min(route * frac, 22_000) + v.subDy(i) : route * frac;
+    const y = mission === 'duell' ? 25_000 + v.subDy(i) : mission === 'meerenge' ? -1500 - i * 800 + v.subDy(i) : mission === 'hafen' ? HARBOUR_SUB_Y + v.subDy(i) : route * frac;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'east', playerId: p.playerId,
       pos: { x, y }, heading: mission === 'meerenge' ? 0 : 180, speedKn: 4, depth: 80,

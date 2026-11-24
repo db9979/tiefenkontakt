@@ -33,6 +33,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Stabilisierung (Knopf „Stab“, Taste G): ohne sie schwankt das Bild mit Schiff und Seegang, das Fernglas zittert in
   der Hand.
 
+- **3D-Ansicht aufs Handy:** Auf Brücke und Sehrohr zeigt „📱 Handy“ einen QR-Code (Einmal-Link, 10 Minuten). Das
+  Handy zeigt Sehrohr oder Fernglas, umschauen durch Drehen und Neigen (Kreisel), zwei Finger zoomen, Tippen wählt ein
+  Schiff, Foto-Knopf; die Station am PC folgt dem Blick des Handys. Ton aus dem Handy-Lautsprecher.
+- **Hafenangriff:** Die KI-U-Boote laufen den bekannten Ankerplatz an und schießen aus Sehrohrtiefe einen Fächer.
+
 ### Grafik
 - **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
   eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route

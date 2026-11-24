@@ -2,9 +2,12 @@ import { angleDiff, fogAt, lookoutRanges, type Sighting } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from '../../widgets/periscope3d.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
+import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
 import { isKey } from '../../widgets/keys.js';
 import { easeAngle, moverNow, ownNow, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
+import { bridgeTargets } from '../../widgets/scope-targets.js';
+import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
 import { CLASS_LABEL, deg3, fitCanvas, h, km, setHtml } from '../../widgets/format.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
@@ -14,8 +17,6 @@ const H = 380;
 const WIDE_FOV = 75;
 /** Binocular magnifications: true field of view is about 52° / magnification (7×50: 7.4°). */
 const MAGS = [6, 8, 10, 12];
-/** Visual contacts stay in the picture this long after the last sighting (s). */
-const SIGHT_HOLD = 8;
 const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'AUFGETAUCHT' };
 
 /** Escorts' bridge: lookout view in 3D with 7× binoculars, own formation in sight, lookout reports. */
@@ -146,6 +147,7 @@ export function bridgeStation(): Station {
   };
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Brücke', el);
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
+  el.querySelector('#foto')!.after(phoneButton());
   for (const id of ['#left', '#right', '#ahead', '#report']) el.querySelector(id)!.addEventListener('click', () => (airTrack = undefined));
   let dragX: number | undefined;
   let dragY = 0;
@@ -176,38 +178,11 @@ export function bridgeStation(): Station {
     rel = relTarget;
   });
 
-  /** What the bridge can see: own formation within visual range, and lookout sightings. */
+  /** What the bridge can see (scope-targets.ts), sightings gliding between sweeps. */
   function targets(): PeriscopeTarget[] {
     const s = store.snap;
     if (!s) return [];
-    const env = { layerDepth: 0, layerLoss: 0, seaState: s.env.seaState, light: s.env.light, rain: s.env.rain };
-    const reach = Math.max(4_000, lookoutRanges(env).surfaced * 1.8);
-    const out: PeriscopeTarget[] = [];
-    // Own ship and formation extrapolated to this frame, so the picture glides between 1 Hz updates
-    const me = ownNow();
-    for (const f of s.friendlies) {
-      if (f.id === s.own.id) continue;
-      // A mate that sank: shown going down if she was in sight
-      if (!f.alive) {
-        out.push({ label: f.id, cls: f.cls, bearing: 0, range: 0, alpha: 0, sunk: true });
-        continue;
-      }
-      const fp = s.time - f.reportedAt < 3 ? moverNow(f, f.reportedAt) : f;
-      const dx = fp.x - me.x;
-      const dy = fp.y - me.y;
-      const r = Math.hypot(dx, dy);
-      if (r > reach || r < 50) continue;
-      out.push({ label: f.id, cls: f.cls, bearing: (Math.atan2(dx, dy) * 180) / Math.PI, range: r, course: f.heading, speedKn: f.speedKn, alpha: 1, lit: f.lit, wreck: f.wreck });
-    }
-    const now = simNow();
-    for (const c of s.contacts) {
-      if (!c.sighting || c.sightedAt === undefined || c.range === undefined) continue;
-      const age = now - c.sightedAt;
-      if (age > SIGHT_HOLD) continue;
-      out.push({ label: c.label, cls: 'ssk', sighting: c.sighting, bearing: c.bearing, range: c.range, alpha: Math.min(1, (SIGHT_HOLD - age) / 2), speedKn: 6, course: c.bearing + 90 });
-    }
-    // Aircraft in sight (helicopters, patrol aircraft, airliners, the enemy's recon)
-    out.push(...planeTargets(s, me, now));
+    const out = bridgeTargets(s);
     // Sightings only come once per sweep: glide toward the latest values
     for (const tg of out) {
       if (!tg.sighting) continue;
@@ -285,6 +260,17 @@ export function bridgeStation(): Station {
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;
       const nowMs = performance.now();
+      // A paired phone steers the look: bearing, tilt, binoculars and their power
+      const pl = phoneLook();
+      if (pl && s) {
+        glass = pl.glass;
+        el.querySelector('#glass')!.classList.toggle('on', glass);
+        if (glass) setMag(MAGS.reduce((a, b) => (Math.abs(b - pl.mag) < Math.abs(a - pl.mag) ? b : a)));
+        relTarget = rel = angleDiff(s.own.heading, pl.bearing);
+        tilt = Math.max(-30, Math.min(75, pl.elev - (glass ? -0.15 : -8)));
+        airTrack = undefined;
+      }
+      if (phonePhoto()) photoReq = true;
       rel = ((easeAngle(rel, relTarget, (nowMs - last) / 1000, 0.15) + 540) % 360) - 180;
       last = nowMs;
       const t = (nowMs - t0) / 1000;
@@ -399,39 +385,4 @@ export function bridgeStation(): Station {
       shutterFlash(ctx, 0, 0, w, H, nowMs - flashAt);
     },
   };
-}
-
-/**
- * Binocular reticle: a mil scale across (10 mil steps, 1 mil = 1 m at 1 km) and a vertical one
- * below the centre, for estimating range from a known mast height or ship length.
- */
-function reticle(ctx: CanvasRenderingContext2D, w: number, hgt: number, fovDeg: number, r: number): void {
-  const pxPerMil = (w / fovDeg) * (180 / Math.PI / 1000);
-  const cx = w / 2, cy = hgt / 2;
-  ctx.save();
-  ctx.strokeStyle = 'rgba(20,24,22,0.85)';
-  ctx.fillStyle = 'rgba(20,24,22,0.85)';
-  ctx.lineWidth = 1.2;
-  ctx.font = '10px ui-monospace, monospace';
-  ctx.textAlign = 'center';
-  const span = Math.min(50, Math.floor((r * 0.85) / pxPerMil / 10) * 10);
-  ctx.beginPath();
-  ctx.moveTo(cx - span * pxPerMil, cy);
-  ctx.lineTo(cx + span * pxPerMil, cy);
-  ctx.moveTo(cx, cy - 6);
-  ctx.lineTo(cx, cy + span * 0.6 * pxPerMil);
-  for (let m = -span; m <= span; m += 5) {
-    const x = cx + m * pxPerMil;
-    const big = m % 10 === 0;
-    ctx.moveTo(x, cy - (big ? 6 : 3));
-    ctx.lineTo(x, cy);
-  }
-  for (let m = 5; m <= span * 0.6; m += 5) {
-    const y = cy + m * pxPerMil;
-    ctx.moveTo(cx - (m % 10 === 0 ? 5 : 3), y);
-    ctx.lineTo(cx + (m % 10 === 0 ? 5 : 3), y);
-  }
-  ctx.stroke();
-  for (let m = 10; m <= span; m += 10) for (const sx of [-1, 1]) ctx.fillText(String(m), cx + sx * m * pxPerMil, cy - 9);
-  ctx.restore();
 }

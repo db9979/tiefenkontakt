@@ -107,6 +107,8 @@ body.crt .panel::after {
     radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
   mix-blend-mode: multiply;
 }
+/* A panel the phone camera must read (QR code): no scanlines over it */
+body.crt .panel.plain::after { display: none; }
 body.crt .hd, body.crt .title { text-shadow: 0 0 4px rgba(93, 202, 165, 0.45); }
 button.danger { border-color: #7a2a22; color: #e0705f; }
 button.link { background: none; border: none; color: var(--dim, #6f8a78); text-transform: none; padding: 0; cursor: pointer; text-decoration: underline; }

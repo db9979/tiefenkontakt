@@ -6,6 +6,7 @@ import { blasts } from '../../widgets/blasts.js';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
+import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
 import { isKey } from '../../widgets/keys.js';
 import { CHOICE_LABEL, CLASS_LABEL, COL, deg1, deg3, fitCanvas, h, km, mastState } from '../../widgets/format.js';
 import { SkySearch } from '../../widgets/sky-search.js';
@@ -121,6 +122,7 @@ export function periscopeStation(): Station {
   el.querySelector<HTMLButtonElement>('#sky')!.onclick = () => (sky.sweeping ? sky.cancel() : (sky.startSweep(performance.now(), periTarget), setZoom(1.5)));
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Sehrohr', el);
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
+  el.querySelector('#foto')!.after(phoneButton());
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
     sky.level();
     const c = store.selectedContact();
@@ -255,6 +257,15 @@ export function periscopeStation(): Station {
       const nowMs = performance.now();
       const t = (nowMs - t0) / 1000;
       const air = s && mastState(s.own).raised ? planeTargets(s, s.own, simNow()) : [];
+      // A paired phone steers the optic: bearing, elevation and power
+      const pl = phoneLook();
+      if (pl) {
+        periTarget = periBearing = ((pl.bearing % 360) + 360) % 360;
+        sky.nudge(pl.elev - sky.elevTarget);
+        const want = pl.mag < 3 ? 1.5 : pl.mag < 9 ? 6 : 12;
+        if (want !== mag) setZoom(want);
+      }
+      if (phonePhoto()) photoReq = true;
       const sweepTo = sky.frame(nowMs, (nowMs - lastFrame) / 1000, periBearing, pfov(), air, simNow());
       if (sweepTo !== undefined) periTarget = periBearing = ((sweepTo % 360) + 360) % 360;
       if (s && !mastState(s.own).raised) sky.cancel();

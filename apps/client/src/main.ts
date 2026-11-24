@@ -102,7 +102,10 @@ const toAuth = () => go('auth', () => authScreen(root, (callsign) => net.connect
 window.addEventListener('hashchange', () => /^#(verify|reset)=/.test(location.hash) && location.reload());
 // Shared replay link (/r/<id>): only the playback, no connection, lobby or login
 const replayId = sharedReplayId();
-if (replayId) void sharedReplayScreen(root, replayId, (d, close) => debriefOverlay(d, close, false, true));
+// Phone view (QR code from the bridge or periscope): only the 3D optic, its own connection
+const phoneCode = /^#phone=([\w-]{6,40})$/.exec(location.hash)?.[1];
+if (phoneCode) void import('./screens/phone.js').then((m) => m.phoneScreen(root, phoneCode));
+else if (replayId) void sharedReplayScreen(root, replayId, (d, close) => debriefOverlay(d, close, false, true));
 else if (handleMailLink(root, () => net.connect(''))) screen = 'auth';
 else if (savedGuest) net.connect(savedGuest);
 else toAuth();

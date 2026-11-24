@@ -13,6 +13,7 @@ import { createMailer, SmtpMailer } from './mailer.js';
 import { resetMail, verifyMail } from './mail-templates.js';
 import { handleAdmin } from './admin.js';
 import { bathyFile } from './bathy-load.js';
+import { PhoneHub } from './phone.js';
 import { FeedbackStore, feedbackSchema } from './feedback.js';
 import { ModerationStore } from './moderation.js';
 import { Backups } from './backup.js';
@@ -55,6 +56,7 @@ const badges = new BadgeStore(auth.db);
 const rankings = new Rankings(auth.db, stats, badges);
 const weekly = new WeeklyStore(auth.db);
 const feedback = new FeedbackStore(auth.db);
+const phones = new PhoneHub();
 rankings.init();
 campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
@@ -433,6 +435,9 @@ function identity(user: User | undefined, guestName: string | null, guestToken: 
 
 wss.on('connection', (ws: WebSocket, req) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
+  // A paired phone (3D view only): its own small protocol, phone.ts
+  const phoneCode = url.searchParams.get('phone');
+  if (phoneCode !== null) return void phones.attach(ws, phoneCode);
   const user = auth.userForToken(parseCookies(req.headers.cookie)[COOKIE]);
   const conn: Conn = {
     ...identity(user, url.searchParams.get('guest'), url.searchParams.get('gid')),
@@ -441,6 +446,7 @@ wss.on('connection', (ws: WebSocket, req) => {
       const text = JSON.stringify(msg, roundNumbers);
       metrics.sent(text.length);
       ws.send(text);
+      phones.mirror(conn.playerId, msg, text);
     },
     close: (reason: string, code = 4000) => {
       if (ws.readyState === ws.OPEN) ws.close(code, reason);
@@ -454,6 +460,7 @@ wss.on('connection', (ws: WebSocket, req) => {
     conn.send({ t: 'removed', msg: `Gesperrt bis ${new Date(ban.until).toLocaleString('de-DE')}: ${ban.reason}` });
     return conn.close!('banned', 4001);
   }
+  phones.main(conn);
   const resumed = lobby.connect(conn);
   conn.send({ t: 'welcome', playerId: conn.playerId, callsign: conn.callsign, resume: resumed });
   lobby.resume(conn);
@@ -470,6 +477,7 @@ wss.on('connection', (ws: WebSocket, req) => {
     metrics.msgsReceived++;
     const msg = parseClientMsg(data.toString());
     if (!msg) return conn.send({ t: 'error', msg: 'Ungültige Nachricht' });
+    if (msg.t === 'phone_link') return conn.send({ t: 'phone_link', code: phones.link(conn) });
     lobby.handle(conn, msg);
   });
   ws.on('close', () => lobby.disconnect(conn));

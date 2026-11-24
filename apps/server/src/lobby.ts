@@ -352,6 +352,9 @@ export class Lobby {
         return void err(this.sandbox.handle(conn, m, msg));
       case 'photo':
         return void err(takePhoto(m, conn.playerId, msg));
+      case 'phone_link':
+        // Answered in index.ts (phone.ts) before the lobby sees it
+        return;
       default:
         return void err(m.command(conn.playerId, msg));
     }
