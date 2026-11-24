@@ -27,6 +27,7 @@ import { voicePanel } from '../widgets/voice-panel.js';
 import { voice } from '../voice/voice.js';
 import { frameIntervalMs } from '../widgets/perf.js';
 import { mountHelm } from './helm.js';
+import { setPadTarget } from '../gamepad.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
 import { callouts } from '../widgets/callouts.js';
@@ -395,6 +396,15 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     helm.key(e);
   };
   window.addEventListener('keydown', onKey);
+  // Gamepad: same helm orders as mouse and keyboard; LB/RB cycle stations, Start ⚙, Back help
+  const unPad = setPadTarget({
+    orderedHeading: () => store.snap?.own.order.heading,
+    course: (hdg) => helm.course(hdg),
+    nudge: (d) => helm.nudge(d),
+    station: (d) => stations.length && show((current + d + stations.length) % stations.length),
+    menu: () => menu.button.click(),
+    help: () => document.querySelector<HTMLButtonElement>('.overlay.help #close')?.click() ?? helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true),
+  });
 
   let raf = 0;
   let drawnAt = 0;
@@ -417,6 +427,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     off();
     cancelAnimationFrame(raf);
     window.removeEventListener('keydown', onKey);
+    unPad();
     vp.dispose();
     sandbox.dispose();
     voice.leave();

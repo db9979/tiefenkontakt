@@ -68,6 +68,17 @@ export function mountHelm(el: HTMLElement) {
     if (l !== undefined) order({ depth: l + 30 });
   };
 
+  /** Step the ordered course, speed or depth from the current order (keyboard, gamepad). */
+  function nudge(d: { heading?: number; speedKn?: number; depth?: number }): void {
+    const s = store.snap;
+    if (!s) return;
+    const o = s.own.order;
+    const spec = CLASSES[s.own.cls];
+    if (d.heading) order({ heading: (o.heading + d.heading + 360) % 360 });
+    if (d.speedKn) order({ speedKn: Math.min(Math.max(o.speedKn + d.speedKn, 0), spec.maxSpeedKn) });
+    if (d.depth && spec.submarine) order({ depth: Math.max(o.depth + d.depth, 0) });
+  }
+
   let shownHeading: number | undefined;
   let lastDraw = performance.now();
 
@@ -154,17 +165,19 @@ export function mountHelm(el: HTMLElement) {
       }
     },
     frame: drawCompass,
+    /** Set the ordered course (gamepad stick). */
+    course(heading: number) {
+      if (store.snap) order({ heading: Math.round(wrap360(heading)) });
+    },
+    nudge,
     key(e: KeyboardEvent) {
-      const s = store.snap;
-      if (!s) return;
-      const o = s.own.order;
       const stepH = e.shiftKey ? 1 : 5;
-      if (isKey(e, 'left')) order({ heading: (o.heading - stepH + 360) % 360 });
-      else if (isKey(e, 'right')) order({ heading: (o.heading + stepH) % 360 });
-      else if (isKey(e, 'faster')) order({ speedKn: Math.min(o.speedKn + 1, CLASSES[s.own.cls].maxSpeedKn) });
-      else if (isKey(e, 'slower')) order({ speedKn: Math.max(o.speedKn - 1, 0) });
-      else if (isKey(e, 'up')) order({ depth: Math.max(o.depth - 10, 0) });
-      else if (isKey(e, 'down')) order({ depth: o.depth + 10 });
+      if (isKey(e, 'left')) nudge({ heading: -stepH });
+      else if (isKey(e, 'right')) nudge({ heading: stepH });
+      else if (isKey(e, 'faster')) nudge({ speedKn: 1 });
+      else if (isKey(e, 'slower')) nudge({ speedKn: -1 });
+      else if (isKey(e, 'up')) nudge({ depth: -10 });
+      else if (isKey(e, 'down')) nudge({ depth: 10 });
       else return;
       e.preventDefault();
     },

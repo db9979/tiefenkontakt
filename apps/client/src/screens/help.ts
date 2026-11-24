@@ -51,6 +51,14 @@ export function helpOverlay(submarine: boolean): void {
     <h3>TASTATUR</h3>
     <div class="dim">Aktion anklicken, dann die neue Taste drücken. ⇧ beim Kurs = 1° statt 5°.</div>
     <div id="keys"></div>
+    <h3>GAMEPAD</h3>
+    <table>
+      <tr><td>Linker Stick</td><td>Kurs ändern: je weiter, desto schneller. Steuerkreuz ← → = 1°.</td></tr>
+      <tr><td>RT / LT</td><td>Fahrt +1 / −1 kn (halten wiederholt).</td></tr>
+      ${submarine ? '<tr><td>Steuerkreuz ↑ ↓</td><td>Tiefe −10 / +10 m.</td></tr>' : ''}
+      <tr><td>LB / RB</td><td>Vorige / nächste Station.</td></tr>
+      <tr><td>Start · Back</td><td>⚙ Einstellungen · diese Hilfe.</td></tr>
+    </table>
     <h3>${submarine ? 'ABLAUF U-BOOT' : 'ABLAUF FREGATTE'}</h3>
     <table>${howto}</table>
     <div class="dim" style="margin-top:10px">Die Simulation läuft mit 3-facher Zeitraffung. Alle Uhren zeigen Simulationszeit.</div>
