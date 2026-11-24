@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RECOG_ORDER, type ClassId } from '@tk/shared';
-import { shipModel } from './sea3d/models.js';
+import { convoyModel, shipModel } from './sea3d/models.js';
+import { CONVOY_TYPES, type ConvoyType } from './sea3d/convoy-types.js';
 
 /**
  * Silhouettes for the recognition book, rendered once from the real 3D models: side (bow to
@@ -55,9 +56,22 @@ export function recogImage(cls: ClassId, view: RecogView): string | undefined {
   return cache.get(`${cls}|${view}`);
 }
 
+/** Side view of one convoy type (the convoy page shows them all). */
+export function convoyImage(type: ConvoyType): string | undefined {
+  return cache.get(`merchant~${type}|side`);
+}
+
 /** Render every missing silhouette of these classes (synchronously, a few ms each). */
 export function renderRecog(classes: ClassId[]): void {
-  const todo = classes.filter((c) => !cache.has(`${c}|side`));
+  // Every class in three views; the convoy types in side view only
+  const todo: { key: string; build: () => THREE.Group; views: RecogView[] }[] = classes
+    .filter((c) => !cache.has(`${c}|side`))
+    .map((c) => ({ key: c, build: () => shipModel(c), views: ['side', 'bow', 'top'] }));
+  if (classes.includes('merchant')) {
+    for (const [type] of CONVOY_TYPES) {
+      if (!cache.has(`merchant~${type}|side`)) todo.push({ key: `merchant~${type}`, build: () => convoyModel(type), views: ['side'] });
+    }
+  }
   if (!todo.length) return;
   const canvas = document.createElement('canvas');
   let renderer: THREE.WebGLRenderer;
@@ -77,8 +91,8 @@ export function renderRecog(classes: ClassId[]): void {
   const sun = new THREE.DirectionalLight(0xffffff, 1.4);
   sun.position.set(-40, 90, 60);
   scene.add(sun);
-  for (const cls of todo) {
-    const g = shipModel(cls);
+  for (const item of todo) {
+    const g = item.build();
     clean(g);
     scene.add(g);
     const box = new THREE.Box3().setFromObject(g);
@@ -86,7 +100,7 @@ export function renderRecog(classes: ClassId[]): void {
     const len = box.max.z - box.min.z;
     const beam = box.max.x - box.min.x;
     const midZ = (box.max.z + box.min.z) / 2;
-    for (const view of ['side', 'bow', 'top'] as RecogView[]) {
+    for (const view of item.views) {
       const [w, h] = VIEW_SIZE[view];
       renderer.setSize(w, h, false);
       // Ortho frame: the object fills the picture with a margin, waterline at 11 % from the bottom
@@ -108,7 +122,7 @@ export function renderRecog(classes: ClassId[]): void {
       }
       cam.updateProjectionMatrix();
       renderer.render(scene, cam);
-      cache.set(`${cls}|${view}`, canvas.toDataURL('image/png'));
+      cache.set(`${item.key}|${view}`, canvas.toDataURL('image/png'));
     }
     scene.remove(g);
     g.traverse((o) => (o as THREE.Mesh).geometry?.dispose());

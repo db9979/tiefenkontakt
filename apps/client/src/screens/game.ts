@@ -25,7 +25,7 @@ import { crewPanel } from '../widgets/crew-panel.js';
 import { onTap } from '../widgets/touch.js';
 import { voicePanel } from '../widgets/voice-panel.js';
 import { voice } from '../voice/voice.js';
-import { frameIntervalMs } from '../widgets/perf.js';
+import { FrameWatch, frameIntervalMs, stepDown } from '../widgets/perf.js';
 import { mountHelm } from './helm.js';
 import { setPadTarget } from '../gamepad.js';
 import { mountAssistant } from '../widgets/assistant.js';
@@ -408,11 +408,13 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
 
   let raf = 0;
   let drawnAt = 0;
+  const watch = new FrameWatch(frameIntervalMs);
   const loop = (now: number) => {
     raf = requestAnimationFrame(loop);
     // Frame cap by graphics quality: phones draw 24–30 fps instead of 60 (battery, heat)
     if (now - drawnAt < frameIntervalMs() - 2) return;
     drawnAt = now;
+    if (watch.note(now) && stepDown()) console.info('Grafik: Auto eine Stufe niedriger (Gerät zu langsam)');
     stations[current]?.frame();
     cam.frame(store.snap);
     helm.frame();

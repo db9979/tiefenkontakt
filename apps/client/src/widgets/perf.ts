@@ -29,7 +29,45 @@ export function quality(): Quality {
   if (q !== 'auto') return q;
   const touch = matchMedia('(pointer: coarse)').matches;
   const cores = navigator.hardwareConcurrency || 4;
-  return touch || cores <= 4 ? 'mittel' : 'hoch';
+  const guess: Quality = touch || cores <= 4 ? 'mittel' : 'hoch';
+  // Stepped down this session because the device could not keep up
+  const steps = Number(sessionStorage.getItem('tk_quality_down') ?? 0);
+  const order: Quality[] = ['niedrig', 'mittel', 'hoch'];
+  return order[Math.max(0, order.indexOf(guess) - steps)]!;
+}
+
+/**
+ * Watches the drawn frames: when the device reaches under 60 % of the frame cap for several
+ * seconds, 'auto' steps one level down (for this session; the next 3D view builds the lighter
+ * sea, frame cap and resolution follow at once). Gaps over half a second (tab hidden, a
+ * screen change) do not count.
+ */
+export class FrameWatch {
+  private sum = 0;
+  private n = 0;
+  private last = 0;
+  constructor(private target: () => number, private window = 6000) {}
+
+  /** A frame was drawn at `now` (ms); true when the device is too slow. */
+  note(now: number): boolean {
+    const dt = this.last ? now - this.last : 0;
+    this.last = now;
+    if (dt <= 0 || dt > 500) return false;
+    this.sum += dt;
+    this.n++;
+    if (this.sum < this.window) return false;
+    const slow = this.sum / this.n > this.target() / 0.6;
+    this.sum = 0;
+    this.n = 0;
+    return slow;
+  }
+}
+
+/** Step 'auto' down one level for this session (false when it is set by hand or already lowest). */
+export function stepDown(): boolean {
+  if (qualitySetting() !== 'auto' || quality() === 'niedrig') return false;
+  sessionStorage.setItem('tk_quality_down', String(Number(sessionStorage.getItem('tk_quality_down') ?? 0) + 1));
+  return true;
 }
 
 const level = () => LEVELS[quality()];

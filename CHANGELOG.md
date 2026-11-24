@@ -38,6 +38,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Beladen tief, in Ballast hoch mit rotem Unterwasserschiff; Rostfahnen, Zierstreifen, viele Reedereifarben.
 - Neutrale: Tanker, Containerschiffe, Fähren (auch mit farbigem Rumpf) und Schlepper in Größe und Farben variiert,
   dazu Motoryachten und ältere Seitenfänger neben Segelyachten und Heckfängern.
+- Eigener Produktentanker (~150 m) im Geleitzug statt des verkleinerten Großtankers. Das Erkennungsheft zeigt auf
+  der Geleitzug-Seite alle sechs Typen als Seitenriss.
+- Grafik „Auto“ schaltet für die Sitzung eine Stufe herunter, wenn ein Gerät unter 60 % der Bildrate bleibt.
 - Flugzeuge: Verkehrsflugzeuge in den Farben verschiedener Fluglinien, teils vierstrahlig; Sportflugzeuge und
   Hubschrauber in mehreren Lackierungen.
 

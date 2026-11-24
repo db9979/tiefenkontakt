@@ -4,7 +4,8 @@ import { FOAM, M, add, cyl, smoke } from './parts.js';
 import { surfacedBoat } from './boats.js';
 import { containerShip, ferry, tanker, tug } from './civil.js';
 import { trawler, yacht } from './smallcraft.js';
-import { bulkCarrier, cargoShip, roro } from './freighter.js';
+import { cargoShip, convoyShip } from './freighter.js';
+import type { ConvoyType } from './convoy-types.js';
 import { look, type Look } from './variety.js';
 import { asw, corvette, vdsFrigate } from './warships.js';
 
@@ -23,16 +24,15 @@ import { asw, corvette, vdsFrigate } from './warships.js';
 function merchant(g: THREE.Group, lk: Look): void {
   if (!lk.varied) return cargoShip(g, lk);
   const x = lk.r();
-  if (x < 0.4) cargoShip(g, lk);
-  else if (x < 0.54) cargoShip(g, lk, 'feeder');
-  else if (x < 0.68) bulkCarrier(g, lk);
-  else if (x < 0.8) cargoShip(g, lk, 'reefer');
-  else if (x < 0.9) roro(g, lk);
-  else {
-    // A product tanker: the big tanker's lines at about two thirds the size
-    tanker(g, lk);
-    g.scale.multiplyScalar(0.68);
-  }
+  const type: ConvoyType = x < 0.4 ? 'cargo' : x < 0.54 ? 'feeder' : x < 0.68 ? 'bulk' : x < 0.8 ? 'reefer' : x < 0.9 ? 'roro' : 'tanker';
+  convoyShip(g, lk, type);
+}
+
+/** One convoy type in its textbook look (recognition book). */
+export function convoyModel(type: ConvoyType): THREE.Group {
+  const g = new THREE.Group();
+  convoyShip(g, look(), type);
+  return g;
 }
 
 /** Model of a ship class seen on the surface. */

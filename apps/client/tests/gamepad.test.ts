@@ -129,3 +129,21 @@ describe('PadMapper', () => {
     expect(n).toBeLessThanOrEqual(5);
   });
 });
+
+describe('frame watch', () => {
+  it('reports a device that cannot keep up, not one that can or a hidden tab', async () => {
+    const { FrameWatch } = await import('../src/widgets/perf.js');
+    const fast = new FrameWatch(() => 1000 / 30);
+    let t = 0, slow = false;
+    for (let i = 0; i < 400; i++) slow ||= fast.note((t += 34));
+    expect(slow).toBe(false);
+    const weak = new FrameWatch(() => 1000 / 30);
+    t = 0;
+    for (let i = 0; i < 200; i++) slow ||= weak.note((t += 70));
+    expect(slow).toBe(true);
+    const hidden = new FrameWatch(() => 1000 / 30);
+    t = 0; slow = false;
+    for (let i = 0; i < 50; i++) slow ||= hidden.note((t += i % 2 ? 34 : 2000));
+    expect(slow).toBe(false);
+  });
+});

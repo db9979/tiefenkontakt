@@ -3,6 +3,7 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { CLASS_LABEL, esc, h } from './format.js';
 import type { RecogView } from './recog-render.js';
+import { CONVOY_TYPES } from './sea3d/convoy-types.js';
 
 /**
  * Erkennungsheft: a drawer beside the periscope or bridge view with every class one may meet,
@@ -57,6 +58,13 @@ export function toggleRecogBook(title: string, anchor: HTMLElement): void {
     q('#rb-list').innerHTML = html;
     for (const d of el.querySelectorAll<HTMLElement>('[data-cls]')) d.onclick = () => ((current = lastPage = d.dataset.cls as ClassId), list(), page(), assign());
   };
+  /** The convoy is not one class of ship: every type it may contain, side on. */
+  const convoyTypes = () => `<div class="dim" style="margin-top:6px">TYPEN IM GELEITZUG</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:2px">${CONVOY_TYPES.map(([t, name]) => {
+      const src = render?.convoyImage(t);
+      return `<div style="background:var(--well);border:1px solid var(--line);padding:3px">${src ? `<img src="${src}" alt="" style="height:34px;max-width:100%;display:block">` : '<div class="dim" style="height:34px">…</div>'}<div style="font-size:0.8333rem">${name}</div></div>`;
+    }).join('')}</div>
+    <div class="dim" style="margin-top:4px;line-height:1.45">Größe, Beladung und Farben wechseln von Schiff zu Schiff: in Ballast liegt ein Frachter hoch, das rote Unterwasserschiff zeigt sich.</div>`;
   const page = () => {
     const r = RECOG[current];
     const spec = CLASSES[current];
@@ -74,6 +82,7 @@ export function toggleRecogBook(title: string, anchor: HTMLElement): void {
       ${row('MASTHÖHE (STADIMETER)', `${r.mast} M`)}${row('HÖCHSTFAHRT', `${spec.maxSpeedKn} KN`)}
       ${row('VERDRÄNGUNG', `${spec.tonnage.toLocaleString('de-DE')} T`)}
       <div class="dim" style="margin-top:6px">MERKMALE</div><div style="line-height:1.45">${esc(r.cues)}</div>
+      ${current === 'merchant' ? convoyTypes() : ''}
       <div class="dim" style="margin-top:6px;line-height:1.45">Lage: Bug voraus wirkt der Rumpf kurz und hoch, querab zeigt er die volle Länge. Das Stadimeter rechnet mit der Masthöhe der zugewiesenen Klasse.</div>`;
   };
   /** The selected contact and its current assignment, with the assign button. */

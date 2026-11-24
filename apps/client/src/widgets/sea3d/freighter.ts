@@ -3,13 +3,15 @@ import { navLights, smoke, wake } from './parts.js';
 import { loftHull, type Hull } from './hullkit.js';
 import { C, Kit, base, bulwark, derrick, funnel, hatch, lifeboat, loftBlock, narrowest, pole, radar, raisedDeck, shipName, windlass, winRow, type V3 } from './civilkit.js';
 import { hullFor, pick, stretch, type Look } from './variety.js';
+import { deckPaint, deckRun } from './civil.js';
+import type { ConvoyType } from './convoy-types.js';
 
 /**
  * Convoy merchantmen of the 1960s–80s, built from one pattern with many variants: a general
  * cargo ship (house amidships, three quarters aft or right aft; four to six hatches; goalpost
  * derricks, king posts or deck cranes; timber, boxes or vehicles on the hatches), a white reefer
  * on fine lines, a geared or gearless container feeder, a bulk carrier with wide hatch covers
- * and a Ro-Ro freighter. Bow +z, waterline y = 0, port = +x; fittings stand on the deck.
+ * a Ro-Ro freighter and a product tanker. Bow +z, waterline y = 0, port = +x; fittings stand on the deck.
  */
 
 const HULLS = [0x26292b, 0x4a5156, 0x4a2e24, 0x2b3a31, 0x23344a, 0x5a5f5c, 0x6b2a22];
@@ -272,4 +274,59 @@ export function roro(g: THREE.Group, lk: Look): void {
   navLights(g, len, beam, yT + 11, zF - 6, h.deckAt(0));
   wake(g, 210, beam, L, -L);
   stretch(g, lk, 0.08, 0.04);
+}
+
+/**
+ * Product tanker (~150 m): low freeboard, pipe runs and a catwalk on posts down the deck, a
+ * manifold with a hose crane amidships, house and funnel right aft. Deep laden or high in ballast.
+ */
+export function productTanker(g: THREE.Group, lk: Look): void {
+  const r = lk.r;
+  const hullC = pick(r, [0x26292b, 0x3d4a52, 0x4a2e24, 0x2b3a31, 0x23344a, 0x6b2a22]);
+  const deckC = pick(r, [C.rust, C.green, 0x5f3a2c, C.grey]);
+  const [fBody, fBand] = pick(r, FUNNELS);
+  const len = 150, beam = 22, L = len / 2;
+  const h = loftHull(g, hullFor(lk, {
+    len, beam, freeboard: 4.5, draft: 8.5, sheerBow: 2, sheerStern: 0.4, rake: 5, flare: 0.03, fullness: 0.8, transom: 0.6, bilge: 0.95,
+    bulb: true, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.6, 1.0],
+  }, 4.5, r() < 0.25 ? C.white : undefined));
+  const k = new Kit(g);
+  const zH = -L + 27;
+  deckPaint(k, h, zH, L - 12, 0.4, deckC);
+  raisedDeck(k, h, L - 12, L, 2.6, hullC, deckC);
+  bulwark(k, h, L - 12, L - 0.4, 1.1, hullC, 2.6);
+  windlass(k, h.deckAt(L - 6) + 2.6, L - 5, 2.6);
+  pole(k, 0, h.deckAt(L - 10) + 2.5, L - 10, 9, 0.35, C.cream, [0.8], 3);
+  // Pipe runs and the catwalk on posts over the centreline
+  for (const x of [-2.6, -1.4, 1.4, 2.6]) deckRun(k, h, x, 0.6, zH, L - 12, 0.3, C.grey);
+  for (let z = zH + 3; z < L - 12; z += 9) k.rod([0, base(h, z, z), z], [0, h.deckAt(z) + 2.2, z], 0.14, C.grey, 4);
+  deckRun(k, h, 0, 2.3, zH, L - 12, 0.4, C.steel, 9);
+  for (let z = zH + 6; z < L - 14; z += 11) for (const sx of [-1, 1]) k.cyl(0.6, 0.6, sx * 6, h.deckAt(z) + 0.25, z, C.grey, 0.6, 6);
+  // Manifold amidships with valves at both rails, hose crane
+  const zm = 4;
+  const yM = base(h, zm - 2, zm + 2);
+  for (const z of [zm - 1.2, zm + 1.2]) {
+    k.rod([-beam / 2 + 1.5, yM + 1.2, z], [beam / 2 - 1.5, yM + 1.2, z], 0.3, C.grey, 6);
+    for (const sx of [-1, 1]) k.block(1, 1.4, 1, sx * (beam / 2 - 2), yM, z, C.red);
+  }
+  k.cyl(0.5, 7, 3, yM + 3.5, zm + 5, C.cream, 0.4, 8);
+  const tip: V3 = [beam / 2 - 1, yM + 9, zm];
+  k.rod([3, yM + 5.5, zm + 5], tip, 0.25, C.cream, 6, 0.15);
+  k.line(tip, [tip[0], yM + 3, tip[2]]);
+  const hs = house(k, g, h, -L + 4, zH, 2 + Math.floor(r() * 2), pick(r, [C.white, C.white, C.cream]));
+  const top = stack(k, r, hs.y2 + 2.8, -L + 9, fBody, fBand);
+  k.done();
+  shipName(g, h, pick(r, ['PETRO ATLAS', 'NORDIC SUN', 'ESSO BERLIN', 'TEXACO NORGE', 'BP ENDEAVOUR', 'STOLT EAGLE', 'SHELL MARINER', 'AEGEAN SPIRIT']), L - 8, h.deckAt(L - 8) + 1.1, 1.7);
+  smoke(g, top[0], top[1] + 0.5, top[2], 6);
+  navLights(g, len, beam, hs.roof + 5.3, zH - 5, h.deckAt(0));
+  wake(g, 220, beam, L, -L);
+  stretch(g, lk, 0.1, 0.05);
+}
+
+/** Build a convoy ship of the given type. */
+export function convoyShip(g: THREE.Group, lk: Look, type: ConvoyType): void {
+  if (type === 'bulk') bulkCarrier(g, lk);
+  else if (type === 'tanker') productTanker(g, lk);
+  else if (type === 'roro') roro(g, lk);
+  else cargoShip(g, lk, type);
 }

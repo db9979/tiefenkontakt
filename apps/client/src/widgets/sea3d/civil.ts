@@ -55,7 +55,7 @@ export function deckPaint(k: Kit, h: Hull, z0: number, z1: number, inset: number
 }
 
 /** Polyline of round bar following the deck at height dy above it, at x, from z0 to z1. */
-function deckRun(k: Kit, h: Hull, x: number, dy: number, z0: number, z1: number, r: number, c: number, step = 20): void {
+export function deckRun(k: Kit, h: Hull, x: number, dy: number, z0: number, z1: number, r: number, c: number, step = 20): void {
   for (let z = z0; z < z1 - 0.01; z += step) {
     const zb = Math.min(z1, z + step);
     k.rod([x, h.deckAt(z) + dy, z], [x, h.deckAt(zb) + dy, zb], r, c, 5);
