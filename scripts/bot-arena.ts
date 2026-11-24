@@ -15,6 +15,8 @@ const missions = (process.env.ARENA_MISSIONS?.split(',') ?? ['groenland', 'schel
 const mix = !!process.env.ARENA_MIX;
 // ARENA_MIXED=1 (both sides), west or east: the mixed place (West hunter-killer boat, East patrol ship) instead of one ship
 const mixed = process.env.ARENA_MIXED;
+// ARENA_SEED=n: first match seed (default 1000), to sample other matches
+const seedBase = Number(process.env.ARENA_SEED ?? 1000);
 const results = [];
 const ordersTally = { west: [0, 0], east: [0, 0] };
 /** Per mission: wins West/East and mines that hit convoy merchants. */
@@ -26,7 +28,7 @@ for (let g = 0; g < games; g++) {
     // ARENA_SEASON=winter|fruehling|sommer|herbst: fix the month (default: drawn per match)
     ...(process.env.ARENA_SEASON ? { season: process.env.ARENA_SEASON as ArenaSetup['season'] } : {}) };
   const t0 = Date.now();
-  const game = new ArenaGame(setup, 1000 + g);
+  const game = new ArenaGame(setup, seedBase + g);
   // ARENA_NO_ORDERS=1: without fleet command's FLASH orders (to measure them separately)
   if (process.env.ARENA_NO_ORDERS) game.world.env.orders = undefined;
   while (!game.step(1000));
@@ -42,9 +44,12 @@ for (let g = 0; g < games; g++) {
   pm[r.winner === 'west' ? 'w' : 'e']++;
   pm.mineHits += mineHits;
   perMission.set(setup.mission, pm);
+  // Convoy merchants sunk by a surface ship (the patrol ship's missiles), not by the boats
+  const byShip = (id: string | undefined) => game.world.ships.find((x) => x.id === id);
+  const ssmSunk = game.world.events.filter((e) => e.kind === 'sunk' && convoyHit(e.shipId) && byShip(e.byId)?.team === 'east' && !CLASSES[byShip(e.byId)!.cls].submarine).length;
   const shots = (what: string) => game.world.events.filter((e) => e.kind === 'weapon' && e.what === what).length;
   console.log(
-    `${setup.mission.padEnd(9)} ${r.winner.padEnd(4)} ${String(r.minutes).padStart(4)} min | Frachter ${r.merchantsSunk} | U-Boote ${r.subsLost} | Eskorten ${r.escortsLost}` +
+    `${setup.mission.padEnd(9)} ${r.winner.padEnd(4)} ${String(r.minutes).padStart(4)} min | Frachter ${r.merchantsSunk} (FK ${ssmSunk}) | U-Boote ${r.subsLost} | Eskorten ${r.escortsLost}` +
       ` | Torpedos ${r.torpedoes} Raketen ${shots('rocket')} Bojen ${shots('buoy')} SSM ${shots('ssm')}/${game.world.events.filter((e) => e.kind === 'hit' && game.world.ships.find((x) => x.id === e.byId)?.cls === 'ffk' && !CLASSES[game.world.ships.find((x) => x.id === e.shipId)?.cls ?? 'ssn'].submarine).length} Funk ${game.world.events.filter((e) => e.kind === 'transmission').length}` +
       ` | FK ${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'launch').length}/${game.world.events.filter((e) => e.kind === 'airdef' && e.what === 'kill').length} Minen ${game.world.env.mines?.mines.length ?? 0}/${game.world.events.filter((e) => e.kind === 'mine' && e.what === 'detonated').length}/F${mineHits} | Befehle W ${of('west')} O ${of('east')} | ${r.reason} | ${Date.now() - t0} ms`,
   );

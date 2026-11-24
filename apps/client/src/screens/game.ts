@@ -292,15 +292,18 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     // Convoy tonnage bar: red grows from the left (sunk), blue from the right (safe in port);
     // whoever passes the middle mark (50 %) wins at once, the 30 % mark decides at the time limit
     const sunk = pct(s.score.sunkTons);
+    // Merchants the patrol ship sinks count half toward the wolfpack's goal: the bar shows what counts
+    const counted = pct(s.score.countedTons ?? s.score.sunkTons);
+    const part = counted !== sunk ? ` (ZÄHLT ${counted} %)` : '';
     const safe = pct(s.score.arrivedTons);
     q('.st-prog').style.display = s.score.totalTons > 0 ? '' : 'none';
-    q('#pb-sunk').style.width = `${sunk}%`;
+    q('#pb-sunk').style.width = `${counted}%`;
     q('#pb-arr').style.width = `${safe}%`;
     const escort = s.own.team === 'west';
     const txt = q('#pb-txt');
     txt.innerHTML = escort
-      ? `<span class="red">VERLOREN ${sunk} %</span> · <span class="blue">SICHER ${safe} %</span> <span class="dim">· SIEG: ÜBER 50 % SICHER</span>`
-      : `<span class="red">VERSENKT ${sunk} %</span> · <span class="blue">ENTKOMMEN ${safe} %</span> <span class="dim">· SIEG: 50 % VERSENKT</span>`;
+      ? `<span class="red">VERLOREN ${sunk} %${part}</span> · <span class="blue">SICHER ${safe} %</span> <span class="dim">· SIEG: ÜBER 50 % SICHER</span>`
+      : `<span class="red">VERSENKT ${sunk} %${part}</span> · <span class="blue">ENTKOMMEN ${safe} %</span> <span class="dim">· SIEG: 50 % VERSENKT</span>`;
     q('.st-prog').title = escort
       ? `Konvoi-Tonnage. Rot: versenkt (${sunk} %), blau: sicher im Zielhafen (${safe} %). Mehr als die Hälfte im Ziel = Sieg, die Hälfte versenkt = Niederlage. Bei Zeitablauf verliert der Geleitschutz ab 30 % Verlust (Strich).`
       : `Konvoi-Tonnage. Rot: von uns versenkt (${sunk} %), blau: entkommen (${safe} %). Die Hälfte versenkt = Sieg; kommt mehr als die Hälfte an, ist die Partie verloren. Bei Zeitablauf reichen 30 % (Strich).`;

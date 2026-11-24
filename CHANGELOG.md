@@ -6,6 +6,10 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Siegregel Wachschiff:** Frachter, die das Wachschiff mit Seezielflugkörpern versenkt, zählen nur zur Hälfte zum
+  Tonnage-Ziel des Ostpakts; der Konvoi bleibt Sache der U-Boote. Die Tonnage-Leiste zeigt dann „ZÄHLT … %“. Ostpakt
+  mit Wachschiff in der KI-Arena (60 Partien, fünf Missionen) 22:38 -> 28:32, auf den Konvoi-Missionen 26:22. Die
+  Arena kennt `ARENA_SEED` (andere Partien als ab 1000) und zählt Flugkörper-Versenkungen mit.
 - **Karten ausgeglichen:** Seit Gelände, Strömung und Jahreszeiten lagen die Konvoi-Missionen beim Ostpakt (KI-Arena
   10:20). Schelfmeer: Boote warten 10 statt 5 km neben der Route. Fjordausfahrt: Eskorten starten 4 km vor dem Konvoi.
   Hafenangriff: Start 17 statt 16 km vor dem Ankerplatz. Meerenge: Ausgang 1,5 km weiter nördlich. Arena jetzt 23:17.

@@ -11,7 +11,15 @@ export interface Score {
   sunkTons: number;
   arrivedTons: number;
   totalTons: number;
+  /** Tonnage that counts toward the Ostpakt's goal: merchants sunk by a surface ship count only in part. */
+  countedTons: number;
 }
+
+/**
+ * The convoy is the wolfpack's target: a merchant the patrol ship sinks with missiles
+ * counts only this share toward the Ostpakt's tonnage goal (the boats must do the rest).
+ */
+export const SUPPORT_TONS_SHARE = 0.5;
 
 export interface MatchResult {
   winner: 'west' | 'east';
@@ -21,7 +29,16 @@ export interface MatchResult {
 export function computeScore(w: World): Score {
   const merchants = w.ships.filter(isConvoyShip);
   const tons = (ids: string[]) => ids.length * CLASSES.merchant.tonnage;
+  const sunk = merchants.filter((m) => !m.alive).map((m) => m.id);
+  // Who sank it: the ship of the last hit, as recorded on the sinking
+  const sinker = new Map<string, string | undefined>();
+  for (const e of w.events) if (e.kind === 'sunk') sinker.set(e.shipId, e.byId);
+  const bySurface = sunk.filter((id) => {
+    const by = w.ships.find((s) => s.id === sinker.get(id));
+    return !!by && by.team === 'east' && !CLASSES[by.cls].submarine;
+  });
   return {
+    countedTons: tons(sunk) - tons(bySurface) * (1 - SUPPORT_TONS_SHARE),
     sunkTons: tons(merchants.filter((m) => !m.alive).map((m) => m.id)),
     arrivedTons: tons(w.convoy?.arrived ?? []),
     totalTons: tons(merchants.map((m) => m.id)),
@@ -33,18 +50,18 @@ export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): M
   if (mission === 'duell') return duel(w, timeLimitS);
   if (mission === 'fuehlung' || mission === 'meerenge' || mission === 'aufklaerung') return special(w, timeLimitS, mission);
   const sc = computeScore(w);
-  if (sc.totalTons > 0 && sc.sunkTons >= sc.totalTons * 0.5) return { winner: 'east', reason: 'Die Hälfte der Konvoi-Tonnage versenkt' };
+  if (sc.totalTons > 0 && sc.countedTons >= sc.totalTons * 0.5) return { winner: 'east', reason: 'Die Hälfte der Konvoi-Tonnage versenkt' };
   if (sc.totalTons > 0 && sc.arrivedTons > sc.totalTons * 0.5) return { winner: 'west', reason: 'Der Konvoi hat sein Ziel erreicht' };
   // The wolfpack: the Ostpakt's boats (its patrol ship alone cannot sink the convoy)
   const subs = w.ships.filter((s) => s.team === 'east' && CLASSES[s.cls].submarine);
   if (subs.length > 0 && subs.every((s) => !s.alive)) return { winner: 'west', reason: 'Alle U-Boote versenkt' };
   if (w.time >= timeLimitS) {
     if (mission === 'hafen') {
-      return sc.sunkTons >= sc.totalTons * 0.3
+      return sc.countedTons >= sc.totalTons * 0.3
         ? { winner: 'east', reason: 'Zeit abgelaufen, der Hafen ist getroffen' }
         : { winner: 'west', reason: 'Zeit abgelaufen, der Hafen hat gehalten' };
     }
-    return sc.sunkTons >= sc.totalTons * 0.3
+    return sc.countedTons >= sc.totalTons * 0.3
       ? { winner: 'east', reason: 'Zeit abgelaufen, genug Tonnage versenkt' }
       : { winner: 'west', reason: 'Zeit abgelaufen, Konvoi weitgehend unversehrt' };
   }

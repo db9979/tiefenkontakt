@@ -377,7 +377,7 @@ export interface Snapshot {
     /** Tidal stream: strength now, flood or ebb, seconds to the next slack water. */
     tide?: { kn: number; flood: boolean; turnsInS: number };
   };
-  score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number };
+  score: { sunkTons: number; arrivedTons: number; totalTons: number; timeLeftS: number; countedTons?: number };
   /** FLASH orders from fleet command read aboard (orders.ts). */
   orders?: import('./orders.js').OrderView[];
   /** Surface ships: the AI escorts' team datum and hunter-killer roles (ship names), via datalink. */

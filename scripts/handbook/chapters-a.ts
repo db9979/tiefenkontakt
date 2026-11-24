@@ -16,7 +16,7 @@ Die Simulation ist bewusst nüchtern: Man sieht den Gegner fast nie. Man hört i
 Konvoi, der Ostpakt ein Wachschiff (Projekt 11) mit Seezielflugkörpern mit dem Rudel. Um eigene U-Boote liegt ein mitwanderndes Sperrgebiet von 4 km, in das
 die eigene Seite keine U-Jagd-Waffe wirft; außerhalb ist jedes unbekannte U-Boot ein Ziel. Freund oder Feind zu erkennen ist damit Pflicht.</p>
 <div class="cols2">
-<div class="box"><h4>Sieg für die U-Boote</h4><ul><li>Die Hälfte der Konvoi-Tonnage versenkt, oder</li><li>bei Zeitablauf mindestens 30 % versenkt.</li></ul></div>
+<div class="box"><h4>Sieg für die U-Boote</h4><ul><li>Die Hälfte der Konvoi-Tonnage versenkt, oder</li><li>bei Zeitablauf mindestens 30 % versenkt.</li></ul><p>Frachter, die das Wachschiff mit Seezielflugkörpern versenkt, zählen nur zur Hälfte: Der Konvoi ist Sache der U-Boote. Die Anzeige zeigt dann „ZÄHLT …&nbsp;%“.</p></div>
 <div class="box"><h4>Sieg für den Geleitschutz</h4><ul><li>Mehr als die Hälfte der Tonnage im Zielhafen, oder</li><li>alle U-Boote versenkt, oder</li><li>bei Zeitablauf weniger als 30 % Verlust.</li></ul></div>
 </div>
 <p>Die Zeit läuft dreifach gerafft: Eine Stunde Simulationszeit dauert 20 Minuten. Alle Uhren im Spiel zeigen Simulationszeit.
