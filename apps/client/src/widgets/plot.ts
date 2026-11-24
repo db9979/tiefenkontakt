@@ -11,6 +11,7 @@ import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
 import { drawOrderMarks } from './order-marks.js';
+import { ChartMarks } from './chart-marks.js';
 import { DepthChart } from './plot-depth.js';
 
 export interface PlotOptions {
@@ -70,6 +71,19 @@ export class Plot {
     zin!.onclick = () => (this.scale = Math.max(5, this.scale / 1.4));
     zout!.onclick = () => (this.scale = Math.min(MAX_SCALE, this.scale * 1.4));
     ctr!.onclick = () => (this.pan = { x: 0, y: 0 });
+    // Plotting tools: mark, line, circle, eraser (click again to put the pencil down)
+    for (const [tool, icon, title] of [['mark', '✕', 'Markierung setzen'], ['line', '⟋', 'Linie ziehen (Peilung und Länge)'], ['circle', '◯', 'Kreis ziehen (Radius)'], ['erase', '⌫', 'Zeichnung wegklicken']] as const) {
+      const b = document.createElement('button');
+      b.textContent = icon;
+      b.title = title;
+      b.dataset.tool = tool;
+      b.onclick = () => {
+        this.marks.tool = this.marks.tool === tool ? undefined : tool;
+        tools.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((x) => x.classList.toggle('on', x.dataset.tool === this.marks.tool));
+        canvas.style.cursor = this.marks.tool ? 'cell' : 'crosshair';
+      };
+      tools.appendChild(b);
+    }
     this.el.appendChild(tools);
 
     canvas.style.cursor = 'crosshair';
@@ -156,10 +170,12 @@ export class Plot {
   private down(e: MouseEvent): void {
     if (e.button !== 0) return;
     const m = this.local(e);
+    if (this.marks.down(this.toWorld(m), this.scale)) return;
     this.drag = this.hitSolution(m) ?? { kind: 'pan', x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y, moved: false };
   }
 
   private up(e: MouseEvent): void {
+    if (this.marks.up()) return;
     const d = this.drag;
     this.drag = undefined;
     if (d?.kind === 'pan' && !d.moved && e.target === this.canvas) {
@@ -171,6 +187,7 @@ export class Plot {
   private move(e: MouseEvent): void {
     const m = this.local(e);
     this.mouse = m;
+    if (this.marks.move(this.toWorld(m))) return;
     const s = store.snap;
     const d = this.drag;
     if (!d) {
@@ -227,6 +244,7 @@ export class Plot {
       });
     }
     items.push(...(this.opts.actions?.(wp) ?? []));
+    items.push({ label: 'Alle Zeichnungen löschen', run: () => this.marks.clear() });
     items.push({ label: 'Karte hier zentrieren', run: () => (this.pan = { x: wp.x - s.own.x, y: wp.y - s.own.y }) });
     openMenu(e.clientX, e.clientY, items, `${deg3(bearing(s.own, wp))}° · ${km(distance(s.own, wp))}`);
   }
@@ -325,6 +343,7 @@ export class Plot {
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y - v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 
+    this.marks.draw(ctx, P, this.scale);
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'left';
     let foot = `RASTER ${(step / NM).toFixed(0)} SM · RECHTSKLICK: AKTIONEN`;
@@ -336,6 +355,7 @@ export class Plot {
   }
 
   private depth = new DepthChart();
+  private marks = new ChartMarks();
 
   private lineFilters = new Map<string, { f: BearingRangeFilter; last: number }>();
 

@@ -38,6 +38,10 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Schiff, Foto-Knopf; die Station am PC folgt dem Blick des Handys. Ton aus dem Handy-Lautsprecher.
 - **Hafenangriff:** Die KI-U-Boote laufen den bekannten Ankerplatz an und schießen aus Sehrohrtiefe einen Fächer.
 
+- **Kartenwerkzeuge:** Markierung (mit Namen), Linie (mit Peilung und Länge), Kreis (mit Radius) und Radierer am
+  Rand des Plots; die Zeichnungen liegen fest auf der Karte und bleiben für die Partie gespeichert. Rechtsklick:
+  „Alle Zeichnungen löschen“.
+
 ### Grafik
 - **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
   eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route
