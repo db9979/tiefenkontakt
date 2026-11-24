@@ -23,6 +23,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Barentssee, Vestfjord, Kolabucht, Gibraltar, Dänemarkstraße, Färöer-Shetland-Kanal, Nordkap, Ostsee, Ofotfjord,
   Loch Ewe, Firth of Clyde, Messina, Dardanellen und Pentland Firth. In der Lobby wählt man zur Mission das
   Seegebiet; jede Mission spielt in den Gebieten, die zu ihr passen. Sofort-Spiel und Wochenlage ziehen ein Gebiet.
+- Balance auf den echten Karten (KI-Arena): Fjordausfahrt im breiten Vestfjord mit vorausgesetzter Eskorte und näher
+  wartenden U-Booten (vorher 1:9, jetzt 18:12); die anderen Missionen wie vorher.
 - **Land und Grund:** KI-Schiffe, Konvoi und Neutrale weichen Untiefen und Land aus, der Navigator warnt Spieler
   rechtzeitig; U-Boote laufen auf Land auf statt darüber zu fahren; Torpedos detonieren an der Küste.
 
