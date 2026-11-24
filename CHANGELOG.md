@@ -13,7 +13,19 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - **Gamepad:** linker Stick Kurs, Trigger Fahrt, Steuerkreuz Tiefe und Feinkurs, Schultertasten Station, Start ⚙-Menü,
   Select Hilfe.
 
+- **Rückmeldung nach der Partie** (für Testabende): Spaß 1–5, Stichworte, ein Satz; Moderatoren sehen Liste und
+  Schnitt in der Lobby.
+- **Moderationspanel:** Grafikleistung echter Geräte (anonym, Bildzeiten je Geräteklasse und Stufe), Ausstiege (Lobby,
+  Ausbildungsschritt, Spielminute, Seite und Klasse) und Balance aus echten Partien (Mensch–Mensch und Mensch–KI);
+  `scripts/real-balance.ts` gibt dasselbe auf der Konsole aus.
+
 ### Grafik
+- **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
+  eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route
+  bleibt die Tiefe wie bisher (gleiche Akustik).
+- Sehrohr unterschneidet im groben Seegang (grünes Wasser, die Optik tropft nach); Wind, Seeschlag, Regen und Donner
+  (nach Entfernung verzögert) an Deck; beleuchtete Fenster bei Nacht; Treffer nach Schiffsgröße, Tanker brennen
+  länger; Unterwasser-Rekonstruktion mit Wellen von unten, Snellius-Fenster und Trübung nach Seegang.
 - **Neues Meer:** sieben Wellenzüge mit echter Ausbreitungsgeschwindigkeit, die langen laufen mit dem Wind, die Dünung
   quer dazu; das Meer liegt fest auf der Karte, das Wasser strömt also am fahrenden Schiff vorbei. Dichtes Gitter am
   Auge, kurze Wellen nur, wo Gitter und Pixel sie tragen (vorher liefen Schein-Wellen in falsche Richtungen).
