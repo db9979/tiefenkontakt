@@ -13,6 +13,8 @@ export interface ShipOrder {
 
 export interface Ship {
   id: string;
+  /** No player at the helm (convoy, neutrals, AI crews): the auto-pilot keeps her off shoals (navigation.ts). */
+  autoNav?: boolean;
   cls: ClassId;
   team: Team;
   name: string;

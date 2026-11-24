@@ -12,6 +12,7 @@ import { MatchStore } from './match-store.js';
 import { createMailer, SmtpMailer } from './mailer.js';
 import { resetMail, verifyMail } from './mail-templates.js';
 import { handleAdmin } from './admin.js';
+import { bathyFile } from './bathy-load.js';
 import { FeedbackStore, feedbackSchema } from './feedback.js';
 import { ModerationStore } from './moderation.js';
 import { Backups } from './backup.js';
@@ -224,6 +225,13 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     raw: (st: number, hd: Record<string, string>, data: Buffer) => void res.writeHead(st, hd).end(req.method === 'HEAD' ? undefined : data),
   })) return;
   if (rankings.handle(req.method ?? 'GET', req.url ?? '', (st, b) => json(res, st, b))) return;
+  if (req.url?.startsWith('/api/bathy/') && req.method === 'GET') {
+    // Bathymetry of a real sea area for the client's chart (gzipped grid, unpacked by the browser)
+    const file = bathyFile(req.url.slice('/api/bathy/'.length));
+    if (!file) return json(res, 404, { error: 'Unbekanntes Seegebiet' });
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'public, max-age=86400' }).end(file);
+    return;
+  }
   if (req.url === '/api/weekly' && req.method === 'GET') return json(res, 200, weeklyView(weekly));
   if (req.url === '/api/balance' && req.method === 'GET') return json(res, 200, stats.balance());
   if (req.url === '/api/stats' && req.method === 'GET') {

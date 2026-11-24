@@ -100,6 +100,7 @@ export function spawnNeutral(w: World, cls?: NeutralClass, far = false): Ship | 
       id: `n${++st.neutrals}`, cls: kind, name: prof.names[st.neutrals % prof.names.length]!, team: 'neutral',
       pos, heading, speedKn: prof.kn,
     });
+    n.autoNav = true;
     w.ships.push(n);
     return n;
   }

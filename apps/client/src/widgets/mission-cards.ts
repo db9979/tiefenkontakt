@@ -1,17 +1,18 @@
-import { depthAt, type MissionKey, type SeabedKind } from '@tk/shared';
+import { KIND_REGION, MISSION_REGION, depthAt, type MissionKey, type RegionId, type SeabedKind } from '@tk/shared';
+import { ensureGrid } from './bathy-client.js';
 import { esc } from './format.js';
 import { drawSymbol } from './symbols.js';
 
 interface Card { key: MissionKey; title: string; info: string; seabed: SeabedKind; kind: 'convoy' | 'duel' | 'harbour' | 'custom' | 'shadow' | 'strait' | 'recon' }
 
 const CARDS: Card[] = [
-  { key: 'groenland', title: 'Grönland-Lücke', info: 'Tiefwasser · Konvergenzzonen', seabed: 'tief', kind: 'convoy' },
-  { key: 'schelf', title: 'Schelfmeer', info: 'Flach · Nachhall', seabed: 'schelf', kind: 'convoy' },
-  { key: 'fjord', title: 'Fjordausfahrt', info: 'Enger Kanal', seabed: 'fjord', kind: 'convoy' },
-  { key: 'duell', title: 'U-Boot-Duell', info: 'Boot gegen Boot', seabed: 'tief', kind: 'duel' },
-  { key: 'hafen', title: 'Hafenangriff', info: 'Ankerplatz in der Bucht', seabed: 'fjord', kind: 'harbour' },
+  { key: 'groenland', title: 'Grönland-Lücke', info: 'Färöer-Bank · Kanal und Bank', seabed: 'tief', kind: 'convoy' },
+  { key: 'schelf', title: 'Schelfmeer', info: 'Barentssee · flach, Nachhall', seabed: 'schelf', kind: 'convoy' },
+  { key: 'fjord', title: 'Fjordausfahrt', info: 'Vestfjord · Rinne vor den Lofoten', seabed: 'fjord', kind: 'convoy' },
+  { key: 'duell', title: 'U-Boot-Duell', info: 'Lofotenbecken · Boot gegen Boot', seabed: 'tief', kind: 'duel' },
+  { key: 'hafen', title: 'Hafenangriff', info: 'Kolabucht · Ankerplatz vor Murmansk', seabed: 'fjord', kind: 'harbour' },
   { key: 'fuehlung', title: 'Fühlung halten', info: 'Waffen gesperrt · melden', seabed: 'tief', kind: 'shadow' },
-  { key: 'meerenge', title: 'Meerengen-Durchbruch', info: 'Durch die Enge nach Norden', seabed: 'fjord', kind: 'strait' },
+  { key: 'meerenge', title: 'Meerengen-Durchbruch', info: 'Gibraltar · durch die Enge', seabed: 'fjord', kind: 'strait' },
   { key: 'aufklaerung', title: 'Aufklärung', info: 'Erkennen, melden, entkommen', seabed: 'schelf', kind: 'recon' },
   { key: 'eigene', title: 'Eigene Mission', info: 'Frei einstellbar', seabed: 'tief', kind: 'custom' },
 ];
@@ -41,8 +42,8 @@ const py = (v: View, y: number) => (1 - (y - v.y0) / (v.y1 - v.y0)) * H;
 const charts = new Map<string, { img: ImageData; typical: number }>();
 
 /** Depth tint, relief shading and isobaths, computed once per sea area. */
-function seaImage(ctx: CanvasRenderingContext2D, kind: SeabedKind, v: View): { img: ImageData; typical: number } {
-  const spec = { kind, seed: 7 };
+function seaImage(ctx: CanvasRenderingContext2D, kind: SeabedKind, v: View, region?: RegionId): { img: ImageData; typical: number } {
+  const spec = { kind, seed: 7, region };
   const depth = new Float32Array(W * H);
   let lo = Infinity;
   let hi = -Infinity;
@@ -277,6 +278,7 @@ function reconScene(ctx: CanvasRenderingContext2D, v: View): void {
 // Theme switched while the cards are on screen: paint them again in the new ink
 let lastSeabed: SeabedKind | undefined;
 window.addEventListener('tk-ink', () => paintMissionCharts(document.body, lastSeabed));
+window.addEventListener('tk-bathy', () => paintMissionCharts(document.body, lastSeabed));
 
 export function paintMissionCharts(root: HTMLElement, customSeabed?: SeabedKind): void {
   lastSeabed = customSeabed;
@@ -285,9 +287,12 @@ export function paintMissionCharts(root: HTMLElement, customSeabed?: SeabedKind)
     const seabed = card.kind === 'custom' && customSeabed ? customSeabed : card.seabed;
     const v = card.kind === 'harbour' ? HARBOUR : WIDE;
     const ctx = cv.getContext('2d')!;
-    const key = `${card.kind === 'harbour' ? 'h' : 'w'}|${seabed}`;
+    const region = card.kind === 'custom' && customSeabed ? KIND_REGION[customSeabed] : MISSION_REGION[card.key];
+    // The real sea area: drawn once its bathymetry is here (the cards repaint when it arrives)
+    const ready = !region || ensureGrid(region);
+    const key = `${card.kind === 'harbour' ? 'h' : 'w'}|${seabed}|${region ?? ''}|${ready}`;
     let sea = charts.get(key);
-    if (!sea) charts.set(key, (sea = seaImage(ctx, seabed, v)));
+    if (!sea) charts.set(key, (sea = seaImage(ctx, seabed, v, ready ? region : undefined)));
     ctx.putImageData(sea.img, 0, 0);
     chartFrame(ctx, v);
     // Typical water depth: the first thing a captain wants to know about the area

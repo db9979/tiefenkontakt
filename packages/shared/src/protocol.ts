@@ -1,3 +1,4 @@
+import type { RegionId } from './regions.js';
 import type { ClassId, NeutralClass, Team } from './classes.js';
 import type { VoiceClientMsg, VoiceServerMsg } from './voice.js';
 import type { ContactTrack } from './contacts.js';
@@ -348,7 +349,7 @@ export interface Snapshot {
     light?: number;
     /** Water depth under the own ship (m) and the chart, which is public. */
     bottom?: number;
-    seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number; /** Shallow bank across deep water (Grönland), seabed.ts. */ bankY?: number };
+    seabed?: { kind: 'tief' | 'schelf' | 'fjord'; seed: number; /** Shallow bank across deep water (Grönland), seabed.ts. */ bankY?: number; /** Real sea area (regions.ts). */ region?: RegionId };
     rain?: boolean;
     /** Met forecast: fog banks, rain squalls, ice floes and icebergs (public). */
     met?: import('./met.js').MetCells;

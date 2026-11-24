@@ -17,9 +17,15 @@ import {
   installIncidents,
   installOrders,
   mineSystem,
+  type RegionId,
+  KIND_REGION,
 } from '@tk/shared';
+import { loadBathymetry } from './bathy-load.js';
 import type { LessonId } from './lessons.js';
 import { rollVariation, type LobbyChoice, type Variation } from './variation.js';
+
+// The real sea areas' bathymetry, for every user of the scenarios (server, arena, tests)
+loadBathymetry();
 
 export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
 /** Strait breakthrough: escorts guard the narrows here, the boats must get past this line. */
@@ -37,17 +43,17 @@ export type TimeOfDay = 'tag' | 'daemmerung' | 'nacht';
  * (default 9 kn); escortY: where the escorts start along the route (default 2500 m, ahead of
  * the columns). Balanced per mission with the bot arena (scripts/bot-arena.ts).
  */
-export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; subSpread: number; convoyKn?: number; escortY?: number }> = {
-  groenland: { title: 'Grönland-Lücke', info: 'Tiefes Wasser, Konvergenzzonen, ausgeprägte Sprungschicht', seabed: 'tief', subSpread: 4000 },
-  schelf: { title: 'Schelfmeer', info: 'Flach (110–270 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', subSpread: 5000 },
+export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; region: RegionId; subSpread: number; convoyKn?: number; escortY?: number }> = {
+  groenland: { title: 'Grönland-Lücke', info: 'Färöer-Bank: aus dem tiefen Färöer-Bank-Kanal (700 m) auf die flache Bank (100–200 m), nur dort Minen', seabed: 'tief', region: 'faroebank', subSpread: 4000 },
+  schelf: { title: 'Schelfmeer', info: 'Barentssee bei der Bäreninsel (120–240 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', region: 'barents', subSpread: 5000 },
   // A slow convoy whose escorts start level with its head: in the narrow channel the boats were found too early
-  fjord: { title: 'Fjordausfahrt', info: 'Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf', seabed: 'fjord', subSpread: 4500, convoyKn: 8, escortY: -1000 },
-  duell: { title: 'U-Boot-Duell', info: 'U-Boote gegen U-Boote, kein Konvoi: wer zuerst hört, gewinnt', seabed: 'tief', subSpread: 3000 },
-  hafen: { title: 'Hafenangriff', info: 'Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt', seabed: 'fjord', subSpread: 2000 },
-  fuehlung: { title: 'Fühlung halten', info: 'Waffen gesperrt: Kontakt zum Konvoi 25 Minuten aus höchstens 12 km halten', seabed: 'tief', subSpread: 4000 },
-  meerenge: { title: 'Meerengen-Durchbruch', info: 'Die U-Boote müssen durch eine bewachte Enge nach Norden', seabed: 'fjord', subSpread: 700 },
-  aufklaerung: { title: 'Aufklärung', info: 'Ein Geleitschiff im Sehrohr erkennen und per Funk melden', seabed: 'schelf', subSpread: 4000 },
-  eigene: { title: 'Eigene Mission', info: 'Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar', seabed: 'tief', subSpread: 4000 },
+  fjord: { title: 'Fjordausfahrt', info: 'Vestfjord zwischen Lofoten und Festland (300–600 m); wer die Rinne verlässt, läuft auf', seabed: 'fjord', region: 'vestfjord', subSpread: 4500, convoyKn: 8, escortY: -1000 },
+  duell: { title: 'U-Boot-Duell', info: 'Lofotenbecken (3000 m), kein Konvoi: wer zuerst hört, gewinnt', seabed: 'tief', region: 'lofotenbasin', subSpread: 3000 },
+  hafen: { title: 'Hafenangriff', info: 'Kolabucht: Frachter ankern im engen Fjord vor Murmansk, die Eskorte bewacht die Einfahrt', seabed: 'fjord', region: 'kola', subSpread: 2000 },
+  fuehlung: { title: 'Fühlung halten', info: 'Lofotenbecken, Waffen gesperrt: Kontakt zum Konvoi 25 Minuten aus höchstens 12 km halten', seabed: 'tief', region: 'lofotenbasin', subSpread: 4000 },
+  meerenge: { title: 'Meerengen-Durchbruch', info: 'Straße von Gibraltar: die U-Boote müssen durch die bewachte Enge ins Mittelmeer', seabed: 'fjord', region: 'gibraltar', subSpread: 700 },
+  aufklaerung: { title: 'Aufklärung', info: 'Barentssee: ein Geleitschiff im Sehrohr erkennen und per Funk melden', seabed: 'schelf', region: 'barents', subSpread: 4000 },
+  eigene: { title: 'Eigene Mission', info: 'Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar', seabed: 'tief', region: 'lofotenbasin', subSpread: 4000 },
 };
 
 /** Parameters of the custom mission (lobby "Eigene Mission"). */
@@ -150,6 +156,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
       pos: anchored ? { x: ((i % 4) - 1.5) * 600, y: 3000 + Math.floor(i / 4) * 700 } : { x: ((i % 3) - 1) * sp, y: -Math.floor(i / 3) * sp },
       heading: 0, speedKn: anchored ? 0 : convoyKn,
     });
+    m.autoNav = true;
     merchants.push(m);
     ships.push(m);
   }
@@ -181,7 +188,10 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const layer = settings.layerDepth > 0 ? settings.layerDepth : 80 + ((seed * 7919) % 91);
   const w = createWorld(ships, seed, {
     layerDepth: layer, layerLoss: 12, seaState: settings.seaState,
-    seabed: { kind: custom?.seabed ?? MISSIONS[mission].seabed, seed, ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}) }, light: LIGHT[tod],
+    seabed: {
+      kind: custom?.seabed ?? MISSIONS[mission].seabed, seed, region: custom ? KIND_REGION[custom.seabed] : MISSIONS[mission].region,
+      ...(mission === 'groenland' ? { bankY: route * GROENLAND_BANK_FRAC } : {}),
+    }, light: LIGHT[tod],
   });
   w.env.seed = seed;
   w.env.mission = mission;
@@ -193,6 +203,10 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   w.env.weather = initWeather(w.env, START_HOUR[tod], settings.weather !== 'stabil');
   w.env.light = daylight(START_HOUR[tod]);
   w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: mission === 'groenland', fogBanks: mission === 'groenland' ? 3 : 1 + (seed % 2) });
+  // AI crews steer clear of shoals on their own (players get the navigator's warnings)
+  for (const p of [...west, ...east]) if (p.bot) { const sh = ships.find((x) => x.playerId === p.playerId); if (sh) sh.autoNav = true; }
+  // On the real coasts a start position may fall on land or in the shallows: move it to the nearest water deep enough
+  for (const s of ships) s.pos = toWater(w.env.seabed, s.pos, CLASSES[s.cls].submarine ? 45 : s.cls === 'merchant' ? 14 : 10);
   // Subs start safely above the bottom in shallow missions
   for (const s of ships) {
     if (s.depth > 10 && s.cls !== 'merchant') {
@@ -208,4 +222,18 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   installIncidents(w);
   installOrders(w, simTimeLimit(settings));
   return w;
+}
+
+/** The nearest point to `p` (searched in rings out to 12 km) with at least `need` metres of water. */
+export function toWater(spec: World['env']['seabed'], p: { x: number; y: number }, need: number): { x: number; y: number } {
+  if (depthAt(spec, p.x, p.y) >= need) return p;
+  for (let r = 150; r <= 12_000; r += 150) {
+    const n = Math.max(8, Math.round(r / 120));
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2;
+      const q = { x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
+      if (depthAt(spec, q.x, q.y) >= need) return q;
+    }
+  }
+  return p;
 }

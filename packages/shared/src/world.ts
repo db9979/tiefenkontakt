@@ -5,6 +5,7 @@ import { applyHitDamage, stepDamage } from './damage.js';
 import { CLASSES } from './classes.js';
 import { KN } from './math.js';
 import { depthAt } from './seabed.js';
+import { keepOffShoals, shoalWarning } from './navigation.js';
 import { stepWeather } from './weather.js';
 import { stepMet } from './met-step.js';
 import { stepConvoy, type ConvoyState } from './convoy-ai.js';
@@ -114,11 +115,14 @@ function checkGround(w: World, s: Ship): void {
   const bottom = depthAt(w.env.seabed, s.pos.x, s.pos.y);
   const sub = CLASSES[s.cls].submarine;
   const limit = sub ? bottom - 8 : bottom - CLASSES[s.cls].draft - 1;
-  if (sub ? s.depth <= limit : limit > 0) return;
-  if (sub) {
+  // A submarine in water too shallow to float her runs aground like a ship, she does not sail over land
+  const stranded = sub && bottom < CLASSES[s.cls].draft + 1;
+  if (!stranded && (sub ? s.depth <= limit : limit > 0)) return;
+  if (sub && !stranded) {
     s.depth = Math.max(0, limit);
     if (s.order.depth > s.depth) s.order.depth = s.depth;
   } else {
+    if (sub) s.depth = s.order.depth = 0;
     s.order.speedKn = 0;
     s.speed = Math.min(s.speed, 0.3);
   }
@@ -162,6 +166,11 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   }
   stepWeather(w.env, w.time, dt, w.rng);
   stepMet(w, dt);
+  // Off the rocks: computer crews steer clear, players' navigators warn
+  for (const s of w.ships) {
+    if (s.autoNav) keepOffShoals(w, s);
+    else if (s.playerId) shoalWarning(w, s);
+  }
   for (const s of w.ships) stepShip(s, dt, w.time);
   for (const s of w.ships) {
     checkGround(w, s);

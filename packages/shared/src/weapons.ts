@@ -328,6 +328,11 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   t.pos.x += v.x * step;
   t.pos.y += v.y * step;
   t.run += step;
+  // Into the shore: the torpedo strikes the rocks and detonates there
+  if (w.env.seabed && depthAt(w.env.seabed, t.pos.x, t.pos.y) < 2) {
+    w.events.push({ kind: 'transient', time: w.time, sourceId: t.ownerId, x: t.pos.x, y: t.pos.y, what: 'blow' });
+    return false;
+  }
 
   for (const s of w.ships) {
     if (!s.alive || t.alerted.includes(s.id) || s.cls === 'merchant') continue;

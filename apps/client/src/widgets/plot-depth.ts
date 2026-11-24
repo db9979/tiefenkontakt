@@ -1,5 +1,6 @@
 import { isInkLight } from './ink.js';
 import { depthAt, type Snapshot, type Vec2 } from '@tk/shared';
+import { ensureGrid } from './bathy-client.js';
 
 /**
  * The plot's chart background from the (public) seabed: a continuous depth tint, hill shading
@@ -80,11 +81,13 @@ export class DepthChart {
 
   draw(ctx: CanvasRenderingContext2D, spec: Snapshot['env']['seabed'], c: Vec2, scale: number, w: number, hgt: number): void {
     if (!spec) return;
+    // A real sea area: draw once its bathymetry has arrived (the procedural stand-in would mislead)
+    if (spec.region && !ensureGrid(spec.region)) return;
     const step = scale * CELL;
     // The render area is anchored on a coarse world grid, so small moves of the view reuse it
     const ax = Math.round(c.x / (w * scale * MARGIN)) * (w * scale * MARGIN);
     const ay = Math.round(c.y / (hgt * scale * MARGIN)) * (hgt * scale * MARGIN);
-    const key = `${spec.kind}|${spec.seed}|${spec.bankY ?? ''}|${scale.toFixed(3)}|${ax}|${ay}|${w}|${hgt}|${isInkLight()}`;
+    const key = `${spec.kind}|${spec.region ?? ''}|${spec.seed}|${spec.bankY ?? ''}|${scale.toFixed(3)}|${ax}|${ay}|${w}|${hgt}|${isInkLight()}`;
     if (this.done?.key !== key && this.job?.key !== key) {
       const spanX = w * scale * (1 + 2 * MARGIN);
       const spanY = hgt * scale * (1 + 2 * MARGIN);
@@ -139,7 +142,7 @@ function paint(j: Job, reuse?: HTMLCanvasElement): HTMLCanvasElement {
       const gy = (at(i, k + 1) - at(i, k - 1)) / (2 * step);
       // Depth grows downwards: a slope deepening towards the south-east faces the light
       // Land: the height is −depth, so the slope facing the light has the opposite sign
-      const light = (gx + gy) * 0.7071 * (d < 0 ? -1.6 : 1);
+      const light = (gx + gy) * 0.7071 * (d < 0 ? -0.6 : 1);
       const shade = 1 + Math.max(-0.35, Math.min(0.35, Math.sign(light) * Math.sqrt(Math.abs(light)) * 3.2));
       const [r, g, b] = tint(d);
       const p = (k * cols + i) * 4;
