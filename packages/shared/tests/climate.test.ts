@@ -21,7 +21,7 @@ describe('sun and season on the real areas', () => {
   it('the Mediterranean summer layer is shallow and hard, the Arctic winter has none', () => {
     const med = seaLayer('gibraltar', 7, 0.5);
     expect(med.depth).toBeLessThan(60);
-    expect(med.loss).toBeGreaterThan(15);
+    expect(med.loss).toBeGreaterThan(12);
     expect(seaLayer('barents', 1, 0.5).depth).toBe(0);
     expect(seaLayer('gotland', 1, 0.5).depth).toBeGreaterThan(50);
   });

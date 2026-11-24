@@ -20,7 +20,9 @@ const perMission = new Map<string, { w: number; e: number; mineHits: number }>()
 for (let g = 0; g < games; g++) {
   const setup: ArenaSetup = { ...DEFAULT_ARENA, mission: missions[g % missions.length]!, botSkill: skill, west: ['ffg', mix ? 'ffv' : 'ffg'], east: [mix ? 'ssa' : 'ssk', 'ssn'],
     // ARENA_VAR=aus|leicht|stark: per-match variation of positions, route and sea state
-    ...(process.env.ARENA_VAR ? { variation: process.env.ARENA_VAR as ArenaSetup['variation'] } : {}) };
+    ...(process.env.ARENA_VAR ? { variation: process.env.ARENA_VAR as ArenaSetup['variation'] } : {}),
+    // ARENA_SEASON=winter|fruehling|sommer|herbst: fix the month (default: drawn per match)
+    ...(process.env.ARENA_SEASON ? { season: process.env.ARENA_SEASON as ArenaSetup['season'] } : {}) };
   const t0 = Date.now();
   const game = new ArenaGame(setup, 1000 + g);
   // ARENA_NO_ORDERS=1: without fleet command's FLASH orders (to measure them separately)

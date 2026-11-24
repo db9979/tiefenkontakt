@@ -18,6 +18,7 @@ export interface ArenaSetup {
   variation?: ScenarioSettings['variation'];
   /** Sea area (default: the mission's home area). */
   area?: ScenarioSettings['area'];
+  season?: ScenarioSettings['season'];
 }
 
 export const DEFAULT_ARENA: ArenaSetup = { mission: 'groenland', timeOfDay: 'tag', botSkill: 'normal', west: ['ffg', 'ffg'], east: ['ssk', 'ssn'], timeLimitMin: 40 };
@@ -65,7 +66,7 @@ export class ArenaGame {
   constructor(readonly setup: ArenaSetup, readonly seed: number, record = false) {
     this.settings = resolveLobby({
       ...DEFAULT_SETTINGS, mission: setup.mission, timeOfDay: setup.timeOfDay, botSkill: setup.botSkill, timeLimitMin: setup.timeLimitMin,
-      variation: setup.variation ?? DEFAULT_SETTINGS.variation, area: setup.area,
+      variation: setup.variation ?? DEFAULT_SETTINGS.variation, area: setup.area, season: setup.season,
     }, seed);
     const slots = arenaSlots(setup);
     this.world = buildScenario(slots, this.settings, seed);

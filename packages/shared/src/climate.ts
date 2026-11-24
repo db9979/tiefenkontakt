@@ -83,20 +83,20 @@ export function seaLayer(region: RegionId, month: number, u: number): { depth: n
   const pick = (a: number, b: number) => Math.round(a + (b - a) * u);
   switch (WATER[region]) {
     case 'mittelmeer':
-      return s === 'sommer' ? { depth: pick(25, 50), loss: 18, note: 'scharfe, flache Sommerschicht' }
+      return s === 'sommer' ? { depth: pick(25, 50), loss: 13, note: 'scharfe, flache Sommerschicht' }
         : s === 'winter' ? { depth: pick(150, 250), loss: 6, note: 'tief durchmischt, schwache Schicht' }
-        : { depth: pick(50, 90), loss: 12, note: 'mittlere Schicht' };
+        : { depth: pick(50, 90), loss: 11, note: 'mittlere Schicht' };
     case 'arktis':
       return s === 'winter' || s === 'fruehling' ? { depth: 0, loss: 0, note: 'kaltes Wasser bis oben: keine Schicht, Schall bleibt dicht unter der Oberfläche' }
-        : { depth: pick(20, 45), loss: 8, note: 'dünne, schwache Schmelzwasserschicht' };
+        : { depth: pick(20, 45), loss: 6, note: 'dünne, schwache Schmelzwasserschicht' };
     case 'atlantik':
       return s === 'winter' ? { depth: pick(160, 260), loss: 8, note: 'Winterdurchmischung, tiefe Schicht' }
-        : s === 'sommer' ? { depth: pick(35, 70), loss: 15, note: 'flache, kräftige Sommerschicht' }
-        : { depth: pick(70, 130), loss: 12, note: 'mittlere Schicht' };
+        : s === 'sommer' ? { depth: pick(35, 70), loss: 12, note: 'flache, kräftige Sommerschicht' }
+        : { depth: pick(70, 130), loss: 11, note: 'mittlere Schicht' };
     case 'ostsee':
-      return { depth: pick(55, 75), loss: 16, note: 'Salzgehaltssprung (Halokline): eine harte Grenze' };
+      return { depth: pick(55, 75), loss: 12, note: 'Salzgehaltssprung (Halokline): eine harte Grenze' };
     case 'fjord':
-      return s === 'sommer' || s === 'fruehling' ? { depth: pick(8, 25), loss: 10, note: 'Süßwasserdecke der Schneeschmelze' }
+      return s === 'sommer' || s === 'fruehling' ? { depth: pick(8, 25), loss: 7, note: 'Süßwasserdecke der Schneeschmelze' }
         : { depth: pick(60, 120), loss: 9, note: 'schwache Winterschicht' };
   }
 }

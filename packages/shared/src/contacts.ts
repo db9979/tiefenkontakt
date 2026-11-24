@@ -3,6 +3,9 @@ import type { Detection, SensorKind } from './sensors.js';
 import type { Evidence } from './signatures.js';
 import type { Sighting } from './lookout.js';
 
+/** Weight of a new optical range against the running estimate. */
+const OPTICAL_BLEND = 0.15;
+
 export interface BearingSample {
   t: number;
   b: number;
@@ -23,6 +26,8 @@ export interface ContactTrack {
   bearingAlt?: number;
   range?: number;
   rangeAt?: number;
+  /** Last optical (periscope, lookout) range: later ones refine it. */
+  optAt?: number;
   se: number;
   sensors: SensorKind[];
   /** Visual identification only (periscope). */
@@ -114,8 +119,13 @@ export class ContactBook {
     tr.originX = d.originX;
     tr.originY = d.originY;
     if (d.range !== undefined) {
-      tr.range = d.range;
+      // Range by eye or stadimeter: the watch refines one estimate instead of guessing anew every
+      // second (a fresh noisy guess each sweep made ships pump bigger and smaller in the optics)
+      const optical = d.sensor === 'periscope' || d.sensor === 'visual';
+      const keep = optical && tr.range !== undefined && tr.optAt !== undefined && d.time - tr.optAt < 15;
+      tr.range = keep ? tr.range! + (d.range - tr.range!) * OPTICAL_BLEND : d.range;
       tr.rangeAt = d.time;
+      if (optical) tr.optAt = d.time;
     }
     if (!tr.sensors.includes(d.sensor)) tr.sensors.push(d.sensor);
     if (d.classified) tr.classified = d.classified;

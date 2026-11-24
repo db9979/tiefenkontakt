@@ -24,8 +24,11 @@ const CACHE_Q = 150;
 const cache = new Map<string, Profile>();
 
 /** Profile of the straight path a–b (cached on a coarse grid: positions move little per sweep). */
+// TK_NO_TERRAIN=1 switches the land checks off (A/B balance runs in scripts/bot-arena.ts)
+const OFF = !!(globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.TK_NO_TERRAIN;
+
 export function profile(spec: SeabedSpec | undefined, a: Vec2, b: Vec2): Profile {
-  if (!spec) return { minDepth: 3000, maxLand: 0, landM: 0, hills: [] };
+  if (!spec || OFF) return { minDepth: 3000, maxLand: 0, landM: 0, hills: [] };
   const q = (v: number) => Math.round(v / CACHE_Q);
   const key = `${spec.seed}|${spec.region ?? spec.kind}|${q(a.x)},${q(a.y)}|${q(b.x)},${q(b.y)}`;
   const hit = cache.get(key);
