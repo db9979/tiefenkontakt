@@ -7,7 +7,7 @@ const MISSIONS: [string, string, string][] = [
   ['Hafenangriff', 'Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt.', 'Langsam an der Einfahrt horchen; Schüsse auf ankernde Ziele brauchen keine TMA.'],
   ['U-Boot-Duell', 'U-Boote gegen U-Boote, kein Konvoi.', 'Wer zuerst hört, gewinnt: sehr langsam, Schleppsonar, aktive Torpedos.'],
   ['Fühlung halten', 'Waffen gesperrt: 25 Minuten Kontakt zum Konvoi aus höchstens 12 km.', 'Die Eskorte muss das Boot abdrängen, nicht versenken.'],
-  ['Meerengen-Durchbruch', 'Die U-Boote müssen durch eine bewachte Enge nach Norden.', 'Tief und langsam durch das tiefste Wasser; die Eskorte legt Bojensperren.'],
+  ['Meerengen-Durchbruch', 'Die U-Boote müssen durch eine bewachte Enge (Gibraltar: nach Osten ins Mittelmeer).', 'Tief und langsam durch das tiefste Wasser; die Eskorte legt Bojensperren.'],
   ['Aufklärung', 'Ein Geleitschiff im Sehrohr erkennen und per Funk melden.', 'Ein kurzer Blick auf unter 4 km, dann senden – und sofort weg.'],
   ['Eigene Mission', 'Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar.', 'Zum Üben einzelner Lagen.'],
 ];

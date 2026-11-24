@@ -25,7 +25,7 @@ export const EN_UX: [string, string][] = [
   ['Fahre etwa 3 Minuten geradeaus, dann ändere den Kurs um 40–60° (Klick in den Kompass). Bei 4 kn dreht das Boot langsam: die Wende dauert gut 2 Minuten. Erst danach ist die Entfernung bestimmbar.', 'Run straight for about 3 minutes, then change course by 40–60° (click the compass). At 4 kn the boat turns slowly: the turn takes over 2 minutes. Only then can range be solved.'],
   ['Warte auf den Treffer. Danach ablaufen: Fahrt erhöhen, dann tiefer gehen (ohne Fahrt tauchen die Tiefenruder kaum).', 'Wait for the hit. Then clear out: speed up, then go deeper (without speed the planes barely work).'],
   ['Maschinengeräusch', 'Engine noise'],
-  ['Fühlung halten', 'Shadowing'], ['Waffen gesperrt · melden', 'Weapons tight · report'], ['Meerengen-Durchbruch', 'Strait breakthrough'], ['Durch die Enge nach Norden', 'North through the narrows'],
+  ['Fühlung halten', 'Shadowing'], ['Waffen gesperrt · melden', 'Weapons tight · report'], ['Meerengen-Durchbruch', 'Strait breakthrough'], ['Durch die Enge', 'Through the narrows'],
   ['Aufklärung', 'Reconnaissance'], ['Erkennen, melden, entkommen', 'Identify, report, escape'], ['FÜHLUNG', 'CONTACT'], ['((( FUNK', '((( RADIO'], ['WAFFEN GESPERRT', 'WEAPONS TIGHT'],
   ['AUSGANG', 'EXIT'], ['DURCHBRUCH', 'BREAKTHROUGH'], ['≤ 4 KM · SEHROHR', '≤ 4 KM · PERISCOPE'], ['MELDEN + 20 MIN ENTKOMMEN', 'REPORT + ESCAPE 20 MIN'],
   ['Besatzung & Boot', 'Crew & boat'], ['ERMÜDUNG', 'FATIGUE'], ['MORAL', 'MORALE'], ['VERWUNDETE', 'WOUNDED'], ['Gefechtsstationen', 'Battle stations'], ['Ruhe im Boot', 'Silent running'],
@@ -41,8 +41,6 @@ export const EN_UX: [string, string][] = [
   ['Hubschrauber: MAD-Suche hier (Kleeblatt, 6 min)', 'Helicopter: MAD search here (cloverleaf, 6 min)'], ['MAD-SUCHE', 'MAD SEARCH'], ['MAD', 'MAD'], ['Der Gegner lernt', 'The enemy learns'],
   ['Maschinengeräusch', 'Engine noise'],
   ['Funksprüche der Führung alle 20 Minuten: Empfang auf höchstens 25 m oder mit Schleppantenne (bis 60 m, höchstens 6 kn)', 'Signals from command every 20 minutes: copy at 25 m or shallower, or with the buoy antenna (to 60 m, at most 6 kn)'],
-  ['Die Enge halten: kein U-Boot darf nach Norden durch.', 'Hold the narrows: no submarine may get through to the north.'],
-  ['Durch die Enge nach Norden durchbrechen: ein Boot muss das Nordende erreichen.', 'Break through the narrows to the north: one boat must reach the northern end.'],
   ['Die Fühlung der U-Boote abschütteln, bis die Zeit abläuft.', "Shake off the shadowing submarines until time runs out."],
   ['Keine Feindmeldung zulassen: U-Boote abdrängen oder versenken.', 'Allow no enemy report: drive off or sink the submarines.'],
   ['Fühlung zum Konvoi halten: 25 Minuten Kontakt aus höchstens 12 km, dabei alle 15 Minuten die Lage funken. Waffen sind gesperrt.', 'Shadow the convoy: 25 minutes of contact from within 12 km, radioing a report every 15 minutes. Weapons are tight.'],
@@ -104,7 +102,13 @@ export const EN_UX: [string, string][] = [
   ['Zu viele Anfragen, versuch es später', 'Too many requests, try again later'], ['Aufzeichnung zu groß zum Teilen', 'Recording too large to share'],
 ];
 
+// The strait goal names the strait's true direction (briefing.ts, compassStem)
+const STEMS: [string, string][] = [['Nord', 'north'], ['Nordost', 'north-east'], ['Ost', 'east'], ['Südost', 'south-east'], ['Süd', 'south'], ['Südwest', 'south-west'], ['West', 'west'], ['Nordwest', 'north-west']];
 export const EN_UX_PHRASES: [RegExp, string][] = [
+  ...STEMS.flatMap(([de, en]): [RegExp, string][] => [
+    [new RegExp(`^Die Enge halten: kein U-Boot darf nach ${de}en durch\\.$`), `Hold the narrows: no submarine may get through to the ${en}.`],
+    [new RegExp(`^Durch die Enge nach ${de}en durchbrechen: ein Boot muss das ${de}ende erreichen\\.$`), `Break through the narrows to the ${en}: one boat must reach the ${en}ern end.`],
+  ]),
   [/^CO₂ (\d+),(\d) % · O₂ (\d+),(\d) %$/, 'CO₂ $1.$2 % · O₂ $3.$4 %'],
   [/^LEISTUNG (\d+) %$/, 'PERFORMANCE $1 %'], [/^(\d+) · SANITÄTER$/, '$1 · MEDIC'], [/^IN (\d\d:\d\d(?::\d\d)?)$/, 'IN $1'], [/^EMPFANG (\d+) % · VLF$/, 'COPYING $1 % · VLF'], [/^EMPFANG (\d+) % · BOJE$/, 'COPYING $1 % · BUOY'],
   [/^± ([\d,]+) SM$/, '± $1 NM'], [/^UNTER TESTTIEFE \((\d+) M\)$/, 'BELOW TEST DEPTH ($1 M)'], [/^(\d+) PINGS \/ 5 MIN$/, '$1 PINGS / 5 MIN'], [/ · ER HAT VERMUTLICH EIN ECHO$/, ' · HE PROBABLY HAS AN ECHO'],

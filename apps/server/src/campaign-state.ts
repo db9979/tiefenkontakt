@@ -83,7 +83,7 @@ export interface CampMission {
 
 export const CAMPAIGN_MISSIONS: Record<CampSide, CampMission[]> = {
   east: [
-    { mission: 'groenland', timeOfDay: 'tag', title: 'Grönland-Lücke bei Tag', brief: 'Ein Geleitzug läuft nach Norden. Unter der Sprungschicht annähern und die Frachter angreifen.' },
+    { mission: 'groenland', timeOfDay: 'tag', title: 'Grönland-Lücke bei Tag', brief: 'Ein Geleitzug läuft nach Nordwesten. Unter der Sprungschicht annähern und die Frachter angreifen.' },
     { mission: 'schelf', timeOfDay: 'daemmerung', title: 'Schelfmeer in der Dämmerung', brief: 'Flaches Wasser: wenig Tiefe zum Ausweichen, viel Nachhall für die Sonare der Eskorte.' },
     { mission: 'fjord', timeOfDay: 'nacht', title: 'Fjordausfahrt bei Nacht', brief: 'Der Konvoi verlässt den Fjord. Im engen Kanal auf ihn warten – Untiefen beachten.' },
     { mission: 'hafen', timeOfDay: 'daemmerung', title: 'Hafenangriff', brief: 'Frachter ankern in der Bucht. An der Eskorte vorbei in die Einfahrt und treffen.' },
@@ -91,10 +91,10 @@ export const CAMPAIGN_MISSIONS: Record<CampSide, CampMission[]> = {
     { mission: 'groenland', timeOfDay: 'nacht', title: 'Großgeleitzug bei Nacht', brief: 'Der letzte große Konvoi des Winters. Alles, was das Boot noch hat, wird gebraucht.' },
   ],
   west: [
-    { mission: 'groenland', timeOfDay: 'tag', title: 'Geleit durch die Grönland-Lücke', brief: 'Den Konvoi sicher nach Norden bringen. Schleppsonar ausbringen, Bojen legen.' },
+    { mission: 'groenland', timeOfDay: 'tag', title: 'Geleit durch die Grönland-Lücke', brief: 'Den Konvoi sicher nach Nordwesten bringen. Schleppsonar ausbringen, Bojen legen.' },
     { mission: 'schelf', timeOfDay: 'daemmerung', title: 'Schelfmeer in der Dämmerung', brief: 'Flaches Wasser, schwache Schicht: Aktivsonar kämpft mit dem Nachhall.' },
     { mission: 'fjord', timeOfDay: 'nacht', title: 'Fjordausfahrt bei Nacht', brief: 'Der Konvoi läuft aus. Die Boote warten im Kanal – vor dem Konvoi aufklären.' },
-    { mission: 'meerenge', timeOfDay: 'nacht', title: 'Sperre in der Meerenge', brief: 'Die Boote wollen durch die Enge nach Norden. Niemand kommt durch.' },
+    { mission: 'meerenge', timeOfDay: 'nacht', title: 'Sperre in der Meerenge', brief: 'Die Boote wollen durch die Enge nach Osten. Niemand kommt durch.' },
     { mission: 'hafen', timeOfDay: 'daemmerung', title: 'Hafenschutz', brief: 'Die Frachter ankern in der Bucht. Die Einfahrt gegen Boote halten.' },
     { mission: 'groenland', timeOfDay: 'nacht', title: 'Großgeleitzug bei Nacht', brief: 'Der letzte große Konvoi des Winters, und die Wölfe sind hungrig.' },
   ],
