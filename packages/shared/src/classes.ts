@@ -5,7 +5,7 @@
  * Grisha-type corvette); acoustic numbers are game-balance values, tunable.
  */
 
-export type ClassId = 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'ffg' | 'kor' | 'ffv' | 'merchant' | 'fischer' | 'tanker' | 'container' | 'faehre' | 'schlepper' | 'yacht';
+export type ClassId = 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'ssw' | 'ffg' | 'kor' | 'ffv' | 'ffk' | 'merchant' | 'fischer' | 'tanker' | 'container' | 'faehre' | 'schlepper' | 'yacht';
 /** Neutral civil traffic (not part of the convoy, never a target). */
 export const NEUTRAL_CLASSES = ['fischer', 'tanker', 'container', 'faehre', 'schlepper', 'yacht'] as const;
 export type NeutralClass = (typeof NEUTRAL_CLASSES)[number];
@@ -127,6 +127,26 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
     vds: { maxDepth: 250, maxSpeedKn: 18 },
     hp: 100,
   },
+  // Mixed teams: the Westbund's hunter-killer boat in direct support of the convoy
+  // (Sturgeon/Trafalgar-type SSN) and the Ostpakt's ASW patrol ship (Krivak-type)
+  ssw: {
+    id: 'ssw', name: 'Jagd-U-Boot S-14', team: 'west', submarine: true, tonnage: 4800,
+    maxSpeedKn: 30, accel: 0.055, turnRateDeg: 1.9, turnRadius: 420, maxDepth: 400, depthRate: 1.5, planeAngleDeg: 15, draft: 0,
+    slBase: 119, slRefKn: 5, slSlope: 50, cavKn: 10, cavDepthKn: 5,
+    targetStrength: 13,
+    hull: { di: 17, baffleHalfAngle: 30, selfNoiseBase: 56, selfNoiseRefKn: 5, activeSl: 215 },
+    towed: { di: 23, selfNoise: 47, maxSpeedKn: 12, maxLength: 800, settleTime: 60 },
+    hp: 95,
+  },
+  ffk: {
+    id: 'ffk', name: 'Wachschiff Projekt 11', team: 'east', submarine: false, tonnage: 3500,
+    maxSpeedKn: 32, accel: 0.14, turnRateDeg: 2.3, turnRadius: 430, maxDepth: 0, depthRate: 0, draft: 5,
+    slBase: 152, slRefKn: 15, slSlope: 45,
+    targetStrength: 25,
+    hull: { di: 15, baffleHalfAngle: 30, selfNoiseBase: 72, selfNoiseRefKn: 15, activeSl: 224 },
+    vds: { maxDepth: 150, maxSpeedKn: 18 },
+    hp: 95,
+  },
   fischer: {
     id: 'fischer', name: 'Fischtrawler', team: 'neutral', submarine: false, tonnage: 900,
     maxSpeedKn: 11, accel: 0.04, turnRateDeg: 2, turnRadius: 150, maxDepth: 0, depthRate: 0, draft: 4,
@@ -182,7 +202,7 @@ export function classSpec(id: ClassId): ClassSpec {
 
 /** Surface warship escorting the convoy (frigate or corvette). */
 export function isEscort(cls: ClassId): boolean {
-  return cls === 'ffg' || cls === 'kor' || cls === 'ffv';
+  return cls === 'ffg' || cls === 'kor' || cls === 'ffv' || cls === 'ffk';
 }
 
 /** Carries a helicopter (dipping sonar, sonobuoys, helo torpedoes). */

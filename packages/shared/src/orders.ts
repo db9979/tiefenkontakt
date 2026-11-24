@@ -129,7 +129,8 @@ export function installOrders(w: World, limitS: number): OrdersState {
   for (const team of ['west', 'east'] as const) {
     const ships = sideShips(w, team);
     if (!ships.length) continue;
-    const boats = ships.every(isBoat);
+    // A mixed side keeps its main arm's orders: the wolfpack's broadcast orders with a patrol ship along
+    const boats = ships.every(isBoat) || (team === 'east' && ships.some(isBoat));
     const pool = [...orderPool(mission, boats, convoy)];
     const n = 1 + Math.floor(rng.next() * 3);
     const times: number[] = [];

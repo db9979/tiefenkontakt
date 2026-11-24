@@ -47,6 +47,8 @@ export function canCopy(s: Ship): 'vlf' | 'buoy' | undefined {
 function report(w: World, s: Ship): string {
   const merchants = w.ships.filter((m) => isConvoyShip(m) && m.alive);
   if (!merchants.length) return 'FÜHRUNG: KEINE NEUEN ERKENNTNISSE. FREIE JAGD.';
+  // A boat in direct support of its own convoy gets the convoy's position to keep station ahead
+  const own = merchants[0]!.team === s.team;
   const c = merchants.reduce((a, m) => ({ x: a.x + m.pos.x / merchants.length, y: a.y + m.pos.y / merchants.length }), { x: 0, y: 0 });
   const err = { x: w.rng.gauss(0, 1500), y: w.rng.gauss(0, 1500) };
   const rep = { x: c.x + err.x, y: c.y + err.y };
@@ -57,6 +59,7 @@ function report(w: World, s: Ship): string {
   const crs = Math.round(w.convoy?.guideHeading ?? merchants[0]!.heading).toString().padStart(3, '0');
   const kn = Math.round(merchants[0]!.speed / KN);
   const escorts = w.ships.filter((x) => x.alive && x.team !== s.team && !CLASSES[x.cls].submarine && x.cls !== 'merchant').length;
+  if (own) return `FÜHRUNG: EIGENER GELEITZUG PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. STATION 4 SM VORAUS HALTEN, WÖLFE VOR DEM KONVOI STELLEN. SPERRGEBIET 4 KM UM SIE.`;
   return `FÜHRUNG: KONVOI ${merchants.length} FRACHTER, PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. ${escorts} GELEITSCHIFFE.`;
 }
 

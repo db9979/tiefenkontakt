@@ -1,6 +1,7 @@
 import { SHADOW_GOAL_S, SHADOW_RANGE_M } from './scenario.js';
 import {
   CLASSES,
+  isEscort,
   type World,
   isConvoyShip,
   distance,
@@ -34,7 +35,8 @@ export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): M
   const sc = computeScore(w);
   if (sc.totalTons > 0 && sc.sunkTons >= sc.totalTons * 0.5) return { winner: 'east', reason: 'Die Hälfte der Konvoi-Tonnage versenkt' };
   if (sc.totalTons > 0 && sc.arrivedTons > sc.totalTons * 0.5) return { winner: 'west', reason: 'Der Konvoi hat sein Ziel erreicht' };
-  const subs = w.ships.filter((s) => s.team === 'east');
+  // The wolfpack: the Ostpakt's boats (its patrol ship alone cannot sink the convoy)
+  const subs = w.ships.filter((s) => s.team === 'east' && CLASSES[s.cls].submarine);
   if (subs.length > 0 && subs.every((s) => !s.alive)) return { winner: 'west', reason: 'Alle U-Boote versenkt' };
   if (w.time >= timeLimitS) {
     if (mission === 'hafen') {
@@ -53,7 +55,7 @@ const lastEval = new WeakMap<World, number>();
 
 /** Shadowing, strait breakthrough and reconnaissance: goals beyond sinking ships. */
 function special(w: World, timeLimitS: number, mission: string): MatchResult | undefined {
-  const subs = w.ships.filter((s) => s.team === 'east' && s.alive);
+  const subs = w.ships.filter((s) => s.team === 'east' && s.alive && CLASSES[s.cls].submarine);
   if (!subs.length) return { winner: 'west', reason: 'Alle U-Boote versenkt' };
   const prev = lastEval.get(w) ?? w.time;
   lastEval.set(w, w.time);
@@ -80,7 +82,7 @@ function special(w: World, timeLimitS: number, mission: string): MatchResult | u
     if (e.kind !== 'transmission' || e.time <= prev - 1e-6 || e.time > w.time) continue;
     const sender = subs.find((s) => s.id === e.senderId);
     // Close enough to make out the type and its weapons: 4 km at most
-    const seen = sender && w.books.get(sender.id)?.tracks().some((t) => (t.classified === 'ffg' || t.classified === 'kor' || t.classified === 'ffv') && e.time - t.lastSeen < 90 && (t.range ?? Infinity) < 4000);
+    const seen = sender && w.books.get(sender.id)?.tracks().some((t) => t.classified !== undefined && isEscort(t.classified) && t.classified !== 'ffk' && e.time - t.lastSeen < 90 && (t.range ?? Infinity) < 4000);
     if (seen && w.env.reportAt === undefined) {
       w.env.reportAt = e.time;
       w.env.reportBy = sender.id;

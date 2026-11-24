@@ -15,7 +15,7 @@ export function clock(t: number): string {
 
 export const CLASS_LABEL: Record<ClassId, string> = {
   ssn: 'ATOM-U-BOOT', ssk: 'DIESEL-U-BOOT', ssc: 'KÜSTEN-U-BOOT', ffg: 'FREGATTE', kor: 'KORVETTE', merchant: 'HANDELSSCHIFF',
-  ssa: 'AIP-U-BOOT', ffv: 'VDS-FREGATTE', fischer: 'FISCHTRAWLER',
+  ssa: 'AIP-U-BOOT', ffv: 'VDS-FREGATTE', ssw: 'JAGD-U-BOOT', ffk: 'WACHSCHIFF', fischer: 'FISCHTRAWLER',
   tanker: 'SUPERTANKER', container: 'CONTAINERSCHIFF', faehre: 'FÄHRE', schlepper: 'SCHLEPPER', yacht: 'SEGELYACHT',
 };
 
@@ -31,6 +31,8 @@ export const CLASS_NAME: Record<Exclude<ClassId, 'merchant' | NeutralClass>, { t
   kor: { title: 'Korvette K-7', info: 'Leise, schnell, wendig; kurzes Schleppsonar, kein Hubschrauber' },
   ffv: { title: 'Fregatte F-30 (VDS)', info: 'Tiefensonar lässt sich unter die Sprungschicht absenken (bis 18 kn); kein Hubschrauber' },
   ssa: { title: 'U-Boot Projekt 6 (AIP)', info: 'Außenluftunabhängig: bis 5 kn ohne Batterieverbrauch, sehr leise; 250 m' },
+  ssw: { title: 'Jagd-U-Boot S-14', info: 'Geleitschutz unter Wasser: jagt die Wölfe vor dem Konvoi; leise, schnell, 400 m. Nur ein Boot pro Team' },
+  ffk: { title: 'Wachschiff Projekt 11', info: 'U-Jagd für das Rudel: Tiefensonar, Raketen, schnell; bindet die Eskorte, jagt deren U-Boot. Nur ein Schiff pro Team' },
 };
 
 /** Create an element from an HTML string. */

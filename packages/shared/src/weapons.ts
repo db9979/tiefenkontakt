@@ -1,3 +1,4 @@
+import { havenBlocks } from './haven.js';
 import { currentAt } from './currents.js';
 import { seesTorpedoTrack } from './lookout.js';
 import { crossesLayer, passiveExcessFrom, torpedoSourceLevel, sourceLevelToward, targetStrengthToward } from './acoustics.js';
@@ -166,6 +167,8 @@ export function launchAswRocket(w: World, shooter: Ship, aim: Vec2): true | stri
   const l = ws(w).loadouts.get(shooter.id);
   if (!l || l.rockets <= 0) return 'Keine Raketen';
   if (distance(shooter.pos, aim) > ROCKET_MAX_RANGE) return 'Ziel außer Reichweite';
+  const haven = havenBlocks(w, shooter.team, aim);
+  if (haven) return haven;
   l.rockets -= 1;
   w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'rocket' });
   ws(w).pending.push({ at: w.time + ROCKET_FLIGHT, kind: 'rocket', ownerId: shooter.id, pos: { ...aim }, depth: 0 });
@@ -175,6 +178,8 @@ export function launchAswRocket(w: World, shooter: Ship, aim: Vec2): true | stri
 export function dropDepthCharge(w: World, shooter: Ship, depth: number): true | string {
   const l = ws(w).loadouts.get(shooter.id);
   if (!l || l.depthCharges <= 0) return 'Keine Wasserbomben';
+  const haven = havenBlocks(w, shooter.team, shooter.pos);
+  if (haven) return haven;
   l.depthCharges -= 1;
   w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'dc' });
   const d = clamp(depth, 20, 400);

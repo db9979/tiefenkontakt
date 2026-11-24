@@ -6,6 +6,12 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Gemischte Teams:** je Seite ein gemischter Platz. Westbund: Jagd-U-Boot S-14 in direkter Unterstützung des
+  Konvois (jagt die Wölfe). Ostpakt: Wachschiff Projekt 11 mit Tiefensonar und Raketen (bindet die Eskorte, jagt deren
+  Boot). Eigene Signaturen, Modelle, Erkennungsbuch und Handbuchkarten. Mitwanderndes Sperrgebiet (4 km) um eigene
+  U-Boote: keine eigene Rakete, Wasserbombe oder Hubschraubertorpedo dort, auf der Karte eingezeichnet. Die KI fährt
+  beide Rollen; der Westbund gewinnt weiter, wenn alle Ost-U-Boote versenkt sind.
+- **Sehrohr:** Entfernungen werden fortlaufend verfeinert statt jede Sekunde neu geschätzt; Ziele springen nicht mehr.
 - **Land dazwischen:** Inseln und Landzungen blockieren Schall, flache Schwellen lassen nur Schall nahe ihrem Kamm
   durch; Radar, Sehrohr, Ausguck und Radarwarner brauchen freie Sicht über das Land. Der Radarschirm zeigt auf
   allen Karten Küstenechos mit Radarschatten dahinter.

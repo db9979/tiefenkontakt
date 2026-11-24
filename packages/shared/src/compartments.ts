@@ -1,3 +1,4 @@
+import { isEscort } from './classes.js';
 import { CLASSES, type ClassId } from './classes.js';
 import type { Ship } from './entities.js';
 import { headingVec, type Vec2 } from './math.js';
@@ -74,13 +75,13 @@ const SMALL: CompSpec[] = [
 ];
 
 const LAYOUT: Record<ClassId, CompSpec[]> = {
-  ssn: SSN, ssk: SSK, ssa: SSK, ssc: SSC, ffg: FFG, ffv: FFG.map((x) => (x.name === 'Hangar/Achterschiff' ? { ...x, name: 'Achterschiff/VDS', sys: { antrieb: 0.4, sonar: 0.4 } } : x)),
+  ssn: SSN, ssw: SSN, ssk: SSK, ssa: SSK, ssc: SSC, ffg: FFG, ffk: FFG.map((x) => (x.name === 'Hangar/Achterschiff' ? { ...x, name: 'Achterschiff/VDS', sys: { antrieb: 0.4, sonar: 0.4 } } : x)), ffv: FFG.map((x) => (x.name === 'Hangar/Achterschiff' ? { ...x, name: 'Achterschiff/VDS', sys: { antrieb: 0.4, sonar: 0.4 } } : x)),
   kor: KOR, merchant: CARGO, tanker: CARGO, container: CARGO, faehre: CARGO, fischer: SMALL, schlepper: SMALL, yacht: SMALL,
 };
 
 /** Hull length (m) for placing a hit along the hull. */
 const LENGTH: Record<ClassId, number> = {
-  ssn: 107, ssk: 73, ssa: 62, ssc: 48, ffg: 130, ffv: 113, kor: 72, merchant: 150, tanker: 330, container: 210, faehre: 160,
+  ssn: 107, ssw: 85, ssk: 73, ssa: 62, ssc: 48, ffg: 130, ffv: 113, ffk: 123, kor: 72, merchant: 150, tanker: 330, container: 210, faehre: 160,
   fischer: 60, schlepper: 65, yacht: 14,
 };
 
@@ -91,7 +92,7 @@ const LENGTH: Record<ClassId, number> = {
 export function reserveBuoyancy(s: Ship): number {
   const spec = CLASSES[s.cls];
   if (spec.submarine) return s.depth <= 1 ? 0.32 : 0.45;
-  if (s.cls === 'ffg' || s.cls === 'ffv' || s.cls === 'kor') return 0.45;
+  if (isEscort(s.cls)) return 0.45;
   if (s.cls === 'tanker') return 0.45;
   if (s.cls === 'fischer' || s.cls === 'schlepper' || s.cls === 'yacht') return 0.3;
   return 0.38;

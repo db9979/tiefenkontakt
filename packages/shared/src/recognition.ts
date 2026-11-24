@@ -23,6 +23,8 @@ export interface RecogEntry {
 export const RECOG: Record<ClassId, RecogEntry> = {
   ffg: { length: 136, beam: 15.4, mast: 34, group: 'warship', cues: 'Langer Glattdeckrumpf, Geschütz vorn, Raketenstarter vor der Brücke, hoher Gittermast, Hubschrauberhangar und Deck achtern' },
   ffv: { length: 113, beam: 14, mast: 29, group: 'warship', cues: 'Kürzer als F-12, ein Schornstein mittschiffs, Gittermast, VDS-Kran und Schleppkörper am Heck, kein Hangar' },
+  ffk: { length: 123, beam: 14.2, mast: 26, group: 'warship', cues: 'Lang und schlank, Vierfachstarter für U-Jagd-Raketen auf der Back, zwei Geschütztürme achtern, VDS-Pforte im Heck, kein Hangar' },
+  ssw: { length: 85, beam: 10, mast: 9, group: 'submarine', cues: 'Schlanker, zylindrischer Rumpf, schmaler Turm mit Tiefenrudern, Kreuzleitwerk, kaum Flutschlitze' },
   kor: { length: 72, beam: 11.6, mast: 18, group: 'warship', cues: 'Klein und niedrig, hoher Bug, gedrungener Aufbau mit Mast, Raketenwerfer vorn, Wasserbombenschienen achtern' },
   merchant: { length: 130, beam: 20.6, mast: 27, group: 'convoy', cues: 'Brückenhaus mittschiffs bis achtern, Ladebäume an Portalmasten, Luken auf dem Vorschiff' },
   ssn: { length: 102, beam: 15.2, mast: 10, group: 'submarine', cues: 'Großer runder Rumpf, langer niedriger Turm weit vorn, Wulst (Gondel) auf dem Seitenruder' },
@@ -38,7 +40,7 @@ export const RECOG: Record<ClassId, RecogEntry> = {
 };
 
 /** Order of the book: escorts, convoy, boats (surfaced), neutral traffic. */
-export const RECOG_ORDER: ClassId[] = ['ffg', 'ffv', 'kor', 'merchant', 'ssn', 'ssk', 'ssa', 'ssc', 'tanker', 'container', 'faehre', 'fischer', 'schlepper', 'yacht'];
+export const RECOG_ORDER: ClassId[] = ['ffg', 'ffv', 'kor', 'ffk', 'merchant', 'ssw', 'ssn', 'ssk', 'ssa', 'ssc', 'tanker', 'container', 'faehre', 'fischer', 'schlepper', 'yacht'];
 
 /** The coarse classification a precise class stands for (as the sonar buttons use it). */
 export function choiceOfClass(cls: ClassId): ClassChoice {

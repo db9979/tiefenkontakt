@@ -365,15 +365,17 @@ function ssa(b: THREE.Group): void {
 
 export function surfacedBoat(g: THREE.Group, cls: ClassId): void {
   const b = new THREE.Group();
-  const r = cls === 'ssn' ? 5.3 : cls === 'ssc' ? 2.35 : cls === 'ssa' ? 3.1 : 4.9;
+  const r = cls === 'ssn' ? 5.3 : cls === 'ssc' ? 2.35 : cls === 'ssa' ? 3.1 : cls === 'ssw' ? 4.4 : 4.9;
   // Hull axis 16 % of the radius under water (≈ 42 % of the hull above), trimmed a little by the stern
   b.position.y = -0.16 * r;
   b.rotation.x = -0.012;
   if (cls === 'ssn') ssn(b);
   else if (cls === 'ssc') ssc(b);
   else if (cls === 'ssa') ssa(b);
+  // Westbund hunter-killer: the slim AIP hull scaled up to a western SSN
+  else if (cls === 'ssw') { ssa(b); b.scale.set(1.4, 1.4, 1.42); }
   else ssk(b);
   g.add(b);
-  const len = cls === 'ssn' ? 100 : cls === 'ssc' ? 48 : cls === 'ssa' ? 60 : 72;
+  const len = cls === 'ssn' ? 100 : cls === 'ssc' ? 48 : cls === 'ssa' ? 60 : cls === 'ssw' ? 85 : 72;
   wake(g, len * 0.9, r * 1.7, len / 2 + 2, -len / 2);
 }

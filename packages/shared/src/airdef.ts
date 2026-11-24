@@ -36,6 +36,7 @@ export const SAM_SPECS: Partial<Record<ClassId, SamSpec>> = {
   // F-30: short-range point-defence launcher on the hangar (Sea-Sparrow type)
   ffv: { name: 'Nahbereich · Hangar', magazine: 8, minRange: 1000, maxRange: 11_000, minAlt: 10, maxAlt: 5000, speedMs: 700, pk: 0.8, cycleS: 6 },
   // K-7: twin pop-up launcher from its deck bin (Osa-M type)
+  ffk: { name: 'Versenkstarter (zwei)', magazine: 40, minRange: 1500, maxRange: 12_000, minAlt: 10, maxAlt: 5000, speedMs: 600, pk: 0.65, cycleS: 6 },
   kor: { name: 'Versenkstarter', magazine: 20, minRange: 1500, maxRange: 12_000, minAlt: 10, maxAlt: 5000, speedMs: 600, pk: 0.65, cycleS: 8 },
 };
 

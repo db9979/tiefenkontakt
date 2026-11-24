@@ -8,18 +8,22 @@ import { SIGNATURES, type SigKey } from '@tk/shared';
 
 const GROUPS: [string, SigKey[]][] = [
   ['Kriegsschiffe (Westbund)', ['ffg', 'ffv', 'kor']],
+  ['Wachschiff (Ostpakt, gemischter Platz)', ['ffk']],
   ['U-Boote (Ostpakt)', ['ssn', 'ssk', 'ssc', 'ssa']],
+  ['Jagd-U-Boot (Westbund, gemischter Platz)', ['ssw']],
   ['Handel und Neutrale', ['merchant', 'tanker', 'container', 'faehre', 'fischer', 'schlepper', 'yacht']],
   ['Waffen', ['torpedo']],
 ];
 
 /** A typical speed for reading the DEMON rates (kn). */
-const TYPICAL: Partial<Record<SigKey, number>> = { ssn: 6, ssk: 4, ssc: 4, ssa: 4, torpedo: 40, yacht: 6, fischer: 8, schlepper: 10, merchant: 12 };
+const TYPICAL: Partial<Record<SigKey, number>> = { ssw: 6, ssn: 6, ssk: 4, ssc: 4, ssa: 4, torpedo: 40, yacht: 6, fischer: 8, schlepper: 10, merchant: 12 };
 
 const EAR: Partial<Record<SigKey, string>> = {
   ffg: 'Gleichmäßiges Rauschen, Turbinenpfeifen; 5 Flügel, mittlere Drehzahl.',
   ffv: 'Dampfturbine: weiches Rauschen, 3 große Flügel, Linien 190/285 Hz.',
   kor: 'Diesel-Schlag im 75-Hz-Raster, 4 Flügel, wendig und leise.',
+  ssw: 'Fast unhörbar: 60-Hz-Bordnetz (West!) und Getriebe um 42 Hz, sieben Flügel, sehr langsame Welle.',
+  ffk: 'Gasturbinen-Heulen bei 300 Hz, 50-Hz-Bordnetz, zwei Wellen mit je vier Flügeln.',
   ssn: 'Kaum Schraube, dafür Pumpen- und Turbinenton bei 25/60/120 Hz; viele Flügel.',
   ssk: 'Auf Batterie fast nur eine schwache 50-Hz-Linie; schnorchelnd laute Diesel bei 24/48/72 Hz.',
   ssc: 'Klein und schnell drehend, 60-Hz-Linie; schnorchelnd 30/60/90 Hz.',

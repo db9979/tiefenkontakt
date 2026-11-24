@@ -64,7 +64,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('join_code'), matchId: z.string().regex(/^[a-f0-9]{8}$/) }),
   z.object({ t: z.literal('join'), matchId: z.string().max(40), team }),
   z.object({ t: z.literal('leave') }),
-  z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ffg', 'kor', 'ffv']) }),
+  z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ssw', 'ffg', 'kor', 'ffv', 'ffk']) }),
   z.object({ t: z.literal('ready'), ready: z.boolean() }),
   z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
   z.object({ t: z.literal('blow') }),
@@ -97,7 +97,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('sandbox'), op: z.enum(['speed', 'truth', 'spawn', 'steer', 'remove']),
     scale: z.number().int().min(0).max(10).optional(), on: z.boolean().optional(),
-    cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ffg', 'kor', 'ffv', 'merchant', 'fischer', 'tanker', 'container', 'faehre', 'schlepper', 'yacht']).optional(),
+    cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ssw', 'ffg', 'kor', 'ffv', 'ffk', 'merchant', 'fischer', 'tanker', 'container', 'faehre', 'schlepper', 'yacht']).optional(),
     bearing: deg.optional(), range: z.number().finite().min(200).max(60_000).optional(), heading: deg.optional(),
     speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(600).optional(), id: z.string().max(20).optional(),
   }),
@@ -116,7 +116,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('classify'), label: z.string().min(1).max(24),
     choice: z.enum(['merchant', 'warship', 'submarine', 'torpedo', 'bio', 'unknown']),
-    cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ffg', 'kor', 'ffv', 'merchant', 'fischer', 'tanker', 'container', 'faehre', 'schlepper', 'yacht']).optional(),
+    cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ssw', 'ffg', 'kor', 'ffv', 'ffk', 'merchant', 'fischer', 'tanker', 'container', 'faehre', 'schlepper', 'yacht']).optional(),
   }),
   z.object({
     t: z.literal('photo'), id: z.string().regex(/^[a-z0-9-]{4,24}$/), bearing: deg, fov: z.number().finite().min(1).max(120),

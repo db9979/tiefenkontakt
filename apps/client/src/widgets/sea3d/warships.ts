@@ -233,7 +233,7 @@ function forecastle(g: THREE.Object3D, h: Hull, z0: number, rise: number): Hull 
 }
 
 /** Frigate with variable-depth sonar (F-30), after the Leander class: 113 m, flush deck with strong sheer forward. */
-export function vdsFrigate(g: THREE.Group): void {
+export function vdsFrigate(g: THREE.Group, east = false): void {
   const L = 113;
   const B = 12.5;
   const h = loftHull(g, { len: L, beam: B, freeboard: 5, draft: 4.5, sheerBow: 3.2, sheerStern: 0.3, rake: 7, flare: 0.12, fullness: 0.12, transom: 0.72, bilge: 0.45, colors: COLORS });
@@ -319,11 +319,19 @@ export function vdsFrigate(g: THREE.Group): void {
   // Flight deck at 01 level over the after part, with markings and safety nets
   box(g, 11, yf - y0, 18.5, 0, (yf + y0) / 2, -37.75, N);
   box(g, 10.8, 0.04, 18.3, 0, yf + 0.02, -37.75, K.deck);
-  box(g, 0.3, 0.03, 16, 0, yf + 0.05, -37.75, MARK);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.4, 32), MARK);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(0, yf + 0.06, -38.5);
-  g.add(ring);
+  if (east) {
+    // Ostpakt patrol ship: no helicopter, two gun turrets on the after superstructure instead
+    for (const z of [-33, -42]) {
+      profileSolid(g, [[-2.2, 0], [2, 0], [2, 0.8], [1.2, 1.8], [-1.8, 1.9], [-2.2, 1.4]], 3.6, N).position.set(0, yf, z);
+      for (const sx of [-1, 1]) cyl(g, 0.12, 4.2, sx * 0.55, yf + 1.2, z + 3.6, D).rotation.x = Math.PI / 2;
+    }
+  } else {
+    box(g, 0.3, 0.03, 16, 0, yf + 0.05, -37.75, MARK);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.4, 32), MARK);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(0, yf + 0.06, -38.5);
+    g.add(ring);
+  }
   for (const sx of [-1, 1]) box(g, 1, 0.05, 18.5, sx * 5.95, yf - 0.1, -37.75, K.black).rotation.z = sx * -0.2;
   // Quarterdeck: VDS winch, A-frame gantry and the yellow towed body in its cradle
   const yq = base(h, -56, -47.5);
@@ -344,7 +352,7 @@ export function vdsFrigate(g: THREE.Group): void {
   strut(g, V(0, yfish + 0.5, -54.6), V(0, at - 0.3, -54.6), 0.05, K.black);
   railing(g, h, -56, -47.5);
   railing(g, h, -28, 52);
-  hullNumber(g, h, 'F 230', 44, h.deckAt(44) - 2.8, 2.6);
+  hullNumber(g, h, east ? '711' : 'F 230', 44, h.deckAt(44) - 2.8, 2.6);
   navLights(g, L, B, mt + 5.6, 19, h.deckAt(19));
   wake(g, 165, B, L / 2, -L / 2);
 }

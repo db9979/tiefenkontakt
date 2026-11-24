@@ -1,3 +1,4 @@
+import { havenBlocks } from './haven.js';
 import { currentAt } from './currents.js';
 import { ambientNoise, reverbLevel, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { dbSum } from './math.js';
@@ -173,6 +174,8 @@ export function sendHeloTorpedo(w: World, ship: Ship, target: Vec2): true | stri
   if (e) return e;
   const left = w.air!.heloTorps?.get(ship.id) ?? 0;
   if (left <= 0) return 'Keine Hubschrauber-Torpedos mehr';
+  const haven = havenBlocks(w, ship.team, target);
+  if (haven) return haven;
   w.air!.heloTorps!.set(ship.id, left - 1);
   w.events.push({ kind: 'weapon', time: w.time, sourceId: ship.id, what: 'rocket' });
   launchHelo(w, ship, target, 'torpedo', false);
@@ -244,7 +247,8 @@ export function airSystem(w: World): void {
     if (kind === 'buoy' || kind === 'torpedo') w.events.push({ kind: 'transient', time: w.time, sourceId: s.shipId, x: s.target.x, y: s.target.y, what: 'splash' });
     // Active buoys run their battery down in 15 minutes, passive ones last 30
     if (kind === 'buoy') air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: { ...s.target }, depth: buoyDepth(s.target, s.deep), expiresAt: w.time + (s.active ? BUOY_LIFE / 2 : BUOY_LIFE), active: s.active || undefined });
-    else if (kind === 'torpedo') dropLightweight(w, s.shipId, s.target);
+    // The pilot holds fire if an own boat has come into the haven meanwhile
+    else if (kind === 'torpedo' && !havenBlocks(w, w.ships.find((x) => x.id === s.shipId)?.team ?? 'neutral', s.target)) dropLightweight(w, s.shipId, s.target);
     else if (kind === 'mpa') {
       const across = headingVec((s.bearing ?? 0) + 90);
       for (let i = 0; i < MPA_PATTERN; i++) {

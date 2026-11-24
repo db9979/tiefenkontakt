@@ -30,6 +30,8 @@ const TEMPLATES: Record<ClassId, Omit<Loadout, 'tubes'> & { tubeCount: number }>
   // ... and an external mine belt around the hull (laid without using a tube)
   ssc: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 4, tubeCount: 8, reloadTime: 150, towedDecoy: false, xbt: 0, mines: 4 },
   kor: { heavy: 0, light: 4, rockets: 4, depthCharges: 16, noisemakers: 0, tubeCount: 2, reloadTime: 50, towedDecoy: false, xbt: 6 },
+  ssw: { heavy: 14, light: 0, rockets: 0, depthCharges: 0, noisemakers: 8, tubeCount: 4, reloadTime: 90, towedDecoy: false, xbt: 0 },
+  ffk: { heavy: 0, light: 8, rockets: 8, depthCharges: 12, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 6 },
   ffv: { heavy: 0, light: 8, rockets: 8, depthCharges: 8, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
   ssa: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 4, reloadTime: 120, towedDecoy: false, xbt: 0, mines: 4 },
   fischer: NONE, tanker: NONE, container: NONE, faehre: NONE, schlepper: NONE, yacht: NONE,

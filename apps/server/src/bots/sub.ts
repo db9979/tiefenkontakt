@@ -16,6 +16,7 @@ import {
   TRAITS,
   commanderTrait,
   headingVec,
+  isEscort,
 } from '@tk/shared';
 import { considerMine } from './mines.js';
 import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
@@ -85,10 +86,12 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     considerMine(w, m, s, threatNear);
     return;
   }
+  // A boat in direct support of its own convoy hunts the wolves instead of merchants
+  const guard = w.ships.some((x) => isConvoyShip(x) && x.team === s.team);
   // Harbour attack: run in to the charted anchorage and fire into it from periscope depth
-  if (w.env.mission === 'hafen' && harbourRun(w, m, s, threatNear, maxSafe, k.salvo)) return;
+  if (!guard && w.env.mission === 'hafen' && harbourRun(w, m, s, threatNear, maxSafe, k.salvo)) return;
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
-  const duel = !w.ships.some(isConvoyShip);
+  const duel = !w.ships.some(isConvoyShip) || guard;
   const wanted = duel ? 'submarine' : 'merchant';
   const target = fresh.filter((t) => voted(m, t) === wanted && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
   // A mine barrage across the convoy track takes the helm while it runs
@@ -128,7 +131,14 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
         m.legSign = -m.legSign;
         m.legUntil = now + 600;
       }
-      s.order.heading = wrap360((s.team === 'east' ? 180 : 0) + 35 * m.legSign);
+      // A guarding boat holds a station some 7 km ahead of its convoy instead
+      const own = guard ? w.ships.filter((x) => isConvoyShip(x) && x.team === s.team && x.alive) : [];
+      if (own.length) {
+        const c = { x: own.reduce((a, x) => a + x.pos.x, 0) / own.length, y: own.reduce((a, x) => a + x.pos.y, 0) / own.length };
+        const ahead = headingVec(w.convoy?.guideHeading ?? 0);
+        const st = { x: c.x + ahead.x * 7000, y: c.y + ahead.y * 7000 };
+        s.order.heading = Math.hypot(st.x - s.pos.x, st.y - s.pos.y) > 2500 ? wrap360((Math.atan2(st.x - s.pos.x, st.y - s.pos.y) * 180) / Math.PI) : wrap360((w.convoy?.guideHeading ?? 0) + 60 * m.legSign);
+      } else s.order.heading = wrap360((s.team === 'east' ? 180 : 0) + 35 * m.legSign);
     }
     const sprinting = now < m.sprintUntil;
     if (!sprinting && now > m.sprintUntil + 180) m.sprintUntil = now + 240;
@@ -160,7 +170,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
   // Reconnaissance: an escort seen through the periscope gets reported at once
-  if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified === 'ffg' || t.classified === 'kor' || t.classified === 'ffv') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
+  if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified !== undefined && isEscort(t.classified) && t.classified !== 'ffk') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
     transmit(w, s, 'Feindmeldung: Geleitschiff in Sicht');
   }
   // Pack report: costs a periscope-depth excursion and an ESM bearing for the escorts

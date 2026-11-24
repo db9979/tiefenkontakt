@@ -12,7 +12,7 @@ import { Plot } from './plot.js';
 export const truth = { on: false, view: undefined as TruthView | undefined, at: 0, scale: 3 };
 
 const TEAM_COL: Record<string, string> = { west: '#85b7eb', east: '#f09595', neutral: '#9aa7a3' };
-const SPAWN: ClassId[] = ['merchant', 'fischer', 'tanker', 'container', 'ssk', 'ssn', 'ssc', 'ssa', 'ffg', 'kor', 'ffv'];
+const SPAWN: ClassId[] = ['merchant', 'fischer', 'tanker', 'container', 'ssk', 'ssn', 'ssc', 'ssa', 'ffg', 'kor', 'ffv', 'ssw', 'ffk'];
 
 /** Draw the true picture over a plot (after the plot's own drawing). */
 function drawTruth(plot: Plot): void {

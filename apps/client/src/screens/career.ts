@@ -19,7 +19,7 @@ export function careerPanels(): HTMLElement {
   const el = h(`<div class="grid2" style="margin-top:10px"><div class="panel" id="c-me"></div><div style="display:flex;flex-direction:column;gap:10px"><div class="panel" id="c-board"></div><div class="panel" id="c-balance"></div></div></div>`);
   const balance = el.querySelector<HTMLElement>('#c-balance')!;
   const MISSION: Record<string, string> = { groenland: 'Grönland', schelf: 'Schelf', fjord: 'Fjord' };
-  const CLS: Record<string, string> = { ffg: 'Fregatte', kor: 'Korvette', ssk: 'Diesel-U-Boot', ssn: 'Atom-U-Boot', ssc: 'Küsten-U-Boot', ssa: 'AIP-U-Boot', ffv: 'VDS-Fregatte' };
+  const CLS: Record<string, string> = { ffg: 'Fregatte', kor: 'Korvette', ffk: 'Wachschiff', ssw: 'Jagd-U-Boot', ssk: 'Diesel-U-Boot', ssn: 'Atom-U-Boot', ssc: 'Küsten-U-Boot', ssa: 'AIP-U-Boot', ffv: 'VDS-Fregatte' };
   fetch('/api/balance').then(async (r) => {
     const b = (await r.json()) as { total: number; missions: { key: string; games: number; westWins: number; eastWins: number; avgMin: number }[]; classes: { key: string; games: number; wins: number }[] };
     const pct = (a: number, n: number) => (n ? Math.round((100 * a) / n) : 0);

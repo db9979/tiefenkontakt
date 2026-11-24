@@ -1,4 +1,4 @@
-import { bearing, distance, groundsOf, lanesOf, type RegionId, type Vec2 } from '@tk/shared';
+import { CLASSES, HAVEN_M, bearing, distance, groundsOf, lanesOf, type RegionId, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { deg3, km } from './format.js';
 
@@ -162,6 +162,28 @@ export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, r
     const c = P(g.c), e = P({ x: g.c.x + g.r, y: g.c.y });
     ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(e.x - c.x), 0, Math.PI * 2); ctx.stroke();
     ctx.fillText('FANGGRUND', c.x, c.y);
+  }
+  ctx.restore();
+}
+
+/** Moving havens round own submarines: no own ASW weapon may go into the water inside (blue, dashed). */
+export function drawHavens(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, s: Snapshot): void {
+  const boats = s.friendlies.filter((f) => f.alive && CLASSES[f.cls].submarine && f.id !== s.own.id);
+  if (CLASSES[s.own.cls].submarine && s.friendlies.some((f) => f.alive && !CLASSES[f.cls].submarine && f.cls !== 'merchant')) boats.push({ ...s.own, alive: true } as never);
+  if (!boats.length) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(110,170,255,0.55)';
+  ctx.fillStyle = 'rgba(110,170,255,0.06)';
+  ctx.setLineDash([10, 6]);
+  ctx.font = '9px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  for (const b of boats) {
+    const c = P(b), e = P({ x: b.x + HAVEN_M, y: b.y });
+    const r = Math.abs(e.x - c.x);
+    ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(110,170,255,0.8)';
+    ctx.fillText('SPERRGEBIET', c.x, c.y - r - 4);
+    ctx.fillStyle = 'rgba(110,170,255,0.06)';
   }
   ctx.restore();
 }

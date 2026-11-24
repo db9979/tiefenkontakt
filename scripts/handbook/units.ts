@@ -24,6 +24,16 @@ const CARDS: Card[] = [
     tips: ['Flanke des Konvois sichern, Kontakte an die Fregatte melden.', 'Wasserbomben auf kurze Entfernung, Torpedorohre für den Gegenangriff.'],
   },
   {
+    cls: 'ssw', side: 'Westbund', role: 'Jagd-U-Boot im Geleitschutz (gemischter Platz)',
+    text: 'Atom-U-Boot in direkter Unterstützung des Konvois: sehr leise, schnell und tief, mit langem Schleppsonar. Es jagt die Wölfe vor dem Konvoi, bevor sie schießen. Höchstens eines pro Team. Um das Boot liegt ein mitwanderndes Sperrgebiet von 4 km: Dort setzen die eigenen Fregatten keine U-Jagd-Waffe ein.',
+    tips: ['Etwa 4 sm vor dem Konvoi stehen und horchen; die Führung meldet seinen Ort zu den Sendezeiten.', 'Kontakte vorsichtig klassifizieren: Die eigenen Fregatten sind laut, das Rudel leise.', 'Nicht in den Rücken der eigenen Fregatten geraten: Außerhalb des Sperrgebiets ist jedes U-Boot für sie ein Ziel.'],
+  },
+  {
+    cls: 'ffk', side: 'Ostpakt', role: 'Wachschiff im Rudel (gemischter Platz)',
+    text: 'Schnelles U-Jagd-Schiff mit Tiefensonar und Raketen, ohne Hubschrauber, laut (Gasturbinen). Es läuft dem Rudel voraus, bindet die Eskorte und jagt deren U-Boot. Den Konvoi versenken kann es nicht. Höchstens eines pro Team; um die eigenen Boote gilt das Sperrgebiet.',
+    tips: ['Laut und auffällig sein lohnt sich: Jede Eskorte, die dich jagt, fehlt am Konvoi.', 'Das Tiefensonar unter die Schicht senken und das Jagd-U-Boot des Westbunds suchen.', 'Die eigenen Boote sind still und meist unbekannt: Erst schießen, wenn der Kontakt sicher feindlich ist.'],
+  },
+  {
     cls: 'ssn', side: 'Ostpakt', role: 'Atom-U-Boot',
     text: 'Schnell und unbegrenzt ausdauernd, mit Schleppsonar und 16 schweren Torpedos. Bei hoher Fahrt und geringer Tiefe laut (Kavitation, Reaktorpumpen).',
     tips: ['Weit vorauslaufen, dann langsam (unter 6 kn) und tief auf die Konvoibahn warten.', 'Das Schleppsonar hört weiter als jede Fregatte – nutzen, solange der Kurs gerade ist.'],
@@ -104,7 +114,7 @@ export function unitCards(): string {
       k.towed ? `Schleppsonar ${fmt(k.towed.maxLength)} m (bis ${k.towed.maxSpeedKn} kn)` : '',
       k.vds ? `Tiefensonar bis ${k.vds.maxDepth} m (bis ${k.vds.maxSpeedKn} kn)` : '',
       c.cls === 'ffg' ? 'Bordhubschrauber' : '',
-      k.team === 'west' && c.cls !== 'merchant' ? 'Radar, Funkpeilung, Ausguck' : '',
+      !k.submarine && c.cls !== 'merchant' ? 'Radar, Funkpeilung, Ausguck' : '',
       k.submarine ? 'Sehrohr, Funkpeilung (ESM)' : '',
     ].filter(Boolean).join(' · ') || '—';
     const rows: [string, string][] = [
@@ -169,11 +179,11 @@ export function airCards(): string {
 
 /** Short comparison table of all playable classes. */
 export function unitTable(): string {
-  const ids: ClassId[] = ['ffg', 'ffv', 'kor', 'ssn', 'ssk', 'ssc', 'ssa'];
+  const ids: ClassId[] = ['ffg', 'ffv', 'kor', 'ssw', 'ffk', 'ssn', 'ssk', 'ssc', 'ssa'];
   return `<table class="grid"><tr><th>Klasse</th><th>t</th><th>kn</th><th>Tiefe</th><th>Lärm*</th><th>Stärke</th></tr>${ids.map((id) => {
     const k = CLASSES[id];
     const strengths: Record<string, string> = {
-      ffg: 'Hubschrauber, Bojen', ffv: 'VDS unter der Schicht', kor: 'wendig, leise', ssn: 'Tempo, Ausdauer', ssk: 'sehr leise', ssc: 'Flachwasser', ssa: 'leise und ausdauernd',
+      ffg: 'Hubschrauber, Bojen', ffv: 'VDS unter der Schicht', kor: 'wendig, leise', ssw: 'jagt die Wölfe (gemischt)', ffk: 'bindet die Eskorte (gemischt)', ssn: 'Tempo, Ausdauer', ssk: 'sehr leise', ssc: 'Flachwasser', ssa: 'leise und ausdauernd',
     };
     return `<tr><td>${k.name}</td><td>${fmt(k.tonnage)}</td><td>${k.maxSpeedKn}</td><td>${k.submarine ? `${k.maxDepth} m` : '—'}</td><td>${k.slBase} dB</td><td>${strengths[id]}</td></tr>`;
   }).join('')}</table><p class="small">* Quellpegel bei Marschfahrt (${'U-Boote 4–5 kn, Überwasserschiffe 15 kn'}). Je 6 dB weniger halbiert etwa die Entfernung, auf die man gehört wird.</p>`;

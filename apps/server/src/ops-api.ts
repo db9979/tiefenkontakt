@@ -15,7 +15,7 @@ export interface OpsCtx {
   reply: Reply;
 }
 
-const playable = z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ffg', 'kor', 'ffv']);
+const playable = z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ssw', 'ffg', 'kor', 'ffv', 'ffk']);
 const dockSchema = z.object({ repair: z.enum(['keine', 'notdienst', 'voll']), resupply: z.boolean() });
 const seriesSchema = z.object({
   games: z.number().int().min(1).max(20),

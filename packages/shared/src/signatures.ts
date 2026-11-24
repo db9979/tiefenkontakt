@@ -74,6 +74,18 @@ export const SIGNATURES: Record<SigKey, Signature> = {
     tonals: [{ hz: 400, level: -3 }, { hz: 50, level: -5 }],
     snorkelTonals: [{ hz: 27, level: 7 }, { hz: 54, level: 6 }, { hz: 81, level: 4 }],
   },
+  ssw: {
+    // Western SSN: quiet geared turbines, 60 Hz ship's power, seven-bladed skewed screw
+    key: 'ssw', name: 'Jagd-U-Boot S-14', choice: 'submarine', blades: [7],
+    rpmPerKn: 6, rpmRange: [20, 190], tonalBand: [20, 130], maxSpeedKn: 30,
+    tonals: [{ hz: 60, level: -4 }, { hz: 42, level: -5 }, { hz: 120, level: -6 }],
+  },
+  ffk: {
+    // Krivak-type: two shafts, gas turbines whining at 300 Hz, 50 Hz ship's power
+    key: 'ffk', name: 'Wachschiff Projekt 11 (Gasturbine)', choice: 'warship', blades: [4],
+    rpmPerKn: 9, rpmRange: [50, 260], tonalBand: [40, 320], maxSpeedKn: 32,
+    tonals: [{ hz: 50, level: 6 }, { hz: 100, level: 5 }, { hz: 300, level: 4 }],
+  },
   ffv: {
     key: 'ffv', name: 'Fregatte F-30 (Dampfturbine)', choice: 'warship', blades: [3],
     rpmPerKn: 8, rpmRange: [40, 230], tonalBand: [45, 290], maxSpeedKn: 28,

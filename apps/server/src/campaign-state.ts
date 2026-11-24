@@ -101,7 +101,7 @@ export const CAMPAIGN_MISSIONS: Record<CampSide, CampMission[]> = {
 };
 
 /** Replacement ships, each a step down. */
-const LESSER: Record<PlayableClass, PlayableClass | undefined> = { ssn: 'ssk', ssk: 'ssa', ssa: 'ssc', ssc: undefined, ffg: 'ffv', ffv: 'kor', kor: undefined };
+const LESSER: Record<PlayableClass, PlayableClass | undefined> = { ssn: 'ssk', ssk: 'ssa', ssa: 'ssc', ssc: undefined, ffg: 'ffv', ffv: 'kor', kor: undefined, ssw: undefined, ffk: undefined };
 export const MAX_REPLACEMENTS = 2;
 export const MAX_CREW_LOST = 10;
 

@@ -78,10 +78,16 @@ export interface CustomMission {
 export const DEFAULT_CUSTOM: CustomMission = { convoyKn: 9, seabed: 'tief', subFrac: 0.5 };
 
 /** Classes a team may pick in a mission: in the duel both sides fight with submarines. */
-export type PlayableClass = 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa';
+export type PlayableClass = 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'ssw' | 'ffk';
+/**
+ * Mixed teams: the Westbund may send one hunter-killer boat in direct support of the convoy,
+ * the Ostpakt one ASW patrol ship with its wolfpack. One such place per team at most.
+ */
+export const MIXED_CLASS = { west: 'ssw', east: 'ffk' } as const;
+export const isMixedClass = (cls: string): boolean => cls === 'ssw' || cls === 'ffk';
 export function allowedClasses(mission: MissionId, team: 'west' | 'east'): PlayableClass[] {
-  if (mission === 'duell') return ['ssn', 'ssk', 'ssc', 'ssa'];
-  return team === 'west' ? ['ffg', 'kor', 'ffv'] : ['ssk', 'ssn', 'ssc', 'ssa'];
+  if (mission === 'duell') return ['ssn', 'ssk', 'ssc', 'ssa', 'ssw'];
+  return team === 'west' ? ['ffg', 'kor', 'ffv', 'ssw'] : ['ssk', 'ssn', 'ssc', 'ssa', 'ffk'];
 }
 
 export const LIGHT: Record<TimeOfDay, number> = { tag: 1, daemmerung: 0.5, nacht: 0.12 };
@@ -194,9 +200,13 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     const spread = MISSIONS[mission].subSpread;
     const x = v.subX(i, (i % 2 === 0 ? 1 : -1) * (spread + (i * spread) / 2));
     const y = mission === 'duell' ? 25_000 + v.subDy(i) : mission === 'meerenge' ? -1500 - i * 800 + v.subDy(i) : mission === 'hafen' ? HARBOUR_SUB_Y + v.subDy(i) : route * frac;
+    // The patrol ship steams ahead of the waiting boats toward the convoy, on the surface
+    const surface = !CLASSES[p.cls].submarine;
+    const ahead = mission === 'meerenge' ? 3000 : -4000;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'east', playerId: p.playerId,
-      pos: { x, y }, heading: mission === 'meerenge' ? 0 : 180, speedKn: 4, depth: 80,
+      pos: { x: surface ? x * 0.5 : x, y: surface ? y + ahead : y }, heading: mission === 'meerenge' ? 0 : 180,
+      speedKn: surface ? 12 : 4, depth: surface ? undefined : 80,
     }));
   });
 

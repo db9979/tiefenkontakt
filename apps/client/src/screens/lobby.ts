@@ -100,7 +100,9 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       ${mine && s.team === mine.team && !s.bot && !s.crewOf && s.playerId !== me.playerId && mine.crewOf !== s.playerId ? `<button data-crew="${s.playerId}" title="Als Besatzung auf diesem Schiff mitfahren">Mitfahren</button>` : ''}
       · ${s.ready ? '<span>BEREIT</span>' : '<span class="amber">WÄHLT</span>'}</span></div>`).join('') ||
       '<div class="slot dim">Freier Platz</div>';
-    const classes = match.settings.mission === 'duell' || mine?.team !== 'west' ? (['ssk', 'ssn', 'ssc', 'ssa'] as const) : (['ffg', 'kor', 'ffv'] as const);
+    // One mixed place per team: the Westbund's hunter-killer boat, the Ostpakt's patrol ship
+    const classes = match.settings.mission === 'duell' ? (['ssk', 'ssn', 'ssc', 'ssa', 'ssw'] as const)
+      : mine?.team !== 'west' ? (['ssk', 'ssn', 'ssc', 'ssa', 'ffk'] as const) : (['ffg', 'kor', 'ffv', 'ssw'] as const);
     el.innerHTML = `
       <div class="hd" style="font-size:1.1667rem"><span>PARTIE „${esc(match.name)}“</span><span>${match.slots.length} SPIELER · KONVOI ${match.settings.merchants} FRACHTER</span></div>
       <div class="invite"><span class="dim">${match.settings.private ? 'PRIVATE PARTIE · NUR PER LINK' : 'EINLADEN'}</span>
@@ -183,7 +185,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       };
     });
     el.querySelectorAll<HTMLButtonElement>('[data-cls]').forEach((b) => {
-      b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa' });
+      b.onclick = () => net.send({ t: 'pick_class', cls: b.dataset.cls as 'ffg' | 'kor' | 'ffv' | 'ssn' | 'ssk' | 'ssc' | 'ssa' | 'ssw' | 'ffk' });
     });
     el.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) => {
       b.onclick = () => net.send({ t: 'join', matchId: match!.id, team: b.dataset.switch as 'west' | 'east' });

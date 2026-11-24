@@ -141,7 +141,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   const hunt = (w.env.hunt ??= {});
   const plan = (hunt[team] ??= { rolesAt: -1e9, hunters: [], helo: {}, said: {} });
   updateDatum(w, plan, escorts, mems);
-  const merchants = w.ships.filter((x) => x.alive && (isConvoyShip(x) || (x.cls === 'merchant' && x.team === team)));
+  const merchants = w.ships.filter((x) => x.alive && x.team === team && (isConvoyShip(x) || x.cls === 'merchant'));
   const center = merchants.length ? { x: merchants.reduce((a, x) => a + x.pos.x, 0) / merchants.length, y: merchants.reduce((a, x) => a + x.pos.y, 0) / merchants.length } : undefined;
   const d = plan.datum;
   const datumOk = !!d && now - d.t < 600 && (!center || distance(center, d) < PROSECUTE_MAX);

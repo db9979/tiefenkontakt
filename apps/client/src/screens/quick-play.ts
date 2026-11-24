@@ -7,7 +7,7 @@ const MISSION: Record<string, string> = {
   fuehlung: 'Fühlung halten', meerenge: 'Meerengen-Durchbruch', aufklaerung: 'Aufklärung', duell: 'U-Boot-Duell', eigene: 'Eigene Mission',
 };
 const TOD: Record<string, string> = { tag: 'Tag', daemmerung: 'Dämmerung', nacht: 'Nacht' };
-const CLS: Record<string, string> = { ffg: 'F-12', kor: 'K-7', ffv: 'F-30', ssk: 'Diesel', ssn: 'Atom', ssc: 'Küste', ssa: 'AIP' };
+const CLS: Record<string, string> = { ffg: 'F-12', kor: 'K-7', ffv: 'F-30', ffk: 'P-11', ssw: 'S-14', ssk: 'Diesel', ssn: 'Atom', ssc: 'Küste', ssa: 'AIP' };
 
 /** Days and hours until the week turns. */
 function left(endsAt: number): string {

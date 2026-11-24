@@ -12,6 +12,9 @@ Das <b>Ostpakt-Wolfsrudel</b> will Tonnage versenken, der <b>Westbund-Geleitschu
 Schiffsklassen und Namen sind erfunden.</p>
 <p>Jeder Spieler führt ein Schiff, allein oder als Besatzung mit Freunden. Fehlende Plätze übernimmt die KI, man kann also auch allein spielen.
 Die Simulation ist bewusst nüchtern: Man sieht den Gegner fast nie. Man hört ihn, peilt ihn, schätzt seine Bahn und schießt auf eine Lösung.</p>
+<p><b>Gemischte Teams:</b> Jede Seite darf einen gemischten Platz besetzen. Der Westbund schickt ein Jagd-U-Boot (S-14) vor den
+Konvoi, der Ostpakt ein Wachschiff (Projekt 11) mit dem Rudel. Um eigene U-Boote liegt ein mitwanderndes Sperrgebiet von 4 km, in das
+die eigene Seite keine U-Jagd-Waffe wirft; außerhalb ist jedes unbekannte U-Boot ein Ziel. Freund oder Feind zu erkennen ist damit Pflicht.</p>
 <div class="cols2">
 <div class="box"><h4>Sieg für die U-Boote</h4><ul><li>Die Hälfte der Konvoi-Tonnage versenkt, oder</li><li>bei Zeitablauf mindestens 30 % versenkt.</li></ul></div>
 <div class="box"><h4>Sieg für den Geleitschutz</h4><ul><li>Mehr als die Hälfte der Tonnage im Zielhafen, oder</li><li>alle U-Boote versenkt, oder</li><li>bei Zeitablauf weniger als 30 % Verlust.</li></ul></div>

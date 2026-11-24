@@ -49,7 +49,7 @@ export function bridgeStation(): Station {
     import('../../widgets/periscope3d.js')
       .then((m) => {
         loading = false;
-        if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas, { eye: 20, own: store.snap?.own.cls === 'kor' || store.snap?.own.cls === 'ffv' ? store.snap.own.cls : 'ffg' });
+        if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas, { eye: 20, own: store.snap?.own.cls === 'kor' || store.snap?.own.cls === 'ffv' ? store.snap.own.cls : store.snap?.own.cls === 'ffk' ? 'ffv' : 'ffg' });
         else failed = true;
       })
       .catch(() => (failed = true));

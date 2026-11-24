@@ -11,7 +11,7 @@ import { touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
 import { drawOrderMarks } from './order-marks.js';
-import { ChartMarks, drawLanes } from './chart-marks.js';
+import { ChartMarks, drawHavens, drawLanes } from './chart-marks.js';
 import { DepthChart } from './plot-depth.js';
 
 export interface PlotOptions {
@@ -343,7 +343,7 @@ export class Plot {
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y - v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 
-    drawLanes(ctx, P, s.env.seabed?.region);
+    drawLanes(ctx, P, s.env.seabed?.region); drawHavens(ctx, P, s);
     this.marks.draw(ctx, P, this.scale);
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'left';

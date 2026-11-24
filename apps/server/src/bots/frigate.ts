@@ -22,6 +22,8 @@ import {
   commanderTrait,
   knownMines,
   steerClear,
+  CLASSES,
+  isConvoyShip,
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
@@ -148,6 +150,22 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
       m.legSign = -m.legSign;
       m.legUntil = now + 240;
     }
+  } else if (!merchants.length && s.team === 'east') {
+    // Ostpakt patrol ship: sweep ahead of its own wolfpack toward the convoy, drawing the escorts
+    // and hunting their boat; it keeps the pack's position from fleet command (truth for own boats)
+    const pack = w.ships.filter((x) => x.alive && x.team === s.team && CLASSES[x.cls].submarine);
+    const foe = w.ships.filter((x) => x.alive && isConvoyShip(x));
+    const mid = (l: Ship[]) => ({ x: l.reduce((a, x) => a + x.pos.x, 0) / l.length, y: l.reduce((a, x) => a + x.pos.y, 0) / l.length });
+    const home = pack.length ? mid(pack) : s.pos;
+    const toward = foe.length ? headingVec(bearing(home, mid(foe))) : headingVec(180);
+    const station = { x: home.x + toward.x * 5000, y: home.y + toward.y * 5000 };
+    if (now > m.legUntil) {
+      m.legSign = -m.legSign;
+      m.legUntil = now + 360;
+    }
+    const to = bearing(s.pos, station);
+    s.order.heading = distance(s.pos, station) > 3000 ? to : wrap360(to + 60 * m.legSign);
+    s.order.speedKn = distance(s.pos, station) > 5000 ? 18 : 12;
   } else if (merchants.length) {
     // Screen ahead on a flank (escorts split left/right), weaving to clear the baffles
     const ahead = w.convoy ? headingVec(w.convoy.guideHeading) : { x: 0, y: 1 };

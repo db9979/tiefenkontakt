@@ -31,7 +31,7 @@ import { learnFrom } from './learning.js';
 import { applyCommand, type GameCommand } from './input.js';
 import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
-import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
+import { DEFAULT_SETTINGS, allowedClasses, buildScenario, isMixedClass, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
 import { resolveLobby } from './variation.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
@@ -308,6 +308,8 @@ export class Match {
     const slot = this.slots.find((s) => s.playerId === playerId);
     if (!slot || this.state !== 'lobby') return 'Nicht in der Lobby';
     if (!allowedClasses(this.settings.mission, slot.team).includes(cls)) return 'Klasse passt nicht zum Team';
+    if (isMixedClass(cls) && this.settings.mission !== 'duell' &&
+      this.slots.some((s) => s.team === slot.team && s.playerId !== playerId && !s.crewOf && isMixedClass(s.cls))) return 'Nur ein gemischter Platz je Team';
     slot.cls = cls;
     for (const s of this.slots) if (s.crewOf === playerId) s.cls = cls;
     this.broadcastLobby();
