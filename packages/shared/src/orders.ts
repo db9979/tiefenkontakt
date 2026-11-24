@@ -4,6 +4,7 @@ import { isConvoyShip, type Ship } from './entities.js';
 import { KN, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import { Rng } from './rng.js';
 import type { World } from './world.js';
+import { trueDeg3 } from './regions.js';
 
 /**
  * FLASH orders: fleet command issues one to three time-limited orders per side during a
@@ -200,7 +201,7 @@ function issue(w: World, st: OrdersState, p: OrdersState['plan'][number]): Flash
       const base = w.convoy.guideHeading;
       const threat = enemy.length && rng.next() < 0.5 ? bearing(center, mean(enemy.map((s) => s.pos))) : base + (rng.next() < 0.5 ? 90 : -90);
       o.heading = Math.round(wrap360(base + (angleDiff(base, threat) > 0 ? -40 : 40)));
-      o.text = `KONVOI BIS ${until} AUF KURS ${String(o.heading).padStart(3, '0')} DREHEN`;
+      o.text = `KONVOI BIS ${until} AUF KURS ${trueDeg3(w, o.heading)} DREHEN`;
       break;
     }
     case 'search': {

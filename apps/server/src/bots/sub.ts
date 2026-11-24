@@ -17,6 +17,7 @@ import {
   commanderTrait,
   headingVec,
   isEscort,
+  trueDeg3,
 } from '@tk/shared';
 import { considerMine } from './mines.js';
 import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
@@ -176,7 +177,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Pack report: costs a periscope-depth excursion and an ESM bearing for the escorts
   if (k.pack && now - m.lastReport > (w.env.mission === 'fuehlung' ? 480 : REPORT_EVERY) && !threatNear) {
     if (mastRaised(s)) {
-      transmit(w, s, `Konvoi Peilung ${Math.round(target.bearing)}`);
+      transmit(w, s, `Konvoi Peilung ${trueDeg3(w, target.bearing)}`);
       pack.push({ t: now, x: s.pos.x, y: s.pos.y, b: target.bearing, team: s.team });
       m.lastReport = now;
       m.peekUntil = 0;

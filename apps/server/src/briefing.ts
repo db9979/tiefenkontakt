@@ -14,10 +14,11 @@ import {
   REGIONS,
   currentNote,
   lightNote,
+  trueDeg3,
+  compassStem,
 } from '@tk/shared';
 import { MISSIONS, type ScenarioSettings } from './scenario.js';
 
-const deg3 = (d: number) => String(Math.round(((d % 360) + 360) % 360)).padStart(3, '0');
 const km = (m: number) => `${Math.round(m / 1000)} km`;
 
 /**
@@ -39,24 +40,25 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   if (duel) {
     goal = 'Alle gegnerischen U-Boote versenken. Wer zuerst hört, gewinnt.';
     const e = enemies[0];
-    if (e) intel.push(`Gegner zuletzt gemeldet: etwa Peilung ${deg3(bearing(ship.pos, e.pos) + (rnd() - 0.5) * 40)}, ${km(distance(ship.pos, e.pos) * (0.7 + rnd() * 0.6))}`);
+    if (e) intel.push(`Gegner zuletzt gemeldet: etwa Peilung ${trueDeg3(w, bearing(ship.pos, e.pos) + (rnd() - 0.5) * 40)}, ${km(distance(ship.pos, e.pos) * (0.7 + rnd() * 0.6))}`);
   } else if (sub) {
     goal = harbour ? 'In die Bucht eindringen und die ankernden Frachter versenken.' : 'Die Hälfte der Konvoi-Tonnage versenken, bevor der Konvoi sein Ziel erreicht.';
     if (centre) {
       const b = bearing(ship.pos, centre) + (rnd() - 0.5) * 30;
-      intel.push(`Aufklärung: ${harbour ? 'Ankerplatz' : 'Konvoi'} etwa Peilung ${deg3(b)}, ${km(distance(ship.pos, centre) * (0.75 + rnd() * 0.5))} (ungenau)`);
-      if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9} kn, Generalkurs ${deg3(Math.round((w.convoy?.guideHeading ?? 0) / 10) * 10)}`);
+      intel.push(`Aufklärung: ${harbour ? 'Ankerplatz' : 'Konvoi'} etwa Peilung ${trueDeg3(w, b)}, ${km(distance(ship.pos, centre) * (0.75 + rnd() * 0.5))} (ungenau)`);
+      if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9} kn, Generalkurs ${trueDeg3(w, w.convoy?.guideHeading ?? 0, 10)}`);
     }
     intel.push(`Eskorte: ${enemies.length} Fregatte(n) mit Schleppsonar, Hubschrauber und U-Jagd-Raketen`);
   } else {
     goal = harbour ? 'Die Einfahrt halten, bis die Zeit abläuft.' : 'Den Konvoi ins Ziel bringen oder alle U-Boote versenken.';
-    if (centre) intel.push(`${harbour ? 'Ankerplatz' : 'Konvoi'}: Peilung ${deg3(bearing(ship.pos, centre))}, ${km(distance(ship.pos, centre))}, ${merchants.length} Frachter`);
+    if (centre) intel.push(`${harbour ? 'Ankerplatz' : 'Konvoi'}: Peilung ${trueDeg3(w, bearing(ship.pos, centre))}, ${km(distance(ship.pos, centre))}, ${merchants.length} Frachter`);
     intel.push(`Bedrohung: ${enemies.length} U-Boot(e), vermutlich voraus des Konvois`);
   }
-  // Missions with goals beyond sinking
+  // Missions with goals beyond sinking (the strait runs along the route, game +y: named by its true direction)
+  const to = compassStem(w, 0);
   const special: Record<string, [string, string]> = {
     fuehlung: ['Fühlung zum Konvoi halten: 25 Minuten Kontakt aus höchstens 12 km, dabei alle 15 Minuten die Lage funken. Waffen sind gesperrt.', 'Die Fühlung der U-Boote abschütteln, bis die Zeit abläuft.'],
-    meerenge: ['Durch die Enge nach Norden durchbrechen: ein Boot muss das Nordende erreichen.', 'Die Enge halten: kein U-Boot darf nach Norden durch.'],
+    meerenge: [`Durch die Enge nach ${to}en durchbrechen: ein Boot muss das ${to}ende erreichen.`, `Die Enge halten: kein U-Boot darf nach ${to}en durch.`],
     aufklaerung: ['Ein Geleitschiff auf höchstens 4 km im Sehrohr erkennen, per Funk melden und danach 20 Minuten entkommen.', 'Keine Feindmeldung zulassen: U-Boote abdrängen oder versenken.'],
   };
   const sp = special[settings.mission];

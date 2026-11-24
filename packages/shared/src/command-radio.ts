@@ -2,6 +2,7 @@ import { CLASSES } from './classes.js';
 import { isConvoyShip, type Ship } from './entities.js';
 import { KN, NM, bearing, distance } from './math.js';
 import type { World } from './world.js';
+import { trueDeg3 } from './regions.js';
 
 /**
  * Broadcasts from fleet command to the wolfpack: a situation report at fixed times.
@@ -54,9 +55,9 @@ function report(w: World, s: Ship): string {
   const rep = { x: c.x + err.x, y: c.y + err.y };
   // Given relative to where the boat believes it is (its dead reckoning)
   const me = { x: s.pos.x + (s.drErr?.x ?? 0), y: s.pos.y + (s.drErr?.y ?? 0) };
-  const b = Math.round(bearing(me, rep)).toString().padStart(3, '0');
+  const b = trueDeg3(w, bearing(me, rep));
   const r = (distance(me, rep) / NM).toFixed(0);
-  const crs = Math.round(w.convoy?.guideHeading ?? merchants[0]!.heading).toString().padStart(3, '0');
+  const crs = trueDeg3(w, w.convoy?.guideHeading ?? merchants[0]!.heading);
   const kn = Math.round(merchants[0]!.speed / KN);
   const escorts = w.ships.filter((x) => x.alive && x.team !== s.team && !CLASSES[x.cls].submarine && x.cls !== 'merchant').length;
   if (own) return `FÜHRUNG: EIGENER GELEITZUG PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. STATION 4 SM VORAUS HALTEN, WÖLFE VOR DEM KONVOI STELLEN. SPERRGEBIET 4 KM UM SIE.`;

@@ -74,6 +74,21 @@ export const toTrue = (deg: number, off: number): number => (((deg + off) % 360)
 /** True direction (deg) → game frame (0–360). */
 export const toGame = (deg: number, off: number): number => (((deg - off) % 360) + 360) % 360;
 
+/** Anything that knows its sea area (a World, or its env). */
+type HasArea = { env: { seabed?: { region?: unknown } } } | { seabed?: { region?: unknown } };
+const areaOf = (w: HasArea): unknown => ('env' in w ? w.env : w).seabed?.region;
+
+/** Game-frame direction → zero-padded true degrees for text ("088"), rounded to `step`; the protocol's numbers stay in the game frame. */
+export function trueDeg3(w: HasArea, gameDeg: number, step = 1): string {
+  return String((Math.round(toTrue(gameDeg, northOffset(areaOf(w))) / step) * step) % 360).padStart(3, '0');
+}
+
+const COMPASS = ['Nord', 'Nordost', 'Ost', 'Südost', 'Süd', 'Südwest', 'West', 'Nordwest'] as const;
+/** German compass stem of a game-frame direction, made true ("Nord", "Südost"): + "en" = "Norden", + "ende" = "Nordende". */
+export function compassStem(w: HasArea, gameDeg: number): (typeof COMPASS)[number] {
+  return COMPASS[Math.round(toTrue(gameDeg, northOffset(areaOf(w))) / 45) % 8]!;
+}
+
 const M_PER_DEG_LAT = 110_574;
 const M_PER_DEG_LON = 111_320;
 
