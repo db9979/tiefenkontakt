@@ -9,6 +9,7 @@ import { takePhoto } from './photos.js';
 import { metrics } from './metrics.js';
 import { allowedClasses } from './scenario.js';
 import { soloSetup, weeklySetup } from './weekly.js';
+import type { DropoutTracker } from './dropouts.js';
 
 /**
  * Matches at the same time (lobby + running). Load test on the Pi 5 (scripts/net-load-test.ts):
@@ -38,6 +39,8 @@ export class Lobby {
   readonly sandbox = new SandboxHub(this);
   /** Campaign hook (set by the server): plans a player's next campaign mission. */
   onCampaignStart?: (conn: Conn) => CampaignPlan | string;
+  /** Drop-out statistics (set by the server): leaves, lost links, reconnects, ends. */
+  dropouts?: DropoutTracker;
 
   connOf(playerId: string): Conn | undefined {
     return this.conns.get(playerId);
@@ -57,8 +60,10 @@ export class Lobby {
   /** After the welcome: put a returning player back into their match, others see the list. */
   resume(conn: Conn): void {
     const m = this.matchOf(conn.playerId);
-    if (m) m.reattach(conn);
-    else conn.send(this.listMsg());
+    if (m) {
+      this.dropouts?.back(conn.playerId);
+      m.reattach(conn);
+    } else conn.send(this.listMsg());
   }
 
   /** A dropped link keeps the player's ship in a running match; in the lobby they leave. */
@@ -69,8 +74,10 @@ export class Lobby {
     this.stopWatching(conn.playerId);
     const m = this.matchOf(conn.playerId);
     if (!m) return;
-    if (m.state === 'running') m.detach(conn.playerId);
-    else this.leaveCurrent(conn.playerId);
+    if (m.state === 'running') {
+      m.detach(conn.playerId);
+      this.dropouts?.detached(m, conn.playerId);
+    } else this.leaveCurrent(conn.playerId);
   }
 
   private stopWatching(playerId: string): void {
@@ -132,6 +139,7 @@ export class Lobby {
   private leaveCurrent(playerId: string): void {
     const m = this.matchOf(playerId);
     if (!m) return;
+    this.dropouts?.left(m, playerId);
     m.leave(playerId);
     this.playerMatch.delete(playerId);
     // Dropped when empty, finished, or when no human player still belongs to it (all left on purpose)
@@ -196,18 +204,23 @@ export class Lobby {
 
   private hook(m: Match): void {
     m.onChange = () => this.broadcastList();
-    m.onFinish = (d) => this.onFinish?.(m, d);
+    m.onFinish = (d) => {
+      this.dropouts?.finished(m);
+      this.onFinish?.(m, d);
+    };
   }
 
   private drop(m: Match): void {
     m.stop();
     this.matches.delete(m.id);
     for (const [pid, mid] of this.playerMatch) if (mid === m.id) this.playerMatch.delete(pid);
+    this.dropouts?.dropped(m);
     this.onDrop?.(m);
   }
 
   /** Remove empty lobbies, finished matches and running matches abandoned for too long. */
   prune(now = Date.now()): void {
+    this.dropouts?.tick(now);
     for (const m of [...this.matches.values()]) {
       if (m.connected > 0) continue;
       if (m.state !== 'running' || now - m.emptySince > ABANDON_MS) this.drop(m);
@@ -323,6 +336,9 @@ export class Lobby {
         return void m.setStation(conn.playerId, msg.index);
       case 'lesson_done':
         if (m.settings.lesson === 'klassifizieren' || m.settings.lesson === 'tma') this.onLessonDone?.(conn.playerId, m.settings.lesson);
+        return;
+      case 'lesson_step':
+        if (m.settings.lesson) this.dropouts?.lessonStep(conn.playerId, msg.step);
         return;
       case 'settings': {
         const { t: _t, ...rest } = msg;
