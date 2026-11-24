@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Spiel
+- **Zeitraffer wählbar:** In der Lobby 3× (Standard), 2× oder Echtzeit. Die Einsatzdauer steht jetzt als Seezeit
+  (zum Beispiel 120 Minuten); Route, Zeitlimit auf See und Balance bleiben bei jedem Zeitraffer gleich, nur die echte
+  Spieldauer ändert sich. Die Uhr zeigt die Seezeit und die echte Restzeit mit dem Zeitraffer, die Lagebesprechung beides.
 - **Siegregel Wachschiff:** Frachter, die das Wachschiff mit Seezielflugkörpern versenkt, zählen nur zur Hälfte zum
   Tonnage-Ziel des Ostpakts; der Konvoi bleibt Sache der U-Boote. Die Tonnage-Leiste zeigt dann „ZÄHLT … %“. Ostpakt
   mit Wachschiff in der KI-Arena (60 Partien, fünf Missionen) 22:38 -> 28:32, auf den Konvoi-Missionen 26:22. Die

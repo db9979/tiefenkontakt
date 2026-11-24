@@ -28,6 +28,7 @@ import {
   KIND_REGION,
   REGIONS,
   areasFor,
+  SEA_TIME_FACTOR,
 } from '@tk/shared';
 import { loadBathymetry } from './bathy-load.js';
 import type { LessonId } from './lessons.js';
@@ -130,11 +131,11 @@ export interface ScenarioSettings {
 }
 
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */
-export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: 3, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft', variation: 'leicht' };
+export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: SEA_TIME_FACTOR, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft', variation: 'leicht' };
 
 /** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
 export function routeLength(s: ScenarioSettings): number {
-  return 9 * 0.514444 * s.timeLimitMin * 60 * DEFAULT_SETTINGS.timeScale * 0.85;
+  return 9 * 0.514444 * s.timeLimitMin * 60 * SEA_TIME_FACTOR * 0.85;
 }
 
 /**
@@ -148,9 +149,9 @@ export const GROENLAND_BANK_FRAC = 0.4;
 /** Sandbox matches run without a time limit (the time scale changes while they run). */
 export const SANDBOX_LIMIT_S = 1e9;
 
-/** Match time limit in sim seconds. */
+/** Match time limit in sim seconds: the same at sea for every time scale (only the real duration changes). */
 export function simTimeLimit(s: ScenarioSettings): number {
-  return s.sandbox ? SANDBOX_LIMIT_S : s.timeLimitMin * 60 * s.timeScale;
+  return s.sandbox ? SANDBOX_LIMIT_S : s.timeLimitMin * 60 * SEA_TIME_FACTOR;
 }
 
 /**

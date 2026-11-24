@@ -1,4 +1,4 @@
-import { REGIONS, areasFor, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
+import { REGIONS, SEA_TIME_FACTOR, TIME_SCALES, areasFor, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
 import { net } from '../net.js';
 import { t } from '../i18n/index.js';
 import { accountPanel } from './account.js';
@@ -137,7 +137,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="row"><span class="dim">SEEGANG</span><select id="s-sea">${[1, 2, 3, 4, 5, 6].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie">VARIATION</span><select id="s-var"><option value="aus">AUS</option><option value="leicht">GERING</option><option value="stark">STARK</option></select></div>
           ${match.settings.lage !== undefined ? `<div class="row"><span class="dim">LAGE</span><span>#${match.settings.lage} · WIE IN DER LETZTEN PARTIE</span></div>` : ''}
-          <div class="row"><span class="dim">ZEITLIMIT</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
+          <div class="row"><span class="dim" title="So lange dauert der Einsatz auf See; die echte Dauer hängt vom Zeitraffer ab">EINSATZDAUER</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v * SEA_TIME_FACTOR} MIN SEEZEIT</option>`).join('')}</select></div>
+          <div class="row"><span class="dim" title="Wie schnell die Zeit auf See läuft. Die Lage bleibt gleich, nur die echte Spieldauer ändert sich">ZEITRAFFER</span><select id="s-scale">${TIME_SCALES.map((n) => `<option value="${n}">${n === 1 ? 'ECHTZEIT' : `${n}×`} · ${Math.round((match!.settings.timeLimitMin * SEA_TIME_FACTOR) / n)} MIN ECHT</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>
           <div class="row"><span class="dim">KI-STÄRKE</span><select id="s-skill"><option value="leicht">LEICHT</option><option value="normal">NORMAL</option><option value="schwer">SCHWER</option></select></div>
           <div class="row"><span class="dim" title="Wahrheitsansicht, Zeitraffer und Ziele setzen; ohne Wertung">ÜBUNGSMODUS (SANDKASTEN)</span><select id="s-sandbox"><option value="0">NEIN</option><option value="1">JA</option></select></div>
@@ -203,6 +204,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     sel('#s-tod').value = match.settings.timeOfDay;
     sel('#s-sea').value = String(match.settings.seaState);
     sel('#s-time').value = String(match.settings.timeLimitMin);
+    sel('#s-scale').value = String(match.settings.timeScale ?? SEA_TIME_FACTOR);
     sel('#s-bots').value = match.settings.fillBots ? '1' : '0';
     sel('#s-skill').value = match.settings.botSkill ?? 'normal';
     sel('#s-wx').value = match.settings.weather ?? 'wechselhaft';
@@ -214,7 +216,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       // A new mission starts in its home area; otherwise the chosen one
       area: sel('#s-mission').value === match!.settings.mission ? sel('#s-area').value as RegionId : undefined,
       timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht' | 'zufall',
-      seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), fillBots: sel('#s-bots').value === '1',
+      seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), timeScale: Number(sel('#s-scale').value), fillBots: sel('#s-bots').value === '1',
       botSkill: sel('#s-skill').value as 'leicht' | 'normal' | 'schwer',
       weather: sel('#s-wx').value as 'wechselhaft' | 'stabil' | 'zufall',
       season: sel('#s-season').value as 'winter' | 'fruehling' | 'sommer' | 'herbst' | 'zufall',
@@ -223,7 +225,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       sandbox: sel('#s-sandbox').value === '1',
       custom: { convoyKn: Number(sel('#c-kn').value), seabed: sel('#c-bed').value as 'tief' | 'schelf' | 'fjord', subFrac: Number(sel('#c-sub').value) },
     });
-    for (const id of ['#s-mission', '#s-area', '#s-tod', '#s-sea', '#s-time', '#s-bots', '#s-skill', '#s-wx', '#s-season', '#s-var', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
+    for (const id of ['#s-mission', '#s-area', '#s-tod', '#s-sea', '#s-time', '#s-scale', '#s-bots', '#s-skill', '#s-wx', '#s-season', '#s-var', '#c-n', '#c-kn', '#c-bed', '#c-sub', '#s-sandbox']) sel(id).onchange = send;
     el.querySelectorAll<HTMLButtonElement>('[data-crew]').forEach((b) => (b.onclick = () => net.send({ t: 'crew', captainId: b.dataset.crew! })));
     el.querySelector<HTMLButtonElement>('#own-ship')?.addEventListener('click', () => net.send({ t: 'crew', captainId: null }));
     el.querySelector<HTMLButtonElement>('#ready')!.onclick = () => net.send({ t: 'ready', ready: !mine?.ready });

@@ -1,4 +1,4 @@
-import type { Briefing } from '@tk/shared';
+import { SEA_TIME_FACTOR, type Briefing } from '@tk/shared';
 import { store } from '../store.js';
 import { esc, h } from './format.js';
 
@@ -16,7 +16,7 @@ export function showBriefing(b: Briefing, force = false): void {
     <div class="brief-grid">
       <div><div class="brief-k">AUFTRAG</div><div class="brief-goal">${esc(b.goal)}</div></div>
       <div><div class="brief-k">EIGENES SCHIFF</div><div>${esc(b.ship)}</div>
-        <div class="dim">${esc(TOD[b.timeOfDay] ?? b.timeOfDay)} · ${b.timeLimitMin} MIN</div></div>
+        <div class="dim">${esc(TOD[b.timeOfDay] ?? b.timeOfDay)} · ${b.timeLimitMin * SEA_TIME_FACTOR} MIN AUF SEE${(b.timeScale ?? SEA_TIME_FACTOR) !== 1 ? ` · ZEITRAFFER ${b.timeScale ?? SEA_TIME_FACTOR}×, ${Math.round((b.timeLimitMin * SEA_TIME_FACTOR) / (b.timeScale ?? SEA_TIME_FACTOR))} MIN ECHT` : ' · ECHTZEIT'}</div></div>
     </div>
     <div class="brief-k">LAGE</div>
     ${b.intel.map((i) => `<div class="brief-line">▸ ${esc(i)}</div>`).join('')}

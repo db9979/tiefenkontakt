@@ -81,7 +81,7 @@ export type ClientMsg =
     area?: RegionId;
     timeOfDay?: 'tag' | 'daemmerung' | 'nacht' | 'zufall';
     seaState?: number;
-    timeLimitMin?: number;
+    timeLimitMin?: number; timeScale?: number;
     fillBots?: boolean;
     botSkill?: 'leicht' | 'normal' | 'schwer';
     weather?: 'wechselhaft' | 'stabil' | 'zufall';
@@ -314,7 +314,7 @@ export interface Briefing {
   goal: string;
   intel: string[];
   steps: string[];
-  timeLimitMin: number;
+  timeLimitMin: number; timeScale?: number;
   timeOfDay: string;
   ship: string;
 }

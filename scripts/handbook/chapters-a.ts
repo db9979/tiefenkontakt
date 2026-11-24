@@ -29,7 +29,7 @@ export const chapterStart = `
 <h2>Konto, Gast und Lobby</h2>
 <ol>
 <li><b>Anmelden</b> mit Rufzeichen und Passwort oder als Gast. Mit Konto werden Rang, Statistik und Karriere gespeichert.</li>
-<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Zeitlimit und KI-Stärke.</li>
+<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Einsatzdauer und KI-Stärke. Der <b>Zeitraffer</b> (3×, 2× oder Echtzeit) ändert nur die echte Spieldauer: Die Lage auf See bleibt gleich, eine Einsatzdauer von 120 Minuten Seezeit dauert bei 3× 40 Minuten, in Echtzeit 120. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
 <li><b>Team und Klasse</b> wählen. Beim Teamkameraden „Mitfahren“ macht euch zur gemeinsamen Besatzung eines Schiffs, jeder an einer Station.</li>
 <li><b>Bereit</b> melden. Leere Plätze besetzt die KI.</li>
 <li>Vor dem Auslaufen erscheint die <b>Einsatzbesprechung</b> mit Auftrag, Lagebild, Aufklärung über den gegnerischen Kommandanten und den ersten Schritten.</li>

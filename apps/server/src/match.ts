@@ -245,7 +245,7 @@ export class Match {
   }
 
   /** Lobby settings: anyone in the lobby may change them; everyone's ready flag resets. */
-  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'area' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'fillBots' | 'botSkill' | 'weather' | 'season' | 'custom' | 'merchants' | 'variation'>>): string | undefined {
+  configure(playerId: string, s: Partial<Pick<ScenarioSettings, 'mission' | 'area' | 'timeOfDay' | 'seaState' | 'timeLimitMin' | 'timeScale' | 'fillBots' | 'botSkill' | 'weather' | 'season' | 'custom' | 'merchants' | 'variation'>>): string | undefined {
     if (this.state !== 'lobby' || !this.slots.some((x) => x.playerId === playerId)) return 'Nur in der Lobby möglich';
     for (const [k, v] of Object.entries(s)) if (v !== undefined) (this.settings as unknown as Record<string, unknown>)[k] = v;
     // A mission change without an area of its own goes back to the mission's home area

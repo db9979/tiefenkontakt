@@ -21,6 +21,13 @@ import { buoySensors, type AirState } from './aviation.js';
 
 export const SIM_DT = 0.1; // s, 10 Hz
 export const SENSOR_INTERVAL = 1; // s
+/**
+ * Time compression: the lobby's time limit is in real minutes at the standard 3×; the battle
+ * always lasts that many minutes times SEA_TIME_FACTOR at sea (routes and balance are sized on
+ * it). A slower scale only stretches the real duration.
+ */
+export const SEA_TIME_FACTOR = 3;
+export const TIME_SCALES = [3, 2, 1] as const;
 
 export type GameEvent =
   | { kind: 'transmission'; time: number; senderId: string; text: string }

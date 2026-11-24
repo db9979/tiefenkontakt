@@ -286,7 +286,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const s = store.snap!;
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
     const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}${fogAt(s.env.met, s.own) > 0.3 ? ' · NEBEL' : ''}${iceCover(s.env.met, s.own) > 0.1 ? ' · EIS' : ''}`;
-    q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${s.score.timeLeftS > 1e8 ? '∞' : clock(s.score.timeLeftS)}`;
+    q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${s.score.timeLeftS > 1e8 ? '∞' : `${clock(s.score.timeLeftS)}${s.timeScale > 0 && s.timeScale !== 1 ? ` (ECHT ${clock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
     // Convoy tonnage bar: red grows from the left (sunk), blue from the right (safe in port);

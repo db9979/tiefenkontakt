@@ -85,6 +85,6 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
         : ['Schleppsonar ausbringen und die Flanke des Konvois sichern', 'Kontakte klassifizieren und über Datalink an die Fregatte melden', 'Entfernung per Ping oder Kreuzpeilung, dann U-Jagd-Rakete oder Wasserbomben'];
   return {
     title: m.title, info: m.info, goal, intel, steps,
-    timeLimitMin: settings.timeLimitMin, timeOfDay: settings.timeOfDay, ship: `${CLASSES[ship.cls].name} ${ship.name}`,
+    timeLimitMin: settings.timeLimitMin, timeScale: settings.timeScale, timeOfDay: settings.timeOfDay, ship: `${CLASSES[ship.cls].name} ${ship.name}`,
   };
 }

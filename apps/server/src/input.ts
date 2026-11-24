@@ -45,6 +45,7 @@ const settingsFields = {
   timeOfDay: z.enum(['tag', 'daemmerung', 'nacht', 'zufall']).optional(),
   seaState: z.number().int().min(0).max(6).optional(),
   timeLimitMin: z.number().int().min(10).max(90).optional(),
+  timeScale: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   fillBots: z.boolean().optional(),
   botSkill: z.enum(['leicht', 'normal', 'schwer']).optional(),
   weather: z.enum(['wechselhaft', 'stabil', 'zufall']).optional(),
