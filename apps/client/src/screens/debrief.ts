@@ -1,5 +1,5 @@
 import { onTap, touchable } from '../widgets/touch.js';
-import { CLASSES, NM, headingVec, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
+import { CLASSES, NM, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
@@ -7,6 +7,8 @@ import { debriefOrders, debriefTips, timelineMarkers } from '../widgets/debrief-
 import { feedbackBlock } from '../widgets/feedback.js';
 import { photoStrip } from '../widgets/photo.js';
 import { drawSymbol } from '../widgets/symbols.js';
+import { chartToScreen, northUpGrid, panDelta, screenDir } from '../widgets/chart-frame.js';
+import { setNorthRegion } from '../north.js';
 import { shareBlock, wireShare } from '../widgets/replay-share.js';
 
 const SPEEDS = [30, 120, 480];
@@ -25,6 +27,8 @@ let current: { update(nd: Debrief): void; el: HTMLElement } | undefined;
 
 /** `shared`: the public replay page (/r/<id>): no own solutions, tips or photos, no lobby. */
 export function debriefOverlay(d: Debrief, onClose: () => void, live = false, shared = false): { update(nd: Debrief): void } {
+  // North-up chart of the match's sea area (debrief, spectating, replay, series); the next live snapshot sets it again
+  setNorthRegion(d.region);
   if (current && document.body.contains(current.el)) {
     current.update(d);
     return current;
@@ -120,7 +124,8 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
       drag = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
       return;
     }
-    pan = { x: drag.px - (e.clientX - drag.x) * scale, y: drag.py + (e.clientY - drag.y) * scale };
+    const dp = panDelta(e.clientX - drag.x, e.clientY - drag.y, scale);
+    pan = { x: drag.px + dp.x, y: drag.py + dp.y };
   });
   if (live) {
     q('#db-close').textContent = 'Zuschauen beenden';
@@ -194,17 +199,10 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
       const ys = first.map((s) => s[2]);
       pan = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 + 6000 };
     }
-    const P = (p: Vec2) => ({ x: w / 2 + (p.x - pan!.x) / scale, y: H / 2 - (p.y - pan!.y) / scale });
+    const c = pan;
+    const P = (p: Vec2) => chartToScreen(p, c, scale, w, H);
     ctx.strokeStyle = COL.grid;
-    const step = 5 * NM;
-    for (let gx = Math.floor((pan.x - (w / 2) * scale) / step) * step; gx < pan.x + (w / 2) * scale; gx += step) {
-      const p = P({ x: gx, y: 0 });
-      ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke();
-    }
-    for (let gy = Math.floor((pan.y - (H / 2) * scale) / step) * step; gy < pan.y + (H / 2) * scale; gy += step) {
-      const p = P({ x: 0, y: gy });
-      ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(w, p.y); ctx.stroke();
-    }
+    northUpGrid(ctx, c, scale, w, H, 5 * NM);
     // Wakes up to t
     for (const s of d.ships) {
       ctx.strokeStyle = teamColor(s.team, s.player);
@@ -245,8 +243,8 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
       const myTeam = d.ships.find((x) => x.id === ownId)?.team ?? 'west';
       ctx.lineWidth = 1.8;
       drawSymbol(ctx, p.x, p.y, s.team === myTeam ? 'friend' : 'hostile', CLASSES[s.cls].submarine ? 'subsurface' : 'surface', s.cls === 'merchant' ? 4 : 6, true);
-      const v = headingVec(e[2]);
-      ctx.beginPath(); ctx.moveTo(p.x + v.x * 6, p.y - v.y * 6); ctx.lineTo(p.x + v.x * 12, p.y - v.y * 12); ctx.stroke();
+      const v = screenDir(e[2]);
+      ctx.beginPath(); ctx.moveTo(p.x + v.x * 6, p.y + v.y * 6); ctx.lineTo(p.x + v.x * 12, p.y + v.y * 12); ctx.stroke();
       ctx.lineWidth = 1;
       if (!e[3]) ctx.fillText('†', p.x + 6, p.y - 6);
       if (s.player || s.id === ownId) ctx.fillText(s.name, p.x + 8, p.y + 4);
@@ -273,6 +271,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
       // Live view: follow the newest frame unless the viewer scrubbed back
       const following = t >= d.duration - 1;
       d = nd;
+      setNorthRegion(d.region);
       slider.max = String(d.duration);
       if (following) t = d.duration;
       renderLists();

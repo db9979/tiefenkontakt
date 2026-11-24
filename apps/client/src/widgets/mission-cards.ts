@@ -1,4 +1,4 @@
-import { KIND_REGION, MISSION_REGION, depthAt, type MissionKey, type RegionId, type SeabedKind } from '@tk/shared';
+import { KIND_REGION, MISSION_REGION, depthAt, northOffset, type MissionKey, type RegionId, type SeabedKind } from '@tk/shared';
 import { ensureGrid } from './bathy-client.js';
 import { esc } from './format.js';
 import { drawSymbol } from './symbols.js';
@@ -31,7 +31,11 @@ export function missionCards(current: MissionKey): string {
     <div class="mcard-t">${esc(c.title)}</div><div class="dim">${esc(c.info)}</div></button>`).join('')}</div>`;
 }
 
-/** Visible sea area in meters (x east, y north). */
+/**
+ * Visible sea area in meters, in the game frame (x right of the route, y along it). The card is
+ * drawn north-up: the sea is sampled turned by the area's bearing about the view centre, and the
+ * scene is drawn with the canvas turned the same way (symbols and labels stay upright).
+ */
 interface View { x0: number; x1: number; y0: number; y1: number }
 const WIDE: View = { x0: -30_000, x1: 30_000, y0: -3_000, y1: 30_750 };
 const HARBOUR: View = { x0: -20_000, x1: 20_000, y0: 0, y1: 22_500 };
@@ -42,14 +46,20 @@ const py = (v: View, y: number) => (1 - (y - v.y0) / (v.y1 - v.y0)) * H;
 const charts = new Map<string, { img: ImageData; typical: number }>();
 
 /** Depth tint, relief shading and isobaths, computed once per sea area. */
-function seaImage(ctx: CanvasRenderingContext2D, kind: SeabedKind, v: View, region?: RegionId): { img: ImageData; typical: number } {
+function seaImage(ctx: CanvasRenderingContext2D, kind: SeabedKind, v: View, off: number, region?: RegionId): { img: ImageData; typical: number } {
   const spec = { kind, seed: 7, region };
   const depth = new Float32Array(W * H);
   let lo = Infinity;
   let hi = -Infinity;
+  // Pixel (north-up, metres east/north of the centre) → game frame
+  const mpp = (v.x1 - v.x0) / W;
+  const cx = (v.x0 + v.x1) / 2, cy = (v.y0 + v.y1) / 2;
+  const b = (off * Math.PI) / 180;
+  const cos = Math.cos(b), sin = Math.sin(b);
   for (let j = 0; j < H; j++) {
     for (let i = 0; i < W; i++) {
-      const d = depthAt(spec, v.x0 + ((i + 0.5) / W) * (v.x1 - v.x0), v.y1 - ((j + 0.5) / H) * (v.y1 - v.y0));
+      const e = (i + 0.5 - W / 2) * mpp, n = (H / 2 - j - 0.5) * mpp;
+      const d = depthAt(spec, cx + e * cos - n * sin, cy + e * sin + n * cos);
       depth[j * W + i] = d;
       if (d > 0) { lo = Math.min(lo, d); hi = Math.max(hi, d); }
     }
@@ -91,7 +101,17 @@ function seaImage(ctx: CanvasRenderingContext2D, kind: SeabedKind, v: View, regi
   return { img, typical: wet[Math.floor(wet.length / 2)] ?? 0 };
 }
 
-function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string, align: CanvasTextAlign = 'left'): void {
+/** Canvas point of (x, y) under the current (turned) transform; the card canvases have no other transform. */
+function upright(ctx: CanvasRenderingContext2D, x: number, y: number): { x: number; y: number } {
+  const p = ctx.getTransform().transformPoint(new DOMPoint(x, y));
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  return { x: p.x, y: p.y };
+}
+
+/** Text at a point of the (possibly turned) scene, drawn upright. */
+function label(ctx: CanvasRenderingContext2D, text: string, x0: number, y0: number, color: string, align: CanvasTextAlign = 'left'): void {
+  const { x, y } = upright(ctx, x0, y0);
   ctx.font = '600 15px ui-monospace, Menlo, monospace';
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
@@ -100,15 +120,25 @@ function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number
   ctx.strokeText(text, x, y);
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+/** Text at a fixed place on the card (not part of the turned scene). */
+function hud(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string): void {
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  label(ctx, text, x, y, color);
+  ctx.restore();
 }
 
 function chartFrame(ctx: CanvasRenderingContext2D, v: View): void {
-  // 10 km grid
+  // 10 km grid along true north and east, through the view centre
+  const k = 10_000 / ((v.x1 - v.x0) / W);
   ctx.strokeStyle = 'rgba(180, 230, 220, 0.09)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = Math.ceil(v.x0 / 10_000) * 10_000; x < v.x1; x += 10_000) { ctx.moveTo(px(v, x), 0); ctx.lineTo(px(v, x), H); }
-  for (let y = Math.ceil(v.y0 / 10_000) * 10_000; y < v.y1; y += 10_000) { ctx.moveTo(0, py(v, y)); ctx.lineTo(W, py(v, y)); }
+  for (let x = W / 2 - Math.floor(W / 2 / k) * k; x < W; x += k) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = H / 2 - Math.floor(H / 2 / k) * k; y < H; y += k) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
   ctx.stroke();
   // Scale bar and north arrow
   const ten = px(v, v.x0 + 10_000);
@@ -122,9 +152,11 @@ function chartFrame(ctx: CanvasRenderingContext2D, v: View): void {
 }
 
 function sym(ctx: CanvasRenderingContext2D, x: number, y: number, aff: 'friend' | 'hostile' | 'neutral', dim: 'surface' | 'subsurface', size: number): void {
+  const p = upright(ctx, x, y);
   ctx.strokeStyle = ctx.fillStyle = aff === 'hostile' ? RED : aff === 'friend' ? BLUE : '#c9d4d0';
   ctx.lineWidth = 2.2;
-  drawSymbol(ctx, x, y, aff, dim, size, true);
+  drawSymbol(ctx, p.x, p.y, aff, dim, size, true);
+  ctx.restore();
 }
 
 function arrow(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, dy: number, color: string): void {
@@ -233,7 +265,7 @@ function shadowScene(ctx: CanvasRenderingContext2D, v: View): void {
   ctx.setLineDash([]);
   label(ctx, 'FÜHLUNG', sx + 12, sy + 6, RED);
   label(ctx, '((( FUNK', sx + 12, sy + 24, '#e8c37a');
-  label(ctx, 'WAFFEN GESPERRT', 10, 36, '#e8c37a');
+  hud(ctx, 'WAFFEN GESPERRT', 10, 36, '#e8c37a');
 }
 
 /** Strait: escorts across the narrows, boats coming up from the south to the exit line. */
@@ -271,7 +303,7 @@ function reconScene(ctx: CanvasRenderingContext2D, v: View): void {
   ctx.setLineDash([]);
   ctx.beginPath(); ctx.arc(ex, ey, 11, 0, 7); ctx.stroke();
   label(ctx, '≤ 4 KM · SEHROHR', sx + 10, sy - 4, '#e8c37a');
-  label(ctx, 'MELDEN + 20 MIN ENTKOMMEN', 10, 36, '#e8c37a');
+  hud(ctx, 'MELDEN + 20 MIN ENTKOMMEN', 10, 36, '#e8c37a');
 }
 
 /** Draw the chart canvases rendered by missionCards (sea area cached per mission). */
@@ -290,22 +322,28 @@ export function paintMissionCharts(root: HTMLElement, customSeabed?: SeabedKind)
     const region = card.kind === 'custom' && customSeabed ? KIND_REGION[customSeabed] : MISSION_REGION[card.key];
     // The real sea area: drawn once its bathymetry is here (the cards repaint when it arrives)
     const ready = !region || ensureGrid(region);
-    const key = `${card.kind === 'harbour' ? 'h' : 'w'}|${seabed}|${region ?? ''}|${ready}`;
+    // North-up: the area's bearing (no snapshot in the lobby, so straight from the region)
+    const off = northOffset(region);
+    const key = `${card.kind === 'harbour' ? 'h' : 'w'}|${seabed}|${region ?? ''}|${ready}|${off}`;
     let sea = charts.get(key);
-    if (!sea) charts.set(key, (sea = seaImage(ctx, seabed, v, ready ? region : undefined)));
+    if (!sea) charts.set(key, (sea = seaImage(ctx, seabed, v, off, ready ? region : undefined)));
     ctx.putImageData(sea.img, 0, 0);
     chartFrame(ctx, v);
     // Typical water depth: the first thing a captain wants to know about the area
     const deep = sea.typical >= 1000 ? `${(sea.typical / 1000).toFixed(1).replace('.', ',')} KM` : `${Math.round(sea.typical / 10) * 10} M`;
     label(ctx, `TIEFE ~${deep}`, 10, 16, '#cfe8e0');
+    // The scene in the game frame, turned about the card centre like the sea
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate((off * Math.PI) / 180);
+    ctx.translate(-W / 2, -H / 2);
     if (card.kind === 'duel') duelScene(ctx, v);
     else if (card.kind === 'harbour') harbourScene(ctx, v);
     else if (card.kind === 'strait') straitScene(ctx, v);
     else if (card.kind === 'shadow') shadowScene(ctx, v);
     else if (card.kind === 'recon') reconScene(ctx, v);
-    else {
-      convoyScene(ctx, v);
-      if (card.kind === 'custom') label(ctx, '⚙ FREI', 10, 36, '#e8c37a');
-    }
+    else convoyScene(ctx, v);
+    ctx.restore();
+    if (card.kind === 'custom') label(ctx, '⚙ FREI', 10, 36, '#e8c37a');
   });
 }

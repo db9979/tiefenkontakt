@@ -13,6 +13,8 @@ import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation
 import { drawOrderMarks } from './order-marks.js';
 import { ChartMarks, drawHavens, drawLanes } from './chart-marks.js';
 import { DepthChart } from './plot-depth.js';
+import { chartToScreen, chartToWorld, northUpGrid, panDelta, screenDir } from './chart-frame.js';
+import { trueDeg } from '../north.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -41,7 +43,7 @@ const FAN_MAX = 10;
 const MAX_SCALE = 260;
 
 /**
- * North-up tactical plot centered on own ship. Mouse: wheel/buttons zoom, drag pans,
+ * North-up tactical plot centered on own ship (world in the game frame, turned so true north is up). Mouse: wheel/buttons zoom, drag pans,
  * click selects, right-click opens actions, the amber TMA marker and its vector tip drag.
  */
 export class Plot {
@@ -110,16 +112,13 @@ export class Plot {
     return { x: o.x + this.pan.x, y: o.y + this.pan.y };
   }
 
+  /** Screen → world (game frame); the chart is drawn north-up. */
   toWorld(p: { x: number; y: number }): Vec2 {
-    const c = this.center();
-    const w = this.canvas.clientWidth;
-    return { x: c.x + (p.x - w / 2) * this.scale, y: c.y - (p.y - this.height / 2) * this.scale };
+    return chartToWorld(p, this.center(), this.scale, this.canvas.clientWidth, this.height);
   }
 
   toScreen(p: Vec2): Vec2 {
-    const c = this.center();
-    const w = this.canvas.clientWidth;
-    return { x: w / 2 + (p.x - c.x) / this.scale, y: this.height / 2 - (p.y - c.y) / this.scale };
+    return chartToScreen(p, this.center(), this.scale, this.canvas.clientWidth, this.height);
   }
 
   /** Solution marker or its velocity tip under the mouse, for dragging. */
@@ -128,8 +127,8 @@ export class Plot {
     if (!s) return undefined;
     for (const [label, sol] of store.solutions) {
       const p = this.toScreen(targetPosAt(sol, simNow()));
-      const v = headingVec(sol.course);
-      const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y - v.y * sol.speedKn * 4 };
+      const v = screenDir(sol.course);
+      const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y + v.y * sol.speedKn * 4 };
       if (Math.hypot(tip.x - m.x, tip.y - m.y) < 8) return { kind: 'vec', label };
       if (Math.hypot(p.x - m.x, p.y - m.y) < 9) return { kind: 'sol', label };
     }
@@ -201,8 +200,9 @@ export class Plot {
     }
     if (d.kind === 'pan') {
       if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) d.moved = true;
-      this.pan.x = d.px - (e.clientX - d.x) * this.scale;
-      this.pan.y = d.py + (e.clientY - d.y) * this.scale;
+      const dp = panDelta(e.clientX - d.x, e.clientY - d.y, this.scale);
+      this.pan.x = d.px + dp.x;
+      this.pan.y = d.py + dp.y;
       return;
     }
     const sol = store.solutions.get(d.label);
@@ -246,7 +246,7 @@ export class Plot {
     items.push(...(this.opts.actions?.(wp) ?? []));
     items.push({ label: 'Alle Zeichnungen löschen', run: () => this.marks.clear() });
     items.push({ label: 'Karte hier zentrieren', run: () => (this.pan = { x: wp.x - s.own.x, y: wp.y - s.own.y }) });
-    openMenu(e.clientX, e.clientY, items, `${deg3(bearing(s.own, wp))}° · ${km(distance(s.own, wp))}`);
+    openMenu(e.clientX, e.clientY, items, `${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))}`);
   }
 
   draw(height: number): void {
@@ -265,14 +265,8 @@ export class Plot {
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
     ctx.lineWidth = 1;
-    for (let gx = Math.floor((c.x - (w / 2) * this.scale) / step) * step; gx < c.x + (w / 2) * this.scale; gx += step) {
-      const p = P({ x: gx, y: 0 });
-      ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, height); ctx.stroke();
-    }
-    for (let gy = Math.floor((c.y - (height / 2) * this.scale) / step) * step; gy < c.y + (height / 2) * this.scale; gy += step) {
-      const p = P({ x: 0, y: gy });
-      ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(w, p.y); ctx.stroke();
-    }
+    // Grid along true north and east (the chart is north-up)
+    northUpGrid(ctx, c, this.scale, w, height, step);
     ctx.font = '11px ui-monospace, monospace';
 
     ctx.strokeStyle = 'rgba(133,183,235,0.5)';
@@ -315,21 +309,21 @@ export class Plot {
 
     for (const t of s.torpedoes) {
       const p = P(t);
-      const v = headingVec(t.heading);
+      const v = screenDir(t.heading);
       ctx.fillStyle = COL.red;
       ctx.strokeStyle = COL.red;
       ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + v.x * 14, p.y - v.y * 14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + v.x * 14, p.y + v.y * 14); ctx.stroke();
       ctx.fillText(`${t.id}${t.homing ? ' ZIEL' : ''}`, p.x + 6, p.y - 6);
     }
 
     const me = ownNow();
     const o = P(me);
-    const v = headingVec(me.heading);
-    const ov = headingVec(s.own.order.heading);
+    const v = screenDir(me.heading);
+    const ov = screenDir(s.own.order.heading);
     ctx.strokeStyle = 'rgba(250,199,117,0.6)';
     ctx.setLineDash([2, 3]);
-    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + ov.x * 40, o.y - ov.y * 40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + ov.x * 40, o.y + ov.y * 40); ctx.stroke();
     ctx.setLineDash([]);
     // Own ship: APP-6 friendly frame (circle on the surface, lower half-circle submerged), filled, with a dot
     ctx.fillStyle = COL.blue;
@@ -340,7 +334,7 @@ export class Plot {
     drawSymbol(ctx, o.x, o.y, 'friend', ownSub ? 'subsurface' : 'surface', 8, true);
     ctx.beginPath(); ctx.arc(o.x, o.y, 1.8, 0, 7); ctx.fill();
     if (s.own.navUncertainty !== undefined) drawNavUncertainty(ctx, o, s.own.navUncertainty / this.scale, s.own.navUncertainty);
-    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y - v.y * 26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y + v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 
     drawLanes(ctx, P, s.env.seabed?.region); drawHavens(ctx, P, s);
@@ -350,7 +344,7 @@ export class Plot {
     let foot = `RASTER ${(step / NM).toFixed(0)} SM · RECHTSKLICK: AKTIONEN`;
     if (this.mouse) {
       const wp = this.toWorld(this.mouse);
-      foot = `MAUS ${deg3(bearing(s.own, wp))}° · ${km(distance(s.own, wp))} · ` + foot;
+      foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))} · ` + foot;
     }
     ctx.fillText(foot, 8, height - 8);
   }
@@ -436,21 +430,21 @@ export class Plot {
       const sol = store.solutions.get(c.label);
       if (sol) {
         const p = P(targetPosAt(sol, simNow()));
-        const v = headingVec(sol.course);
-        const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y - v.y * sol.speedKn * 4 };
+        const v = screenDir(sol.course);
+        const tip = { x: p.x + v.x * sol.speedKn * 4, y: p.y + v.y * sol.speedKn * 4 };
         ctx.strokeStyle = COL.amber;
         ctx.fillStyle = COL.amber;
         // Uncertainty: poor solutions are long along the line of sight (range unknown), narrow across it
         const q = this.solQuality(c.label, s.time);
         const solPos = targetPosAt(sol, simNow());
         const r = distance(ownNow(), solPos);
-        drawEllipse(ctx, p.x, p.y, bearing(ownNow(), solPos), (r * (0.05 + 0.45 * (1 - q / 100))) / this.scale, (r * 0.035) / this.scale);
+        drawEllipse(ctx, p.x, p.y, trueDeg(bearing(ownNow(), solPos)), (r * (0.05 + 0.45 * (1 - q / 100))) / this.scale, (r * 0.035) / this.scale);
         ctx.lineWidth = sel ? 2 : 1;
         ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, 7); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
         ctx.beginPath(); ctx.arc(tip.x, tip.y, 3, 0, 7); ctx.fill();
         ctx.lineWidth = 1;
-        ctx.fillText(`${c.label} ${deg3(sol.course)}° ${sol.speedKn.toFixed(0)} KN`, p.x + 10, p.y + 14);
+        ctx.fillText(`${c.label} ${deg3(trueDeg(sol.course))}° ${sol.speedKn.toFixed(0)} KN`, p.x + 10, p.y + 14);
       }
     }
   }
@@ -475,16 +469,16 @@ export class Plot {
       const p = P(live ? moverNow(f, f.reportedAt) : f);
       ctx.fillStyle = f.alive ? COL.blue : COL.dim;
       ctx.strokeStyle = ctx.fillStyle;
-      if (live) drawWake(ctx, p.x, p.y, f.heading, f.speedKn);
+      if (live) drawWake(ctx, p.x, p.y, trueDeg(f.heading), f.speedKn);
       if (f.cls === 'merchant') {
         // APP-6 friendly surface frame (circle) with a short course leader; merchants smaller than warships
         drawSymbol(ctx, p.x, p.y, 'friend', 'surface', 4, true);
-        const hv = headingVec(f.heading);
-        ctx.beginPath(); ctx.moveTo(p.x + hv.x * 4, p.y - hv.y * 4); ctx.lineTo(p.x + hv.x * 10, p.y - hv.y * 10); ctx.stroke();
+        const hv = screenDir(f.heading);
+        ctx.beginPath(); ctx.moveTo(p.x + hv.x * 4, p.y + hv.y * 4); ctx.lineTo(p.x + hv.x * 10, p.y + hv.y * 10); ctx.stroke();
       } else {
         drawSymbol(ctx, p.x, p.y, 'friend', CLASSES[f.cls].submarine ? 'subsurface' : 'surface', 6);
-        const hv = headingVec(f.heading);
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y - hv.y * 14); ctx.stroke();
+        const hv = screenDir(f.heading);
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y + hv.y * 14); ctx.stroke();
         const age = s.time - f.reportedAt;
         ctx.fillText(age > 5 ? `${f.name} (−${Math.round(age / 60)} MIN)` : f.name, p.x + 8, p.y + 4);
       }

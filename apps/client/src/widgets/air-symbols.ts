@@ -1,5 +1,6 @@
 import type { PlaneView, Snapshot } from '@tk/shared';
 import { drawMines, drawMissiles, drawSsm } from './airdef-symbols.js';
+import { northOff, trueDeg } from '../north.js';
 
 /**
  * Air contacts on canvases (radar scope, plot): NATO-style air symbols – the upper half of
@@ -33,7 +34,7 @@ export function airSymbol(ctx: CanvasRenderingContext2D, x: number, y: number, s
 
 /**
  * Draw the aircraft of a snapshot. toScreen maps world metres to canvas pixels (undefined =
- * off screen); origin is the own position on the canvas for ESM strobes of length len.
+ * off screen) on a north-up canvas (headings and bearings are turned by northOff()); origin is the own position on the canvas for ESM strobes of length len.
  */
 export function drawAir(
   ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: (x: number, y: number) => { x: number; y: number } | undefined,
@@ -50,14 +51,14 @@ export function drawAir(
     ctx.fillStyle = col;
     if (p.x === undefined || p.y === undefined) {
       // ESM only: a dashed strobe on the bearing with a plane marker at the end
-      const a = ((p.bearing - 90) * Math.PI) / 180;
+      const a = ((p.bearing + northOff() - 90) * Math.PI) / 180;
       ctx.setLineDash([2, 5]);
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
       ctx.lineTo(origin.x + Math.cos(a) * len, origin.y + Math.sin(a) * len);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillText(`✈ RADAR ${String(Math.round(p.bearing)).padStart(3, '0')}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
+      ctx.fillText(`✈ RADAR ${String(Math.round(trueDeg(p.bearing)) % 360).padStart(3, '0')}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
       continue;
     }
     if (p.rough) {
@@ -78,7 +79,7 @@ export function drawAir(
     if (!q) continue;
     airSymbol(ctx, q.x, q.y, p.side);
     if (p.heading !== undefined && (p.speedKn ?? 0) > 5) {
-      const a = ((p.heading - 90) * Math.PI) / 180;
+      const a = ((p.heading + northOff() - 90) * Math.PI) / 180;
       const l = Math.min(26, 6 + (p.speedKn ?? 0) / 25);
       ctx.beginPath();
       ctx.moveTo(q.x, q.y);

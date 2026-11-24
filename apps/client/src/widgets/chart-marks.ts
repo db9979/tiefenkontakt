@@ -1,6 +1,7 @@
 import { CLASSES, HAVEN_M, bearing, distance, groundsOf, lanesOf, type RegionId, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
 import { deg3, km } from './format.js';
+import { trueDeg } from '../north.js';
 
 /**
  * Plotting on the chart, like a navigator with pencil and dividers: marks (a cross with an
@@ -115,7 +116,7 @@ export class ChartMarks {
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         for (const q of [a, b]) { ctx.beginPath(); ctx.arc(q.x, q.y, 2.5, 0, 7); ctx.fill(); }
         ctx.textAlign = 'center';
-        ctx.fillText(`${deg3(bearing(s.a, s.b))}° · ${km(distance(s.a, s.b))}`, (a.x + b.x) / 2, (a.y + b.y) / 2 - 6);
+        ctx.fillText(`${deg3(trueDeg(bearing(s.a, s.b)))}° · ${km(distance(s.a, s.b))}`, (a.x + b.x) / 2, (a.y + b.y) / 2 - 6);
       } else {
         const c = P(s.c);
         ctx.setLineDash([6, 4]);
@@ -160,7 +161,7 @@ export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, r
   ctx.setLineDash([3, 3]);
   for (const g of grounds) {
     const c = P(g.c), e = P({ x: g.c.x + g.r, y: g.c.y });
-    ctx.beginPath(); ctx.arc(c.x, c.y, Math.abs(e.x - c.x), 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(c.x, c.y, distance(e, c), 0, Math.PI * 2); ctx.stroke();
     ctx.fillText('FANGGRUND', c.x, c.y);
   }
   ctx.restore();
@@ -179,7 +180,7 @@ export function drawHavens(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, 
   ctx.textAlign = 'center';
   for (const b of boats) {
     const c = P(b), e = P({ x: b.x + HAVEN_M, y: b.y });
-    const r = Math.abs(e.x - c.x);
+    const r = distance(e, c);
     ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = 'rgba(110,170,255,0.8)';
     ctx.fillText('SPERRGEBIET', c.x, c.y - r - 4);
