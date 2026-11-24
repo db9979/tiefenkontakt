@@ -33,7 +33,7 @@ export type MissionId = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | '
 /** Strait breakthrough: escorts guard the narrows here, the boats must get past this line. */
 export const STRAIT_GUARD_Y = 7_000;
 export const STRAIT_EXIT_Y = 15_000;
-/** Harbour attack: where the boats start, about 16 km out from the anchorage (arena West:Ost - 18 km 23:7, 14 km 10:20, 10 km 3:17). */
+/** Harbour attack: where the boats start, about 16 km out from the anchorage (arena West:Ost - 18 km 23:7, 16 km 19:21, 14 km 10:20, 10 km 3:17). */
 export const HARBOUR_SUB_Y = 20_000;
 /** Shadowing: minutes of held contact the pack needs. */
 export const SHADOW_GOAL_S = 25 * 60;

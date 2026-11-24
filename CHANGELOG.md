@@ -36,7 +36,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - **3D-Ansicht aufs Handy:** Auf Brücke und Sehrohr zeigt „📱 Handy“ einen QR-Code (Einmal-Link, 10 Minuten). Das
   Handy zeigt Sehrohr oder Fernglas, umschauen durch Drehen und Neigen (Kreisel), zwei Finger zoomen, Tippen wählt ein
   Schiff, Foto-Knopf; die Station am PC folgt dem Blick des Handys. Ton aus dem Handy-Lautsprecher.
-- **Hafenangriff:** Die KI-U-Boote laufen den bekannten Ankerplatz an und schießen aus Sehrohrtiefe einen Fächer.
+- **Hafenangriff:** Die KI-U-Boote laufen den bekannten Ankerplatz an und schießen aus Sehrohrtiefe einen Fächer;
+  Start rund 16 km vor dem Hafen. Arena vorher 30:0 für den Geleitschutz, jetzt 19:21.
 
 - **Kartenwerkzeuge:** Markierung (mit Namen), Linie (mit Peilung und Länge), Kreis (mit Radius) und Radierer am
   Rand des Plots; die Zeichnungen liegen fest auf der Karte und bleiben für die Partie gespeichert. Rechtsklick:
