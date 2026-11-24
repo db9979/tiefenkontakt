@@ -105,8 +105,10 @@ export class StatsStore {
   record(d: Debrief, mission: string, timeOfDay: string, now = Date.now()): void {
     const humans = (team: string) => d.stats.filter((s) => s.team === team && !s.playerId.startsWith('bot-')).length;
     const classes = d.ships.filter((s) => s.player).map((s) => `${s.team}:${s.cls}`);
-    this.db.prepare('INSERT INTO matches (ended_at, mission, time_of_day, winner, duration, humans_west, humans_east, classes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(now, mission, timeOfDay, d.winner, d.duration, humans('west'), humans('east'), JSON.stringify(classes));
+    // Who sailed which class, human or AI (balance from real matches, real-balance.ts)
+    const crew = d.stats.map((s) => [s.team, s.cls, s.playerId.startsWith('bot-') ? 0 : 1]);
+    this.db.prepare('INSERT INTO matches (ended_at, mission, time_of_day, winner, duration, humans_west, humans_east, classes, crew) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(now, mission, timeOfDay, d.winner, d.duration, humans('west'), humans('east'), JSON.stringify(classes), JSON.stringify(crew));
     const ins = this.db.prepare(`INSERT INTO results (user_id, ended_at, mission, time_of_day, team, cls, won, kills, tonnage, shots, survived, points, weight, mine_kills, attacks_survived)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const s of d.stats) {
@@ -223,6 +225,8 @@ export function migrateResults(db: DatabaseSync): void {
     if (!cols.includes('mine_kills')) db.exec('ALTER TABLE results ADD COLUMN mine_kills INTEGER NOT NULL DEFAULT 0');
     if (!cols.includes('attacks_survived')) db.exec('ALTER TABLE results ADD COLUMN attacks_survived INTEGER NOT NULL DEFAULT 0');
     db.exec('CREATE INDEX IF NOT EXISTS results_ended ON results (ended_at)');
+    const mcols = (db.prepare('PRAGMA table_info(matches)').all() as { name: string }[]).map((c) => c.name);
+    if (!mcols.includes('crew')) db.exec('ALTER TABLE matches ADD COLUMN crew TEXT');
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');

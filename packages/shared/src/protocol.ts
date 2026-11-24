@@ -62,6 +62,8 @@ export type ClientMsg =
   | { t: 'crew'; captainId: string | null }
   | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt' }
   | { t: 'lesson_done' }
+  /** Tutorial checklist: the step the player is on now (drop-out statistics). */
+  | { t: 'lesson_step'; step: number }
   | { t: 'station'; index: number }
   | { t: 'quick' }
   /** Start at once against the AI: a random situation, or this week's (same for everyone). */

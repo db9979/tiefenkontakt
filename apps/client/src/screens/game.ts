@@ -26,6 +26,7 @@ import { onTap } from '../widgets/touch.js';
 import { voicePanel } from '../widgets/voice-panel.js';
 import { voice } from '../voice/voice.js';
 import { FrameWatch, frameIntervalMs, stepDown } from '../widgets/perf.js';
+import { PerfReporter, beaconPerf } from '../widgets/perf-report.js';
 import { mountHelm } from './helm.js';
 import { setPadTarget } from '../gamepad.js';
 import { mountAssistant } from '../widgets/assistant.js';
@@ -144,6 +145,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   });
 
   let stations: Station[] = [];
+  /** Stations drawn in 3D (graphics performance samples). */
+  let views3d = new Set<Station>();
+  const perfReport = new PerfReporter(beaconPerf);
   let current = 0;
   const stationEl = q('#station');
   const tabs = q('#tabs');
@@ -213,9 +217,11 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       tutorial = mountTutorial(store.snap.lesson);
       q('.side').prepend(tutorial.el);
     }
+    const view3d = sub ? periscopeStation() : bridgeStation();
     stations = sub
-      ? [subSonarStation(), periscopeStation(), fireControlStation(), diveEngineStation()]
-      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), bridgeStation()];
+      ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation()]
+      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d];
+    views3d = new Set([view3d]);
     tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
     tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.onclick = () => show(Number(b.dataset.i))));
     q('#quick').innerHTML = (sub ? ['Konvoi gesichtet', 'Greife an', 'Werde gejagt', 'Position'] : ['Kontakt', 'Torpedo im Wasser', 'Suche Sektor', 'Position'])
@@ -377,6 +383,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       setTimeout(() => (store.lastError = store.lastError === m.msg ? '' : store.lastError), 4000);
     } else if (m.t === 'end') {
       store.ended = { winner: m.winner, reason: m.reason };
+      perfReport.end();
       showEnd();
     } else if (m.t === 'debrief') {
       store.debrief = m.d;
@@ -415,6 +422,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     if (now - drawnAt < frameIntervalMs() - 2) return;
     drawnAt = now;
     if (watch.note(now) && stepDown()) console.info('Grafik: Auto eine Stufe niedriger (Gerät zu langsam)');
+    perfReport.frame(now, views3d.has(stations[current]!));
     stations[current]?.frame();
     cam.frame(store.snap);
     helm.frame();
@@ -422,6 +430,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   raf = requestAnimationFrame(loop);
 
   return () => {
+    perfReport.end();
     clearTimeout(uiTimer);
     clearInterval(saver);
     if (store.ended) store.clearLocal();

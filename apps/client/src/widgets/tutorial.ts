@@ -86,6 +86,7 @@ export function mountTutorial(lesson: string): { el: HTMLElement; update(): void
   };
   let collapsed = false;
   let reported = false;
+  let stepSent = -1;
   el.querySelector<HTMLButtonElement>('#tut-min')!.onclick = () => {
     collapsed = !collapsed;
     el.querySelector<HTMLElement>('#tut-body')!.style.display = collapsed ? 'none' : '';
@@ -104,6 +105,11 @@ export function mountTutorial(lesson: string): { el: HTMLElement; update(): void
     }
     save();
     const current = next();
+    // The server counts where players give up a lesson (anonymous drop-out statistics)
+    if (current >= 0 && current !== stepSent) {
+      stepSent = current;
+      net.send({ t: 'lesson_step', step: current });
+    }
     if (current < 0 && !reported) {
       reported = true;
       net.send({ t: 'lesson_done' });

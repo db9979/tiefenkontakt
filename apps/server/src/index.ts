@@ -32,6 +32,9 @@ import { handleOps } from './ops-api.js';
 import { startWatchdog } from './watchdog.js';
 import { RecentFinished, ReplayStore } from './replays.js';
 import { ReplayApi, replayPageId, withOgTags } from './replays-api.js';
+import { PerfStore } from './perf-samples.js';
+import { DropoutStore, DropoutTracker } from './dropouts.js';
+import { realBalance } from './real-balance.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const MAX_MSG_BYTES = 4096;
@@ -55,6 +58,9 @@ rankings.init();
 campaign.onRunSaved = (uid, run) => rankings.afterCampaign(uid, run);
 const series = new SeriesRunner();
 const replays = new ReplayStore(auth.db);
+const perfStore = new PerfStore(auth.db);
+const dropouts = new DropoutStore(auth.db);
+lobby.dropouts = new DropoutTracker(dropouts);
 const recentFinished = new RecentFinished();
 const replayApi = new ReplayApi(replays, recentFinished);
 replays.cleanup();
@@ -113,6 +119,7 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
 const authLimiter = new RateLimiter(10, 60_000);
 const errorLimiter = new RateLimiter(5, 60_000);
 const feedbackLimiter = new RateLimiter(3, 60_000);
+const perfLimiter = new RateLimiter(6, 60_000);
 const mailer = createMailer();
 if (mailer instanceof SmtpMailer) {
   const c = mailer.cfg;
@@ -201,6 +208,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
       }
     }
     if (req.url === '/api/admin/feedback' && req.method === 'GET') return json(res, 200, feedback.list());
+    // Graphics performance of real devices, drop-outs and balance from real matches
+    if (req.url === '/api/admin/insights' && req.method === 'GET') {
+      return json(res, 200, { perf: perfStore.rows(), dropouts: dropouts.view(), balance: realBalance(auth.db) });
+    }
     if (req.url === '/api/admin/backup' && req.method === 'POST') {
       if (!backups.enabled) return json(res, 400, { error: 'BACKUP_DIR ist nicht gesetzt' });
       return json(res, 200, { file: backups.run(), backups: backups.list() });
@@ -236,6 +247,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
     if (!parsed.success) return json(res, 400, { ok: false });
     feedback.add(parsed.data, auth.userForToken(token)?.callsign);
     return json(res, 200, { ok: true });
+  }
+  if (req.url === '/api/perf') {
+    // Anonymous frame-time sample from a 3D view (sendBeacon); the address only feeds the rate limit
+    if (!perfLimiter.allow(ip)) return json(res, 429, { ok: false });
+    let b: unknown;
+    try {
+      b = await readBody(req);
+    } catch {
+      return json(res, 400, { ok: false });
+    }
+    return perfStore.add(b) ? json(res, 200, { ok: true }) : json(res, 400, { ok: false });
   }
   if (req.url === '/api/client-error') {
     // Browser errors from players, so problems on their devices show up in the server log

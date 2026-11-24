@@ -1,6 +1,7 @@
 import { lang } from '../i18n/index.js';
 import { esc, h } from '../widgets/format.js';
 import { post, toast } from './account.js';
+import { insightsSection } from './admin-insights.js';
 
 interface Overview {
   matches: { id: string; name: string; state: string; mission: string; lesson: string | null; players: { playerId: string; callsign: string; team: string; online: boolean }[] }[];
@@ -13,6 +14,7 @@ const when = (t: number) => new Date(t).toLocaleString('de-DE', { dateStyle: 'sh
 /** Moderation panel: only rendered for accounts listed in the server's ADMIN variable. */
 export function adminPanel(): HTMLElement {
   const el = h(`<div class="panel" style="margin-top:10px;display:none"></div>`);
+  const insights = insightsSection();
   async function load(): Promise<void> {
     const r = await fetch('/api/admin/overview');
     if (!r.ok) return;
@@ -29,6 +31,8 @@ export function adminPanel(): HTMLElement {
         <span><button data-a="ban" data-id="${esc(r.reportedId)}" data-cs="${esc(r.reported)}" class="danger">Sperren</button> <button data-a="dismiss" data-id="${r.id}">Erledigt</button></span></div>`).join('') || '<div class="dim">Keine offenen Meldungen</div>'}
       <div class="dim" style="margin:8px 0 4px">SPERREN</div>
       ${o.bans.map((b) => `<div class="row"><span>${esc(b.callsign)} <span class="dim">bis ${when(b.until)} · ${esc(b.reason)}</span></span><button data-a="unban" data-id="${b.id}">Aufheben</button></div>`).join('') || '<div class="dim">Keine aktiven Sperren</div>'}`;
+    el.append(insights.el);
+    void insights.load();
   }
   el.addEventListener('click', async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-a]');
