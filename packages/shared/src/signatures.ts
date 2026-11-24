@@ -166,7 +166,17 @@ export interface Evidence {
   shaftHz?: number;
   bladeHz?: number;
   demonSnr?: number;
+  /** The screw cavitates: crackle in the broadband (heard, not only measured). */
+  cav?: boolean;
+  /** What the ear makes of it without instruments: whale calls, clicks, a torpedo's whine. */
+  voice?: SoundVoice;
 }
+
+/** Characteristic sounds a trained ear recognises at once. */
+export type SoundVoice = 'puls' | 'gesang' | 'klicks' | 'pfiffe' | 'knistern' | 'torpedo';
+const VOICE: Partial<Record<SigKey, SoundVoice>> = {
+  bio: 'puls', blauwal: 'puls', buckelwal: 'gesang', pottwal: 'klicks', orca: 'pfiffe', delfine: 'pfiffe', garnelen: 'knistern',
+};
 
 /** Shaft rate in Hz for a platform at a speed. */
 export function shaftHz(sig: Signature, speedKn: number): number {
@@ -187,6 +197,9 @@ export function measureEvidence(
     if (snr > 0) tonals.push({ hz: Math.round((t.hz + rng.gauss(0, 0.25)) * 10) / 10, snr: Math.round(snr * 10) / 10 });
   }
   const ev: Evidence = { tonals };
+  if (opts.cavitating && se > -2) ev.cav = true;
+  const voice = VOICE[key] ?? (sig.choice === 'torpedo' ? 'torpedo' : undefined);
+  if (voice && se > -3) ev.voice = voice;
   const shaft = shaftHz(sig, speedKn);
   const demonSnr = se - 3 + (opts.cavitating ? 8 : 0) + rng.gauss(0, 1.5);
   if (shaft > 0.3 && demonSnr > 0) {

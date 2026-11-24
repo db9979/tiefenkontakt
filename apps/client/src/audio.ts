@@ -1,18 +1,11 @@
 import { detonation, hullCreak, makeReverb, motor, sinkingNoises, sonarPing, torpedoLaunch, type Fx } from './audio-fx.js';
 import { inSquall, type Snapshot } from '@tk/shared';
 import { WeatherSound } from './audio-weather.js';
+import { SonarVoice, type SonarHearing } from './audio-sonar.js';
 import { onLightning } from './widgets/lightning.js';
 
 export type ListenMode = 'breitband' | 'gefiltert' | 'ueberlagerung';
 
-export interface HydrophoneInput {
-  se: number;
-  shaftHz?: number;
-  bladeHz?: number;
-  tonals: { hz: number; snr: number }[];
-  mode: ListenMode;
-  band: [number, number];
-}
 
 /**
  * Procedural sound: everything is synthesized with Web Audio, no asset files.
@@ -24,10 +17,7 @@ class Audio {
   private master?: GainNode;
   private noiseBuf?: AudioBuffer;
   private hum?: { osc: OscillatorNode; osc2: OscillatorNode; gain: GainNode; flow: GainNode; flowFilter: BiquadFilterNode };
-  private phone?: {
-    src: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode; lfoGain: GainNode; lfo: OscillatorNode;
-    noiseGain: GainNode; tones: { o: OscillatorNode; g: GainNode }[];
-  };
+  private sonar?: SonarVoice;
   private fx?: Fx;
   private mastMotor?: (on: number) => void;
   private winch?: (on: number) => void;
@@ -308,68 +298,13 @@ class Audio {
   }
 
   /**
-   * Hydrophone: listen to the selected contact. Broadband = cavitation noise
-   * amplitude-modulated at the shaft rate; filtered = band-limited to the LOFAR band
-   * with the contact's tonals; heterodyne = tonals shifted up by 700 Hz so low
-   * machinery lines become audible. Pass undefined to fade out.
+   * Hydrophone: the sea and the selected contact in the operator's headphones (audio-sonar.ts).
+   * Pass undefined to fade out.
    */
-  hydrophone(c: HydrophoneInput | undefined): void {
-    if (!this.ctx || !this.master) return;
-    const ctx = this.ctx;
-    const t = ctx.currentTime;
-    if (!c) {
-      if (this.phone) this.phone.gain.gain.setTargetAtTime(0, t, 0.1);
-      return;
-    }
-    if (!this.phone) {
-      const src = this.noise()!;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      const amp = ctx.createGain();
-      amp.gain.value = 0.5;
-      const lfo = ctx.createOscillator();
-      const lfoGain = ctx.createGain();
-      lfo.connect(lfoGain).connect(amp.gain);
-      const gain = ctx.createGain();
-      gain.gain.value = 0;
-      const noiseGain = ctx.createGain();
-      src.connect(filter).connect(amp).connect(noiseGain).connect(gain).connect(this.master);
-      const tones = Array.from({ length: 6 }, () => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        g.gain.value = 0;
-        o.connect(g).connect(gain);
-        o.start();
-        return { o, g };
-      });
-      src.start();
-      lfo.start();
-      this.phone = { src, filter, gain, lfoGain, lfo, noiseGain, tones };
-    }
-    const p = this.phone;
-    const level = Math.min(0.6, Math.max(0.04, c.se / 25));
-    p.gain.gain.setTargetAtTime(level, t, 0.2);
-    const modulate = c.shaftHz !== undefined && c.shaftHz > 0.3;
-    p.lfo.frequency.setTargetAtTime(modulate ? c.shaftHz! : 0.01, t, 0.3);
-    p.lfoGain.gain.setTargetAtTime(modulate ? 0.45 : 0, t, 0.3);
-    if (c.mode === 'breitband') {
-      p.filter.frequency.setTargetAtTime(600, t, 0.2);
-      p.filter.Q.setTargetAtTime(0.3, t, 0.2);
-      p.noiseGain.gain.setTargetAtTime(1, t, 0.2);
-    } else {
-      const [lo, hi] = c.band;
-      const shift = c.mode === 'ueberlagerung' ? 700 : 0;
-      p.filter.frequency.setTargetAtTime(Math.max(30, (lo + hi) / 2 + shift), t, 0.2);
-      p.filter.Q.setTargetAtTime(Math.max(0.5, ((lo + hi) / 2 + shift) / Math.max(10, hi - lo)), t, 0.2);
-      p.noiseGain.gain.setTargetAtTime(0.5, t, 0.2);
-    }
-    const lines = c.mode === 'breitband' ? [] : c.tonals.filter((x) => x.hz >= c.band[0] && x.hz <= c.band[1]);
-    p.tones.forEach((tone, i) => {
-      const line = lines[i];
-      if (!line) return tone.g.gain.setTargetAtTime(0, t, 0.1);
-      tone.o.frequency.setTargetAtTime(line.hz + (c.mode === 'ueberlagerung' ? 700 : 0), t, 0.1);
-      tone.g.gain.setTargetAtTime(Math.min(0.25, line.snr / 60), t, 0.2);
-    });
+  hydrophone(c: SonarHearing | undefined): void {
+    if (!this.fx || !this.master) return;
+    this.sonar ??= new SonarVoice(this.fx, this.master);
+    this.sonar.update(c);
   }
 
   /** Drive continuous sounds and fire one-shots for new events in the snapshot. */
@@ -466,7 +401,7 @@ class Audio {
     this.mastMotor = undefined;
     this.winch = undefined;
     this.hum = undefined;
-    this.phone = undefined;
+    this.sonar = undefined;
     this.weather = undefined;
     onLightning(undefined);
     this.seenAlerts.clear();

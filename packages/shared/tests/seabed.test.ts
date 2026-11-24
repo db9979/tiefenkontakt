@@ -45,3 +45,16 @@ describe('seabed', () => {
     expect(ship.order.speedKn).toBe(0);
   });
 });
+
+describe('what the ear hears', () => {
+  it('marks a cavitating screw and the voices of whales and torpedoes', async () => {
+    const { Rng, measureEvidence } = await import('../src/index.js');
+    const rng = new Rng(4);
+    expect(measureEvidence('ffg', 25, 15, { cavitating: true }, rng).cav).toBe(true);
+    expect(measureEvidence('ffg', 10, 15, {}, rng).cav).toBeUndefined();
+    expect(measureEvidence('buckelwal', 3, 10, {}, rng).voice).toBe('gesang');
+    expect(measureEvidence('pottwal', 3, 10, {}, rng).voice).toBe('klicks');
+    expect(measureEvidence('torpedo', 40, 10, { cavitating: true }, rng).voice).toBe('torpedo');
+    expect(measureEvidence('merchant', 10, 10, {}, rng).voice).toBeUndefined();
+  });
+});

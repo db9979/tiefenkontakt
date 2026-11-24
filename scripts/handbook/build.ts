@@ -13,6 +13,7 @@ import { chapterClassify, chapterEscort, chapterSub } from './chapters-b.js';
 import { chapterMissions, chapterReference, chapterTactics, chapterWorld } from './chapters-c.js';
 import { airCards, bioTable, unitCards, unitTable } from './units.js';
 import { figBio } from './figures.js';
+import { signatureTable } from './signatures.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = join(root, 'docs', 'handbuch');
@@ -79,6 +80,7 @@ function page(): string {
 </section>
 <nav class="toc"><h1>Inhalt</h1>${TOC.map(([id, t], i) => `<a href="#${id}"><span>${i + 1}</span>${t}</a>`).join('')}</nav>
 ${chapterIntro}${chapterStart}${chapterSea}${chapterSymbols}${chapterSub}${chapterEscort}${chapterClassify}
+${signatureTable()}
 <h1 id="k8">8 · Einheitenreferenz</h1>
 <p>Alle Werte stammen direkt aus der Simulation. Die Bilder zeigen die Modelle, wie sie im Sehrohr und auf der Brücke erscheinen.</p>
 ${unitTable()}

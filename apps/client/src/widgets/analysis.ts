@@ -1,14 +1,14 @@
-import { SIGNATURES, shaftHz, type Evidence } from '@tk/shared';
+import { SIGNATURES, iceCover, inSquall, shaftHz, type Evidence } from '@tk/shared';
 import { audio, type ListenMode } from '../audio.js';
 import { store } from '../store.js';
 import { COL, fitCanvas, h } from './format.js';
 import { renderVerdict } from './verdict.js';
 
 type Page = 'lofar' | 'demon';
-const BINS = 600;
+const BINS = 1000;
 const ROWS = 140;
 const INTEG = [2, 8, 16, 64] as const;
-const LOFAR_BANDS = { voll: [0, 300], tief: [4, 80], welle: [8, 55], mittel: [20, 120] } as const;
+const LOFAR_BANDS = { voll: [0, 300], tief: [4, 80], welle: [8, 55], mittel: [20, 120], hoch: [200, 500] } as const;
 const DEMON_BANDS = { '0-15': [0, 15], '0-30': [0, 30], '0-60': [0, 60] } as const;
 const PALETTES = [
   [[8, 12, 11], [93, 202, 165], [216, 255, 240]],
@@ -16,7 +16,7 @@ const PALETTES = [
   [[5, 10, 14], [110, 205, 235], [225, 248, 255]],
 ];
 
-const maxHz = (p: Page) => (p === 'lofar' ? 300 : 60);
+const maxHz = (p: Page) => (p === 'lofar' ? 500 : 60);
 
 /**
  * LOFAR/DEMON analysis for the selected contact. Everything shown is built from
@@ -114,7 +114,7 @@ export class AcousticAnalysis {
     this.page = p;
     const bands = p === 'lofar' ? Object.keys(LOFAR_BANDS) : Object.keys(DEMON_BANDS);
     const bandsEl = this.el.querySelector<HTMLElement>('#a-bands')!;
-    bandsEl.innerHTML = bands.map((b) => `<button data-b="${b}">${b === 'voll' ? 'Voll' : b === 'tief' ? 'Tief' : b === 'welle' ? 'Welle' : b === 'mittel' ? 'Mittel' : b + ' Hz'}</button>`).join('');
+    bandsEl.innerHTML = bands.map((b) => `<button data-b="${b}">${b === 'voll' ? 'Voll' : b === 'tief' ? 'Tief' : b === 'welle' ? 'Welle' : b === 'mittel' ? 'Mittel' : b === 'hoch' ? 'Hoch' : b + ' Hz'}</button>`).join('');
     bandsEl.querySelectorAll<HTMLButtonElement>('[data-b]').forEach((b) => {
       b.onclick = () => {
         if (this.page === 'lofar') this.band = b.dataset.b!;
@@ -236,10 +236,24 @@ export class AcousticAnalysis {
       }
     }
     if (this.listen) {
-      audio.hydrophone(fresh && c ? {
-        se: c.se, shaftHz: fresh.shaftHz, bladeHz: fresh.bladeHz, tonals: fresh.tonals,
+      // The sea is always in the phones; the contact rides on it with its own sound
+      const own = s.own;
+      const sol = c ? store.solutions.get(c.label) : undefined;
+      let closingKn: number | undefined;
+      if (c && sol) {
+        // Closing speed along the line of sight from the TMA solution and the own motion
+        const b = (c.bearing * Math.PI) / 180;
+        const tv = (sol.course * Math.PI) / 180;
+        const ov = (own.heading * Math.PI) / 180;
+        closingKn = -(sol.speedKn * Math.cos(tv - b)) + own.speedKn * Math.cos(ov - b);
+      }
+      audio.hydrophone({
         mode: this.listenMode, band: LOFAR_BANDS[this.band as keyof typeof LOFAR_BANDS] as [number, number],
-      } : undefined);
+        se: fresh && c ? c.se : undefined, shaftHz: fresh?.shaftHz, bladeHz: fresh?.bladeHz, tonals: fresh?.tonals ?? [],
+        cav: fresh?.cav, voice: fresh?.voice,
+        rel: c ? ((c.bearing - own.heading + 540) % 360) - 180 : undefined, rangeM: c?.range, closingKn,
+        sea: s.env.seaState, rain: !!s.env.rain || inSquall(s.env.met, own), ice: iceCover(s.env.met, own), ownKn: own.speedKn,
+      });
     }
     this.renderControls();
   }

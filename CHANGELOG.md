@@ -47,6 +47,14 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Batterie, Eigengeräusch und Mast auf einen Blick, Funkbuch des Rudels, Schnellbefehle (Sehrohrtiefe, unter die
   Schicht, Alarmtauchen, Ruhe im Boot, Mast) und ein Wasserfall-Streifen.
 
+- **Horchraum-Ton:** Das Meer rauscht nach Seegang, Regen, Eis und eigener Fahrt; ein Kontakt liegt mit seiner
+  Signalstärke darüber und versinkt, wenn sie fällt. Schraubentakt nach Flügelzahl, Kavitationsknistern, dumpf in der
+  Ferne, aus der Peilrichtung (Stereo), Linien mit Doppler. Wale (Pulse, Gesang), Pottwal- und Delfinklicks,
+  Pfiffe, Knallkrebse und das Heulen eines Torpedos sind zu erkennen.
+- LOFAR bis 500 Hz mit Band „Hoch“ (200–500 Hz): der 400-Hz-Ton des AIP-Boots ist jetzt messbar.
+- **Handbuch:** Signaturtabelle aller Klassen (Flügel, Drehzahl je Knoten, DEMON-Beispiel, LOFAR- und
+  Schnorchellinien, Analyseband, Klang) und eine Anleitung zum Erhorchen und Messen.
+
 ### Grafik
 - **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
   eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route
