@@ -9,7 +9,8 @@ export function helpOverlay(submarine: boolean): void {
        <tr><td>2 · Peilen</td><td>Im Feuerleitstand den Kontakt wählen und einen Kurswechsel fahren (ein „Schenkel“). Ohne Kurswechsel keine Entfernung.</td></tr>
        <tr><td>3 · Lösen</td><td>„Auto-TMA“ oder den gelben Lösungskreis auf der Karte ziehen. Die Vektorspitze ziehen ändert Kurs und Fahrt. Ziel: Güte über 60 %.</td></tr>
        <tr><td>4 · Schießen</td><td>„Lösung übernehmen“ und „Feuer“, oder Rechtsklick auf die Karte und „Torpedo hierher“. Den Torpedo über den Draht mit ◀ ▶ nachsteuern.</td></tr>
-       <tr><td>Überleben</td><td>Funk geht nur mit Mast und wird angepeilt. Bei einem Torpedo: Täuschkörper, volle Fahrt und durch die Sprungschicht.</td></tr>`
+       <tr><td>Überleben</td><td>Funk geht nur mit Mast und wird angepeilt. Bei einem Torpedo: Täuschkörper, volle Fahrt und durch die Sprungschicht.</td></tr>
+       <tr><td>5 · Zentrale</td><td>Der Platz des Kommandanten: Koppeltisch mit Kontakten und Zeichnungen, Tiefe, Schicht, Batterie und Mast auf einen Blick, das Funkbuch des Rudels und die häufigsten Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot).</td></tr>`
     : `<tr><td>1 · Suchen</td><td>Schleppsonar ausbringen (lang = unter der Sprungschicht). Nach jeder Kursänderung 60 s stabilisieren.</td></tr>
        <tr><td>2 · Orten</td><td>Aktivsonar liefert Entfernung, verrät dich aber. Funkpeilungen (rot, gestrichelt) zeigen funkende U-Boote.</td></tr>
        <tr><td>3 · Angreifen</td><td>Kontakt wählen, dann im Waffenleitstand „Rakete auf Ziel“ oder Rechtsklick auf die Karte und „U-Jagd-Rakete hierher“.</td></tr>

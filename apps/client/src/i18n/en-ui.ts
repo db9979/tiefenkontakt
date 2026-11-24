@@ -286,7 +286,8 @@ export const EN_UI: [string, string][] = [
   ['Einheit nicht gefunden', 'Unit not found'], ['ABGEBROCHEN', 'ABORTED'],
   ['NEBEL', 'FOG'], ['EIS', 'ICE'], ['SCHAUER', 'SHOWER'], ['EISBERG', 'ICEBERG'], ['KOLLISION MIT EISBERG', 'COLLISION WITH ICEBERG'], ['SCHÄDEN', 'DAMAGE'],
   // FLASH orders from fleet command (orders panel, banner, debrief)
-  ['Befehle', 'Orders'], ['Befehle der Führung', 'Orders from fleet command'], ['Befehle der Führung öffnen', 'Open orders from fleet command'],
+  ['Befehle', 'Orders'], ['Zentrale', 'Control room'], ['Zentrale · Koppeltisch', 'Control room · plot'], ['Funkbuch', 'Radio log'],
+  ['Alarmtauchen', 'Crash dive'], ['Unter die Schicht', 'Below the layer'], ['Horchraum · Breitband', 'Sonar · broadband'], ['Boot', 'Boat'], ['Befehle der Führung', 'Orders from fleet command'], ['Befehle der Führung öffnen', 'Open orders from fleet command'],
   ['KEINE BEFEHLE', 'NO ORDERS'], ['FÜHRUNG SCHWEIGT', 'COMMAND IS SILENT'], ['ERFÜLLT', 'FULFILLED'], ['NICHT ERFÜLLT', 'NOT FULFILLED'],
   ['U-Jagd im Verband', 'Team ASW hunt'], ['DATALINK', 'DATALINK'], ['FLASH', 'FLASH'],
   ['Kursänderung an den Kommodore weitergeben: der Konvoi dreht für zehn Minuten auf den befohlenen Kurs', 'Pass the course change to the commodore: the convoy steers the ordered course for ten minutes'],

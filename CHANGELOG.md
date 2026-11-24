@@ -42,6 +42,10 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Rand des Plots; die Zeichnungen liegen fest auf der Karte und bleiben für die Partie gespeichert. Rechtsklick:
   „Alle Zeichnungen löschen“.
 
+- **Zentrale im U-Boot** (Station 5): Koppeltisch mit Kontakten, Lösungen und Zeichnungen, Tiefe, Sprungschicht,
+  Batterie, Eigengeräusch und Mast auf einen Blick, Funkbuch des Rudels, Schnellbefehle (Sehrohrtiefe, unter die
+  Schicht, Alarmtauchen, Ruhe im Boot, Mast) und ein Wasserfall-Streifen.
+
 ### Grafik
 - **Seekarte:** Tiefseehügel, Seeberge und Kontinentalhang neben der Route, Sandwellen, ein ertrunkenes Flusstal und
   eine buchtenreiche Küste auf dem Schelf, Schären und Bergland an den Fjorden, Land nach Höhe gefärbt. Um die Route

@@ -7,6 +7,7 @@ import { fireControlStation } from '../stations/sub/fire-control.js';
 import { periscopeStation } from '../stations/sub/periscope.js';
 import { bridgeStation } from '../stations/frigate/bridge.js';
 import { subSonarStation } from '../stations/sub/sonar.js';
+import { centralStation } from '../stations/sub/central.js';
 import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
@@ -219,7 +220,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     }
     const view3d = sub ? periscopeStation() : bridgeStation();
     stations = sub
-      ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation()]
+      ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation(), centralStation()]
       : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d];
     views3d = new Set([view3d]);
     tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
