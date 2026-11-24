@@ -1,6 +1,7 @@
 import { isInkLight } from './ink.js';
 import { depthAt, type Snapshot, type Vec2 } from '@tk/shared';
 import { ensureGrid } from './bathy-client.js';
+import { northOff } from '../north.js';
 
 /**
  * The plot's chart background from the (public) seabed: a continuous depth tint, hill shading
@@ -40,9 +41,13 @@ interface Render {
   cols: number;
   rows: number;
   img: HTMLCanvasElement;
+  /** Isobath depth labels in image pixels, drawn upright after the image is turned north-up. */
+  labels: Label[];
 }
 
-interface Job extends Omit<Render, 'img'> {
+interface Label { x: number; y: number; t: string }
+
+interface Job extends Omit<Render, 'img' | 'labels'> {
   spec: Seabed;
   depths: Float32Array;
   row: number;
@@ -84,13 +89,20 @@ export class DepthChart {
     // A real sea area: draw once its bathymetry has arrived (the procedural stand-in would mislead)
     if (spec.region && !ensureGrid(spec.region)) return;
     const step = scale * CELL;
+    // The grid is axis-aligned in the game frame and turned north-up when drawn: it must cover
+    // the bounding box of the turned view so the corners are filled
+    const off = northOff();
+    const rad = (off * Math.PI) / 180;
+    const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+    const bw = Math.ceil(w * cos + hgt * sin);
+    const bh = Math.ceil(w * sin + hgt * cos);
     // The render area is anchored on a coarse world grid, so small moves of the view reuse it
-    const ax = Math.round(c.x / (w * scale * MARGIN)) * (w * scale * MARGIN);
-    const ay = Math.round(c.y / (hgt * scale * MARGIN)) * (hgt * scale * MARGIN);
-    const key = `${spec.kind}|${spec.region ?? ''}|${spec.seed}|${spec.bankY ?? ''}|${scale.toFixed(3)}|${ax}|${ay}|${w}|${hgt}|${isInkLight()}`;
+    const ax = Math.round(c.x / (bw * scale * MARGIN)) * (bw * scale * MARGIN);
+    const ay = Math.round(c.y / (bh * scale * MARGIN)) * (bh * scale * MARGIN);
+    const key = `${spec.kind}|${spec.region ?? ''}|${spec.seed}|${spec.bankY ?? ''}|${scale.toFixed(3)}|${ax}|${ay}|${bw}|${bh}|${off}|${isInkLight()}`;
     if (this.done?.key !== key && this.job?.key !== key) {
-      const spanX = w * scale * (1 + 2 * MARGIN);
-      const spanY = hgt * scale * (1 + 2 * MARGIN);
+      const spanX = bw * scale * (1 + 2 * MARGIN);
+      const spanY = bh * scale * (1 + 2 * MARGIN);
       const cols = Math.ceil(spanX / step) + 1;
       const rows = Math.ceil(spanY / step) + 1;
       this.job = { key, spec, x0: ax - spanX / 2, y0: ay + spanY / 2, step, cols, rows, depths: new Float32Array(cols * rows), row: 0 };
@@ -98,13 +110,20 @@ export class DepthChart {
     if (this.job) this.work();
     const r = this.done;
     if (!r) return;
-    // Map the render's world rectangle onto the current view (handles pan and zoom while a new one is computed)
+    // Map the render's world rectangle onto the current view (handles pan and zoom while a new one is computed),
+    // in the game frame around the view centre, then turned north-up about that centre
     const sx = (r.x0 - c.x) / scale + w / 2;
     const sy = -(r.y0 - c.y) / scale + hgt / 2;
     const sw = (r.cols - 1) * (r.step / scale);
     const sh = (r.rows - 1) * (r.step / scale);
+    ctx.save();
+    ctx.translate(w / 2, hgt / 2);
+    ctx.rotate(rad);
+    ctx.translate(-w / 2, -hgt / 2);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(r.img, sx, sy, sw, sh);
+    ctx.restore();
+    drawLabels(ctx, r, sx, sy, sw / r.img.width, rad, w, hgt);
     legend(ctx, w, hgt);
   }
 
@@ -119,13 +138,14 @@ export class DepthChart {
       j.row++;
     }
     if (j.row < j.rows) return;
-    this.done = { key: j.key, x0: j.x0, y0: j.y0, step: j.step, cols: j.cols, rows: j.rows, img: paint(j, this.done?.img) };
+    const { img, labels } = paint(j, this.done?.img);
+    this.done = { key: j.key, x0: j.x0, y0: j.y0, step: j.step, cols: j.cols, rows: j.rows, img, labels };
     this.job = undefined;
   }
 }
 
 /** Tint plus hill shading into the pixel grid, then the isobaths drawn at full resolution on top. */
-function paint(j: Job, reuse?: HTMLCanvasElement): HTMLCanvasElement {
+function paint(j: Job, reuse?: HTMLCanvasElement): { img: HTMLCanvasElement; labels: Label[] } {
   const { cols, rows, depths, step } = j;
   // Shading: slope of the seabed lit from the north-west. Gentle deep-sea slopes are exaggerated
   // more than steep coastal ones, so both show
@@ -160,17 +180,33 @@ function paint(j: Job, reuse?: HTMLCanvasElement): HTMLCanvasElement {
   const oc = out.getContext('2d')!;
   oc.imageSmoothingEnabled = true;
   oc.drawImage(tex, 0.5, 0.5, cols - 1, rows - 1, 0, 0, out.width, out.height);
-  isobaths(oc, depths, cols, rows);
-  return out;
+  return { img: out, labels: isobaths(oc, depths, cols, rows) };
 }
 
-/** Marching squares with linear interpolation; coastline bright, major isobaths labelled. */
-function isobaths(ctx: CanvasRenderingContext2D, depths: Float32Array, cols: number, rows: number): void {
-  const levels = [0, ...LEVELS];
-  const labels: { x: number; y: number }[] = [];
+/** Depth labels at their place on the turned chart, but upright. */
+function drawLabels(ctx: CanvasRenderingContext2D, r: Render, sx: number, sy: number, k: number, rad: number, w: number, hgt: number): void {
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  ctx.save();
   ctx.font = '9px ui-monospace, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  for (const l of r.labels) {
+    const gx = sx + l.x * k - w / 2, gy = sy + l.y * k - hgt / 2;
+    const x = w / 2 + gx * cos - gy * sin, y = hgt / 2 + gx * sin + gy * cos;
+    if (x < 0 || x > w || y < 0 || y > hgt) continue;
+    const tw = ctx.measureText(l.t).width + 4;
+    ctx.fillStyle = 'rgba(6,14,16,0.75)';
+    ctx.fillRect(x - tw / 2, y - 6, tw, 12);
+    ctx.fillStyle = 'rgba(150,210,190,0.85)';
+    ctx.fillText(l.t, x, y + 0.5);
+  }
+  ctx.restore();
+}
+
+/** Marching squares with linear interpolation; coastline bright, major isobaths labelled. */
+function isobaths(ctx: CanvasRenderingContext2D, depths: Float32Array, cols: number, rows: number): Label[] {
+  const levels = [0, ...LEVELS];
+  const labels: Label[] = [];
   for (const z of levels) {
     const segs: number[] = [];
     for (let k = 0; k < rows - 1; k++) {
@@ -221,15 +257,10 @@ function isobaths(ctx: CanvasRenderingContext2D, depths: Float32Array, cols: num
       if (x < x0 || x > x1 || y < y0 || y > y1) continue;
       if (mine.some((l) => Math.hypot(l.x - x, l.y - y) < 220) || labels.some((l) => Math.hypot(l.x - x, l.y - y) < 70)) continue;
       mine.push({ x, y });
-      labels.push({ x, y });
-      const t = `${z}`;
-      const tw = ctx.measureText(t).width + 4;
-      ctx.fillStyle = 'rgba(6,14,16,0.75)';
-      ctx.fillRect(x - tw / 2, y - 6, tw, 12);
-      ctx.fillStyle = 'rgba(150,210,190,0.85)';
-      ctx.fillText(t, x, y + 0.5);
+      labels.push({ x, y, t: `${z}` });
     }
   }
+  return labels;
 }
 
 /** Depth scale in the upper left corner (the lower edge of the plot can be cut off by its panel). */

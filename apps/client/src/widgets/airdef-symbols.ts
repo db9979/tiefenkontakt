@@ -1,4 +1,5 @@
 import type { Snapshot } from '@tk/shared';
+import { northOff } from '../north.js';
 
 /**
  * Plot symbols for air defence and mines: a missile's track from the launcher with a
@@ -6,6 +7,7 @@ import type { Snapshot } from '@tk/shared';
  * own mines amber, enemy mines found by sonar red).
  */
 
+/** World (game frame) → north-up canvas; directions are turned by northOff(). */
 type ToScreen = (x: number, y: number) => { x: number; y: number } | undefined;
 
 export function drawMissiles(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: ToScreen): void {
@@ -42,7 +44,7 @@ export function drawMissiles(ctx: CanvasRenderingContext2D, s: Snapshot, toScree
       ctx.fillText('FEHL', p.x + 7, p.y + 4);
     } else {
       // Head: a small dart along the flight direction
-      const h = ((m.heading - 90) * Math.PI) / 180;
+      const h = ((m.heading + northOff() - 90) * Math.PI) / 180;
       ctx.beginPath();
       ctx.moveTo(p.x + Math.cos(h) * 6, p.y + Math.sin(h) * 6);
       ctx.lineTo(p.x + Math.cos(h + 2.5) * 4, p.y + Math.sin(h + 2.5) * 4);
@@ -72,7 +74,7 @@ export function drawSsm(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: To
       ctx.fillText(m.done === 'hit' ? 'TREFFER' : m.done === 'shot' ? 'ABGEWEHRT' : 'FEHL', p.x + 7, p.y + 4);
       continue;
     }
-    const h = ((m.heading - 90) * Math.PI) / 180;
+    const h = ((m.heading + northOff() - 90) * Math.PI) / 180;
     ctx.beginPath();
     ctx.moveTo(p.x - Math.cos(h) * 14, p.y - Math.sin(h) * 14); ctx.lineTo(p.x, p.y); ctx.stroke();
     ctx.beginPath();
@@ -120,8 +122,8 @@ export function drawMineSector(ctx: CanvasRenderingContext2D, s: Snapshot, me: {
   const r = s.own.mineAvoidRange;
   if (!s.own.mineAvoid || !r) return;
   const px = r / scale;
-  const a0 = ((s.own.heading - 70 - 90) * Math.PI) / 180;
-  const a1 = ((s.own.heading + 70 - 90) * Math.PI) / 180;
+  const a0 = ((s.own.heading + northOff() - 70 - 90) * Math.PI) / 180;
+  const a1 = ((s.own.heading + northOff() + 70 - 90) * Math.PI) / 180;
   ctx.save();
   ctx.strokeStyle = 'rgba(159,225,203,0.55)';
   ctx.fillStyle = 'rgba(159,225,203,0.06)';
