@@ -3,7 +3,7 @@ import { DEFAULT_ENV, torpedoSourceLevel, type Environment } from './acoustics.j
 import { ContactBook } from './contacts.js';
 import { applyHitDamage, stepDamage } from './damage.js';
 import { CLASSES } from './classes.js';
-import { KN } from './math.js';
+import { KN, headingVec } from './math.js';
 import { depthAt } from './seabed.js';
 import { keepOffShoals, shoalWarning } from './navigation.js';
 import { stepWeather } from './weather.js';
@@ -125,11 +125,18 @@ function checkGround(w: World, s: Ship): void {
     if (s.order.depth > s.depth) s.order.depth = s.depth;
   } else {
     if (sub) s.depth = s.order.depth = 0;
-    s.order.speedKn = 0;
-    s.speed = Math.min(s.speed, 0.3);
+    // She can work herself off, dead slow, where the water ahead is deeper; otherwise she sits fast
+    const v = headingVec(s.heading);
+    const ahead = depthAt(w.env.seabed, s.pos.x + v.x * 60, s.pos.y + v.y * 60);
+    if (ahead > bottom + 0.3) s.speed = Math.min(s.speed, 1);
+    else {
+      s.order.speedKn = 0;
+      s.speed = Math.min(s.speed, 0.3);
+    }
   }
   const last = groundedAt.get(s) ?? -1e9;
-  if (w.time - last > 60 && (struckKn > 2 || !sub)) {
+  // Damage and the report come with the strike, not every minute while she sits on the ground
+  if (w.time - last > 60 && struckKn > (sub ? 2 : 1)) {
     groundedAt.set(s, w.time);
     s.hp -= 8;
     applyHitDamage(s, 25, w.rng, { u: 0.03, fireChance: 0.05, w });

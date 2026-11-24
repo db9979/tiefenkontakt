@@ -72,10 +72,17 @@ export function regionToGeo(r: Region, x: number, y: number): { lat: number; lon
   return { lat: r.lat + north / M_PER_DEG_LAT, lon: r.lon + east / (M_PER_DEG_LON * Math.cos((r.lat * Math.PI) / 180)) };
 }
 
-/** Bounding box (degrees) of the window the region needs: x ±half, y from −half/2 to 1.5·half. */
-export function regionBox(r: Region): { lat0: number; lat1: number; lon0: number; lon1: number } {
-  const h = r.half * 1000;
-  const pts = [[-h, -h / 2], [h, -h / 2], [-h, 1.5 * h], [h, 1.5 * h]].map(([x, y]) => regionToGeo(r, x!, y!));
+/** Half size of the coarse overview window around every region (km): the chart zoomed far out. */
+export const WIDE_HALF_KM = 330;
+
+/**
+ * Bounding box (degrees) of the window the region needs: x ±half, y from −half/2 to 1.5·half;
+ * the wide overview window is square around the middle of the route.
+ */
+export function regionBox(r: Region, wide = false): { lat0: number; lat1: number; lon0: number; lon1: number } {
+  const h = (wide ? WIDE_HALF_KM : r.half) * 1000;
+  const corners = wide ? [[-h, -h + 15_000], [h, -h + 15_000], [-h, h + 15_000], [h, h + 15_000]] : [[-h, -h / 2], [h, -h / 2], [-h, 1.5 * h], [h, 1.5 * h]];
+  const pts = corners.map(([x, y]) => regionToGeo(r, x!, y!));
   return {
     lat0: Math.min(...pts.map((p) => p.lat)), lat1: Math.max(...pts.map((p) => p.lat)),
     lon0: Math.min(...pts.map((p) => p.lon)), lon1: Math.max(...pts.map((p) => p.lon)),

@@ -33,14 +33,25 @@ const navHold = new WeakMap<Ship, { until: number; heading: number }>();
 
 /** Auto-pilot for crews without a player: hold off shoals and land. */
 export function keepOffShoals(w: World, s: Ship): void {
-  if (!s.alive || !w.env.seabed || s.speed < 0.3) return;
+  if (!s.alive || !w.env.seabed) return;
   const need = waterNeeded(s);
   const look = lookFor(s);
+  // Aground or in water too shallow: head for the deepest water close by, dead slow
+  if (depthAt(w.env.seabed, s.pos.x, s.pos.y) < need) {
+    s.order.heading = deepestNear(w, s.pos);
+    s.order.speedKn = Math.min(s.order.speedKn || 3, 3);
+    navHold.set(s, { until: w.time + 60, heading: s.order.heading });
+    return;
+  }
+  // Still swinging toward shallows on the old heading: take the way off her while she turns
+  const onHeading = shoalAhead(w, s.pos, s.heading, need, 900);
+  if (onHeading < 900) s.order.speedKn = Math.min(s.order.speedKn, onHeading < 300 ? 0 : 5);
   const hold = navHold.get(s);
   if (hold && w.time < hold.until) {
     s.order.heading = hold.heading;
     return;
   }
+  if (s.speed < 0.3) return;
   if (shoalAhead(w, s.pos, s.order.heading, need, look) === Infinity && shoalAhead(w, s.pos, s.heading, need, look * 0.6) === Infinity) return;
   // Try courses ever further off the ordered one; take the clearest, the nearer one when equal
   let best = s.order.heading;
@@ -76,4 +87,16 @@ export function shoalWarning(w: World, s: Ship): void {
     kind: 'boat', time: w.time, shipId: s.id, what: 'shoal',
     text: sub ? `Navigator: zu wenig Wasser unter dem Kiel in ${km} km${ahead}` : `Navigator: Untiefe voraus in ${km} km${ahead}`,
   });
+}
+
+/** Heading toward the deepest water within about 400 m (16 directions). */
+export function deepestNear(w: World, p: Vec2): number {
+  let best = 0, bestD = -Infinity;
+  for (let k = 0; k < 16; k++) {
+    const h = k * 22.5;
+    const v = headingVec(h);
+    const d = Math.min(depthAt(w.env.seabed, p.x + v.x * 200, p.y + v.y * 200), depthAt(w.env.seabed, p.x + v.x * 400, p.y + v.y * 400));
+    if (d > bestD) [best, bestD] = [h, d];
+  }
+  return best;
 }

@@ -36,6 +36,9 @@ const linesMode = (): LinesMode => {
 const FAN_WINDOW_S = 600;
 const FAN_MAX = 10;
 
+/** Widest zoom (m per pixel): the real charts reach about 330 km around the route. */
+const MAX_SCALE = 300;
+
 /**
  * North-up tactical plot centered on own ship. Mouse: wheel/buttons zoom, drag pans,
  * click selects, right-click opens actions, the amber TMA marker and its vector tip drag.
@@ -65,15 +68,15 @@ export class Plot {
     };
     showLines();
     zin!.onclick = () => (this.scale = Math.max(5, this.scale / 1.4));
-    zout!.onclick = () => (this.scale = Math.min(600, this.scale * 1.4));
+    zout!.onclick = () => (this.scale = Math.min(MAX_SCALE, this.scale * 1.4));
     ctr!.onclick = () => (this.pan = { x: 0, y: 0 });
     this.el.appendChild(tools);
 
     canvas.style.cursor = 'crosshair';
-    touchable(canvas, (f) => (this.scale = Math.min(600, Math.max(5, this.scale * f))));
+    touchable(canvas, (f) => (this.scale = Math.min(MAX_SCALE, Math.max(5, this.scale * f))));
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.scale = Math.min(600, Math.max(5, this.scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
+      this.scale = Math.min(MAX_SCALE, Math.max(5, this.scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
     }, { passive: false });
     canvas.addEventListener('pointerdown', (e) => this.down(e));
     window.addEventListener('pointerup', (e) => this.up(e));

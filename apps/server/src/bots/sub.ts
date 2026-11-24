@@ -119,7 +119,17 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     // Search: head for the pack's latest report or the last lead, sprint below the layer, then drift and listen
     const report = pack.filter((r) => r.team === s.team && now - r.t < 1800).pop();
     const lead = report ?? m.lead;
-    if (lead) s.order.heading = lead.b === undefined ? s.order.heading : wrap360(headingTo(s, lead));
+    // Harbour attack: where the anchorage lies is no secret; head for it, the last stretch slow
+    const anchorage = w.env.mission === 'hafen' && !lead ? anchorageOf(w) : undefined;
+    if (anchorage) {
+      s.order.heading = wrap360((Math.atan2(anchorage.x - s.pos.x, anchorage.y - s.pos.y) * 180) / Math.PI);
+      if (distance(s.pos, anchorage) < 7000) {
+        // Close in quietly and look: anchored ships are heard faintly, seen well
+        s.order.speedKn = threatNear ? 2 : 4;
+        if (!threatNear && now > m.peekUntil + 240) m.peekUntil = now + 60;
+        return;
+      }
+    } else if (lead) s.order.heading = lead.b === undefined ? s.order.heading : wrap360(headingTo(s, lead));
     else {
       // Patrol toward the enemy's side of the map in zigzag legs (east starts north, west south)
       if (now > m.legUntil) {
@@ -200,4 +210,11 @@ function headingTo(s: Ship, r: { x: number; y: number; b: number }): number {
   const rad = (r.b * Math.PI) / 180;
   const p = { x: r.x + Math.sin(rad) * 12_000, y: r.y + Math.cos(rad) * 12_000 };
   return (Math.atan2(p.x - s.pos.x, p.y - s.pos.y) * 180) / Math.PI;
+}
+
+/** Centre of the anchored merchants (harbour attack): the anchorage is charted. */
+function anchorageOf(w: World): { x: number; y: number } | undefined {
+  const ms = w.ships.filter((x) => x.cls === 'merchant' && x.alive);
+  if (!ms.length) return undefined;
+  return { x: ms.reduce((a, x) => a + x.pos.x, 0) / ms.length, y: ms.reduce((a, x) => a + x.pos.y, 0) / ms.length };
 }

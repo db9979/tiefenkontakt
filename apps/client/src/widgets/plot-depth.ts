@@ -28,7 +28,7 @@ const STOPS: [number, number, number, number][] = [
 ];
 /** Land by height (m): low coastal green-grey, brown hills, bare rock, snow on the tops. */
 const LAND: [number, number, number, number][] = [
-  [0, 58, 64, 46], [80, 62, 66, 44], [300, 74, 68, 48], [700, 88, 82, 70], [1100, 150, 156, 152],
+  [0, 58, 64, 46], [80, 62, 66, 44], [300, 74, 68, 48], [800, 90, 84, 72], [1500, 112, 110, 102], [2400, 160, 164, 162],
 ];
 
 interface Render {

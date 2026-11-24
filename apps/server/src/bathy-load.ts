@@ -12,16 +12,19 @@ export function loadBathymetry(): void {
   if (loaded || !existsSync(BATHY_DIR)) return;
   loaded = true;
   for (const f of readdirSync(BATHY_DIR)) {
-    const id = f.replace(/\.bin\.gz$/, '');
+    const name = f.replace(/\.bin\.gz$/, '');
+    const overview = name.endsWith('.wide');
+    const id = name.replace(/\.wide$/, '');
     if (!isRegion(id)) continue;
     const b = gunzipSync(readFileSync(resolve(BATHY_DIR, f)));
-    registerGrid(id, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
+    registerGrid(id, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, overview);
   }
 }
 
 /** The gzipped grid as stored (the client unpacks it), or undefined for an unknown region. */
-export function bathyFile(id: string): Buffer | undefined {
+export function bathyFile(name: string): Buffer | undefined {
+  const id = name.replace(/\.wide$/, '');
   if (!isRegion(id)) return undefined;
-  const p = resolve(BATHY_DIR, `${id}.bin.gz`);
+  const p = resolve(BATHY_DIR, `${id}${name.endsWith('.wide') ? '.wide' : ''}.bin.gz`);
   return existsSync(p) ? readFileSync(p) : undefined;
 }

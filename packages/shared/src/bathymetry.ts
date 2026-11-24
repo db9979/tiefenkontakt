@@ -11,6 +11,8 @@ import { REGIONS, regionToGeo, type RegionId } from './regions.js';
 interface Grid { lat0: number; lon0: number; dLat: number; dLon: number; nLat: number; nLon: number; z: Int16Array }
 
 const grids = new Map<RegionId, Grid>();
+/** Coarse overview grids (about 7 km) for the chart zoomed far out. */
+const wide = new Map<RegionId, Grid>();
 
 export function parseGrid(buf: ArrayBuffer): Grid {
   const v = new DataView(buf);
@@ -30,21 +32,39 @@ export function encodeGrid(g: Grid): ArrayBuffer {
   return buf;
 }
 
-export function registerGrid(id: RegionId, buf: ArrayBuffer): void {
-  grids.set(id, parseGrid(buf));
+export function registerGrid(id: RegionId, buf: ArrayBuffer, overview = false): void {
+  (overview ? wide : grids).set(id, parseGrid(buf));
 }
+
+export const hasWideGrid = (id: RegionId) => wide.has(id);
 
 export const hasGrid = (id: RegionId) => grids.has(id);
 
-/** Real water depth (m, negative = land) at game x/y of a region, or undefined without its grid. */
+/** Bilinear sample of a grid; undefined outside it. `edge`: weight 0..1 that falls to 0 over the last cells. */
+function sample(g: Grid, lat: number, lon: number): { z: number; edge: number } | undefined {
+  const fi = (lat - g.lat0) / g.dLat;
+  const fj = (lon - g.lon0) / g.dLon;
+  if (fi < 0 || fj < 0 || fi > g.nLat - 1 || fj > g.nLon - 1) return undefined;
+  const i = Math.min(g.nLat - 2, Math.floor(fi)), j = Math.min(g.nLon - 2, Math.floor(fj)), a = fi - i, b = fj - j;
+  const at = (ii: number, jj: number) => g.z[ii * g.nLon + jj]!;
+  const z = at(i, j) * (1 - a) * (1 - b) + at(i + 1, j) * a * (1 - b) + at(i, j + 1) * (1 - a) * b + at(i + 1, j + 1) * a * b;
+  const m = Math.min(fi, fj, g.nLat - 1 - fi, g.nLon - 1 - fj);
+  return { z, edge: Math.min(1, m / 4) };
+}
+
+/**
+ * Real water depth (m, negative = land) at game x/y of a region: the fine grid around the route,
+ * blending into the coarse overview toward its edge and beyond; undefined without data there.
+ */
 export function gridDepth(id: RegionId, x: number, y: number): number | undefined {
   const g = grids.get(id);
   if (!g) return undefined;
   const { lat, lon } = regionToGeo(REGIONS[id], x, y);
-  const fi = Math.max(0, Math.min(g.nLat - 1.001, (lat - g.lat0) / g.dLat));
-  const fj = Math.max(0, Math.min(g.nLon - 1.001, (lon - g.lon0) / g.dLon));
-  const i = Math.floor(fi), j = Math.floor(fj), a = fi - i, b = fj - j;
-  const at = (ii: number, jj: number) => g.z[ii * g.nLon + jj]!;
-  const z = at(i, j) * (1 - a) * (1 - b) + at(i + 1, j) * a * (1 - b) + at(i, j + 1) * (1 - a) * b + at(i + 1, j + 1) * a * b;
-  return -z;
+  const f = sample(g, lat, lon);
+  const ww = wide.get(id);
+  const c = ww ? sample(ww, lat, lon) : undefined;
+  if (f && (f.edge >= 1 || !c)) return -f.z;
+  if (f && c) return -(f.z * f.edge + c.z * (1 - f.edge));
+  if (c) return -c.z;
+  return undefined;
 }
