@@ -17,6 +17,8 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { alertRecipient } from '../apps/server/src/alerts.js';
+import { adminMail } from '../apps/server/src/admin-mail.js';
+import { restoreReport } from '../apps/server/src/admin-mails.js';
 import { createMailer } from '../apps/server/src/mailer.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -251,7 +253,7 @@ if (flag('--mail')) {
   if (!to) console.log('Kein Empfänger (ALERT_TO oder MAIL_FROM): nur Log');
   else {
     try {
-      await createMailer().send({ to, subject, text: lines.join('\n') });
+      await createMailer().send(adminMail(to, restoreReport({ passed, failures, warnings, lines, url: process.env.PUBLIC_URL })));
       console.log(`Bericht an ${to} verschickt`);
     } catch (e) {
       console.error(`Mailversand fehlgeschlagen: ${(e as Error).message}`);

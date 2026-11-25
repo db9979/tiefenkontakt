@@ -6,6 +6,8 @@
  * Without a text argument the body is read from stdin. Exit code 1 if the mail could not be sent.
  */
 import { alertRecipient } from '../apps/server/src/alerts.js';
+import { adminMail } from '../apps/server/src/admin-mail.js';
+import { operatorAlert } from '../apps/server/src/admin-mails.js';
 import { createMailer } from '../apps/server/src/mailer.js';
 
 const [subject, bodyArg] = process.argv.slice(2);
@@ -23,7 +25,7 @@ if (!to) {
   process.exit(0);
 }
 try {
-  await createMailer().send({ to, subject, text: text || subject });
+  await createMailer().send(adminMail(to, operatorAlert(subject, text || subject, process.env.PUBLIC_URL)));
   console.log(`Alarm-Mail an ${to}: ${subject}`);
 } catch (e) {
   console.error(`Alarm-Mail fehlgeschlagen: ${(e as Error).message}`);
