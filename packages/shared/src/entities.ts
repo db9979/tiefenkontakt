@@ -42,6 +42,11 @@ export interface Ship {
   mastPending?: boolean;
   /** How far the mast is out of its well, 0..1: it takes seconds to hoist and to lower. */
   mastExt?: number;
+  /**
+   * Where the attack periscope looks (game-frame bearing, degrees) and its power (1.5×, 6×, 12×),
+   * as reported by the player's optic or a bot's sweep. Unset: nobody is looking through it.
+   */
+  scope?: { bearing: number; mag: number };
   /** Snorkel head extension 0..1; the diesels only run once it is fully up. */
   snorkelExt?: number;
   /** Current rate of turn (deg/s, + = starboard); builds up and dies away with rudder and hull inertia. */

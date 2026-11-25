@@ -17,6 +17,8 @@ import {
   type MatchLobby,
   type MatchSummary,
   type PlayerSlot,
+  type Realism,
+  type ServerMsg,
   type Ship,
   type World,
   type Habits,
@@ -380,6 +382,12 @@ export class Match {
     return applyCommand(this.world, ship, msg);
   }
 
+  /** The player's realism mode: decides what his periscope tells him (snapshot.ts). Old saves: Einsteiger. */
+  setRealism(playerId: string, realism: Realism): void {
+    const slot = this.slots.find((s) => s.playerId === playerId);
+    if (slot) slot.realism = realism;
+  }
+
   /** Record the player's classification of one of their (or their datalink's) contacts. */
   classify(playerId: string, label: string, choice: ClassChoice, cls?: ClassId): string | undefined {
     const w = this.world;
@@ -483,7 +491,7 @@ export class Match {
       // A congested link is skipped before building, so the delta bookkeeping only advances for what was sent
       if (!ship || !x || !c || c.congested?.()) continue;
       const full = !x.histSent;
-      const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)]);
+      const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)], s.realism ?? 'einsteiger');
       snap.full = full;
       snap.crew = this.aboard(ship.id).map((a) => a.callsign);
       snap.lesson = this.settings.lesson;

@@ -219,6 +219,29 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   }
 }
 
+/** Sectors of an all-round look at 1.5× (32° field each, a little overlap). */
+const SWEEP_SECTORS = 12;
+
+/**
+ * The bot's periscope: like a player it sees only what the optic points at. With a contact it
+ * looks at her at 6× every other second and sweeps the horizon in between (once round in 24 s);
+ * without one it sweeps all round at 1.5× (twelve 30° sectors, once round in 12 s). Called every step.
+ */
+export function sweepScope(w: World, s: Ship): void {
+  if (!mastRaised(s)) return;
+  const now = w.time;
+  const tick = Math.floor(now);
+  const lead = (w.books.get(s.id)?.tracks() ?? [])
+    .filter((t) => now - t.lastSeen < 30 && t.sensors.some((x) => x === 'hull' || x === 'towed' || x === 'periscope'))
+    .sort((a, b) => b.se - a.se)[0];
+  if (lead && tick % 2 === 0) {
+    s.scope = { bearing: wrap360(lead.bearing), mag: 6 };
+    return;
+  }
+  const sector = Math.floor(lead ? tick / 2 : tick) % SWEEP_SECTORS;
+  s.scope = { bearing: wrap360(s.heading + (sector * 360) / SWEEP_SECTORS), mag: 1.5 };
+}
+
 /** A guarding boat's torpedo needs this much water free of friends and neutrals around its target (m). */
 const GUARD_CLEAR_M = 3000;
 /** A guarding boat holds its first shot until the target is this close (m). */

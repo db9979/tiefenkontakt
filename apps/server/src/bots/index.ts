@@ -2,7 +2,7 @@ import { CLASSES, bearing, launchNoisemaker, setTowedDecoy, wrap360, type World 
 import { SKILL, heardBearing, newMemory, recordTrack, type BotMemory, type BotSkill } from './common.js';
 import { thinkFrigate } from './frigate.js';
 import { thinkAirDefense } from './airdef.js';
-import { thinkSub, type PackReport } from './sub.js';
+import { sweepScope, thinkSub, type PackReport } from './sub.js';
 import { planSide, type EscortTask } from './escort-team.js';
 import { obeySub } from './orders-ai.js';
 
@@ -66,6 +66,8 @@ export class BotCrew {
       if (!ship?.alive) continue;
       recordTrack(m, ship, w.time);
       this.readEvents(w, m);
+      // The periscope looks where the captain trains it, every second, not only when he thinks
+      if (CLASSES[ship.cls].submarine) sweepScope(w, ship);
       if (w.time < m.nextThink) continue;
       const sub = CLASSES[ship.cls].submarine;
       m.nextThink = w.time + (sub ? k.subThink : k.think);

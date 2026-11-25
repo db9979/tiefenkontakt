@@ -15,6 +15,11 @@ export interface CustomMissionSettings {
 }
 import type { SeekerMode } from './weapons.js';
 
+/** Einsteiger: assistance (auto-classification, ranges); Profi: what the crew can really know. */
+export type Realism = 'einsteiger' | 'profi';
+/** Powers of the attack periscope. */
+export type ScopeMag = 1.5 | 6 | 12;
+
 /** Messages client -> server. Validated with zod on the server. */
 export type ClientMsg =
   /** setup: rebuild a finished match's situation (same seed and lobby choices, debrief "Gleiche Lage"). */
@@ -45,6 +50,10 @@ export type ClientMsg =
   | { t: 'classify'; label: string; choice: ClassChoice; cls?: ClassId }
   /** Periscope or bridge photo: where the camera looked; the server grades it from the truth. */
   | { t: 'photo'; id: string; bearing: number; fov: number; vfov: number; pitch: number; label?: string }
+  /** Where the attack periscope looks (game-frame bearing) and its power; sent on change, at most 4/s. */
+  | { t: 'scope'; bearing: number; mag: ScopeMag }
+  /** The player's realism mode (once per connection and match, and when changed). */
+  | { t: 'realism'; realism: Realism }
   | { t: 'pulse'; pulse: 'cw' | 'lfm' }
   /** Active sonar: set the range scale (m; sets the ping interval) and/or send one single ping. */
   | { t: 'ping'; range?: 4000 | 8000 | 16000; single?: boolean }
@@ -156,6 +165,8 @@ export interface PlayerSlot {
   rank?: string;
   /** Elo rating (accounts; guests 1000). */
   rating?: number;
+  /** Realism mode the player plays (decides what the periscope tells him); unset = Einsteiger. */
+  realism?: Realism;
 }
 
 export interface LobbyChatLine {
@@ -385,6 +396,11 @@ export interface Snapshot {
     assigned?: ClassChoice;
     /** Exact class assigned from the recognition book. */
     assignedCls?: ClassId;
+    /**
+     * Periscope only, while she is in view: the hull the 3D optic has to draw. Not a classification;
+     * the UI never names it (Profi players identify her with the recognition book).
+     */
+    look?: ClassId;
   })[];
   friendlies: FriendlyView[];
   torpedoes: TorpedoView[];

@@ -21,6 +21,7 @@ import {
   type ContactTrack,
   type ClassChoice,
   type ClassId,
+  type Realism,
   type FriendlyView,
   type RadioMsg,
   type Ship,
@@ -161,8 +162,29 @@ export function classGroupKey(s: Ship): string {
   return hasDatalink(s) ? `team:${s.team}` : `ship:${s.id}`;
 }
 
+/** The optic draws a ship this long (s) after she was last in its field of view. */
+const LOOK_HOLD_S = 10;
+
+/**
+ * What the periscope may tell this player. The server's books hold the class seen and the
+ * estimated range; Profi gets neither (only the stadimeter angle, ranged with the class he
+ * assigns), Einsteiger gets the range and, once she was held 10 s in the 6×/12× optic, the class.
+ */
+function periscopeView(tr: ContactTrack, hist: ContactTrack['history'], realism: Realism, now: number): Partial<Snapshot['contacts'][number]> {
+  const profi = realism === 'profi';
+  const optical = profi && tr.rangeBy === 'periscope';
+  return {
+    classified: !profi && tr.idAt !== undefined ? tr.classified : undefined,
+    look: tr.scopeAt !== undefined && now - tr.scopeAt < LOOK_HOLD_S ? tr.classified : undefined,
+    range: optical ? undefined : tr.range,
+    rangeAt: optical ? undefined : tr.rangeAt,
+    history: profi ? hist.map((h) => (h.sensor === 'periscope' && h.r !== undefined ? { ...h, r: undefined } : h)) : hist,
+  };
+}
+
 export function buildSnapshot(
   w: World, own: Ship, x: PlayerExtras, score: ScoreInfo, classes?: ReadonlyMap<string, ClassChoice>, idents?: Readonly<Record<string, ClassId>>,
+  realism: Realism = 'einsteiger',
 ): Snapshot {
   const l = w.weapons?.loadouts.get(own.id);
   const contacts: Snapshot['contacts'] = [];
@@ -170,7 +192,10 @@ export function buildSnapshot(
   const seen = new Set<string>();
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
     seen.add(tid);
-    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: seenOptically(tr, w.time) ? wreckOf(w, tid) : undefined });
+    contacts.push({
+      ...tr, evidence: newEvidence(x, tr.label, tr), history: [], via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: seenOptically(tr, w.time) ? wreckOf(w, tid) : undefined,
+      ...periscopeView(tr, newSamples(x, tr.label, tr.history, 120), realism, w.time),
+    });
   }
 
   const friendlies: FriendlyView[] = [];
@@ -185,7 +210,8 @@ export function buildSnapshot(
         if (seen.has(tid)) continue;
         seen.add(tid);
         contacts.push({
-          ...tr, label: `L${i + 1}-${tr.label}`, evidence: newEvidence(x, `L${i + 1}-${tr.label}`, tr), history: newSamples(x, `L${i + 1}-${tr.label}`, tr.history, 30), via: 'datalink', assigned: classes?.get(tid), assignedCls: idents?.[tid],
+          ...tr, label: `L${i + 1}-${tr.label}`, evidence: newEvidence(x, `L${i + 1}-${tr.label}`, tr), history: [], via: 'datalink', assigned: classes?.get(tid), assignedCls: idents?.[tid],
+          ...periscopeView(tr, newSamples(x, `L${i + 1}-${tr.label}`, tr.history, 30), realism, w.time),
         });
       }
     });

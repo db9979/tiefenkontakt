@@ -102,6 +102,8 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('radio'), text: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('lobby_chat'), text: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('report'), from: z.string().trim().min(1).max(40), reason: z.string().trim().min(1).max(200) }),
+  z.object({ t: z.literal('scope'), bearing: deg, mag: z.union([z.literal(1.5), z.literal(6), z.literal(12)]) }),
+  z.object({ t: z.literal('realism'), realism: z.enum(['einsteiger', 'profi']) }),
   z.object({ t: z.literal('pulse'), pulse: z.enum(['cw', 'lfm']) }),
   z.object({ t: z.literal('ping'), range: z.union([z.literal(4000), z.literal(8000), z.literal(16_000)]).optional(), single: z.boolean().optional() }),
   z.object({ t: z.literal('bt') }),
@@ -165,7 +167,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
+  { t: 'order' | 'scope' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -183,6 +185,10 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       return;
     case 'route':
       return setRoute(s, m);
+    case 'scope':
+      // Where the optic looks decides what the periscope sees (sensors.ts); surface ships have none
+      if (spec.submarine) s.scope = { bearing: m.bearing % 360, mag: m.mag };
+      return;
     case 'toggle':
       if (m.what === 'mast') {
         if (!spec.submarine) return 'Nur für U-Boote';
