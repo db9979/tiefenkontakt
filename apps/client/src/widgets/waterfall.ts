@@ -1,6 +1,7 @@
 import { angleDiff, bearing, iceCover, type Snapshot } from '@tk/shared';
 import { COL, deg3, fitCanvas } from './format.js';
 import { gameDeg, trueDeg } from '../north.js';
+import { Fader, beamWidth, dbToAmp, showChance } from './signal-display.js';
 
 const BINS = 360;
 const ROWS = 240;
@@ -20,6 +21,7 @@ export class Waterfall {
   private buf = document.createElement('canvas');
   private bctx: CanvasRenderingContext2D;
   private lastT = -1;
+  private fader = new Fader();
 
   constructor(private sensors: readonly string[] = ['hull', 'towed', 'intercept', 'active']) {
     this.buf.width = BINS;
@@ -37,12 +39,16 @@ export class Waterfall {
     for (const c of s.contacts) {
       if (c.via !== 'own' || s.time - c.lastSeen > 2) continue;
       if (!c.sensors.some((x) => this.sensors.includes(x))) continue;
-      const amp = Math.min(1, 0.25 + c.se / 18);
-      lines.push({ b: trueDeg(c.bearing), amp, width: 1 + 4 * Math.exp(-c.se / 6) });
-      if (c.bearingAlt !== undefined) lines.push({ b: trueDeg(c.bearingAlt), amp, width: 1 + 4 * Math.exp(-c.se / 6) });
+      // dB brightness with slow multipath fading; weak contacts break up, loud ones spread
+      const db = c.se + this.fader.at(c.label, s.time);
+      if (Math.random() > showChance(db)) continue;
+      const amp = dbToAmp(db);
+      const width = beamWidth(db);
+      lines.push({ b: trueDeg(c.bearing), amp, width });
+      if (c.bearingAlt !== undefined) lines.push({ b: trueDeg(c.bearingAlt), amp, width });
     }
     // Own wire-guided torpedoes: loud and close, a bright narrow trace on their bearing
-    for (const t of s.torpedoes) lines.push({ b: trueDeg(bearing(s.own, t)), amp: 0.9, width: 1.2 });
+    for (const t of s.torpedoes) lines.push({ b: trueDeg(bearing(s.own, t)), amp: 0.95, width: beamWidth(26) });
     const row = this.bctx.createImageData(BINS, 1);
     const stern = trueDeg(s.own.heading + 180);
     const selfNoise = Math.min(0.35, Math.max(0, (s.own.noiseDb - 110) / 120));

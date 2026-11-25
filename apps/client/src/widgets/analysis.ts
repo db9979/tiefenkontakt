@@ -1,8 +1,9 @@
-import { SIGNATURES, iceCover, inSquall, shaftHz, type Evidence } from '@tk/shared';
+import { SIGNATURES, bearing, distance, iceCover, inSquall, shaftHz, type Evidence } from '@tk/shared';
 import { audio, type ListenMode } from '../audio.js';
 import { store } from '../store.js';
 import { COL, fitCanvas, h } from './format.js';
 import { renderVerdict } from './verdict.js';
+import { Fader, dbToAmp, showChance } from './signal-display.js';
 
 type Page = 'lofar' | 'demon';
 const BINS = 1000;
@@ -38,6 +39,7 @@ export class AcousticAnalysis {
   private raw: Record<Page, Float32Array[]> = { lofar: [], demon: [] };
   private label?: string;
   private lastT = -1;
+  private fader = new Fader();
   private listen = false;
   private listenMode: ListenMode = 'breitband';
   private canvas: HTMLCanvasElement;
@@ -202,14 +204,20 @@ export class AcousticAnalysis {
     };
     for (let i = 0; i < BINS; i++) row[i] = 0.12 + Math.random() * 0.2;
     if (page === 'lofar') {
-      for (const t of ev?.tonals ?? []) add(t.hz, Math.min(1, 0.06 + t.snr / 22), 0.6);
+      // Each line fades on its own (multipath); weak lines break up, strong ones stand out on a dB scale
+      const now = store.snap?.time ?? 0;
+      for (const t of ev?.tonals ?? []) {
+        const db = t.snr + this.fader.at(`${this.label}|${t.hz}`, now);
+        if (Math.random() <= showChance(db)) add(t.hz, dbToAmp(db, -4, 24), t.snr > 15 ? 0.5 : 0.7);
+      }
       const own = this.ownBladeHz();
       if (own > 0.5 && !this.notch) {
         const sp = store.snap?.own.speedKn ?? 0;
         for (let k = 1; k <= 4; k++) add(own * k, Math.min(0.8, 0.15 + sp / 35) / k, 0.8);
       }
     } else if (ev?.shaftHz && ev.bladeHz) {
-      const a = Math.min(1, 0.08 + (ev.demonSnr ?? 0) / 18);
+      const db = (ev.demonSnr ?? 0) + this.fader.at(`${this.label}|demon`, store.snap?.time ?? 0);
+      const a = Math.random() <= showChance(db) ? dbToAmp(db, -4, 22) : 0;
       add(ev.shaftHz, a * 0.7, 0.15);
       add(ev.shaftHz * 2, a * 0.35, 0.15);
       add(ev.bladeHz, a, 0.2);
@@ -246,6 +254,18 @@ export class AcousticAnalysis {
         const tv = (sol.course * Math.PI) / 180;
         const ov = (own.heading * Math.PI) / 180;
         closingKn = -(sol.speedKn * Math.cos(tv - b)) + own.speedKn * Math.cos(ov - b);
+      }
+      // An own torpedo picked on the waterfall: its high propulsor whine, opening (Doppler down)
+      const torp = !c ? s.torpedoes.find((t) => t.id === store.selected) : undefined;
+      if (torp) {
+        const tb = bearing(own, torp);
+        audio.hydrophone({
+          mode: this.listenMode, band: LOFAR_BANDS[this.band as keyof typeof LOFAR_BANDS] as [number, number], se: 22, tonals: [], voice: 'torpedo',
+          rel: ((tb - own.heading + 540) % 360) - 180, rangeM: distance(own, torp), closingKn: -35,
+          sea: s.env.seaState, rain: !!s.env.rain || inSquall(s.env.met, own), ice: iceCover(s.env.met, own), ownKn: own.speedKn,
+        });
+        this.renderControls();
+        return;
       }
       audio.hydrophone({
         mode: this.listenMode, band: LOFAR_BANDS[this.band as keyof typeof LOFAR_BANDS] as [number, number],

@@ -7,6 +7,7 @@ import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { threatPanel } from '../../widgets/threat-panel.js';
 import { rangePanel } from '../../widgets/range-panel.js';
+import { activeScope } from '../../widgets/active-scope.js';
 import { h, setText } from '../../widgets/format.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 
@@ -54,6 +55,9 @@ export function subSonarStation(): Station {
   el.querySelector('#threat-slot')!.replaceWith(threat.el);
   const range = rangePanel();
   el.querySelector('#range-slot')!.replaceWith(range.el);
+  // Active sonar screen above the listening-range prediction, shown while pinging
+  const active = activeScope();
+  range.el.before(active.el);
   const wf = new Waterfall();
   const wfCanvas = el.querySelector<HTMLCanvasElement>('#wf')!;
   const analysis = new AcousticAnalysis(250);
@@ -94,6 +98,7 @@ export function subSonarStation(): Station {
     },
     frame() {
       wf.draw(wfCanvas, Math.max(220, window.innerHeight - 420), store.snap, store.selected);
+      active.frame();
       analysis.draw();
     },
   };

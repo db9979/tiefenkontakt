@@ -2,6 +2,7 @@ import { detonation, hullCreak, makeReverb, motor, sinkingNoises, sonarPing, tor
 import { inSquall, type Snapshot } from '@tk/shared';
 import { WeatherSound } from './audio-weather.js';
 import { SonarVoice, type SonarHearing } from './audio-sonar.js';
+import { breakUpSequence } from './audio-sinking.js';
 import { onLightning } from './widgets/lightning.js';
 
 export type ListenMode = 'breitband' | 'gefiltert' | 'ueberlagerung';
@@ -220,6 +221,12 @@ class Audio {
   }
 
   /** Low-passed noise burst. near = own ship hit or close detonation. */
+  /** Another ship going down: the long break-up on the hydrophone. */
+  sinking(pan = 0): void {
+    if (!this.ctx || !this.master || !this.fx) return this.explosion(true);
+    breakUpSequence(this.fx, this.out(pan));
+  }
+
   explosion(near: boolean, pan = 0): void {
     if (!this.ctx || !this.master) return;
     if (this.fx) {
@@ -371,7 +378,8 @@ class Audio {
       const pan = this.panFor(s, a.bearing);
       if (a.kind === 'torpedo') this.torpedoAlarm(pan);
       else if (a.kind === 'ping') this.ping(true, pan);
-      else if (a.kind === 'hit') this.explosion(false, pan);
+      // Another ship: a detonation, or (her sinking after the hit) the long break-up
+      else if (a.kind === 'hit') (a.sink ? this.sinking(pan) : this.explosion(false, pan));
       else if (a.kind === 'sunk') this.explosion(true);
       else if (a.kind === 'transient') this.transient(pan);
     }

@@ -29,6 +29,15 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   gemischt / West gemischt / beide gemischt: vorher 4:8, 11:1, 2:10, 2:10, jetzt 5:7, 7:5, 6:6, 4:8.
 - **Grundaufstellung ausgeglichen:** Das Atom-U-Boot der KI schießt schon bei einer etwas gröberen Lösung. KI-Arena
   (60 Partien, alle fünf Missionen): Grund 43:17 -> 33:27, West gemischt 30:30 -> 32:28.
+- **Sonaranzeigen realistischer:** Wasserfall, LOFAR und DEMON zeigen Signale auf einer dB-Skala statt früh gesättigt:
+  starke Kontakte heller und breiter (Nachbarkeulen), schwache brechen auf; jeder Kontakt und jede Linie schwindet
+  langsam auf und ab (Mehrwegeausbreitung).
+- **Aktivsonar-Schirm:** Im Horchraum und im Fregatten-Sonar erscheint beim Pingen ein Schirm: der Schallring läuft
+  hinaus, Nachhall knistert nah am Boot, Echos leuchten an Peilung und Entfernung auf, ältere Pings als Nachleuchten.
+- **Eigene Torpedos in der Kontaktliste** (rot, Peilung und Entfernung über den Draht), auswählbar; ausgewählt ist ihr
+  Laufgeräusch im Kopfhörer zu hören.
+- **Sinkgeräusche:** Ein sinkendes Schiff bricht hörbar auseinander, etwa eine Minute lang: stöhnender und kreischender
+  Stahl, entweichende Luft, nachgebende Schotten, mit zunehmender Tiefe dumpfe Implosionen.
 - **Eigene Torpedos am richtigen Ort:** Getaucht zeigt die Karte das Boot am Koppelort; die drahtgelenkten Torpedos
   standen bisher an ihrer wahren Position und tauchten deshalb um den Koppelfehler versetzt irgendwo auf. Jetzt laufen sie
   vom gezeichneten Boot los. Im Horchraum erscheinen sie als helle Spur mit rotem Namen (T1 …) in der Zeile der Kontakte,

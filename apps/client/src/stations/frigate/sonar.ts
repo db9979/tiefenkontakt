@@ -9,6 +9,7 @@ import { CLASSES } from '@tk/shared';
 import { Waterfall } from '../../widgets/waterfall.js';
 import { pickByBearing } from '../sub/sonar.js';
 import { rangePanel } from '../../widgets/range-panel.js';
+import { activeScope } from '../../widgets/active-scope.js';
 
 export function frigateSonarStation(): Station {
   const el = h(`<div class="cols">
@@ -37,6 +38,9 @@ export function frigateSonarStation(): Station {
   </div>`);
   const range = rangePanel();
   el.querySelector('#range-slot')!.replaceWith(range.el);
+  // Active sonar screen above the listening-range prediction, shown while pinging
+  const active = activeScope();
+  range.el.before(active.el);
   const hull = new Waterfall(['hull', 'active', 'intercept']);
   const tow = new Waterfall(['towed']);
   const hullCv = el.querySelector<HTMLCanvasElement>('#hull')!;
@@ -110,6 +114,7 @@ export function frigateSonarStation(): Station {
     frame() {
       const hgt = Math.max(150, (window.innerHeight - 330) / 2);
       hull.draw(hullCv, hgt, store.snap, store.selected);
+      active.frame();
       tow.draw(towCv, hgt, store.snap, store.selected);
       analysis.draw();
     },

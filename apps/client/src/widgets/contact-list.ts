@@ -5,7 +5,7 @@ import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
 import { trueDeg } from '../north.js';
 import { steadyBearing } from './smooth.js';
-import { CLASSES, type SensorKind } from '@tk/shared';
+import { CLASSES, bearing, distance, type SensorKind } from '@tk/shared';
 import { bindSortable, filterChips, getFilters, sortHead, sortRows, type SortState } from './sortable.js';
 
 const SENSOR_LABEL: Record<string, string> = {
@@ -87,8 +87,8 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
         <span>${c.sensors.map((x) => SENSOR_LABEL[x]).join('/')}</span>
         <span class="${color}">${what}</span>
       </div>`;
-    }).join('')
-    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>`));
+    }).join('') + torpRows(s)
+    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>` + torpRows(s)));
   if (!el.dataset.bound) {
     // Delegated mousedown: rows are rebuilt on every snapshot, so per-row handlers would lose clicks
     el.dataset.bound = '1';
@@ -96,4 +96,18 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       store.selected = row.dataset.c;
     });
   }
+}
+
+/** Own wire-guided torpedoes at the end of the list: bearing and range from the wire, selectable. */
+function torpRows(s: NonNullable<typeof store.snap>): string {
+  return s.torpedoes.map((t) => {
+    const sel = t.id === store.selected;
+    return `<div class="row ctable clickable ${sel ? 'amber selrow' : ''}" data-c="${esc(t.id)}" title="Eigener Torpedo am Draht · Klicken zum Auswählen">
+      <span class="${sel ? '' : 'red'}">${esc(t.id)}</span>
+      <span>${tdeg1(bearing(s.own, t))}°</span>
+      <span>${km(distance(s.own, t))}</span>
+      <span>DRAHT</span>
+      <span class="${sel ? '' : 'red'}">EIGENER TORPEDO · ${t.homing ? 'ZIEL ERFASST' : 'LÄUFT'}</span>
+    </div>`;
+  }).join('');
 }
