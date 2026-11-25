@@ -4,12 +4,12 @@
  */
 
 export type KeyAction =
-  | 'station1' | 'station2' | 'station3' | 'station4' | 'station5'
+  | 'station1' | 'station2' | 'station3' | 'station4' | 'station5' | 'station6' | 'station7'
   | 'left' | 'right' | 'faster' | 'slower' | 'up' | 'down'
   | 'scopeLeft' | 'scopeRight' | 'scopeUp' | 'scopeDown' | 'scopeZoom' | 'stabilize' | 'help' | 'mute' | 'ptt';
 
 export const KEY_LABEL: Record<KeyAction, string> = {
-  station1: 'Station 1', station2: 'Station 2', station3: 'Station 3', station4: 'Station 4', station5: 'Station 5',
+  station1: 'Station 1', station2: 'Station 2', station3: 'Station 3', station4: 'Station 4', station5: 'Station 5', station6: 'Station 6', station7: 'Station 7',
   left: 'Kurs links', right: 'Kurs rechts', faster: 'Fahrt +1 kn', slower: 'Fahrt −1 kn',
   up: 'Tiefe −10 m (auftauchen)', down: 'Tiefe +10 m (tauchen)',
   scopeLeft: 'Sehrohr links', scopeRight: 'Sehrohr rechts', scopeUp: 'Sehrohr/Fernglas hoch', scopeDown: 'Sehrohr/Fernglas runter',
@@ -17,7 +17,7 @@ export const KEY_LABEL: Record<KeyAction, string> = {
 };
 
 export const DEFAULT_KEYS: Record<KeyAction, string> = {
-  station1: 'Digit1', station2: 'Digit2', station3: 'Digit3', station4: 'Digit4', station5: 'Digit5',
+  station1: 'Digit1', station2: 'Digit2', station3: 'Digit3', station4: 'Digit4', station5: 'Digit5', station6: 'Digit6', station7: 'Digit7',
   left: 'ArrowLeft', right: 'ArrowRight', faster: 'ArrowUp', slower: 'ArrowDown', up: 'PageUp', down: 'PageDown',
   scopeLeft: 'KeyA', scopeRight: 'KeyD', scopeUp: 'KeyW', scopeDown: 'KeyS', scopeZoom: 'KeyE', stabilize: 'KeyG', help: 'KeyH', mute: 'KeyM', ptt: 'KeyV',
 };
@@ -43,7 +43,7 @@ export function isKey(e: KeyboardEvent, action: KeyAction): boolean {
 
 /** Station index (0-based) for the event, or -1. */
 export function stationKey(e: KeyboardEvent): number {
-  return (['station1', 'station2', 'station3', 'station4', 'station5'] as const).findIndex((a) => isKey(e, a));
+  return (['station1', 'station2', 'station3', 'station4', 'station5', 'station6', 'station7'] as const).findIndex((a) => isKey(e, a));
 }
 
 /** Readable name for a key code: "KeyA" → "A", "ArrowLeft" → "←". */

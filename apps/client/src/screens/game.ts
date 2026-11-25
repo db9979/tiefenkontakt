@@ -1,4 +1,4 @@
-import { CLASSES, fogAt, iceCover, type ServerMsg, type Snapshot } from '@tk/shared';
+import { CLASSES, fogAt, hasHelicopter, iceCover, type ServerMsg, type Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -12,6 +12,10 @@ import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
+import { frigateOrtungStation } from '../stations/frigate/ortung.js';
+import { flightStation } from '../stations/frigate/flug.js';
+import { subOrtungStation } from '../stations/sub/ortung.js';
+import { torpedoRoomStation } from '../stations/sub/torpedoraum.js';
 import { CLASS_LABEL, clock, esc, h, mastState, tdeg3 } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
@@ -222,9 +226,11 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       q('.side').prepend(tutorial.el);
     }
     const view3d = sub ? periscopeStation() : bridgeStation();
+    // The first five keep their numbers (tutorials, hints and crew stations refer to them); new ones follow
+    const own = store.snap?.own.cls;
     stations = sub
-      ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation(), centralStation()]
-      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d];
+      ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation(), centralStation(), subOrtungStation(), torpedoRoomStation()]
+      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d, frigateOrtungStation(), ...(own && hasHelicopter(own) ? [flightStation()] : [])];
     views3d = new Set([view3d]);
     tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
     tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.onclick = () => show(Number(b.dataset.i))));

@@ -8,8 +8,6 @@ import { h, setHtml, setText } from '../../widgets/format.js';
 import { CLASSES } from '@tk/shared';
 import { Waterfall } from '../../widgets/waterfall.js';
 import { pickByBearing } from '../sub/sonar.js';
-import { rangePanel } from '../../widgets/range-panel.js';
-import { activeScope } from '../../widgets/active-scope.js';
 
 export function frigateSonarStation(): Station {
   const el = h(`<div class="cols">
@@ -17,12 +15,6 @@ export function frigateSonarStation(): Station {
       <div class="panel"><div class="hd"><span>Rumpfsonar</span><span id="hs" class="dim"></span></div><canvas id="hull"></canvas></div>
       <div class="panel"><div class="hd"><span>Schleppsonar · links/rechts mehrdeutig</span><span id="ts" class="dim"></span></div><canvas id="tow"></canvas>
         <div class="steps" style="margin-top:6px">
-          <button id="ping" class="warn" title="Aktiv-Ping alle 30 s: Entfernung, verrät aber die Fregatte">Aktiv-Ping</button>
-          <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
-          <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
-          <button id="xbt" title="Bathythermograph werfen: misst die Sprungschicht">BT messen</button>
-          <button id="mav" title="Hochfrequentes Minenmeidesonar: findet verankerte Minen voraus bis etwa 1,6 km (±70°), nur bis 15 kn, kaum weit zu hören">Minenmeiden</button>
-          <button id="vds" title="Tiefensonar unter die Sprungschicht absenken (nur bis 18 kn)" style="display:none">VDS absenken</button>
           ${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}
         </div>
       </div>
@@ -33,14 +25,8 @@ export function frigateSonarStation(): Station {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
       <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
-      <div id="range-slot"></div>
     </div>
   </div>`);
-  const range = rangePanel();
-  el.querySelector('#range-slot')!.replaceWith(range.el);
-  // Active sonar screen above the listening-range prediction, shown while pinging
-  const active = activeScope();
-  range.el.before(active.el);
   const hull = new Waterfall(['hull', 'active', 'intercept']);
   const tow = new Waterfall(['towed']);
   el.querySelector('#hs')!.before(hull.controls());
@@ -56,11 +42,6 @@ export function frigateSonarStation(): Station {
       if (hit) store.selected = hit;
     };
   }
-  el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
-  el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
-  el.querySelector<HTMLButtonElement>('#xbt')!.onclick = () => net.send({ t: 'bt' });
-  el.querySelector<HTMLButtonElement>('#mav')!.onclick = () => net.send({ t: 'toggle', what: 'mineavoid', on: !store.snap?.own.mineAvoid });
-  el.querySelector<HTMLButtonElement>('#vds')!.onclick = () => net.send({ t: 'toggle', what: 'vds', on: !(store.snap?.own.vdsOrder ?? 0) });
   el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => {
     b.onclick = () => {
       const l = store.selected;
@@ -76,19 +57,11 @@ export function frigateSonarStation(): Station {
     el,
     snap() {
       const s = store.snap!;
-      range.update(s);
       const o = s.own;
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
-      btnState(el.querySelector<HTMLElement>('#ping'), { on: o.activeSonar, tone: o.activeSonar ? 'warn' : undefined });
       const vdsTxt = (o.vdsDepth ?? 0) > 5 || (o.vdsOrder ?? 0) > 0 ? ` · VDS ${o.vdsDepth ?? 0}${o.vdsOrder !== o.vdsDepth ? ` / ${o.vdsOrder ?? 0}` : ''} M` : '';
       const mavTxt = o.mineAvoid ? (o.mineAvoidRange ? ` · MINENMEIDEN ${o.mineAvoidRange} M` : ' · MINENMEIDEN ZU SCHNELL') : '';
       setText(el.querySelector('#hs')!, (o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV') + vdsTxt + mavTxt);
-      btnState(el.querySelector<HTMLElement>('#mav'), o.mineAvoid && !o.mineAvoidRange ? { on: true, label: 'ZU SCHNELL', tone: 'warn' } : { on: !!o.mineAvoid });
-      const vb = el.querySelector<HTMLButtonElement>('#vds')!;
-      vb.style.display = CLASSES[o.cls].vds ? '' : 'none';
-      setText(vb, (o.vdsOrder ?? 0) > 0 ? 'VDS einholen' : 'VDS absenken');
-      const vd = o.vdsDepth ?? 0, vo = o.vdsOrder ?? 0;
-      btnState(vb, Math.abs(vd - vo) > 2 ? { on: vo > 0, label: `${vd} M`, pct: (100 * vd) / Math.max(vd, vo, 1), tone: 'busy' } : { on: vo > 0, label: vo > 0 ? `${vd} M` : undefined });
       const tgt = o.towedOrder ?? o.towedLength;
       const winch = tgt !== o.towedLength;
       el.querySelector('#ts')!.textContent = winch
@@ -104,9 +77,6 @@ export function frigateSonarStation(): Station {
           : { on: true, label: len && !o.towedReady ? 'STAB…' : '✓', tone: len && !o.towedReady ? 'busy' : undefined });
       });
       el.querySelector('#lab')!.textContent = store.selected ?? '';
-      el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => b.classList.toggle('on', b.dataset.pulse === o.pulse));
-      el.querySelector('#xbt')!.textContent = 'BT messen';
-      btnState(el.querySelector<HTMLElement>('#xbt'), o.loadout.xbt ? { label: String(o.loadout.xbt) } : { label: 'LEER', tone: 'empty' });
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));
@@ -123,7 +93,6 @@ export function frigateSonarStation(): Station {
     frame() {
       const hgt = Math.max(150, (window.innerHeight - 330) / 2);
       hull.draw(hullCv, hgt, store.snap, store.selected);
-      active.frame();
       tow.draw(towCv, hgt, store.snap, store.selected);
       analysis.draw();
     },

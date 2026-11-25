@@ -1,122 +1,182 @@
 import { CLASSES, NM, type Snapshot } from '@tk/shared';
+import { net } from '../net.js';
 import { store } from '../store.js';
 import { trueDeg } from '../north.js';
-import { COL, fitCanvas, h } from './format.js';
+import { btnState } from './btn-state.js';
+import { COL, deg3, esc, fitCanvas, h, km, setHtml } from './format.js';
 import { simNow } from './smooth.js';
 
 /** Speed of sound for the display (m/s); the ring shows the two-way travel, so it runs at half. */
 const C_WATER = 1500;
-const H = 260;
+/** Seconds between pings (sensors.ts PING_INTERVAL). */
+const PING_EVERY = 30;
+const RANGES_NM = [2, 4, 6, 10] as const;
 
-interface Echo { b: number; r: number; ping: number; label: string }
+interface Echo { b: number; r: number; ping: number; label: string; doppler?: number }
 
 /**
- * Active sonar screen (PPI, north up): after each ping a ring runs out from the own ship at
- * half the speed of sound (the echo has to come back), reverberation crackles close in and
- * dies away, and every return lights up at its bearing and range as the ring passes it, then
- * fades until the next ping. Shown while the active sonar is on or a ping is still ringing.
+ * Active sonar console (PPI, north up). After each ping a ring runs out from the own ship at
+ * half the speed of sound (the echo has to come back); reverberation crackles close in and
+ * dies away (more in shallow water); every return lights up at its bearing and range when the
+ * ring reaches it and fades until the next ping, earlier pings as afterglow. CW returns are
+ * coloured by Doppler (amber closing, blue opening). Beside it: ping on/off, CW/LFM, range,
+ * the countdown to the next ping and a table of the returns.
  */
-export function activeScope(): { el: HTMLElement; frame(): void } {
-  const el = h(`<div class="panel" style="display:none"><div class="hd"><span>Aktivsonar · <span id="as-rng"></span></span><span id="as-st" class="dim"></span></div><canvas id="as-ppi"></canvas></div>`);
+export function activeScope(opts: { height?: number; compact?: boolean } = {}): { el: HTMLElement; frame(): void; snap(): void } {
+  const compact = !!opts.compact;
+  const el = h(`<div class="panel">
+    <div class="hd"><span>Aktivsonar</span><span id="as-st" class="dim"></span></div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
+      <button id="as-ping" class="warn" title="Aktivsonar: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Aktivsonar</button>
+      <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
+      <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
+      <span style="flex:1"></span>
+      ${RANGES_NM.map((r) => `<button data-asr="${r}" title="Anzeigebereich ${r} SM">${r} SM</button>`).join('')}
+    </div>
+    <canvas id="as-ppi"></canvas>
+    ${compact ? '' : '<div id="as-echoes" style="margin-top:6px"></div>'}
+  </div>`);
   const canvas = el.querySelector<HTMLCanvasElement>('#as-ppi')!;
   const st = el.querySelector<HTMLElement>('#as-st')!;
   const echoes: Echo[] = [];
-  let lastPing = -1;
+  let rangeNm = Number(localStorage.getItem('tk_as_range') ?? 0) || 0;
+  el.querySelector<HTMLButtonElement>('#as-ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
+  el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
+  el.querySelectorAll<HTMLButtonElement>('[data-asr]').forEach((b) => (b.onclick = () => {
+    rangeNm = Number(b.dataset.asr);
+    localStorage.setItem('tk_as_range', String(rangeNm));
+  }));
 
   const collect = (s: Snapshot) => {
     const ping = s.own.lastPingAt;
     if (ping === undefined) return;
-    if (ping !== lastPing) lastPing = ping;
     for (const c of s.contacts) {
       if (c.via !== 'own' || !c.sensors.includes('active') || c.range === undefined || c.lastSeen < ping - 0.5) continue;
       if (echoes.some((e) => e.ping === ping && e.label === c.label)) continue;
-      echoes.push({ b: trueDeg(c.bearing), r: c.range, ping, label: c.label });
+      echoes.push({ b: trueDeg(c.bearing), r: c.range, ping, label: c.label, doppler: c.dopplerKn });
     }
-    // Keep the returns of the last three pings
     const pings = [...new Set(echoes.map((e) => e.ping))].sort((a, b) => b - a).slice(0, 3);
     for (let i = echoes.length - 1; i >= 0; i--) if (!pings.includes(echoes[i]!.ping)) echoes.splice(i, 1);
   };
 
+  const rangeM = (s: Snapshot) => (rangeNm || (CLASSES[s.own.cls].submarine ? 6 : 10)) * NM;
+
   return {
     el,
+    snap() {
+      const s = store.snap;
+      if (!s) return;
+      collect(s);
+      const o = s.own;
+      const since = o.lastPingAt !== undefined ? s.time - o.lastPingAt : undefined;
+      btnState(el.querySelector<HTMLElement>('#as-ping'), o.activeSonar
+        ? { on: true, label: since !== undefined ? `NÄCHSTER IN ${Math.max(0, Math.ceil(PING_EVERY - since))} S` : 'AN', tone: 'warn' } : { on: false });
+      el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => b.classList.toggle('on', b.dataset.pulse === o.pulse));
+      const rNm = rangeM(s) / NM;
+      el.querySelectorAll<HTMLButtonElement>('[data-asr]').forEach((b) => b.classList.toggle('on', Number(b.dataset.asr) === rNm));
+      st.className = o.activeSonar ? 'amber' : 'dim';
+      st.textContent = o.activeSonar ? 'SENDET · JEDER HÖRT DICH WEIT HINAUS' : since !== undefined && since < 60 ? 'AUS · NACHHALL' : 'AUS · NUR HORCHEN';
+      if (compact) return;
+      const last = echoes.filter((e) => e.ping === o.lastPingAt).sort((a, b) => a.r - b.r);
+      setHtml(el.querySelector('#as-echoes')!, last.length
+        ? `<div class="row dim"><span>ECHO</span><span>PEILUNG</span><span>ENTF.</span><span>DOPPLER</span></div>` + last.map((e) => {
+          const dop = e.doppler === undefined || o.pulse === 'lfm' ? '—' : Math.abs(e.doppler) < 1 ? 'STEHT' : e.doppler > 0 ? `↓ ${e.doppler.toFixed(0)} KN NÄHERT` : `↑ ${(-e.doppler).toFixed(0)} KN ENTFERNT`;
+          return `<div class="row clickable ${e.label === store.selected ? 'amber selrow' : ''}" data-c="${esc(e.label)}"><span>${esc(e.label)}</span><span>${deg3(e.b)}°</span><span>${km(e.r)}</span><span>${dop}</span></div>`;
+        }).join('')
+        : `<div class="dim">${o.activeSonar ? 'NOCH KEIN ECHO IM LETZTEN PING' : 'AKTIVSONAR AUS – EINSCHALTEN FÜR ENTFERNUNGEN'}</div>`);
+      el.querySelectorAll<HTMLElement>('#as-echoes [data-c]').forEach((r) => (r.onclick = () => (store.selected = r.dataset.c)));
+    },
     frame() {
       const s = store.snap;
+      if (!s) return;
       const now = simNow();
-      const ringing = s?.own.lastPingAt !== undefined && now - s.own.lastPingAt < 60;
-      const shown = !!s && (s.own.activeSonar || ringing);
-      el.style.display = shown ? '' : 'none';
-      if (!s || !shown) return;
-      collect(s);
-      const sub = CLASSES[s.own.cls].submarine;
-      const rangeM = (sub ? 6 : 10) * NM;
-      el.querySelector('#as-rng')!.textContent = `${rangeM / NM} SM · ${s.own.pulse === 'lfm' ? 'LFM' : 'CW'}`;
-      const since = s.own.lastPingAt !== undefined ? now - s.own.lastPingAt : Infinity;
-      st.className = s.own.activeSonar ? 'amber' : 'dim';
-      st.textContent = s.own.activeSonar ? `PING VOR ${Number.isFinite(since) ? Math.round(since) : '—'} S · VERRÄT DICH` : 'AUS · NACHHALL';
-
+      const o = s.own;
+      const H = opts.height ?? 300;
       const ctx = fitCanvas(canvas, H);
       const w = canvas.clientWidth;
-      const cx = w / 2, cy = H / 2, R = H / 2 - 14;
-      const k = R / rangeM;
+      const cx = w / 2, cy = H / 2, R = H / 2 - 18;
+      const rM = rangeM(s);
+      const k = R / rM;
       ctx.fillStyle = '#020605';
       ctx.fillRect(0, 0, w, H);
       ctx.save();
       ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
-      // Rings and bearing marks
-      ctx.strokeStyle = 'rgba(93,202,165,0.18)';
-      for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(cx, cy, (R * i) / 3, 0, Math.PI * 2); ctx.stroke(); }
+      // Stern dead angle: the own hull and screw mask about ±30° astern
+      const stern = ((trueDeg(o.heading) + 180) * Math.PI) / 180;
+      ctx.fillStyle = 'rgba(93,202,165,0.06)';
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, stern - Math.PI / 2 - 0.52, stern - Math.PI / 2 + 0.52); ctx.closePath(); ctx.fill();
+      // Range rings
+      ctx.strokeStyle = 'rgba(93,202,165,0.2)';
+      for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.arc(cx, cy, (R * i) / 4, 0, Math.PI * 2); ctx.stroke(); }
+      const since = o.lastPingAt !== undefined ? now - o.lastPingAt : Infinity;
       const ringR = Number.isFinite(since) ? (since * C_WATER) / 2 : Infinity;
-      // Reverberation: speckle behind the ring, dense close in, dying with range and time
-      if (ringR < rangeM * 1.2) {
+      // Reverberation behind the ring: dense close in, dying with range and time; more in shallow water
+      if (ringR < rM * 1.3) {
         const shallow = s.env.bottom !== undefined && s.env.bottom < 300;
-        const n = shallow ? 260 : 140;
+        const n = shallow ? 320 : 160;
         for (let i = 0; i < n; i++) {
-          const r = Math.pow(Math.random(), 1.8) * Math.min(ringR, rangeM);
+          const r = Math.pow(Math.random(), 1.8) * Math.min(ringR, rM);
           const a = Math.random() * Math.PI * 2;
           const fade = Math.exp(-r / (shallow ? 5000 : 2500)) * Math.exp(-since / 20);
           ctx.fillStyle = `rgba(110,220,180,${(0.15 + Math.random() * 0.5) * fade})`;
           ctx.fillRect(cx + Math.sin(a) * r * k, cy - Math.cos(a) * r * k, 1.5, 1.5);
         }
-        // The outgoing ring
-        ctx.strokeStyle = `rgba(160,245,210,${Math.max(0.1, 0.7 - since / 30)})`;
+        ctx.strokeStyle = `rgba(160,245,210,${Math.max(0.12, 0.75 - since / 30)})`;
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(cx, cy, Math.min(ringR, rangeM) * k, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, Math.min(ringR, rM) * k, 0, Math.PI * 2); ctx.stroke();
         ctx.lineWidth = 1;
       }
-      // Returns: appear as the ring passes them, fade with age; older pings fainter
+      // Returns: appear as the ring passes, fade with age; older pings fainter; CW coloured by Doppler
+      ctx.font = '10px ui-monospace, monospace';
       for (const e of echoes) {
         const age = now - e.ping;
-        const reached = age * C_WATER / 2 >= e.r;
-        if (!reached || e.r > rangeM) continue;
-        const latest = e.ping === s.own.lastPingAt;
+        if (age * C_WATER / 2 < e.r || e.r > rM) continue;
+        const latest = e.ping === o.lastPingAt;
         const alpha = (latest ? 1 : 0.35) * Math.max(0.15, 1 - (age - (2 * e.r) / C_WATER) / 40);
         const rad = (e.b * Math.PI) / 180;
         const x = cx + Math.sin(rad) * e.r * k, y = cy - Math.cos(rad) * e.r * k;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, 7);
-        g.addColorStop(0, `rgba(230,255,240,${alpha})`);
+        const col = o.pulse === 'cw' && e.doppler !== undefined && Math.abs(e.doppler) >= 1 ? (e.doppler > 0 ? '250,199,117' : '133,183,235') : '230,255,240';
+        const g = ctx.createRadialGradient(x, y, 0, x, y, 8);
+        g.addColorStop(0, `rgba(${col},${alpha})`);
         g.addColorStop(1, 'rgba(93,202,165,0)');
         ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+        // A return smears along the beam: a short arc at its range
+        ctx.strokeStyle = `rgba(${col},${alpha * 0.8})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, e.r * k, rad - Math.PI / 2 - 0.03, rad - Math.PI / 2 + 0.03); ctx.stroke();
+        ctx.lineWidth = 1;
         if (latest) {
           ctx.fillStyle = e.label === store.selected ? COL.amber : COL.g2;
-          ctx.font = '10px ui-monospace, monospace';
-          ctx.fillText(e.label, x + 8, y - 6);
+          ctx.fillText(e.label, x + 9, y - 6);
         }
       }
       ctx.restore();
-      // Bezel: north up, own heading
-      ctx.strokeStyle = 'rgba(93,202,165,0.5)';
+      // Bezel: degree marks, north up, own heading line, ring labels
+      ctx.strokeStyle = 'rgba(93,202,165,0.55)';
       ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = COL.g;
-      ctx.font = '10px ui-monospace, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('N', cx, cy - R - 3);
-      const hd = (trueDeg(s.own.heading) * Math.PI) / 180;
+      for (let d = 0; d < 360; d += 10) {
+        const a = (d * Math.PI) / 180;
+        const len = d % 30 === 0 ? 6 : 3;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.sin(a) * R, cy - Math.cos(a) * R);
+        ctx.lineTo(cx + Math.sin(a) * (R + len), cy - Math.cos(a) * (R + len));
+        ctx.stroke();
+        if (d % 30 === 0) ctx.fillText(d === 0 ? 'N' : deg3(d), cx + Math.sin(a) * (R + 12), cy - Math.cos(a) * (R + 12) + 3);
+      }
+      const hd = (trueDeg(o.heading) * Math.PI) / 180;
       ctx.strokeStyle = COL.blue;
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(hd) * 18, cy - Math.cos(hd) * 18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(hd) * R * 0.25, cy - Math.cos(hd) * R * 0.25); ctx.stroke();
       ctx.textAlign = 'left';
       ctx.fillStyle = COL.dim;
-      ctx.fillText(`${(rangeM / NM / 3).toFixed(0)} SM / RING`, 6, H - 6);
+      ctx.fillText(`RING ${(rM / NM / 4).toLocaleString('de-DE')} SM`, 6, H - 6);
+      if (o.pulse === 'cw') {
+        ctx.textAlign = 'right';
+        ctx.fillText('AMBER NÄHERT · BLAU ENTFERNT', w - 6, H - 6);
+      }
     },
   };
 }

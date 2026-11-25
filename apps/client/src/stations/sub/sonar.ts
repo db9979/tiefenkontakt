@@ -5,9 +5,6 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { threatPanel } from '../../widgets/threat-panel.js';
-import { rangePanel } from '../../widgets/range-panel.js';
-import { activeScope } from '../../widgets/active-scope.js';
 import { h, setText } from '../../widgets/format.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 
@@ -38,7 +35,6 @@ export function subSonarStation(): Station {
       <div class="panel"><div class="hd"><span>Sonar · Breitband</span><span id="own" class="dim"></span></div>
         <canvas id="wf"></canvas>
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-          <button id="ping" class="warn" title="Aktivsonar: Entfernung, verrät aber das Boot">Aktivsonar</button>
           <button id="tow">Schleppsonar</button>
           <span class="dim" style="align-self:center">KLICK AUF EINE SPUR WÄHLT DEN KONTAKT</span>
         </div>
@@ -47,17 +43,8 @@ export function subSonarStation(): Station {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
       <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
-      <div id="threat-slot"></div>
-      <div id="range-slot"></div>
     </div>
   </div>`);
-  const threat = threatPanel();
-  el.querySelector('#threat-slot')!.replaceWith(threat.el);
-  const range = rangePanel();
-  el.querySelector('#range-slot')!.replaceWith(range.el);
-  // Active sonar screen above the listening-range prediction, shown while pinging
-  const active = activeScope();
-  range.el.before(active.el);
   const wf = new Waterfall();
   el.querySelector('#own')!.before(wf.controls());
   const wfCanvas = el.querySelector<HTMLCanvasElement>('#wf')!;
@@ -69,7 +56,6 @@ export function subSonarStation(): Station {
     const hit = pickByBearing(wf.bearingAt(wfCanvas, e.clientX));
     if (hit) store.selected = hit;
   };
-  el.querySelector<HTMLButtonElement>('#ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelector<HTMLButtonElement>('#tow')!.onclick = () => {
     const o = store.snap?.own;
     if (o) net.send({ t: 'towed', length: (o.towedOrder ?? o.towedLength) > 0 ? 0 : (CLASSES[o.cls].towed?.maxLength ?? 0) });
@@ -80,12 +66,9 @@ export function subSonarStation(): Station {
     el,
     snap() {
       const s = store.snap!;
-      threat.update(s);
-      range.update(s);
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       const o = s.own;
       setText(el.querySelector('#own')!, `EIGENGERÄUSCH ${o.noiseDb.toFixed(0)} DB`);
-      btnState(el.querySelector<HTMLElement>('#ping'), { on: o.activeSonar, tone: o.activeSonar ? 'warn' : undefined });
       const tow = el.querySelector<HTMLButtonElement>('#tow')!;
       tow.style.display = CLASSES[o.cls].towed ? '' : 'none';
       const tgt = o.towedOrder ?? o.towedLength;
@@ -103,7 +86,6 @@ export function subSonarStation(): Station {
     },
     frame() {
       wf.draw(wfCanvas, Math.max(220, window.innerHeight - 420), store.snap, store.selected);
-      active.frame();
       analysis.draw();
     },
   };

@@ -8,7 +8,7 @@ import { renderContactList } from '../../widgets/contact-list.js';
 import { h, km, setHtml, tdeg1 } from '../../widgets/format.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
-import { airDefPanel, samAction } from '../../widgets/airdef-panel.js';
+import { samAction } from '../../widgets/airdef-panel.js';
 import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
@@ -48,7 +48,6 @@ export function weaponsStation(): Station {
         <div class="dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div>
         <div style="display:flex;gap:4px;margin-top:6px"><button id="ssm" class="fire" style="flex:1">FK auf Ziel</button></div>
       </div>
-      <div id="airdef"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Zielkarte</span><span class="dim">RECHTSKLICK = RAKETE HIERHER</span></div><canvas id="plot"></canvas></div>
@@ -86,8 +85,6 @@ export function weaponsStation(): Station {
   const plot: Plot = new Plot(q<HTMLCanvasElement>('#plot'), {
     bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...samAction(p, plot.scale * 14), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
   });
-  const ad = airDefPanel();
-  q('#airdef').replaceWith(ad.el);
   plot.scale = 30;
 
   return {
@@ -116,7 +113,6 @@ export function weaponsStation(): Station {
       if (fk) btnState(q('#ssm'), !fk.left ? { label: 'LEER', tone: 'empty' } : fk.readyInS ? { label: `LÄDT ${fk.readyInS} S`, tone: 'busy' } : { label: `${fk.left} BEREIT` });
       el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => btnState(b, { tone: l.depthCharges ? undefined : 'empty' }));
       renderContactList(q('#list'));
-      ad.update();
     },
     frame() {
       plot.draw(Math.max(260, window.innerHeight - 380));

@@ -7,7 +7,7 @@ import { esc, fitCanvas, h, setHtml, tdeg3 } from '../../widgets/format.js';
 import { RadarScope, SCOPE } from '../../widgets/radar-scope.js';
 import { fromNorthUp, trueDeg } from '../../north.js';
 import { onTap } from '../../widgets/touch.js';
-import { samAction } from '../../widgets/airdef-panel.js';
+import { airDefPanel, samAction } from '../../widgets/airdef-panel.js';
 import { openMenu } from '../../widgets/menu.js';
 import { esmRow, esmTone } from '../../widgets/esm-text.js';
 
@@ -29,11 +29,15 @@ export function radarEsmStation(): Station {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Radarstatus</span><span id="emit" class="dim"></span></div><div id="status"></div></div>
+      <div id="airdef"></div>
       <div class="panel"><div class="hd"><span>ESM · Funkpeilung</span><span class="dim">ROSE UND LISTE</span></div>
         <canvas id="rose" style="display:block;margin:0 auto"></canvas><div id="esm"></div></div>
       <div class="panel"><div class="hd"><span>Radarspuren</span></div><div id="tracks"></div></div>
     </div>
   </div>`);
+  // Air defence sits with the air picture: radar, ESM and the SAM in one place
+  const ad = airDefPanel();
+  el.querySelector('#airdef')!.replaceWith(ad.el);
   const canvas = el.querySelector<HTMLCanvasElement>('#ppi')!;
   const rose = el.querySelector<HTMLCanvasElement>('#rose')!;
   const scope = new RadarScope();
@@ -126,6 +130,7 @@ export function radarEsmStation(): Station {
     el,
     snap() {
       const s = store.snap!;
+      ad.update();
       const on = s.own.radarOn;
       btnState(el.querySelector<HTMLElement>('#radar'), { on, tone: on ? 'warn' : undefined });
       el.querySelector('#rs')!.textContent = on ? `SENDET · ${RPM} U/MIN` : 'STANDBY';

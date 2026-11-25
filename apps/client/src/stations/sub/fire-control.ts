@@ -28,7 +28,6 @@ import { renderContactList } from '../../widgets/contact-list.js';
 import { COL, fitCanvas, h, km, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
-import { minePanel } from '../../widgets/mine-panel.js';
 
 type Method = 'hyp' | 'ekelund' | 'dots';
 const DOT_FACTORS = [0.6, 1, 1.6];
@@ -96,7 +95,6 @@ export function fireControlStation(): Station {
         <div style="display:flex;gap:4px;margin-top:6px"><button id="calc">Lösung übernehmen</button><button id="fire" class="fire" style="flex:1">Feuer</button></div>
         <div id="wires" style="margin-top:6px"></div>
       </div>
-      <div id="mines"></div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
@@ -111,8 +109,6 @@ export function fireControlStation(): Station {
     ],
   });
 
-  const mines = minePanel();
-  q('#mines').replaceWith(mines.el);
 
   /** Edit the selected solution via range (along latest bearing), course and speed. */
   function fromSliders(): void {
@@ -208,7 +204,6 @@ export function fireControlStation(): Station {
     snap() {
       const s = store.snap!;
       renderContactList(q('#list'), (via) => via === 'own');
-      mines.update();
       const c = store.selectedContact();
       const sol: TmaSolution | undefined = c ? store.solutions.get(c.label) : undefined;
       q('#tgt').textContent = c ? c.label : 'KONTAKT WÄHLEN';

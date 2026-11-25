@@ -6,9 +6,6 @@ import type { Station } from '../../screens/game.js';
 import { COL, clock, fitCanvas, h, setHtml } from '../../widgets/format.js';
 import { depthAlarms } from '../../widgets/depth-alarm-ui.js';
 
-const STEPS = [
-  { label: 'Schleich', kn: 3 }, { label: 'Langsam', kn: 6 }, { label: 'Halbe', kn: 12 }, { label: 'Volle', kn: 99 },
-];
 
 export function diveEngineStation(): Station {
   const el = h(`<div class="cols">
@@ -20,9 +17,8 @@ export function diveEngineStation(): Station {
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="panel"><div class="hd"><span>Maschine</span></div>
-        <div class="grid2" id="steps"></div>
-        <div style="display:flex;gap:6px;margin-top:8px"><button id="snort">Schnorcheln</button><button id="nm" class="warn">Täuschkörper</button></div>
+      <div class="panel"><div class="hd"><span>Antrieb</span><span class="dim">FAHRSTUFEN AM RUDERSTAND</span></div>
+        <div style="display:flex;gap:6px"><button id="snort" title="Schnorcheln lädt die Batterie: nur auf Sehrohrtiefe, laut und mit Mast über Wasser">Schnorcheln</button></div>
       </div>
       <div class="panel" id="alarms"><div class="hd"><span>Alarme</span><span class="dim">TIEFE · GRUND</span></div></div>
       <div class="panel"><div class="hd"><span>Status</span></div><div id="stat"></div></div>
@@ -32,14 +28,6 @@ export function diveEngineStation(): Station {
   const depthHist: { t: number; d: number }[] = [];
   q('#alarms').appendChild(depthAlarms.panel());
 
-  setHtml(q('#steps'), STEPS.map((s, i) => `<button data-step="${i}">${s.label}</button>`).join(''));
-  el.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => {
-    b.onclick = () => {
-      const o = store.snap?.own;
-      if (!o) return;
-      net.send({ t: 'order', speedKn: Math.min(STEPS[Number(b.dataset.step)]!.kn, CLASSES[o.cls].maxSpeedKn) });
-    };
-  });
   el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => {
     b.onclick = () => {
       const s = store.snap;
@@ -67,7 +55,6 @@ export function diveEngineStation(): Station {
     net.send({ t: 'order', depth: Math.round(Math.min(maxD, Math.max(0, d)) / 5) * 5 });
   };
   q<HTMLButtonElement>('#snort').onclick = () => net.send({ t: 'toggle', what: 'snorkel', on: !store.snap?.own.snorkel });
-  q<HTMLButtonElement>('#nm').onclick = () => net.send({ t: 'noisemaker' });
 
   return {
     title: 'Tauchstand',
@@ -89,12 +76,8 @@ export function diveEngineStation(): Station {
       const sx = o.snorkelExt ?? (o.snorkel ? 1 : 0);
       btnState(q('#snort'), o.snorkel && o.depth > PERISCOPE_DEPTH + 0.5 ? { on: true, label: 'ZU TIEF', tone: 'warn' } : o.snorkel && sx < 1 ? { on: true, label: `${Math.round(sx * 100)} %`, pct: sx * 100, tone: 'busy' }
         : !o.snorkel && sx > 0 ? { on: false, label: 'EIN…', pct: sx * 100, tone: 'busy' } : { on: o.snorkel });
-      btnState(q('#nm'), { label: String(o.loadout.noisemakers), tone: o.loadout.noisemakers ? undefined : 'empty' });
       el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, s.env.layerDepth, spec.maxDepth)));
-      el.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => {
-        const kn = Math.min(STEPS[Number(b.dataset.step)]!.kn, spec.maxSpeedKn);
-        b.classList.toggle('on', Math.abs(o.order.speedKn - kn) < 0.5);
-      });
+
       const pct = spec.battery && o.battery !== undefined ? (100 * o.battery) / spec.battery.capacityKnH : undefined;
       const cav = o.speedKn > o.cavitationKn;
       setHtml(q('#stat'), `
