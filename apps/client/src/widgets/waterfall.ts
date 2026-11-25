@@ -94,8 +94,10 @@ export class Waterfall {
   push(s: Snapshot, baffleHalf = 30): void {
     if (Math.floor(s.time) === this.lastT) return;
     this.lastT = Math.floor(s.time);
+    // A recovered towed array hears nothing: no traces and no noise, the rows run dark
+    const deaf = this.sensors.length === 1 && this.sensors[0] === 'towed' && !(s.own.towedLength > 0);
     const lines: Line[] = [];
-    for (const c of s.contacts) {
+    for (const c of deaf ? [] : s.contacts) {
       if (c.via !== 'own' || s.time - c.lastSeen > 2) continue;
       // Only what this array hears now: a contact another sensor holds (radar, eye) leaves no trace here,
       // so nothing paints in the deaf sector astern
@@ -111,16 +113,16 @@ export class Waterfall {
       if (c.bearingAlt !== undefined) lines.push({ b: trueDeg(c.bearingAlt), amp, width });
     }
     // Own wire-guided torpedoes: loud and close, a bright narrow trace on their bearing
-    for (const t of s.torpedoes) lines.push({ b: trueDeg(bearing(s.own, t)), amp: 0.95, width: beamWidth(26) });
+    for (const t of deaf ? [] : s.torpedoes) lines.push({ b: trueDeg(bearing(s.own, t)), amp: 0.95, width: beamWidth(26) });
     const row = this.bctx.createImageData(BINS, 1);
     const stern = trueDeg(s.own.heading + 180);
     const selfNoise = Math.min(0.35, Math.max(0, (s.own.noiseDb - 110) / 120));
     const ice = iceCover(s.env.met, s.own);
     const raw = new Float32Array(BINS);
     for (let x = 0; x < BINS; x++) {
-      let v = 0.1 + Math.random() * 0.2 + selfNoise * Math.random() + (s.env.rain ? 0.08 * Math.random() : 0);
+      let v = deaf ? 0.02 : 0.1 + Math.random() * 0.2 + selfNoise * Math.random() + (s.env.rain ? 0.08 * Math.random() : 0);
       // Ice: a raised floor and sharp crackling all round
-      if (ice > 0) v += ice * 0.12 * Math.random() + (Math.random() < ice * 0.1 ? 0.3 + Math.random() * 0.5 : 0);
+      if (ice > 0 && !deaf) v += ice * 0.12 * Math.random() + (Math.random() < ice * 0.1 ? 0.3 + Math.random() * 0.5 : 0);
       for (const l of lines) {
         const d = Math.abs(angleDiff(l.b, x));
         if (d < 4 * l.width) v += l.amp * Math.exp((-d * d) / (2 * l.width * l.width)) * (0.6 + 0.4 * Math.random());
