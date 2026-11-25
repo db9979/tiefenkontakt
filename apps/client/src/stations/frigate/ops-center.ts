@@ -1,14 +1,11 @@
 import { hasHelicopter } from '@tk/shared';
-import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { h, setHtml, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
-import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
-
-/** Detour steps (m, − = port of the convoy's leg) and their button labels. */
-const DETOURS: [number, string][] = [[-3000, '◀ 3 km'], [-1500, '◀ 1,5 km'], [0, 'Route'], [1500, '1,5 km ▶'], [3000, '3 km ▶']];
+import { buoyAction, courseAction, escortOrderActions, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
+import { mountEscortOrders } from '../../widgets/escort-orders.js';
 
 export function opsCenterStation(): Station {
   const el = h(`<div class="cols">
@@ -18,26 +15,22 @@ export function opsCenterStation(): Station {
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Kontakte (eigen + Datalink)</span></div><div id="list"></div></div>
       <div class="panel"><div class="hd"><span>Verband</span></div><div id="group"></div></div>
-      <div class="panel" id="detour-p"><div class="hd"><span>Konvoi umleiten</span><span id="detour" class="dim"></span></div>
-        <div class="steps">${DETOURS.map(([m, l]) => `<button data-detour="${m}" title="${m ? `Kurs des Konvois ${String(Math.abs(m) / 1000).replace('.', ',')} km nach ${m < 0 ? 'Backbord' : 'Steuerbord'} versetzen (z. B. um eine Minensperre)` : 'Zurück auf die befohlene Route'}">${l}</button>`).join('')}</div>
-      </div>
+      <div class="panel" id="detour-p"><div class="hd"><span>Geleitführung · Konvoi und Aufträge</span></div><div id="escort-orders"></div></div>
     </div>
   </div>`);
   const plot = new Plot(el.querySelector<HTMLCanvasElement>('#plot')!, {
-    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...(store.snap && hasHelicopter(store.snap.own.cls) ? buoyAction(p) : []), ...mpaAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...(store.snap && hasHelicopter(store.snap.own.cls) ? buoyAction(p) : []), ...mpaAction(p), ...escortOrderActions(p)],
   });
   plot.scale = 80;
-  el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => net.send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));
+  const orders = mountEscortOrders(el.querySelector<HTMLElement>('#escort-orders')!);
   return {
     title: 'OPZ',
     el,
     snap() {
       const s = store.snap!;
       renderContactList(el.querySelector('#list')!);
-      const off = s.own.convoyOffset ?? 0;
-      (el.querySelector('#detour-p') as HTMLElement).style.display = s.friendlies.some((f) => f.cls === 'merchant') ? '' : 'none';
-      el.querySelector('#detour')!.textContent = off ? `${(Math.abs(off) / 1000).toFixed(1).replace('.', ',')} KM ${off < 0 ? 'BB' : 'STB'}` : 'AUF ROUTE';
-      el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => b.classList.toggle('on', Number(b.dataset.detour) === off));
+      (el.querySelector('#detour-p') as HTMLElement).style.display = s.command ? '' : 'none';
+      orders.update(s);
       const merchants = s.friendlies.filter((f) => f.cls === 'merchant');
       const escorts = s.friendlies.filter((f) => f.cls !== 'merchant');
       // Only what this ship and side actually have: convoy lines with a convoy, flight lines with a helicopter

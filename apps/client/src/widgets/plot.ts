@@ -11,6 +11,7 @@ import { onRelease, touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
 import { drawOrderMarks } from './order-marks.js';
+import { drawConvoyDangerRing } from './convoy-ring.js';
 import { ChartMarks, drawHavens, drawLanes } from './chart-marks.js';
 import { DepthChart } from './plot-depth.js';
 import { chartToScreen, chartToWorld, northUpGrid, panDelta, screenDir } from './chart-frame.js';
@@ -313,6 +314,7 @@ export class Plot {
       ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.kind === 'mad' ? 'MAD-SUCHE' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y - 4);
     }
     this.drawContacts(ctx, s, P, w, height);
+    if (this.opts.showConvoy) drawConvoyDangerRing(ctx, s, P, this.scale);
     this.drawFriendlies(ctx, s, P);
     drawOrderMarks(ctx, s, P, this.scale);
     // Aircraft with a position (datalink, radar, eye) and ESM strobes on aircraft radars

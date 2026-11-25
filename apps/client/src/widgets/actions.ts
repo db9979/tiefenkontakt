@@ -3,7 +3,7 @@ import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { km, tdeg3 } from './format.js';
-import type { MenuItem } from './menu.js';
+import { openMenu, type MenuItem } from './menu.js';
 
 /** A warning in front of a weapon order when own or friendly ships are near where it lands. */
 const warnNear = (s: Snapshot, p: Vec2): string => (friendNear(s, p, 2000) ? '⚠ EIGENE IN DER NÄHE · ' : '');
@@ -96,4 +96,34 @@ export function mpaAction(p: Vec2): MenuItem[] {
   if (s.air.mpaBuoys < 6) return [];
   const b = bearing(s.own, p);
   return [{ label: 'Seefernaufklärer: Bojensperre hier (6 Bojen quer)', run: () => net.send({ t: 'mpa', bearing: b, range: distance(s.own, p) }) }];
+}
+
+/** Page position of the last pointer press (the task submenu opens where the first menu was). */
+let lastPress = { x: 200, y: 200 };
+if (typeof window !== 'undefined') window.addEventListener('pointerdown', (e) => (lastPress = { x: e.clientX, y: e.clientY }), true);
+
+/**
+ * Escort commander: "Auftrag an <Schiff>" for each AI escort of the side; picking one opens her
+ * tasks at this point (station here, search the sector, prosecute the datum, helicopter here).
+ */
+export function escortOrderActions(p: Vec2): MenuItem[] {
+  const s = store.snap;
+  const cmd = s?.command;
+  if (!s || !cmd?.escorts.length) return [];
+  const x = Math.round(p.x);
+  const y = Math.round(p.y);
+  return cmd.escorts.map((e) => ({
+    label: `Auftrag an ${e.name} …`,
+    run: () => {
+      const items: MenuItem[] = [
+        ...(cmd.convoy ? [{ label: 'Station hier (zieht mit dem Konvoi)', run: () => net.send({ t: 'escort_task', shipId: e.id, task: 'station', x, y }) }] : []),
+        { label: 'Sektor hier absuchen', run: () => net.send({ t: 'escort_task', shipId: e.id, task: 'sector', x, y }) },
+        { label: 'Datum hier verfolgen', run: () => net.send({ t: 'escort_task', shipId: e.id, task: 'datum', x, y }) },
+        ...(e.helo ? [{ label: 'Hubschrauber hierher', run: () => net.send({ t: 'escort_task', shipId: e.id, task: 'helo', x, y }) }] : []),
+        ...(e.task ? [{ label: 'Auftrag aufheben (zurück in die Sicherung)', run: () => net.send({ t: 'escort_task', shipId: e.id, task: 'cancel' }) }] : []),
+      ];
+      // Opened after the first menu has closed
+      setTimeout(() => openMenu(lastPress.x, lastPress.y, items, `Auftrag an ${e.name}`), 0);
+    },
+  }));
 }
