@@ -2,6 +2,7 @@ import { angleDiff, bearing, iceCover, type Snapshot } from '@tk/shared';
 import { COL, deg3, fitCanvas } from './format.js';
 import { gameDeg, trueDeg } from '../north.js';
 import { Fader, beamWidth, dbToAmp, showChance } from './signal-display.js';
+import { isInkLight } from './ink.js';
 
 const BINS = 360;
 const ROWS = 240;
@@ -48,8 +49,13 @@ export function normalise(raw: Float32Array): Float32Array {
  * Built purely from the player's own contacts plus cosmetic noise.
  */
 export class Waterfall {
+  /** Picture in the current ink (light mode inks every row as it is put). */
   private buf = document.createElement('canvas');
   private bctx: CanvasRenderingContext2D;
+  /** The same history in dark-screen colours (.keep: never inked), to re-ink after a theme switch. */
+  private raw = document.createElement('canvas');
+  private rctx: CanvasRenderingContext2D;
+  private inkedLight = isInkLight();
   private lastT = -1;
   private fader = new Fader();
   /** Display settings (shared by every waterfall, stored): normaliser, averaging, gain, contrast, baffle shading. */
@@ -60,8 +66,19 @@ export class Waterfall {
     this.buf.width = BINS;
     this.buf.height = ROWS;
     this.bctx = this.buf.getContext('2d')!;
-    this.bctx.fillStyle = COL.bg;
-    this.bctx.fillRect(0, 0, BINS, ROWS);
+    this.raw.width = BINS;
+    this.raw.height = ROWS;
+    this.raw.classList.add('keep');
+    this.rctx = this.raw.getContext('2d', { willReadFrequently: true })!;
+    this.rctx.fillStyle = COL.bg;
+    this.rctx.fillRect(0, 0, BINS, ROWS);
+    this.reink();
+  }
+
+  /** Redraw the shown history from the raw one in the current ink (no near-black block on paper). */
+  private reink(): void {
+    this.inkedLight = isInkLight();
+    this.bctx.putImageData(this.rctx.getImageData(0, 0, BINS, ROWS), 0, 0);
   }
 
   /** Append a row per new second of sim time. */
@@ -112,8 +129,13 @@ export class Waterfall {
       row.data[i + 2] = 11 + v * 150;
       row.data[i + 3] = 255;
     }
-    this.bctx.drawImage(this.buf, 0, 1);
-    this.bctx.putImageData(row, 0, 0);
+    this.rctx.drawImage(this.raw, 0, 1);
+    this.rctx.putImageData(row, 0, 0);
+    if (this.inkedLight !== isInkLight()) this.reink();
+    else {
+      this.bctx.drawImage(this.buf, 0, 1);
+      this.bctx.putImageData(row, 0, 0);
+    }
   }
 
   draw(canvas: HTMLCanvasElement, height: number, s: Snapshot | undefined, selected?: string): void {
@@ -128,6 +150,7 @@ export class Waterfall {
     ctx.imageSmoothingEnabled = false;
     // Gain and contrast act on the whole history, like the knobs on a display
     ctx.filter = `brightness(${this.opts.gain}) contrast(${this.opts.contrast})`;
+    if (this.inkedLight !== isInkLight()) this.reink();
     ctx.drawImage(this.buf, pl, pt, pw, ph);
     ctx.filter = 'none';
     ctx.strokeStyle = '#2c3a36';

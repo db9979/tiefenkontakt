@@ -18,6 +18,8 @@ export interface LogEntry {
   label?: string;
   /** Station that deals with it (a click in the log goes there). */
   station?: StationId;
+  /** New-contact report: bursts of these are listed as one line (groupLog). */
+  group?: 'contact';
 }
 
 const en = lang === 'en';
@@ -114,7 +116,7 @@ export class Callouts {
         continue;
       }
       this.known.add(c.label);
-      this.report(s, { level: 'info', text: L(`Neuer Kontakt ${c.label}, Peilung ${deg3(c.bearing)}`, `New contact ${c.label}, bearing ${deg3(c.bearing)}`), label: c.label, station: sonar },
+      this.report(s, { level: 'info', text: L(`Neuer Kontakt ${c.label}, Peilung ${deg3(c.bearing)}`, `New contact ${c.label}, bearing ${deg3(c.bearing)}`), label: c.label, station: sonar, group: 'contact' },
         en ? `New contact ${c.label}, bearing ${digits(c.bearing)}` : `Neuer Kontakt ${c.label}, Peilung ${digits(c.bearing)}`);
     }
     // Server alerts that are new in this snapshot

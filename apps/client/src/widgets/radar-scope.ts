@@ -1,4 +1,4 @@
-import { inkOn } from './ink.js';
+import { inkOn, isInkLight } from './ink.js';
 import { depthAt, headingVec, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
 import { northOff, toNorthUp } from '../north.js';
@@ -39,6 +39,13 @@ export class RadarScope {
     this.phos.width = S;
     this.phos.height = S;
     this.pc = this.phos.getContext('2d')!;
+    this.clearPhos();
+  }
+
+  /** Theme the phosphor was last cleared in: a switch starts the tube afresh in the new ink. */
+  private inkedLight = isInkLight();
+  private clearPhos(): void {
+    this.inkedLight = isInkLight();
     this.pc.fillStyle = '#020605';
     this.pc.fillRect(0, 0, S, S);
   }
@@ -46,6 +53,7 @@ export class RadarScope {
   /** Advance the sweep and burn new returns into the phosphor. */
   update(s: Snapshot | undefined, dt: number, rpm: number, rangeM: number, opts: { on?: boolean; antennaM?: number } = {}): void {
     const pc = this.pc;
+    if (this.inkedLight !== isInkLight()) this.clearPhos();
     pc.save();
     pc.beginPath(); pc.arc(C, C, R, 0, TAU); pc.clip();
     // Persistence: a full revolution fades the picture to a faint afterglow
@@ -169,6 +177,8 @@ export class RadarScope {
     ctx.save();
     // The phosphor glows on the dark tube; on paper its dark ink darkens instead
     ctx.globalCompositeOperation = inkOn(ctx) ? 'darken' : 'lighter';
+    // Only the tube: the phosphor's corners must not paint a square around it
+    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.clip();
     ctx.drawImage(this.phos, ox, oy, size, size);
     ctx.restore();
     const on = this.live;

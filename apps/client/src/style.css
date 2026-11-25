@@ -454,3 +454,24 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 .st-prog { flex: 0 1 auto; overflow: hidden; }
 .st-clock { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1500px) { #pb-txt { display: none; } }
+/* Round 3 (G4): side column 264 px below 1280 px; compact top bar (⏩ without words, "SG 5", no "UHR") */
+@media (min-width: 901px) and (max-width: 1279px) { .game { grid-template-columns: minmax(0, 1fr) 264px; } }
+@media (max-width: 1279px) { .ff .ff-lbl, .ff #ff-note { display: none; } }
+/* G5: native sliders in the console colour in both themes */
+input[type=range] { accent-color: var(--g); }
+/* G8: one line per report, the full text in the tooltip */
+.alerts .logrow { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 601px) { .menu-panel .m-quit { display: none; } }
+/* G9 phone: one 44 px top row (clock · ⏩ · ⚙; sound, help and VERLASSEN in ⚙), RUDER as the last bottom tab */
+@media (max-width: 600px) {
+  .topbar { flex-wrap: nowrap; height: 44px; row-gap: 0; }
+  .topbar .status { order: 0; flex: 1 1 auto; min-width: 0; white-space: nowrap; justify-content: flex-start; gap: 8px; }
+  .topbar .status .st-ship, .topbar .status .st-prog, .topbar #mute, .topbar #help, .topbar #quit { display: none; }
+  .topbar .st-clock { order: 1; flex: 1 1 auto; text-align: left; }
+  .topbar .ff { order: 2; }
+  .topbar #ff-btn, .topbar .gear { min-width: 44px; min-height: 40px; }
+  .menu-panel { top: 52px; }
+  .topbar .tabs { right: 96px; height: 52px; align-items: stretch; }
+  .helm-toggle { right: 0; bottom: 0; width: 96px; height: 52px; border-radius: 0; box-shadow: none; border-width: 1px 0 0 1px; border-color: var(--line2); }
+  body.helm-open .helm-toggle { border-top: 2px solid var(--g); }
+}

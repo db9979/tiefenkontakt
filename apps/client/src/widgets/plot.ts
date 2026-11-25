@@ -27,6 +27,12 @@ export interface PlotOptions {
   actions?: (p: Vec2) => MenuItem[];
   /** Own-ship chart: plot a route and let the helmsman run it (route-plot.ts). */
   route?: boolean;
+  /**
+   * Weather overlay (fog, ice, showers) shown at first; a toolbar button switches it and the choice
+   * is kept per kind of chart. Default: on for the navigation charts (route: OPZ, Zentrale), off for
+   * the fire-control charts (Zielkarte, Feuerleitung).
+   */
+  weather?: boolean;
 }
 
 type Drag =
@@ -57,6 +63,8 @@ export class Plot {
   private drag?: Drag;
   private mouse?: { x: number; y: number };
   private height = 400;
+  /** Weather overlay shown (toolbar ☁). */
+  weather = true;
   readonly el: HTMLElement;
 
   constructor(private canvas: HTMLCanvasElement, private opts: PlotOptions) {
@@ -96,6 +104,23 @@ export class Plot {
       };
       tools.appendChild(b);
     }
+    // Weather overlay on/off (stored per chart kind: navigation or fire control)
+    const wxKey = `tk_wx_${opts.route ? 'nav' : 'fc'}`;
+    const wxStored = localStorage.getItem(wxKey);
+    this.weather = wxStored === null ? (opts.weather ?? !!opts.route) : wxStored === '1';
+    const wx = document.createElement('button');
+    wx.textContent = '☁';
+    const showWx = () => {
+      wx.classList.toggle('on', this.weather);
+      wx.title = `Wetter (Nebel, Eis, Schauer): ${this.weather ? 'AN' : 'AUS'} · Klick schaltet um`;
+    };
+    wx.onclick = () => {
+      this.weather = !this.weather;
+      localStorage.setItem(wxKey, this.weather ? '1' : '0');
+      showWx();
+    };
+    showWx();
+    tools.appendChild(wx);
     this.el.appendChild(tools);
     if (opts.route) this.route = new RoutePlot(this.el, canvas, (p) => this.toScreen(p));
 
@@ -275,7 +300,7 @@ export class Plot {
     const c = this.center();
 
     this.depth.draw(ctx, s.env.seabed, this.center(), this.scale, w, height);
-    if (!(CLASSES[s.own.cls].submarine && s.own.depth > 20)) drawMet(ctx, s.env.met, P, this.scale);
+    if (this.weather && !(CLASSES[s.own.cls].submarine && s.own.depth > 20)) drawMet(ctx, s.env.met, P, this.scale);
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
     ctx.lineWidth = 1;
@@ -356,8 +381,8 @@ export class Plot {
     this.route?.draw(ctx, s);
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'left';
-    let foot = `RASTER ${(step / NM).toFixed(0)} SM · RECHTSKLICK: AKTIONEN`;
-    if (linesMode() === 'aus' && store.selected) foot = `PEILLINIEN AUS (KNOPF · RECHTS OBEN) · ${foot}`;
+    // Only the scale (and the mouse readout) in the chart: how-to lives in the footer hint below it
+    let foot = `RASTER ${(step / NM).toFixed(0)} SM`;
     if (this.mouse) {
       const wp = this.toWorld(this.mouse);
       foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))} · ` + foot;

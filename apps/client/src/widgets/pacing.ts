@@ -32,7 +32,11 @@ export function mountFastForward(): { el: HTMLElement; update(s: Snapshot): void
       const vote = ff.need > 1;
       tag.style.display = ff.on ? '' : 'none';
       btn.classList.toggle('on', ff.on || ff.mine);
-      btn.textContent = ff.on ? '■ Zeitraffer aus' : vote ? (ff.mine ? `Stimme zurück (${ff.votes}/${ff.need})` : `⏩ Zeitraffer? (${ff.votes}/${ff.need})`) : '⏩ Zeitraffer';
+      // Icon first, the words in .ff-lbl (hidden below 1280 px: icon-only top bar, the title says it)
+      const [icon, words, count] = ff.on ? ['■', 'Zeitraffer aus', ''] : vote
+        ? (ff.mine ? ['↶', 'Stimme zurück', ` ${ff.votes}/${ff.need}`] : ['⏩', 'Zeitraffer?', ` ${ff.votes}/${ff.need}`]) : ['⏩', 'Zeitraffer', ''];
+      btn.innerHTML = `<span aria-hidden="true">${icon}</span><span class="ff-lbl"> ${words}</span>${count}`;
+      btn.setAttribute('aria-label', words);
       btn.disabled = !ff.on && !ff.mine && !!ff.blocked;
       btn.title = ff.blocked ?? (vote
         ? 'Abstimmen: ×6 bis zum nächsten Ereignis, sobald alle an Bord eines Schiffes zugestimmt haben und niemand frischen Feindkontakt hat'

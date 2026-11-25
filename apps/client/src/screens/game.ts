@@ -1,5 +1,6 @@
 import { CLASSES, fogAt, iceCover, type ServerMsg, type Snapshot, type StationId } from '@tk/shared';
 import { audio } from '../audio.js';
+import { lang } from '../i18n/index.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { fireControlStation } from '../stations/sub/fire-control.js';
@@ -11,7 +12,7 @@ import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
-import { CLASS_LABEL, clock, esc, h, mastState, tdeg3 } from '../widgets/format.js';
+import { CLASS_LABEL, clock, esc, h, mastState, shortClock, tdeg3 } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
@@ -36,6 +37,7 @@ import { setPadTarget } from '../gamepad.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
 import { callouts } from '../widgets/callouts.js';
+import { groupLog } from '../widgets/log-group.js';
 import { depthAlarms } from '../widgets/depth-alarm-ui.js';
 import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { ordersPanel } from '../widgets/orders-panel.js';
@@ -168,13 +170,14 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   ]));
   const renderLog = (s: Snapshot) => {
     const f = getFilters(LOG_ID);
-    const rows = callouts.log.map((e, i) => ({ e, i })).filter(({ e }) => !f.size || f.has(e.level)).reverse();
+    const rows = groupLog(callouts.log.map((e, i) => ({ e, i })).filter(({ e }) => !f.size || f.has(e.level)), lang === 'en').reverse();
     const logHtml = (store.lastError ? `<div class="amber">${esc(store.lastError)}</div>` : '') +
       (callouts.log.length ? (rows.length ? '' : '<div class="dim">KEINE MELDUNGEN FÜR DIESEN FILTER</div>') : '<div class="dim">KEINE MELDUNGEN · RUHIGE SEE</div>') + rows.map(({ e, i }) => {
         const fresh = s.time - e.time < 30;
         const color = e.level === 'alarm' ? 'red' : e.level === 'warn' ? 'amber' : '';
         const go = e.label !== undefined || e.station !== undefined;
-        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}">${clock(e.time)} ${esc(e.text)}</div>`;
+        const line = `${shortClock(e.time)} ${e.text}`;
+        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}" title="${esc(line)}">${esc(line)}</div>`;
       }).join('');
     if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
   };
@@ -214,6 +217,11 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     onRealism: () => stations[current]?.snap?.(),
     onBriefing: () => store.briefing && showBriefing(store.briefing, true),
     onKeys: () => helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true),
+    // Phones: VERLASSEN lives in the ⚙ menu (the top bar keeps clock · ⏩ · ⚙)
+    onQuit: () => {
+      store.clearLocal();
+      onExit();
+    },
   });
   q('#gear-slot').replaceWith(menu.button);
   const renderMute = () => {
@@ -357,9 +365,16 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
 
   function renderSide(): void {
     const s = store.snap!;
-    const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
-    const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}${fogAt(s.env.met, s.own) > 0.3 ? ' · NEBEL' : ''}${iceCover(s.env.met, s.own) > 0.1 ? ' · EIS' : ''}`;
-    q('#clock').textContent = `${hh}${wx} · REST ${s.score.timeLeftS > 1e8 ? '∞' : `${clock(s.score.timeLeftS)}${s.timeScale > 0 && s.timeScale !== 1 ? ` (ECHT ${clock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`}`;
+    // Compact (G4): "18:38 · SG 4 · REST 37:38"; the long form is the tooltip
+    const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} · ` : '';
+    const wxTail = `${s.env.rain ? ' · REGEN' : ''}${fogAt(s.env.met, s.own) > 0.3 ? ' · NEBEL' : ''}${iceCover(s.env.met, s.own) > 0.1 ? ' · EIS' : ''}`;
+    const rest = s.score.timeLeftS > 1e8 ? '∞' : `${shortClock(s.score.timeLeftS)}${s.timeScale > 0 && s.timeScale !== 1 ? ` (ECHT ${shortClock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`;
+    const clk = q('#clock');
+    const clkTxt = `${hh}SG ${s.env.seaState}${wxTail} · REST ${rest}`;
+    if (clk.textContent !== clkTxt) {
+      clk.textContent = clkTxt;
+      clk.title = `${hh ? `Uhrzeit ${hh.slice(0, 5)} · ` : ''}Seegang ${s.env.seaState}${wxTail} · Restzeit ${rest}`;
+    }
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
     // Convoy tonnage bar: red grows from the left (sunk), blue from the right (safe in port);
