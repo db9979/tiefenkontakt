@@ -119,4 +119,9 @@
   /* Stacked: one page scroll, no scroll boxes inside it (tab panes and columns take their full height) */
   .st-col.scroll, .st .panel.tabbed > .pane, .st .panel.grow.tabbed > .pane, .st .panel.grow.listpanel > .scroll { overflow: visible; flex: none; }
   .st-col.scroll > .panel.grow { min-height: 0; }
+  /* Stacking order (G3): a station marked .stack dissolves its columns so its blocks interleave
+     by --stack (main display, action bar, list, the rest); the action bar sits in the flow */
+  .st.stack > .st-col { display: contents; }
+  .st.stack > .st-col > * { order: var(--stack, 50); }
+  .st.stack .actionbar { position: static; }
 }

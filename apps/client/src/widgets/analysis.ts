@@ -43,6 +43,8 @@ export class AcousticAnalysis {
   private listen = false;
   private listenMode: ListenMode = 'breitband';
   private canvas: HTMLCanvasElement;
+  /** Controls moved out of the panel (footControls): still looked up by renderControls. */
+  private moved?: HTMLElement;
   private img = document.createElement('canvas');
 
   constructor(private height = 260) {
@@ -55,7 +57,7 @@ export class AcousticAnalysis {
       <div class="row"><span id="a-cur"></span><span id="a-markinfo" class="amber"></span></div>
       <div class="steps" id="a-markbtns"></div>
       <div id="a-verdict"></div>
-      <details class="filters"><summary>FILTER UND ANZEIGE</summary>
+      <details class="filters" id="a-filters"><summary>FILTER UND ANZEIGE</summary>
         <div class="steps">
           <button id="a-notch" title="Eigene Blattlinie ausblenden">Notch</button>
           <button id="a-int" title="Integrationszeit: längeres Mitteln hebt schwache stehende Töne">Int 2 s</button>
@@ -68,7 +70,7 @@ export class AcousticAnalysis {
           <button data-adj="black:-1">Schwarz −</button><button data-adj="black:1">Schwarz +</button>
         </div>
       </details>
-      <div class="steps">
+      <div class="steps" id="a-lm">
         <button id="a-listen" title="Gewählten Kontakt abhören">Mithören</button>
         <button data-lm="breitband">Breitband</button><button data-lm="gefiltert">Gefiltert</button><button data-lm="ueberlagerung" title="Tiefe Töne um 700 Hz hochgeschoben">Überlagerung</button>
       </div>
@@ -104,6 +106,29 @@ export class AcousticAnalysis {
       this.renderControls();
     });
     this.setPage('lofar');
+  }
+
+  /**
+   * Takes the listening modes and the filter settings out of the panel, for a station that
+   * puts them under its waterfall (Horchraum): the listening modes as one segmented control,
+   * the filters as a small popover. The analysis keeps driving them.
+   */
+  footControls(): HTMLElement {
+    if (this.moved) return this.moved;
+    const wrap = h('<span class="ana-foot"></span>');
+    const lm = this.el.querySelector<HTMLElement>('#a-lm')!;
+    lm.className = 'seg lm-seg';
+    const filters = this.el.querySelector<HTMLElement>('#a-filters')!;
+    filters.querySelector('summary')!.textContent = 'LOFAR ▾';
+    filters.title = 'LOFAR-Filter und Anzeige';
+    filters.classList.add('pop');
+    const body = h('<div class="pop-body"></div>');
+    body.append(...filters.querySelectorAll('.steps'));
+    filters.append(body);
+    wrap.append(lm, filters);
+    this.moved = wrap;
+    this.renderControls();
+    return wrap;
   }
 
   private range(): readonly [number, number] {
@@ -279,10 +304,10 @@ export class AcousticAnalysis {
   }
 
   private renderControls(): void {
-    const q = <T extends HTMLElement>(s: string) => this.el.querySelector<T>(s)!;
+    const q = <T extends HTMLElement>(s: string) => (this.el.querySelector<T>(s) ?? this.moved?.querySelector<T>(s))!;
     this.el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === this.page));
     this.el.querySelectorAll<HTMLButtonElement>('[data-b]').forEach((b) => b.classList.toggle('on', b.dataset.b === (this.page === 'lofar' ? this.band : this.demonBand)));
-    this.el.querySelectorAll<HTMLButtonElement>('[data-lm]').forEach((b) => b.classList.toggle('on', b.dataset.lm === this.listenMode));
+    (this.moved ?? this.el).querySelectorAll<HTMLButtonElement>('[data-lm]').forEach((b) => b.classList.toggle('on', b.dataset.lm === this.listenMode));
     q('#a-notch').classList.toggle('on', this.notch);
     q('#a-peak').classList.toggle('on', this.peak);
     q('#a-listen').classList.toggle('on', this.listen);

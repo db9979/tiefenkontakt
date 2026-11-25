@@ -93,7 +93,7 @@ class DepthAlarms {
     for (const p of this.panels) p();
   }
 
-  /** Settings and state block for the dive station. */
+  /** Settings and state block for the dive station: one 26 px row per band (on/off chip, label, − value +). */
   panel(): HTMLElement {
     const el = h(`<div class="depth-alarms">
       <div id="da-now" class="da-now"></div>
@@ -155,7 +155,7 @@ class DepthAlarms {
 
 function row(onKey: string | undefined, key: string, label: string, title: string): string {
   return `<div class="row da-row" data-row="${key}" title="${title}">
-    ${onKey ? `<button data-on="${onKey}" class="da-on">${label}</button>` : `<span class="da-lbl">${label}</span>`}
+    ${onKey ? `<button data-on="${onKey}" class="da-on" aria-label="${label}"></button>` : '<span class="da-on da-pad"></span>'}<span class="da-lbl">${label}</span>
     <span class="da-set"><button data-dastep="${key}:-5" title="5 m weniger">−</button><input data-v="${key}" type="number" step="5" min="0" aria-label="${label} in Metern"><span class="dim">M</span><button data-dastep="${key}:5" title="5 m mehr">+</button></span>
   </div>`;
 }
