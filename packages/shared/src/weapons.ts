@@ -375,6 +375,8 @@ export function dropLightweight(w: World, ownerId: string, pos: Vec2): void {
 
 function resolvePending(w: World, e: DelayedEffect): void {
   if (e.kind === 'rocket') return dropLightweight(w, e.ownerId, e.pos);
+  // The blast is heard far and wide (players only: the AI ignores 'charge' transients)
+  w.events.push({ kind: 'transient', time: w.time, sourceId: e.ownerId, x: e.pos.x, y: e.pos.y, what: 'charge' });
   for (const s of w.ships) {
     if (!s.alive) continue;
     const r3 = Math.hypot(distance(s.pos, e.pos), s.depth - e.depth);

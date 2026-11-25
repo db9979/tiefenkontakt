@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { ClassId, MetCells, PlaneKind, SamView, Sighting, Vec2, WreckView } from '@tk/shared';
+import type { ClassId, MetCells, PlaneKind, SamView, SeabedSpec, Sighting, Vec2, WreckView } from '@tk/shared';
+import { Terrain } from './sea3d/terrain.js';
 import { WeatherFx } from './sea3d/weather3d.js';
 import { MissileTrails } from './sea3d/missiles.js';
 import { shipModel, sightingModel } from './sea3d/models.js';
@@ -80,6 +81,7 @@ export class Periscope3D {
   private sinking: Sinking[] = [];
   private slicks: Slick[] = [];
   private ownPos = { x: 0, y: 0 };
+  private terrain = new Terrain();
   /** This frame's time and sea state (for the own ship's roll). */
   private t = 0;
   private sea = 3;
@@ -123,6 +125,8 @@ export class Periscope3D {
       }),
     );
     this.scene.add(this.ocean);
+    // Coasts, islands and mountains from the sea chart
+    this.scene.add(this.terrain.group);
     this.wx = new WeatherFx(this.scene, this.ocean.material);
     this.skyFx = new SkyFx(this.scene);
     this.scene.add(this.hemi, this.sun, this.fire);
@@ -246,6 +250,8 @@ export class Periscope3D {
     rain?: boolean; hour?: number; effects?: PeriscopeEffect[]; pitchDeg?: number; ownKn?: number; ownHeading?: number;
     /** Met cells (fog banks, squalls, ice) and the own position they are placed from. */
     met?: MetCells; own?: Vec2;
+    /** Sea chart: land shows as coasts and mountains. */
+    seabed?: SeabedSpec;
     /** The own ship's damage: she lists and trims, and the view with her. */
     ownWreck?: WreckView;
     missiles?: { list: SamView[]; me: { x: number; y: number } };
@@ -255,6 +261,7 @@ export class Periscope3D {
     shake?: number;
   }): void {
     if (o.own) this.ownPos = o.own;
+    this.terrain.update(o.seabed, this.ownPos);
     this.t = o.t;
     this.sea = o.sea;
     const w = this.canvas.clientWidth || 400;

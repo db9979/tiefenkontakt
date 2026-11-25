@@ -3,6 +3,7 @@ import { inSquall, type Snapshot } from '@tk/shared';
 import { WeatherSound } from './audio-weather.js';
 import { SonarVoice, type SonarHearing } from './audio-sonar.js';
 import { breakUpSequence } from './audio-sinking.js';
+import { Diesel, seekerPing, wireSnap } from './audio-boat.js';
 import { onLightning } from './widgets/lightning.js';
 
 export type ListenMode = 'breitband' | 'gefiltert' | 'ueberlagerung';
@@ -31,6 +32,10 @@ class Audio {
   private seenAlerts = new Set<string>();
   private lastPing = -1;
   private lastTorps = 0;
+  private diesel?: Diesel;
+  private wired = new Set<string>();
+  private seeker?: { bearing?: number; at: number };
+  private nextSeekerAt = 0;
   private weather?: WeatherSound;
   /** How much of the weather the crew hears (1 on deck … 0 deep down). */
   private exposure = 0;
@@ -280,16 +285,19 @@ class Audio {
   }
 
   /** Active echo after its two-way travel time: CW = soft tone, LFM = short sweep. */
-  echo(delayS: number, lfm: boolean, strength: number, pan = 0): void {
+  /** An echo of our own ping; closingKn shifts its pitch (CW: higher when the target closes, the operator hears the Doppler). */
+  echo(delayS: number, lfm: boolean, strength: number, pan = 0, closingKn = 0): void {
     if (!this.ctx || !this.master) return;
     const c = this.ctx;
     const t = c.currentTime + Math.max(0, delayS);
     const o = c.createOscillator();
     o.type = 'sine';
+    // Two-way Doppler: 1 + 2v/c
+    const dop = 1 + (2 * closingKn * 0.5144) / 1500;
     if (lfm) {
-      o.frequency.setValueAtTime(3300, t);
-      o.frequency.linearRampToValueAtTime(3700, t + 0.25);
-    } else o.frequency.value = 3500;
+      o.frequency.setValueAtTime(3300 * dop, t);
+      o.frequency.linearRampToValueAtTime(3700 * dop, t + 0.25);
+    } else o.frequency.value = 3500 * dop;
     const g = c.createGain();
     const peak = Math.min(0.25, 0.03 + strength / 80);
     g.gain.setValueAtTime(0, t);
@@ -373,11 +381,23 @@ class Audio {
         for (const c of s.contacts) {
           if (c.via !== 'own' || c.rangeAt !== s.own.lastPingAt || c.range === undefined || !c.sensors.includes('active')) continue;
           const delay = (2 * c.range) / 1500 / Math.max(1, s.timeScale) - (s.time - s.own.lastPingAt) / Math.max(1, s.timeScale);
-          this.echo(delay, s.own.pulse === 'lfm', c.se, this.panFor(s, c.bearing));
+          this.echo(delay, s.own.pulse === 'lfm', c.se, this.panFor(s, c.bearing), c.dopplerKn ?? 0);
         }
       }
     }
     this.ambience(s, submarine);
+    // A guidance wire parting: the torpedo is still running, but no longer on the wire
+    for (const t of s.torpedoes) if (!t.wire && this.wired.has(t.id) && this.fx) wireSnap(this.fx, this.out(0.3));
+    this.wired = new Set(s.torpedoes.filter((t) => t.wire).map((t) => t.id));
+    // An incoming torpedo's seeker pings for about a minute after the warning, faster as it closes
+    if (this.seeker && s.time - this.seeker.at < 60 && this.fx && this.ctx) {
+      const now = this.ctx.currentTime;
+      if (now >= this.nextSeekerAt) {
+        const k = (s.time - this.seeker.at) / 60;
+        seekerPing(this.fx, this.out(this.panFor(s, this.seeker.bearing)), 0.05 + 0.15 * k);
+        this.nextSeekerAt = now + Math.max(0.35, 1.6 - k * 1.3) / Math.max(1, s.timeScale);
+      }
+    }
     if (s.torpedoes.length > this.lastTorps) this.launch();
     this.lastTorps = s.torpedoes.length;
 
@@ -387,13 +407,17 @@ class Audio {
       this.seenAlerts.add(key);
       if (s.time - a.time > 3) continue;
       const pan = this.panFor(s, a.bearing);
-      if (a.kind === 'torpedo') this.torpedoAlarm(pan);
+      if (a.kind === 'torpedo') {
+        this.torpedoAlarm(pan);
+        this.seeker = { bearing: a.bearing, at: a.time };
+      }
       else if (a.kind === 'ping') this.ping(true, pan);
       // Another ship: a detonation, or (her sinking after the hit) the long break-up
       else if (a.kind === 'hit') (a.sink ? this.sinking(pan) : this.explosion(false, pan));
       // Own ship: a mine or a hit is a blast; running aground is a long grinding scrape, no explosion
       else if (a.kind === 'sunk') (/GRUND/.test(a.text) ? this.fx && sinkingNoises(this.fx, this.out(0), 0, 0.35) : this.explosion(true));
-      else if (a.kind === 'transient') this.transient(pan);
+      // A depth charge going off: a deep, muffled blast; other transients their own sound
+      else if (a.kind === 'transient') (/WASSERBOMBE/.test(a.text) && this.fx ? detonation(this.fx, this.out(pan), false) : this.transient(pan));
     }
   }
 
@@ -401,6 +425,9 @@ class Audio {
   private ambience(s: Snapshot, submarine: boolean): void {
     if (!this.fx || !this.master) return;
     this.mastMotor ??= motor(this.fx, this.master, 190, 0.6);
+    // Snorkel diesel: runs while the snorkel head is up
+    this.diesel ??= new Diesel(this.fx, this.master);
+    this.diesel.set(!!s.own.snorkel && (s.own.snorkelExt ?? 0) >= 1, s.own.speedKn);
     this.winch ??= motor(this.fx, this.master, 95, 0.25);
     const ext = s.own.mastExt ?? (s.own.mastUp ? 1 : 0);
     this.mastMotor(this.lastMastExt !== undefined && Math.abs(ext - this.lastMastExt) > 0.001 ? 1 : 0);

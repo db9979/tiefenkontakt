@@ -133,7 +133,8 @@ export class Callouts {
         if (!this.pings.report({ time: a.time, bearing: a.bearing, emitter: 'PING', esmLvl: Math.floor((a.level ?? 0) / 10) }, false)) continue;
         this.report(s, { level: 'warn', text: a.text }, en ? `Active sonar, bearing ${b}. We are being pinged.` : `Aktivsonar, Peilung ${b}. Wir werden angepingt.`);
       } else if (a.kind === 'transient') {
-        this.report(s, { level: 'warn', text: a.text, station: sonar }, en ? `Transient, bearing ${b}. Possible torpedo launch.` : `Transient, Peilung ${b}. Möglicher Torpedoabschuss.`);
+        const blast = /WASSERBOMBE|DETONATION/.test(a.text);
+        this.report(s, { level: 'warn', text: a.text, station: sonar }, blast ? (en ? `Underwater explosion, bearing ${b}.` : `Unterwasserdetonation, Peilung ${b}.`) : en ? `Transient, bearing ${b}. Possible torpedo launch.` : `Transient, Peilung ${b}. Möglicher Torpedoabschuss.`);
       } else if (a.kind === 'hit') {
         this.report(s, { level: 'info', text: a.text }, en ? `Explosion, bearing ${b}.` : `Explosion, Peilung ${b}.`);
       } else if (a.kind === 'esm') {

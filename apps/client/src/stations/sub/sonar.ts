@@ -39,10 +39,10 @@ export function subSonarStation(): Station {
           <span class="dim" style="align-self:center">KLICK AUF EINE SPUR WÄHLT DEN KONTAKT</span>
         </div>
       </div>
-      <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
       <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
+      <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
     </div>
   </div>`);
   const wf = new Waterfall();
@@ -85,7 +85,8 @@ export function subSonarStation(): Station {
       analysis.update();
     },
     frame() {
-      wf.draw(wfCanvas, Math.max(220, window.innerHeight - 420), store.snap, store.selected);
+      // The waterfall takes the full height of its column (contacts and analysis sit on the right)
+      wf.draw(wfCanvas, Math.max(260, window.innerHeight - 250), store.snap, store.selected);
       analysis.draw();
     },
   };

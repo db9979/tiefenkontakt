@@ -18,13 +18,13 @@ export function frigateSonarStation(): Station {
           ${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}
         </div>
       </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
       <div class="panel"><div class="hd"><span>Schleppsonar-Seite</span><span id="tas-hint" class="dim"></span></div>
         <div class="steps"><button data-side="stb">Steuerbord</button><button data-side="port">Backbord</button><button data-side="both">Beide zeigen</button></div>
       </div>
       <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-      <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
     </div>
   </div>`);
   const hull = new Waterfall(['hull', 'active', 'intercept']);
@@ -91,7 +91,7 @@ export function frigateSonarStation(): Station {
       analysis.update();
     },
     frame() {
-      const hgt = Math.max(150, (window.innerHeight - 330) / 2);
+      const hgt = Math.max(170, (window.innerHeight - 290) / 2);
       hull.draw(hullCv, hgt, store.snap, store.selected);
       tow.draw(towCv, hgt, store.snap, store.selected);
       analysis.draw();

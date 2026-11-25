@@ -295,7 +295,7 @@ export function bridgeStation(): Station {
         gl!.render({
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
           rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn, met: s!.env.met, stabilize: stab, shake: glass ? 0.012 * mag : 0.05,
-          effects: blasts(s!, tg.filter((x) => !x.sunk && !x.plane && !x.sighting), nowMs), own: ownNow(), ownWreck: s!.own.wreck,
+          effects: blasts(s!, tg.filter((x) => !x.sunk && !x.plane && !x.sighting), nowMs), own: ownNow(), seabed: s!.env.seabed, ownWreck: s!.own.wreck,
           missiles: { list: s!.airdef?.missiles ?? [], me: ownNow() },
         });
       }

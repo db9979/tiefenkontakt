@@ -100,7 +100,7 @@ export class BotCrew {
         ship.order.heading = wrap360(e.bearing + 100 * m.legSign);
         ship.order.speedKn = CLASSES[ship.cls].maxSpeedKn;
         if (sub) ship.order.depth = ship.depth < (ship.btLayer ?? 120) ? (ship.btLayer ?? 120) + 50 : 40;
-      } else if (e.kind === 'transient' && e.sourceId !== ship.id) {
+      } else if (e.kind === 'transient' && e.sourceId !== ship.id && e.what !== 'charge') {
         const b = heardBearing(w, ship, e.x, e.y, TRANSIENT_HEARING[e.what]);
         if (b !== undefined) {
           m.lead = { x: ship.pos.x, y: ship.pos.y, b, t: w.time };

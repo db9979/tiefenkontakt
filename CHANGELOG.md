@@ -6,6 +6,12 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Land im 3D:** Küsten, Inseln und Berge aus der Seekarte erscheinen in Sehrohr und Brücke (Strand, Grün, Fels,
+  Schnee nach Höhe), um das eigene Schiff herum und mit dem Dunst verblassend.
+- **Neue Geräusche:** Schnorchel-Diesel, Drahtbruch, Suchkopf-Pings eines anlaufenden Torpedos (immer schneller),
+  Wasserbomben-Detonationen (als Transient für alle Spieler hörbar und gemeldet), Echos mit Doppler (höher beim Annähern).
+- **Horchraum und Fregatten-Sonar ohne Scrollen:** Kontaktliste und Seitenwahl rechts unter der Signalanalyse, die
+  Wasserfälle nutzen die volle Höhe.
 - **Stationen neu geordnet:** U-Boote bekommen „Ortung“ (Bedrohung und Ausweichen, Aktivsonar-Schirm, ESM-Radarwarnung,
   Echolot, Reichweitenvorhersage) und „Torpedoraum“ (Rohre mit Ladestand, Draht mit Feinsteuerung, Täuschkörper, Minen),
   Überwasserschiffe „Ortung“ (Aktivsonar, BT, VDS, Minenmeiden) und die Fregatte mit Hubschrauber „Flug“ (Aufträge zum

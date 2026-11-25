@@ -299,7 +299,7 @@ export function periscopeStation(): Station {
         gl!.render({
           bearing: periBearing, fovDeg: (fov * w) / (2 * R), t, sea: s.env.seaState, light: s.env.light ?? 1,
           targets: [...vis.map((c) => ({ ...c, course: sols.get(c.label)?.course, speedKn: sols.get(c.label)?.speedKn })), ...air],
-          rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs), pitchDeg: sky.elev, met: s.env.met, own: ownNow(), stabilize: stab,
+          rain: s.env.rain, hour: s.env.clock, effects: blasts(s, vis, nowMs), pitchDeg: sky.elev, met: s.env.met, own: ownNow(), seabed: s.env.seabed, stabilize: stab,
           missiles: { list: s.airdef?.missiles ?? [], me: s.own },
         });
         // Overlay: black mask outside the optic, reticle drawn below
