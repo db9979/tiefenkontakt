@@ -17,19 +17,21 @@ import { pickByBearing } from '../sub/sonar.js';
  * Sonar (surface ships): hull and towed-array waterfalls stacked on the left, sharing the
  * height; on the right one tabbed panel: signal analysis, the active sonar (PPI, CW/LFM,
  * returns), the variable-depth sonar with the bathythermograph and mine avoidance plus the
- * listening-range prediction, and the contact list. The old Ortung station lives in the tabs.
+ * listening-range prediction, and the contact list. The array length sits in the towed panel's
+ * header; one "Anzeige" popover sets both waterfalls (they share their display settings), next
+ * to the towed array's side choice in its footer.
  */
 export function frigateSonarStation(): Station {
-  const el = h(`<div class="st two">
+  const el = h(`<div class="st two fsonar">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Rumpfsonar</span><span id="hs" class="dim"></span></div>
-        <div class="fill" id="hull-box"><canvas id="hull"></canvas></div>
-        <div class="foot"><span id="hull-ctl"></span><span class="hint">KLICK AUF EINE SPUR WÄHLT</span></div>
+        <div class="fill" id="hull-box" title="Klick auf eine Spur wählt den Kontakt"><canvas id="hull"></canvas></div>
       </div>
-      <div class="panel grow"><div class="hd"><span>Schleppsonar · links/rechts mehrdeutig</span><span id="ts" class="dim"></span></div>
+      <div class="panel grow"><div class="hd"><span title="Schleppsonar: Peilung links/rechts mehrdeutig">Schleppsonar</span>
+          <span class="hd-r"><span id="ts" class="dim"></span><span class="seg hdseg" title="Kabellänge (lang = unter der Sprungschicht)">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l : 'Einholen'}</button>`).join('')}</span><span class="dim">M</span></span></div>
         <div class="fill" id="tow-box"><canvas id="tow"></canvas></div>
-        <div class="foot"><span id="tow-ctl"></span>
-          <span class="seg">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l + ' m' : 'Einholen'}</button>`).join('')}</span>
+        <div class="foot">
+          <details class="wfpop"><summary title="Anzeige beider Wasserfälle: Normalisierer, Mittelung, Helligkeit, Kontrast">Anzeige ▾</summary><div id="wf-ctl"></div></details>
           <span class="seg" title="Welche Seite des Schleppsonars für den gewählten Kontakt gilt"><button data-side="stb">Stb</button><button data-side="port">Bb</button><button data-side="both">Beide</button></span>
           <span id="tas-hint" class="hint"></span>
         </div>
@@ -56,13 +58,19 @@ export function frigateSonarStation(): Station {
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const hull = new Waterfall(['hull', 'active', 'intercept']);
   const tow = new Waterfall(['towed']);
-  q('#hull-ctl').replaceWith(hull.controls());
-  q('#tow-ctl').replaceWith(tow.controls());
+  // One set of display settings for both waterfalls, in one popover
+  tow.opts = hull.opts;
+  q('#wf-ctl').replaceWith(hull.controls());
+  const pop = q<HTMLDetailsElement>('.wfpop');
+  const closePop = (e: PointerEvent) => {
+    if (pop.open && !pop.contains(e.target as Node)) pop.open = false;
+  };
+  document.addEventListener('pointerdown', closePop);
   const hullCv = q<HTMLCanvasElement>('#hull');
   const towCv = q<HTMLCanvasElement>('#tow');
   const hullBox = fillBox(q('#hull-box'), 150);
   const towBox = fillBox(q('#tow-box'), 150);
-  const analysis = new AcousticAnalysis(250);
+  const analysis = new AcousticAnalysis(170);
   q('#ana').appendChild(analysis.el);
   const scope = activeScope({ height: () => Math.max(240, Math.min(420, q('#st-tabs').clientHeight - 150)), pingKey: true });
   q('#as-slot').replaceWith(scope.el);
@@ -123,7 +131,7 @@ export function frigateSonarStation(): Station {
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));
-      setHtml(q('#tas-hint'), !c ? '' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
+      setHtml(q('#tas-hint'), !c ? 'KLICK AUF EINE SPUR WÄHLT' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
         : c.tas?.resolved ? 'DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">MEHRDEUTIG · 20° WENDEN</span>' : 'EINDEUTIG');
       // The active tab says when the sonar is sending, from any tab
       setText(q('[data-ptab="active"] .cnt'), o.activeSonar ? '●' : '');
@@ -137,7 +145,7 @@ export function frigateSonarStation(): Station {
       const vd = o.vdsDepth ?? 0, vo = o.vdsOrder ?? 0;
       btnState(vb, Math.abs(vd - vo) > 2 ? { on: vo > 0, label: `${vd} M`, pct: (100 * vd) / Math.max(vd, vo, 1), tone: 'busy' } : { on: vo > 0, label: vo > 0 ? `${vd} M` : undefined });
       setHtml(q('#o-rows'), `
-        <div class="row"><span class="dim">SPRUNGSCHICHT</span><span class="${s.env.layerDepth === undefined ? 'amber' : ''}">${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN)` : 'UNBEKANNT · BT WERFEN'}</span></div>
+        <div class="row"><span class="dim">SPRUNGSCHICHT</span><span class="${s.env.layerDepth === undefined && !s.env.noLayer ? 'amber' : ''}">${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN)` : s.env.noLayer ? 'KEINE · DURCHMISCHT BIS GRUND' : 'UNBEKANNT · BT WERFEN'}</span></div>
         <div class="row"><span class="dim">WASSERTIEFE</span><span>${s.env.bottom !== undefined ? `${s.env.bottom} M` : '—'}</span></div>
         ${hasVds ? `<div class="row"><span class="dim">TIEFENSONAR</span><span>${vo > 0 || vd > 5 ? `${vd} M${vo !== vd ? ` → ${vo} M` : ''}` : 'EINGEHOLT'}</span></div>` : ''}
         <div class="row"><span class="dim">MINENMEIDEN</span><span>${o.mineAvoid ? (o.mineAvoidRange ? `AN · ${o.mineAvoidRange} M VORAUS` : '<span class="amber">ZU SCHNELL (ÜBER 15 KN)</span>') : 'AUS'}</span></div>`);
@@ -158,6 +166,7 @@ export function frigateSonarStation(): Station {
     dispose() {
       hullBox.dispose();
       towBox.dispose();
+      document.removeEventListener('pointerdown', closePop);
     },
   };
   redraw = () => {

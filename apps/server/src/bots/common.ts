@@ -51,6 +51,12 @@ export interface BotMemory {
   peekUntil: number;
   peekAgain: number;
   lastReport: number;
+  /** Escorts: the last torpedo launch (tube flood) heard, as a bearing line from where it was heard. */
+  launchHeard?: { x: number; y: number; b: number; t: number };
+  /** Submarines: radar warner reaction (aircraft radar, ship radar closing): no mast or snorkel until then. */
+  radarDownUntil?: number;
+  /** Submarines: when the periscope came up on the current look. */
+  peekUp?: number;
   /** A bearing heard from a transient / ESM / pack report to investigate. */
   lead?: { x: number; y: number; b: number; t: number };
   sprintUntil: number;

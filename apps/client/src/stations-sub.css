@@ -1,0 +1,123 @@
+/*
+ * Submarine stations (layout spec round 3, U1–U4): Horchraum, Sehrohr, Feuerleitung, Zentrale.
+ * Generic pieces (.actionbar, .stack ordering) live in stations.css; this file holds what only
+ * the boat's stations use. At 1440 × 900 no right column scrolls: one list per column takes
+ * what is left and scrolls inside, everything else has a fixed height.
+ */
+
+/* ---- Horchraum (U1): waterfall 58 %, signal analysis and the contact tabs 42 % ---- */
+@media (min-width: 1151px) { .st.sub-horch { grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); } }
+.sub-horch .foot { row-gap: var(--sp2); }
+.sub-horch .ana-foot { display: inline-flex; gap: var(--sp2); align-items: center; }
+.sub-horch .lm-seg > button { padding: 0 6px; min-height: 22px; font-size: var(--fs-cap); }
+/* The analysis filters as a popover above the footer (they used to fold open in the panel) */
+.sub-horch details.pop { position: relative; }
+.sub-horch details.pop > summary { list-style: none; cursor: pointer; padding: 0 6px; min-height: 22px; line-height: 20px; border: 1px solid var(--line2);
+  border-radius: 3px; color: var(--dim); font-size: var(--fs-cap); letter-spacing: 0.04em; }
+.sub-horch details.pop > summary::-webkit-details-marker { display: none; }
+.sub-horch details.pop[open] > summary { border-color: var(--g); color: var(--g); }
+.sub-horch details.pop > .pop-body { position: absolute; bottom: calc(100% + 4px); right: 0; z-index: 5; width: 360px; max-width: 80vw; padding: var(--sp2) var(--sp3);
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+/* Analysis: LOFAR/DEMON at a fixed height, the marker and the six class buttons one 26 px row each */
+.sub-horch .analysis .steps { margin: 2px 0; flex-wrap: nowrap; }
+.sub-horch .analysis .steps button { flex: 1 1 auto; min-height: 26px; padding: 2px 3px; font-size: var(--fs-cap); letter-spacing: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-horch #a-pages > button, .sub-horch #a-bands > button { flex: none; padding-left: 8px; padding-right: 8px; }
+.sub-horch .analysis canvas { margin: 2px 0; }
+.sub-horch .analysis .hd { margin-top: 2px !important; }
+.sub-horch .analysis .row { padding: 1px 0; }
+.sub-horch #a-verdict .dim { margin: 2px 0 !important; }
+.sub-horch #a-verdict .steps { margin-top: 3px !important; }
+/* Contacts | Bedrohung | Aktiv: the rest of the column, never less than 220 px */
+.sub-horch .panel.grow.tabbed { min-height: 220px; }
+
+@media (max-width: 1150px) {
+  .sub-horch .fill { height: 50vh; }
+  /* The list tab keeps six rows and scrolls (G3); threat and active sonar show in full */
+  .sub-horch .panel.tabbed > .pane[data-pane="list"] { max-height: 230px; overflow: auto; }
+}
+
+/* ---- Feuerleitung (U3): plot 55 %, TMA and torpedo 45 % with FEUER in the action bar ---- */
+@media (min-width: 1151px) { .st.sub-fc { grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); } }
+/* Contacts: four rows, the list scrolls */
+.sub-fc .fc-list { flex: 1 1 0; min-height: 110px; overflow: auto; padding-top: 4px; padding-bottom: 4px; }
+/* Wire strip: the running torpedoes on the wire and the decoy (key T) */
+.sub-fc .fc-wire { display: flex; align-items: center; gap: var(--sp3); padding-top: 4px; padding-bottom: 4px; }
+.sub-fc .fc-wire > .tl { font-size: var(--fs-cap); color: var(--g); letter-spacing: 0.08em; }
+.sub-fc .fc-wire > #wires { flex: 1; min-width: 0; }
+.sub-fc .fc-wire > #wires .row { border-bottom: 0; padding: 1px 0; }
+.sub-fc .fc-wire > button { flex: none; white-space: nowrap; }
+/* TMA: one bar of methods and actions, the three sliders side by side with their values */
+.sub-fc .fc-tmabar { display: flex; flex-wrap: wrap; gap: var(--sp2); margin: var(--sp2) 0; }
+.sub-fc .fc-tmabar > .seg { flex: 1 1 auto; }
+.sub-fc .fc-tmabar > .seg > button { flex: 1; padding-left: 4px; padding-right: 4px; }
+.sub-fc .fc-tmabar > button { min-height: 0; }
+.sub-fc .fc-tma .row { padding: 2px 0; }
+.sub-fc #ekel-row button { padding: 0 6px; min-height: 0; }
+.sub-fc .tma-sl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp3); margin: var(--sp2) 0; }
+.sub-fc .tma-sl .row { border-bottom: 0; padding: 0; font-size: var(--fs-cap); }
+.sub-fc .tma-sl b { font-weight: 600; white-space: nowrap; }
+.sub-fc .tma-sl input[type=range] { width: 100%; margin: 2px 0 0; }
+.sub-fc #res { display: block; margin-top: var(--sp2); }
+.sub-fc .tma-step { margin-top: var(--sp2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+/* Torpedo: the tube bank in one row of six */
+.sub-fc .fc-tubes .tubebank { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); margin: var(--sp2) 0 0; }
+.sub-fc .fc-tubes .tube { padding: 2px 4px; }
+.sub-fc .fc-tubes .tube > b { font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Settings: a 2-column grid, label left, control right */
+.sub-fc .fc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp2) var(--sp4); }
+/* Every field the same: label | control of one fixed width | unit, so the columns line up */
+.sub-fc .fc-grid > label { display: grid; grid-template-columns: minmax(0, 1fr) 84px 18px; align-items: center; gap: var(--sp2);
+  min-height: 30px; border-bottom: 1px solid var(--line); }
+.sub-fc .fc-grid > label > input, .sub-fc .fc-grid > label > select { width: 100%; min-width: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; text-align: right; }
+.sub-fc .fc-grid .u { color: var(--dim); font-size: var(--fs-cap); }
+.sub-fc .fc-grid > .lbl { display: flex; align-items: center; gap: var(--sp3); min-height: 30px; border-bottom: 1px solid var(--line); }
+.sub-fc .fc-grid > .lbl > .dim:first-child { min-width: 0; flex: 0 0 auto; }
+.sub-fc .fc-grid > .span2 { grid-column: span 2; }
+.sub-fc .fc-grid .seg > button { padding: 1px 10px; min-height: 24px; }
+/* The action bar at the foot of the right column */
+.sub-fc .actionbar { margin-top: 0; }
+.sub-fc .actionbar > button { min-width: 0; padding-left: 4px; padding-right: 4px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 1150px) {
+  .sub-fc .fill { height: 50vh; }
+  .sub-fc .fc-list { max-height: 170px; }
+}
+
+/* ---- Zentrale (U4): chart 72 % over the depth profile 28 % (at most 170 px of canvas) ---- */
+.sub-central .zc-prof { flex: 0 1 28%; display: flex; flex-direction: column; min-height: 0; max-height: 226px; }
+.sub-central .zc-prof > .fill { min-height: 90px; max-height: 170px; }
+.sub-central .zc-prof > .hint { margin-top: 2px; }
+/* Orders: three per row; the longest label (GEFECHTSSTATIONEN) fits with its tag below */
+.sub-central .cmdgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sub-central .cmdgrid > button { min-width: 0; padding-left: 2px; padding-right: 2px; letter-spacing: 0.01em; }
+/* Navigation | Tiefenalarme | Minen: the rest of the column */
+.sub-central .panel.grow.tabbed { min-height: 170px; }
+.sub-central .pane .row { padding: 2px 0; }
+
+@media (max-width: 1150px) {
+  .sub-central .fill { height: 50vh; }
+  .sub-central .zc-prof { max-height: none; }
+  .sub-central .zc-prof > .fill { height: 32vh; max-height: 170px; }
+  .sub-central .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sub-central .panel.grow.tabbed { min-height: 0; }
+}
+
+/* ---- Sehrohr (U2): buttons in two grouped rows; readings, then mast and radar warner ---- */
+.sub-peri .btnrows + .btnrows { margin-top: var(--sp2); }
+.sub-peri .peri-esm { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: var(--sp3); align-items: start; margin-top: var(--sp2); }
+.sub-peri #esm-rose { display: block; width: 180px; }
+.sub-peri #esm { min-width: 0; font-size: var(--fs-cap); }
+.sub-peri #mast-panel .btnrow { margin-bottom: 0; }
+
+@media (max-width: 1150px) {
+  .sub-peri .fill { height: 50vh; }
+  /* Stacked: readings and the mast block side by side under the optic, the mast radar below them */
+  .sub-peri > .st-col:last-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .sub-peri > .st-col:last-child > .panel:nth-child(n + 3) { grid-column: span 2; }
+}
+@media (max-width: 640px) {
+  .sub-peri .peri-esm { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .sub-peri > .st-col:last-child { grid-template-columns: minmax(0, 1fr); }
+  .sub-peri > .st-col:last-child > .panel:nth-child(n + 3) { grid-column: auto; }
+  .sub-central .tiles { grid-template-columns: 1fr 1fr; }
+}

@@ -1,5 +1,6 @@
 /** German → English: the restructured stations (4 submarine, 5 frigate), the shared contact list, tutorial steps and help rows. */
 export const EN_STATIONS: [string, string][] = [
+  ['FLUGZEUGE IN SICHT', 'AIRCRAFT IN SIGHT'], ['KLASSE ZUWEISEN ▸', 'ASSIGN CLASS ▸'], ['ERST KLASSE ZUWEISEN', 'ASSIGN A CLASS FIRST'], ['Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen', 'Open the recognition book and assign the contact a class'],
   // Station titles, tabs and headers
   ['Horchraum', 'Sonar room'], ['Sehrohr', 'Periscope'], ['Feuerleitung', 'Fire control'], ['Zentrale', 'Control room'],
   ['OPZ', 'CIC'], ['Sonar', 'Sonar'], ['Waffen', 'Weapons'], ['Radar/ESM', 'Radar/ESM'], ['Brücke', 'Bridge'],
@@ -13,9 +14,28 @@ export const EN_STATIONS: [string, string][] = [
   ['Kontakte (eigen + Datalink)', 'Contacts (own + datalink)'], ['Verband und Konvoi', 'Group and convoy'], ['Bordhubschrauber und Seefernaufklärer', 'Ship\'s helicopter and patrol aircraft'],
   ['LOFAR / DEMON des gewählten Kontakts', 'LOFAR / DEMON of the selected contact'], ['Aktivsonar: Einzelping, CW/LFM, Echos', 'Active sonar: single ping, CW/LFM, returns'],
   ['Tiefensonar, Bathythermograph, Minenmeiden, Hörreichweite', 'Variable-depth sonar, bathythermograph, mine avoidance, listening range'],
+  // Submarine stations, layout round 3 (U1–U4)
+  ['LOFAR-Filter und Anzeige', 'LOFAR filters and display'], ['Himmel', 'Sky'], ['Übernehmen', 'Take over'],
+  ['LAUF', 'RUN'], ['SUCHKOPF', 'SEEKER'], ['MODUS', 'MODE'], ['KN', 'KN'], ['Laufgeschwindigkeit', 'Run speed'], ['Suchkopf ein nach', 'Seeker on after'], ['Suchmodus', 'Search mode'],
+  ['Geräuschboje gegen anlaufende Torpedos; danach abdrehen und Tiefe wechseln', 'Noise buoy against incoming torpedoes; then turn away and change depth'],
+  ['Draht: unter 12 kn bleiben · nach dem Täuschkörper abdrehen und Tiefe wechseln', 'Wire: stay below 12 kn · after the decoy turn away and change depth'],
+  ['✓ Lösung steht, Torpedo läuft', '✓ Solution set, torpedo running'], ['Navigation', 'Navigation'],
+  ['Koppelort, Standort, Echolot, Strom und Gezeit', 'Dead reckoning, fix, echo sounder, current and tide'], ['Obergrenze, Untergrenze, Wasser unter dem Kiel', 'Upper limit, lower limit, water under the keel'],
+  ['Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)', 'Radar warner: bearings of the radars heard (north up, own course dashed; red = aircraft or fire-control radar)'],
   // Hints and footers
   ['KLICK WÄHLT · RECHTSKLICK = KURS', 'CLICK SELECTS · RIGHT-CLICK = COURSE'], ['KLICK IN DAS PROFIL = BEFOHLENE TIEFE', 'CLICK THE PROFILE = ORDERED DEPTH'],
   ['KLICK WÄHLT · RECHTSKLICK = KURS / RAKETE / BOJE', 'CLICK SELECTS · RIGHT-CLICK = COURSE / ROCKET / BUOY'], ['KLICK AUF EINE SPUR WÄHLT', 'CLICK A TRACE TO SELECT'],
+  // Frigate stations, designer round 3 (OPZ contact card, sonar header and popover, weapon cards, ESM, sightings)
+  ['Gewählter Kontakt', 'Selected contact'], ['Ping', 'Ping'], ['Hubschrauber hin', 'Send helicopter'], ['KONTAKT IN KARTE ODER LISTE WÄHLEN', 'SELECT A CONTACT ON THE MAP OR IN THE LIST'],
+  ['ALTER', 'AGE'], ['ZU WEIT · ÜBER 18 KM', 'TOO FAR · OVER 18 KM'],
+  ['Einzelping: Entfernung zum gewählten Kontakt, verrät aber das eigene Schiff', 'Single ping: range to the selected contact, but gives the own ship away'],
+  ['U-Jagd-Rakete auf die letzte Position des gewählten Kontakts (1,8–18 km)', 'ASW rocket at the selected contact\'s last position (1.8–18 km)'],
+  ['Bordhubschrauber zum gewählten Kontakt: Tauchsonar an seiner letzten Position', 'Helicopter to the selected contact: dipping sonar at its last position'],
+  ['Anzeige ▾', 'Display ▾'], ['Anzeige beider Wasserfälle: Normalisierer, Mittelung, Helligkeit, Kontrast', 'Display of both waterfalls: normaliser, averaging, brightness, contrast'],
+  ['Kabellänge (lang = unter der Sprungschicht)', 'Cable length (long = below the layer)'], ['Klick auf eine Spur wählt den Kontakt', 'Click a trace to select the contact'],
+  ['Schleppsonar: Peilung links/rechts mehrdeutig', 'Towed array: bearing ambiguous left/right'],
+  ['ASW-Rakete', 'ASW rocket'], ['Werfer', 'Mortar'], ['Sichtungen', 'Sightings'], ['Klick dreht den Blick auf die Sichtung', 'Click turns the view to the sighting'],
+  ['Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)', 'Click an echo to select · strokes on the rim = ESM bearings (red = fire-control or aircraft radar, amber = unknown or radio)'],
   ['UNTER 12 KN BLEIBEN', 'STAY BELOW 12 KN'], ['NACH DEM TÄUSCHKÖRPER ABDREHEN UND TIEFE WECHSELN', 'AFTER THE DECOY TURN AWAY AND CHANGE DEPTH'],
   ['KLICK AUF ECHO WÄHLT · ROTE STRICHE AM RAND = ESM-PEILUNGEN', 'CLICK AN ECHO TO SELECT · RED STROKES ON THE RIM = ESM BEARINGS'],
   ['ZIEHEN DREHT UND HEBT · KLICK WÄHLT', 'DRAG TRAINS AND TILTS · CLICK SELECTS'], ['HÖRT RADARE', 'HEARS RADARS'],
@@ -152,6 +172,7 @@ export const EN_STATIONS: [string, string][] = [
 
 /** Texts with figures in them. */
 export const EN_STATIONS_PHRASES: [RegExp, string][] = [
+  [/^NOCH (\d+) SALVEN$/, '$1 SALVOS LEFT'], [/^(\d+) VERFÜGBAR$/, '$1 AVAILABLE'], [/^(\d+) MIN$/, '$1 MIN'],
   [/^UNTER KIEL (\d+) M$/, 'UNDER KEEL $1 M'], [/^NUR AUF (\d+) M$/, 'ONLY AT $1 M'], [/^ZIEL (\S+)$/, 'TARGET $1'],
   [/^(\d+)\/(\d+) GELADEN · VORRAT (\d+)$/, '$1/$2 LOADED · STOCK $3'], [/^(\d+) FEINDKONTAKTE?$/, '$1 HOSTILE CONTACT(S)'],
   [/^(\d+) KONTAKTE$/, '$1 CONTACTS'], [/^(\d+) PEILUNGEN$/, '$1 BEARINGS'], [/^ZUSTAND (\d+) %$/, 'CONDITION $1 %'],

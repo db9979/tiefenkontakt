@@ -10,7 +10,7 @@ import { planeTargets } from '../../widgets/air-targets.js';
 import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
-import { CLASS_LABEL, fitCanvas, h, km, setHtml, tdeg3 } from '../../widgets/format.js';
+import { CLASS_LABEL, esc, fitCanvas, h, km, setHtml, setText, tdeg3 } from '../../widgets/format.js';
 import { LazyGl } from '../../widgets/lazy-gl.js';
 import { onRelease } from '../../widgets/touch.js';
 import { btnState } from '../../widgets/btn-state.js';
@@ -41,8 +41,9 @@ export function bridgeStation(): Station {
         <div class="hint">ZIEHEN SCHWENKT · W A S D · RAD ZOOMT</div>
       </div>
     </div>
-    <div class="st-col scroll">
-      <div class="panel"><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
+    <div class="st-col">
+      <div class="panel" title="Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas."><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
+      <div class="panel grow listpanel"><div class="hd"><span>Sichtungen</span><span id="b-sn" class="dim"></span></div><div id="b-sight" class="scroll sightlist" title="Klick dreht den Blick auf die Sichtung"></div></div>
     </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
@@ -96,6 +97,17 @@ export function bridgeStation(): Station {
     const s = store.snap;
     if (s) relTarget = angleDiff(s.own.heading, bearing);
   };
+  /** The sightings list as last drawn (its rows point into it by index). */
+  let sightings: { label?: string; bearing: number; what?: Sighting; time: number; range?: number }[] = [];
+  el.querySelector<HTMLElement>('#b-sight')!.addEventListener('click', (e) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-sight]');
+    const a = row && sightings[Number(row.dataset.sight)];
+    if (!a) return;
+    airTrack = undefined;
+    const c = a.label ? store.snap?.contacts.find((x) => x.label === a.label) : undefined;
+    if (c) store.selected = c.label;
+    lookAt(c?.bearing ?? a.bearing);
+  });
   el.querySelector<HTMLButtonElement>('#glass')!.onclick = (e) => {
     glass = !glass;
     btnState(e.currentTarget as HTMLElement, { on: glass });
@@ -143,6 +155,10 @@ export function bridgeStation(): Station {
     airTrack = air[(i + 1) % air.length]!.label;
   };
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Brücke', el);
+  // "Klasse zuweisen" in the lookout panel opens the recognition book as well
+  el.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-recog]')) toggleRecogBook('Brücke', el);
+  });
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector('#foto')!.after(phoneButton());
   for (const id of ['#left', '#right', '#ahead', '#report']) el.querySelector(id)!.addEventListener('click', () => (airTrack = undefined));
@@ -203,13 +219,17 @@ export function bridgeStation(): Station {
     const air = (s.planes ?? []).filter((p) => p.via.includes('visual'));
     const f = air.find((p) => p.id === airTrack);
     const NAME = { airliner: 'VERKEHRSFLUGZEUG', light: 'KLEINFLUGZEUG', recon: 'FERNAUFKLÄRER', mpa: 'SEEAUFKLÄRER', helo: 'HUBSCHRAUBER' } as const;
-    return `<div class="row"><span class="dim">LUFT IN SICHT</span><span>${air.length || '—'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
+    // What is in the air, by kind ("1 VERKEHRSFLUGZEUG"), not a bare count
+    const kinds = new Map<string, number>();
+    for (const p of air) kinds.set(NAME[p.kind], (kinds.get(NAME[p.kind]) ?? 0) + 1);
+    const what = [...kinds].map(([k, n]) => `${n} ${k}`).join(' · ');
+    return `<div class="row"><span class="dim">FLUGZEUGE IN SICHT</span><span>${what || 'KEINE'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
   };
 
   /** Selected contact with its assigned class (from the recognition book) and the photo counter. */
   const selLine = () => {
     const c = store.selectedContact();
-    return `${c ? `<div class="row"><span class="dim">KONTAKT · ${c.label}</span><span class="${c.assignedCls ? '' : 'amber'}">${c.assignedCls ? CLASS_LABEL[c.assignedCls] : 'KLASSE ZUWEISEN'}</span></div>` : ''}<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>`;
+    return `${c ? `<div class="row"><span class="dim">KONTAKT · ${c.label}</span><button data-recog class="${c.assignedCls ? '' : 'warn'}" style="min-height:22px;padding:1px 8px" title="Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen">${c.assignedCls ? `${CLASS_LABEL[c.assignedCls]} ✎` : 'KLASSE ZUWEISEN ▸'}</button></div>` : ''}<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>`;
   };
 
   return {
@@ -232,7 +252,6 @@ export function bridgeStation(): Station {
       const fog = fogAt(s.env.met, s.own);
       const r = lookoutRanges(env, fog);
       const quality = r.mast > 1500 ? 'GUT' : r.mast > 600 ? 'MÄSSIG' : 'SCHLECHT';
-      const reports = s.alerts.filter((a) => a.kind === 'sighting').slice(-6).reverse();
       setHtml(el.querySelector('#b-data')!, `
         <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${fog > 0.3 ? ' · NEBEL' : ''}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
@@ -240,9 +259,20 @@ export function bridgeStation(): Station {
         <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>
         ${airLine(s)}
         ${selLine()}
-        <div class="dim" style="margin:8px 0 4px">MELDUNGEN</div>
-        ${reports.length ? reports.map((a) => `<div class="row ${s.time - a.time < 60 ? 'amber' : 'dim'}"><span>${a.label ?? ''} ${WHAT[a.what ?? 'mast']}</span><span>${tdeg3(a.bearing ?? 0)}° · ${km(a.range ?? 0)}</span></div>`).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>'}
-        <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`);
+`);
+      // Sightings: the latest report per contact, newest first; a click turns the view to it
+      sightings = [];
+      for (const a of [...s.alerts].reverse()) {
+        if (a.kind !== 'sighting' || a.bearing === undefined) continue;
+        if (a.label && sightings.some((x) => x.label === a.label)) continue;
+        sightings.push({ label: a.label, bearing: a.bearing, what: a.what, time: a.time, range: a.range });
+        if (sightings.length >= 30) break;
+      }
+      setText(el.querySelector('#b-sn')!, sightings.length ? String(sightings.length) : '');
+      setHtml(el.querySelector('#b-sight')!, sightings.length ? sightings.map((a, i) => {
+        const age = Math.max(0, Math.round(s.time - a.time));
+        return `<div class="row clickable ${age < 60 ? 'amber' : ''}" data-sight="${i}"><span>${esc(a.label ?? '?')} ${WHAT[a.what ?? 'mast']}</span><span>${tdeg3(a.bearing)}°${a.range ? ` · ${km(a.range)}` : ''}</span><span class="dim">${age < 120 ? `${age} S` : `${Math.round(age / 60)} MIN`}</span></div>`;
+      }).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>');
     },
     hide() {
       g3.freeLater();

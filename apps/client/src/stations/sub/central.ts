@@ -13,27 +13,30 @@ import { crashDive } from '../../widgets/emergency.js';
 import { fillBox } from '../../widgets/fill.js';
 import { keycap } from '../../widgets/keys.js';
 import { minePanel } from '../../widgets/mine-panel.js';
+import { panelTabs, tabRow } from '../../widgets/panel-tabs.js';
 
 /**
  * Zentrale: the commander's place in the boat, with the diving station merged in. Unlike the
  * frigate's operations room there is no shared picture: one chart (own dead reckoning,
  * contacts, solutions, chart drawings) and under it the depth profile (click = depth). On the
- * right the boat at a glance in four tiles (depth, trim, battery, snorkel), the orders a
- * commander gives most often, navigation with the echo sounder, the depth alarms and the mines.
+ * right the boat at a glance in four tiles (depth, trim, battery, snorkel), the depth orders
+ * and the orders a commander gives most often, then one tabbed panel: navigation with the
+ * echo sounder and the current, the depth alarms and the mines. Course, speed and noise are
+ * the helm's (and the BOOT side tab's), so they are not repeated here.
  */
 export function centralStation(): Station {
-  const el = h(`<div class="st two">
+  const el = h(`<div class="st two sub-central stack">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Zentrale · Koppeltisch</span><span id="c-alarm" class="red"></span></div>
         <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
         <div class="hint">KLICK WÄHLT · RECHTSKLICK = KURS</div>
       </div>
-      <div class="panel"><div class="hd"><span>Tiefenprofil</span><span id="dd" class="dim"></span></div>
-        <canvas id="prof"></canvas>
+      <div class="panel zc-prof"><div class="hd"><span>Tiefenprofil</span><span id="dd" class="dim"></span></div>
+        <div class="fill" id="prof-box"><canvas id="prof"></canvas></div>
         <div class="hint">KLICK IN DAS PROFIL = BEFOHLENE TIEFE</div>
       </div>
     </div>
-    <div class="st-col scroll">
+    <div class="st-col">
       <div class="tiles" id="tiles">
         <div class="tile" data-tile="depth"><span class="tl">TIEFE</span><b id="t-depth"></b><span id="t-depth2" class="dim"></span></div>
         <div class="tile" data-tile="trim"><span class="tl">TRIMM</span><b id="t-trim"></b><span id="t-trim2" class="dim"></span></div>
@@ -56,20 +59,24 @@ export function centralStation(): Station {
           <button data-cmd="blow" class="fire" title="Alle Tauchzellen anblasen: schnell nach oben, sehr laut, kostet eine Pressluftflasche (zweimal drücken)">Notanblasen</button>
         </div>
       </div>
-      <div class="panel"><div class="hd"><span>Navigation · Echolot</span><span id="snd-st" class="dim"></span></div><div id="c-nav"></div></div>
-      <div class="panel"><div class="hd"><span>Boot</span><span id="c-hp" class="dim"></span></div><div id="c-boat"></div></div>
-      <div class="panel" id="alarms"><div class="hd"><span>Tiefenalarme</span><span class="dim">TIEFE · GRUND</span></div></div>
-      <div id="mines"></div>
+      <div class="panel grow tabbed" id="zc-tabs">
+        <div class="hd">${tabRow([['nav', 'Navigation', 'Koppelort, Standort, Echolot, Strom und Gezeit'], ['alarms', 'Tiefenalarme', 'Obergrenze, Untergrenze, Wasser unter dem Kiel'], ['mines', 'Minen']])}<span id="snd-st" class="dim"></span></div>
+        <div class="pane" data-pane="nav"><div id="c-nav"></div></div>
+        <div class="pane" data-pane="alarms" id="alarms"></div>
+        <div class="pane" data-pane="mines"><div id="mines"></div></div>
+      </div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const plot = new Plot(q<HTMLCanvasElement>('#plot'), { bearingLines: true, showConvoy: false, esmLines: true, route: true, actions: (p) => courseAction(p) });
   plot.scale = 60;
   const box = fillBox(q('#plot-box'), 220);
+  const profBox = fillBox(q('#prof-box'), 90, 170);
   const profile = new DepthProfile(q<HTMLCanvasElement>('#prof'));
   q('#alarms').appendChild(depthAlarms.panel());
   const mines = minePanel();
   q('#mines').replaceWith(mines.el);
+  const tabs = panelTabs(q('#zc-tabs'), 'zentrale');
 
   el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => (b.onclick = () => {
     const s = store.snap;
@@ -77,7 +84,7 @@ export function centralStation(): Station {
     const v = b.dataset.depth!;
     const layer = s.env.layerDepth;
     if ((v === 'layer-' || v === 'layer+') && layer === undefined) {
-      store.lastError = 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
+      store.lastError = s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt' : 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
       return;
     }
     const depth = depthOf(v, layer, CLASSES[s.own.cls].maxDepth);
@@ -109,9 +116,13 @@ export function centralStation(): Station {
       const spec = CLASSES[o.cls];
       const layer = s.env.layerDepth;
       mines.update();
+      // The mines tab only on a boat that carries mines
+      const hasMines = o.loadout.mines !== undefined;
+      q('[data-ptab="mines"]').hidden = !hasMines;
+      if (!hasMines && tabs.current === 'mines') tabs.show('nav');
       q('#c-alarm').textContent = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 60) ? 'TORPEDO!' : '';
       q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
-      setHtml(q('#c-layer'), layer !== undefined ? `SCHICHT ${layer} M · ${o.depth > layer ? 'DARUNTER' : 'DARÜBER'}` : '<span class="amber">SCHICHT UNBEKANNT</span>');
+      setHtml(q('#c-layer'), layer !== undefined ? `SCHICHT ${layer} M · ${o.depth > layer ? 'DARUNTER' : 'DARÜBER'}` : s.env.noLayer ? 'KEINE SCHICHT · DURCHMISCHT BIS GRUND' : '<span class="amber">SCHICHT UNBEKANNT</span>');
       // Tiles: the four figures a diving officer watches
       const moving = Math.abs(o.order.depth - o.depth) > 2;
       q('#t-depth').textContent = `${o.depth.toFixed(0)} M`;
@@ -141,24 +152,14 @@ export function centralStation(): Station {
       // Navigation and echo sounder
       q('#snd-st').textContent = s.env.bottom !== undefined ? `UNTER KIEL ${Math.round(s.env.bottom - o.depth)} M` : '';
       setHtml(q('#c-nav'), navRows(s));
-      const cav = o.speedKn > o.cavitationKn;
-      const hp = Math.max(0, (100 * o.hp) / spec.hp);
-      q('#c-hp').textContent = hp < 100 ? `ZUSTAND ${hp.toFixed(0)} %` : '';
-      q('#c-hp').className = hp < 50 ? 'red' : 'dim';
-      setHtml(q('#c-boat'), `
-        <div class="row"><span class="dim">KURS · FAHRT</span><span>${tdeg3(o.heading)}° · ${o.speedKn.toFixed(1)} KN</span></div>
-        <div class="row"><span class="dim">ANTRIEB</span><span>${spec.battery ? (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 && sx >= 1 ? 'DIESEL / SCHNORCHEL' : 'E-MASCHINE') : 'REAKTOR'}</span></div>
-        <div class="row"><span class="dim">EIGENGERÄUSCH</span><span class="${o.noiseDb > 135 ? 'red' : o.noiseDb > 122 ? 'amber' : ''}">${o.noiseDb.toFixed(0)} DB</span></div>
-        <div class="row"><span class="dim">KAVITATION AB</span><span class="${cav ? 'red' : ''}">${o.cavitationKn.toFixed(1)} KN${cav ? ' · KAVITIERT' : ''}</span></div>
-        ${s.env.current ? `<div class="row"><span class="dim">STROM (ATLAS)</span><span>${s.env.current.kn >= 0.1 ? `SETZT ${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1)} KN` : 'KEIN NENNENSWERTER'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'} KENTERT IN ${clock(s.env.tide.turnsInS)}` : ''}</span></div>` : ''}
-        <div class="row"><span class="dim">TORPEDOS</span><span>${o.loadout.heavy} · ROHRE ${o.loadout.tubes.filter((t) => t.loaded).length}/${o.loadout.tubes.length} · TÄUSCHKÖRPER ${o.loadout.noisemakers}</span></div>`);
     },
     frame() {
       plot.draw(box.h);
-      profile.draw(170);
+      profile.draw(profBox.h);
     },
     dispose() {
       box.dispose();
+      profBox.dispose();
     },
   };
 }
@@ -178,5 +179,6 @@ function navRows(s: Snapshot): string {
   return `<div class="row"><span class="dim">KOPPELORT</span><span class="${(o.navUncertainty ?? 0) > 2 * NM ? 'amber' : ''}">${pos} ${err}</span></div>
         <div class="row"><span class="dim">LETZTER STANDORT</span><span>${last}${busy ? ` · ${busy}` : ''}</span></div>
         ${sat ? `<div class="row"><span class="dim">NAVIGATION</span><span>${sat}</span></div>` : ''}
-        <div class="row"><span class="dim">ECHOLOT</span><span>${o.nav?.lastFix === 'sounding' ? 'LETZTER FIX: ECHOLOT' : 'GIBT EINEN FIX, WO DER GRUND GENEIGT IST · IN DER NÄHE HÖRBAR'}</span></div>`;
+        <div class="row"><span class="dim">ECHOLOT</span><span>${o.nav?.lastFix === 'sounding' ? 'LETZTER FIX: ECHOLOT' : 'GIBT EINEN FIX, WO DER GRUND GENEIGT IST · IN DER NÄHE HÖRBAR'}</span></div>
+        ${s.env.current ? `<div class="row"><span class="dim">STROM (ATLAS)</span><span>${s.env.current.kn >= 0.1 ? `SETZT ${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1)} KN` : 'KEIN NENNENSWERTER'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'} KENTERT IN ${clock(s.env.tide.turnsInS)}` : ''}</span></div>` : ''}`;
 }

@@ -1,5 +1,5 @@
-import { inkOn } from './ink.js';
-import { depthAt, headingVec, type Snapshot } from '@tk/shared';
+import { inkOn, isInkLight } from './ink.js';
+import { depthAt, headingVec, isDangerEmitter, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
 import { northOff, toNorthUp } from '../north.js';
 
@@ -8,6 +8,14 @@ import { northOff, toNorthUp } from '../north.js';
  * layer as the sweep passes (sea clutter, rain, coastline from the chart, contacts) and
  * fade until the next revolution. Bezel with bearing ring and ship's-head marker on top.
  */
+
+/**
+ * ESM strobe colour (r,g,b) by what was intercepted: red only for a classified hostile radar
+ * (fire control, aircraft); unknown emitters and radio (FUNK) amber.
+ */
+export function esmStrobeRgb(emitter: string | undefined): string {
+  return isDangerEmitter(emitter) ? '240,149,149' : '250,199,117';
+}
 
 const S = 560; // persistence layer size (px)
 const C = S / 2;
@@ -39,6 +47,13 @@ export class RadarScope {
     this.phos.width = S;
     this.phos.height = S;
     this.pc = this.phos.getContext('2d')!;
+    this.clearPhos();
+  }
+
+  /** Theme the phosphor was last cleared in: a switch starts the tube afresh in the new ink. */
+  private inkedLight = isInkLight();
+  private clearPhos(): void {
+    this.inkedLight = isInkLight();
     this.pc.fillStyle = '#020605';
     this.pc.fillRect(0, 0, S, S);
   }
@@ -46,6 +61,7 @@ export class RadarScope {
   /** Advance the sweep and burn new returns into the phosphor. */
   update(s: Snapshot | undefined, dt: number, rpm: number, rangeM: number, opts: { on?: boolean; antennaM?: number } = {}): void {
     const pc = this.pc;
+    if (this.inkedLight !== isInkLight()) this.clearPhos();
     pc.save();
     pc.beginPath(); pc.arc(C, C, R, 0, TAU); pc.clip();
     // Persistence: a full revolution fades the picture to a faint afterglow
@@ -129,6 +145,21 @@ export class RadarScope {
       pc.fillStyle = 'rgba(200,250,225,0.85)';
       pc.beginPath(); pc.arc(C + Math.cos(a) * r, C + Math.sin(a) * r, 2.5 + b.r / 60, 0, TAU); pc.fill();
     }
+    // Aircraft held by the radar: a small, sharp return each time the beam passes (smaller than a ship's)
+    for (const pl of s.planes ?? []) {
+      if (!pl.via.includes('radar') || pl.x === undefined || pl.y === undefined || pl.rough) continue;
+      const brg = (Math.atan2(pl.x - s.own.x, pl.y - s.own.y) * 180) / Math.PI;
+      if ((brg - prev + 720) % 360 > span) continue;
+      const r = Math.hypot(pl.x - s.own.x, pl.y - s.own.y) * scale;
+      if (r > R) continue;
+      const a = toRad(brg);
+      const x = C + Math.cos(a) * r, y = C + Math.sin(a) * r;
+      const g = pc.createRadialGradient(x, y, 0, x, y, 4.5);
+      g.addColorStop(0, 'rgba(235,255,245,0.95)');
+      g.addColorStop(1, 'rgba(93,202,165,0)');
+      pc.fillStyle = g;
+      pc.beginPath(); pc.arc(x, y, 4.5, 0, TAU); pc.fill();
+    }
     // Contacts painted by this sweep segment
     for (const c of s.contacts) {
       if (!c.sensors.includes('radar') || c.range === undefined || s.time - c.lastSeen > 3) continue;
@@ -169,6 +200,8 @@ export class RadarScope {
     ctx.save();
     // The phosphor glows on the dark tube; on paper its dark ink darkens instead
     ctx.globalCompositeOperation = inkOn(ctx) ? 'darken' : 'lighter';
+    // Only the tube: the phosphor's corners must not paint a square around it
+    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.clip();
     ctx.drawImage(this.phos, ox, oy, size, size);
     ctx.restore();
     const on = this.live;
@@ -198,7 +231,7 @@ export class RadarScope {
     ctx.textAlign = 'left';
     for (let i = 1; i <= 4; i++) {
       ctx.beginPath(); ctx.arc(cx, cy, (rr * i) / 4, 0, TAU); ctx.stroke();
-      if (i < 4) ctx.fillText(`${(rangeNm * i) / 4}`, cx + 3, cy - (rr * i) / 4 + 11);
+      if (i < 4) ctx.fillText(`${String((rangeNm * i) / 4).replace('.', ',')} SM`, cx + 3, cy - (rr * i) / 4 + 11);
     }
     ctx.beginPath(); ctx.moveTo(cx - rr, cy); ctx.lineTo(cx + rr, cy); ctx.moveTo(cx, cy - rr); ctx.lineTo(cx, cy + rr); ctx.stroke();
     // Bezel: true bearing ring with 5° ticks, numerals every 30°
@@ -229,7 +262,7 @@ export class RadarScope {
       for (const c of s.contacts) {
         if (!c.sensors.includes('esm') || s.time - c.lastSeen > 300) continue;
         const a = toRad(c.bearing);
-        ctx.strokeStyle = `rgba(240,149,149,${0.75 - (s.time - c.lastSeen) / 500})`;
+        ctx.strokeStyle = `rgba(${esmStrobeRgb(c.emitter)},${0.75 - (s.time - c.lastSeen) / 500})`;
         ctx.setLineDash([6, 4]);
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); ctx.stroke();
         ctx.setLineDash([]);

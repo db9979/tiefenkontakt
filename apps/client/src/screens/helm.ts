@@ -3,7 +3,7 @@ import { t } from '../i18n/index.js';
 import { net } from '../net.js';
 import { depthBtn } from '../widgets/btn-state.js';
 import { store } from '../store.js';
-import { COL, FONT, LW, fitCanvas, kn, setHtml, tdeg3 } from '../widgets/format.js';
+import { COL, FONT, LW, fitCanvas, kn, setHtml, setText, tdeg3 } from '../widgets/format.js';
 import { gameDeg, trueDeg } from '../north.js';
 import { isFriendlyContact } from '../widgets/friendly.js';
 import { isKey } from '../widgets/keys.js';
@@ -13,10 +13,10 @@ import { depthAlarms } from '../widgets/depth-alarm-ui.js';
 
 /** Engine telegraph, astern on the left, ahead on the right (kn; named steps follow the class). */
 const TELEGRAPH: { label: string; short: string; kn: number | 'astern' | 'halfAstern' | 'max' }[] = [
-  { label: 'AK zurück', short: 'AK', kn: 'astern' }, { label: 'Halbe zurück', short: 'HALBE', kn: 'halfAstern' },
-  { label: 'Langsam zurück', short: 'LANGS', kn: -3 }, { label: 'Stopp', short: 'STOPP', kn: 0 },
-  { label: 'Schleich', short: 'SCHL', kn: 3 }, { label: 'Langsam', short: 'LANGS', kn: 6 },
-  { label: 'Halbe', short: 'HALBE', kn: 12 }, { label: 'AK', short: 'AK', kn: 'max' },
+  { label: 'AK zurück', short: 'AK', kn: 'astern' }, { label: 'Halbe zurück', short: 'HA', kn: 'halfAstern' },
+  { label: 'Langsam zurück', short: 'LA', kn: -3 }, { label: 'Stopp', short: 'ST', kn: 0 },
+  { label: 'Schleich', short: 'SL', kn: 3 }, { label: 'Langsam', short: 'LA', kn: 6 },
+  { label: 'Halbe', short: 'HA', kn: 12 }, { label: 'AK', short: 'AK', kn: 'max' },
 ];
 const telKn = (i: number, cls: ClassId): number => {
   const k = TELEGRAPH[i]!.kn;
@@ -81,7 +81,7 @@ const HELM_CSS = `<style>
 .hm-rud b{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:var(--dim)}
 .hm-rud i{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--c-data)}
 .hm-telcap{display:flex;justify-content:space-between;font-size:var(--fs-cap);color:var(--dim);letter-spacing:0.08em;margin:6px 0 2px}
-.hm-tel{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:0}
+.hm-tel{display:grid;grid-template-columns:repeat(8,minmax(28px,1fr));gap:0}
 .hm-tel button{min-height:24px;padding:0;border-radius:0;margin-left:-1px;font-size:var(--fs-cap);letter-spacing:0;overflow:hidden;text-overflow:clip;white-space:nowrap}
 .hm-tel button:first-child{margin-left:0;border-radius:3px 0 0 3px}
 .hm-tel button:last-child{border-radius:0 3px 3px 0}
@@ -96,6 +96,11 @@ const HELM_CSS = `<style>
 .hm-ord button{padding:2px 8px}
 .hm-ord>span{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #depth-box{margin-top:4px}
+@media (min-width:601px) and (max-width:1279px){
+.hm-top{grid-template-columns:minmax(0,1fr);justify-items:center}
+.hm-tiles{flex-direction:row;width:100%}
+.hm-tile{flex:1 1 0}
+}
 html[data-theme='light'] .hm-tel button.made{background:#cfe9df;color:#0d3a2c}
 html[data-theme='light'] .hm-tel button.made.ast{background:#f6e2b8;color:#6e4000}
 html[data-theme='light'] .hm-tel button.made.stop{background:#e2ebe7}
@@ -104,7 +109,7 @@ html[data-theme='light'] .hm-tel button.made.stop{background:#e2ebe7}
 /** Helm: compass rose for the course, instrument tiles, engine telegraph strip (ahead and astern), depth. Visible on every station. */
 export function mountHelm(el: HTMLElement) {
   el.innerHTML = `${HELM_CSS}
-    <div class="hd"><span>Ruderstand</span><span id="h-rot" class="dim"></span></div>
+    <div class="hd"><span>Ruderstand<span id="h-ship" class="h-ship"></span></span><span id="h-rot" class="dim"></span></div>
     <div class="hm-top">
       <canvas id="h-compass" style="cursor:pointer" title="Klicken oder ziehen, um den Kurs zu setzen"></canvas>
       <div class="hm-tiles">
@@ -132,17 +137,18 @@ export function mountHelm(el: HTMLElement) {
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const order = (o: { heading?: number; speedKn?: number; depth?: number }) => net.send({ t: 'order', ...o });
   const compass = q<HTMLCanvasElement>('#h-compass');
-  /** Compass diameter: 120–160 px, so the whole helm stays within about 42 % of the right column. */
+  /** Compass diameter: 120–160 px, so the whole helm stays within about 42 % of the right column (110 px below 1280 px, tiles under it). */
   let size = 156;
   const MIN = 120, MAX = 160;
   const fit = () => {
     const side = el.parentElement;
     let want = MAX;
+    const narrow = window.innerWidth > 600 && window.innerWidth < 1280;
     if (side && window.innerWidth > 600 && side.clientHeight > 0) {
       const rest = el.offsetHeight - size;
       want = Math.floor(side.clientHeight * 0.42 - rest);
     }
-    const next = Math.max(MIN, Math.min(MAX, want));
+    const next = narrow ? 110 : Math.max(MIN, Math.min(MAX, want));
     if (next !== size) size = next;
     const w = `${size}px`;
     if (compass.style.width !== w) compass.style.width = w;
@@ -381,6 +387,7 @@ export function mountHelm(el: HTMLElement) {
       const rAbs = Math.abs(rudder);
       setHtml(q('#h-rud'), rAbs < 1.5 ? '0°<small> MITTE</small>' : `${rAbs.toFixed(0)}°<small> ${rudder > 0 ? 'STB' : 'BB'}</small>`);
       q('#h-rud-i').style.left = `${50 + (rudder / 35) * 50}%`;
+      setText(q('#h-ship'), ` · ${o.name}`);
       setHtml(q('#h-rot'), Math.abs(rot) > 0.05 ? `DREHT ${Math.abs(rot).toFixed(1).replace('.', ',')}°/S` : '');
       // Telegraph strip: the step she is making filled, the ordered step outlined amber
       const ordered = o.order.speedKn;
@@ -400,7 +407,7 @@ export function mountHelm(el: HTMLElement) {
       if (spec.submarine) {
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
         const ground = s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
-        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>${ground} ${depthAlarms.helmTag()}`);
+        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? (s.env.noLayer ? 'KEINE' : '?')}</span>${ground} ${depthAlarms.helmTag()}`);
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const lay = s.env.layerDepth;
         depthBtn(q('#h-peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);

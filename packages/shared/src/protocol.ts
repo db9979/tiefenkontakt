@@ -15,6 +15,31 @@ export interface CustomMissionSettings {
   subFrac: number;
 }
 import type { SeekerMode } from './weapons.js';
+import type { EscortCmdKind } from './orders.js';
+
+/** What the escort commander sees: the convoy's ordered state and each AI escort's task. */
+export interface EscortCommandView {
+  convoy?: {
+    zigzag: boolean;
+    /** Speed the convoy makes now and the commander's change to the route speed (kn). */
+    speedKn: number;
+    adj: number;
+    /** Emergency turn under way: to which side and seconds until it resumes the route. */
+    turn?: { side: -1 | 1; leftS: number };
+    /** Sideways detour from the route (m, + starboard). */
+    offset?: number;
+  };
+  escorts: {
+    id: string;
+    name: string;
+    cls: ClassId;
+    /** What the planner has her doing (screen, hunter, director, attacker) or the ordered task. */
+    role?: string;
+    /** The commander's order she follows (until cancelled or done). */
+    task?: { kind: EscortCmdKind; x?: number; y?: number; rel?: number; range?: number; sinceS: number };
+    helo: boolean;
+  }[];
+}
 
 /** Einsteiger: assistance (auto-classification, ranges); Profi: what the crew can really know. */
 export type Realism = 'einsteiger' | 'profi';
@@ -79,6 +104,14 @@ export type ClientMsg =
   | { t: 'mine' }
   /** Escort: shift the convoy's track sideways (m, + = starboard of its leg; 0 = back on the route). */
   | { t: 'convoy_detour'; offset: number }
+  /**
+   * Escort commander (any human escort captain) tasks an AI escort of the own side: station (world
+   * point, or rel = bearing relative to the convoy's course and range from its centre), sector,
+   * datum or helicopter at a world point; cancel returns her to the planner.
+   */
+  | { t: 'escort_task'; shipId: string; task: EscortCmdKind | 'cancel'; x?: number; y?: number; rel?: number; range?: number }
+  /** Escort commander's convoy orders: emergency turn 45° (side −1 port, +1 starboard, 0 cancel), zigzag on/off, speed change (kn, ±2). */
+  | { t: 'convoy_order'; order: 'turn' | 'zigzag' | 'speed'; side?: -1 | 0 | 1; on?: boolean; adj?: number }
   | { t: 'repair'; system: ShipSystem }
   /** Pass a FLASH order on (convoy turn) to the commodore. */
   | { t: 'execute_order'; id: string }
@@ -421,6 +454,8 @@ export interface Snapshot {
   /** layerDepth is only known after a bathythermograph measurement. */
   env: {
     layerDepth?: number;
+    /** The water here is shallower than the measured layer (or the probe found none): mixed to the bottom, no layer. */
+    noLayer?: boolean;
     seaState: number;
     /** 1 = day, 0 = dark night */
     light?: number;
@@ -445,6 +480,8 @@ export interface Snapshot {
   orders?: import('./orders.js').OrderView[];
   /** Surface ships: the AI escorts' team datum and hunter-killer roles (ship names), via datalink. */
   hunt?: { datum?: { x: number; y: number; t: number; q: number }; director?: string; attacker?: string };
+  /** Human escort captains: the AI escorts they may task and the convoy's orders (escort commander). */
+  command?: EscortCommandView;
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
     buoys: { id: string; x: number; y: number; depth: number; leftS: number; active?: boolean }[];

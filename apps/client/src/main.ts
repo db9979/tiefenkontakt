@@ -1,5 +1,7 @@
 import './style.css';
 import './stations.css';
+import './stations-frigate.css';
+import './stations-sub.css';
 import './theme-light.css';
 import { initI18n } from './i18n/index.js';
 import { installErrorReporting } from './error-report.js';

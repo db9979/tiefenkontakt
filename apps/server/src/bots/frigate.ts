@@ -103,10 +103,13 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   const esm = tracks.filter((t) => t.sensors.includes('esm') && now - t.lastSeen < 600).pop();
   if (esm && (!m.lead || now - m.lead.t > 120)) m.lead = { x: s.pos.x, y: s.pos.y, b: esm.bearing, t: now };
   const target = subs[0];
-  const leadB = target ? target.bearing : m.lead && now - m.lead.t < 900 ? m.lead.b : undefined;
+  // An ordered or heard datum goes before an old lead of the own
+  const leadB = target ? target.bearing : m.lead && now - m.lead.t < 900 && !task?.datum ? m.lead.b : undefined;
   // Team datum and role (escort-team.ts); without a task the ship acts alone
   const plan = w.env.hunt?.[s.team as 'west' | 'east'];
-  const datum = plan?.datum && now - plan.datum.t < 600 ? plan.datum : undefined;
+  const datum = task?.datum ? { ...task.datum, t: now, q: 50, by: s.id } : plan?.datum && now - plan.datum.t < 600 ? plan.datum : undefined;
+  // Helicopter sent somewhere (commander's order, pounce on a far datum, a heard launch): it dips there, the ship keeps its task
+  if (task?.helo && SKILL[skill].air) heloProsecute(w, s, task.helo);
   const role = task?.role;
   const prosecuting = task ? role !== 'screen' && (leadB !== undefined || !!datum) : leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
   const learned = w.env.adapt?.west;
@@ -171,7 +174,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     // Screen ahead on a flank (escorts split left/right), weaving to clear the baffles
     const ahead = w.convoy ? headingVec(w.convoy.guideHeading) : { x: 0, y: 1 };
     const side = flankOf(w, s);
-    const station = task?.station ?? { x: center.x + ahead.x * 3000 + ahead.y * side * 3500, y: center.y + ahead.y * 3000 - ahead.x * side * 3500 };
+    const station = task?.station ?? { x: center.x + ahead.x * 4000 + ahead.y * side * 4000, y: center.y + ahead.y * 4000 - ahead.x * side * 4000 };
     // Fleet command's sector: the helicopter dips it when the ship stays with the convoy
     const sector = task?.search;
     if (sector && SKILL[skill].air) heloSearch(w, s, sector);

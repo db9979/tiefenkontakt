@@ -46,6 +46,8 @@ export const STRAIT_GUARD_Y = 7_000;
 export const STRAIT_EXIT_Y = 16_500;
 /** Harbour attack: where the boats start, about 16 km out from the anchorage (arena West:Ost - 18 km 23:7, 16 km 19:21, 14 km 10:20, 10 km 3:17; with terrain and seasons 16 km 2:4, 17 km 8:8, 18 km 14:6). */
 export const HARBOUR_SUB_Y = 21_000;
+/** Harbour attack: the charted anchorage (centre of the berths the merchants lie at, below). */
+export const HARBOUR_ANCHORAGE = { x: 0, y: 3350 };
 /** Shadowing: minutes of held contact the pack needs. */
 export const SHADOW_GOAL_S = 25 * 60;
 /** Shadowing only counts within this distance of a convoy ship. */
@@ -201,12 +203,12 @@ export function startGeometry(mission: MissionId, k: number): { subFrac: number;
  * sideways distance, the harbour boats' start line and the strait's start and exit lines (m).
  */
 const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: number; harbourSubY?: number; straitStartY?: number; straitExitY?: number }>> = {
-  groenland: { subFrac: 0.45, spread: 0.45 },
+  groenland: { subFrac: 0.6, spread: 0.6 },
   schelf: { subFrac: 0.45, spread: 1 / 3 },
   fjord: { subFrac: 0.65, spread: 0.6 },
   // The anchorage lies about 3.5 km up the bay
   hafen: { harbourSubY: 11_000 },
-  meerenge: { straitStartY: 4200, straitExitY: 12_500 },
+  meerenge: { straitStartY: 4800, straitExitY: 11_500 },
 };
 
 /** Sandbox matches run without a time limit (the time scale changes while they run). */
@@ -250,7 +252,8 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const east = slots.filter((s) => s.team === 'east' && !s.crewOf);
   west.forEach((p, i) => {
     const side = i % 2 === 0 ? 1 : -1;
-    const x = v.escortX(i, side * (2500 + Math.floor(i / 2) * 1500));
+    // Close screen 5–6 km from the convoy (fjord, harbour and strait are too narrow for that abeam)
+    const x = v.escortX(i, side * ((mission === 'fjord' || mission === 'hafen' || mission === 'meerenge' ? 2500 : 4500) + Math.floor(i / 2) * 1500));
     const sub = CLASSES[p.cls].submarine;
     ships.push(createShip({
       id: `p_${p.playerId}`, cls: p.cls, name: p.callsign, team: 'west', playerId: p.playerId,

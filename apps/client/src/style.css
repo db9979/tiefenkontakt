@@ -32,7 +32,7 @@
 /* Colour roles (aliases of the palette; declared on body too so the colour-blind palette on body
    reaches them): ok/own = green, attention = amber, threat and damage only = red, friend = blue */
 :root, body { --c-ok: var(--g); --c-attn: var(--amber); --c-threat: var(--red); --c-friend: var(--blue); --c-data: var(--g2); --c-mute: var(--dim); }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 body { margin: 0; min-height: 100vh; }
 button, input, select {
   font: inherit; color: var(--g2); background: #0b1311; border: 1px solid var(--line2);
@@ -227,7 +227,6 @@ button.icon, button.gear { min-width: 32px; padding: 5px 7px; text-transform: no
 body.cb { --red: #ff9b45; --amber: #ffe066; --blue: #7cc0ff; }
 body.cb .team-e { color: #ff9b45; }
 
-@media (max-width: 1150px) { .st-ship { display: none; } }
 @media (max-width: 900px) {
   .topbar { flex-wrap: wrap; }
   .topbar .status { order: 3; flex-basis: 100%; justify-content: space-between; }
@@ -246,8 +245,6 @@ body.cb .team-e { color: #ff9b45; }
   body.helm-open .side .helm { transform: translateY(0); }
   .langbtn { bottom: 60px; }
 }
-@media (max-width: 1700px) { #pb-txt .dim { display: none; } }
-@media (max-width: 1100px) { #pb-txt { display: none; } }
 .pb-lbl { font-size: 0.8333rem; letter-spacing: 0.1em; }
 .pbar .pb-mid, .pbar .pb-30 { position: absolute; top: -2px; bottom: -2px; width: 1px; background: #e8c37a; }
 .pbar .pb-mid { left: 50%; width: 2px; margin-left: -1px; }
@@ -435,12 +432,14 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 @keyframes st-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { button.ack, button.st-busy[data-bst]::after { animation: none; } }
 /* Depth alarms: settings block in the dive station, callout under the top bar on every station */
-.depth-alarms .da-row { align-items: center; }
-.depth-alarms .da-on, .depth-alarms .da-lbl { flex: 1; text-align: left; }
-.depth-alarms .da-lbl { padding-left: 8px; }
+.depth-alarms .da-row { align-items: center; gap: var(--sp3); min-height: 26px; padding: 1px 0; }
+.depth-alarms .da-lbl { flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.depth-alarms .da-on { flex: none; width: 46px; min-height: 22px; padding: 0 4px; }
+.depth-alarms .da-on::after { margin-left: 0; }
+.depth-alarms .da-pad { display: inline-block; }
 .depth-alarms .da-set { display: flex; align-items: center; gap: 3px; }
-.depth-alarms .da-set button { padding: 2px 8px; }
-.depth-alarms input[type=number] { width: 56px; text-align: right; }
+.depth-alarms .da-set button { padding: 0 8px; min-height: 22px; }
+.depth-alarms input[type=number] { width: 56px; height: 22px; padding-top: 0; padding-bottom: 0; text-align: right; }
 .depth-alarms .da-now { padding: 4px 0 6px; letter-spacing: 0.08em; }
 .depth-alarms .da-now .red, .depth-alarms .da-now .amber { font-size: 1.1667rem; }
 .depth-callout { position: fixed; bottom: 14px; left: 38%; transform: translateX(-50%); z-index: 39; padding: 4px 16px;
@@ -451,6 +450,32 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 .helm #h-compass { border-radius: 50%; box-shadow: none !important; filter: none !important; }
 /* Status strip: nothing overlaps; the ship name and the convoy text give way first */
 .topbar .status .st-ship { min-width: 6ch; }
-.st-prog { flex: 0 1 auto; overflow: hidden; }
+.st-prog { flex: 0 0 auto; overflow: hidden; }
+#pb-txt { flex: none; }
 .st-clock { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 1500px) { #pb-txt { display: none; } }
+/* Round 3 (G4): side column 264 px below 1280 px; compact top bar (⏩ without words, "SG 5", no "UHR") */
+@media (min-width: 901px) and (max-width: 1279px) { .game { grid-template-columns: minmax(0, 1fr) 264px; } }
+@media (max-width: 1279px) { .ff .ff-lbl, .ff #ff-note { display: none; } }
+/* G5: native sliders in the console colour in both themes */
+input[type=range] { accent-color: var(--g); }
+/* G8: one line per report, the full text in the tooltip */
+.alerts .logrow { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 601px) { .menu-panel .m-quit { display: none; } }
+/* G9 phone: one 44 px top row (clock · ⏩ · ⚙; sound, help and VERLASSEN in ⚙), RUDER as the last bottom tab */
+@media (max-width: 600px) {
+  .topbar { flex-wrap: nowrap; height: 44px; row-gap: 0; }
+  .topbar .status { order: 0; flex: 1 1 auto; min-width: 0; white-space: nowrap; justify-content: flex-start; gap: 8px; }
+  .topbar .status .st-ship, .topbar .status .st-prog, .topbar #mute, .topbar #help, .topbar #quit { display: none; }
+  .topbar .st-clock { order: 1; flex: 1 1 auto; text-align: left; }
+  .topbar .ff { order: 2; }
+  .topbar #ff-btn, .topbar .gear { min-width: 44px; min-height: 40px; }
+  .menu-panel { top: 52px; }
+  .topbar .tabs { right: 96px; height: 52px; align-items: stretch; }
+  .helm-toggle { right: 0; bottom: 0; width: 96px; height: 52px; border-radius: 0; box-shadow: none; border-width: 1px 0 0 1px; border-color: var(--line2); }
+  body.helm-open .helm-toggle { border-top: 2px solid var(--g); }
+}
+
+/* Top bar: the clock never gives way; below 1500 px the ship's name moves into the helm header */
+.st-clock { flex: none !important; overflow: visible !important; }
+.h-ship { display: none; color: var(--g2); text-transform: none; letter-spacing: 0.02em; }
+@media (max-width: 1499px) { .topbar .status .st-ship { display: none; } .h-ship { display: inline; } }

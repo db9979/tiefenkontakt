@@ -1,0 +1,52 @@
+/*
+ * Frigate stations (designer round 3, F1–F5): OPZ, Sonar, Waffen, Radar/ESM, Brücke. Shared
+ * station rules (columns, fill boxes, tabs, the action bar) are in stations.css.
+ */
+
+/* OPZ: the ASW strip as one 24 px line inside the plot panel, small chips (F1) */
+.st.opz .aswstrip { height: 24px; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: 4px; margin: 4px 0 2px; }
+.st.opz .aswchip { font-size: 10px; line-height: 16px; padding: 0 6px; }
+/* The selected contact: a fixed card under the tabs with its three actions */
+.st.opz .selcard { flex: none; min-height: 150px; display: flex; flex-direction: column; }
+.st.opz .selcard > #oc-rows { flex: 1; }
+.st.opz .selcard .actionbar { padding-bottom: 0; }
+.st.opz .selcard .actionbar > button { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Sonar: array length in the towed panel's header, one display popover for both waterfalls (F2) */
+.hd-r { display: flex; align-items: center; gap: var(--sp2); }
+.hdseg > button { padding: 0 6px; min-height: 20px; font-size: var(--fs-cap); }
+.wfpop { position: relative; }
+.wfpop > summary { list-style: none; cursor: pointer; padding: 2px 8px; border: 1px solid var(--line2); border-radius: 3px;
+  font-size: var(--fs-cap); letter-spacing: 0.06em; text-transform: uppercase; color: var(--g); white-space: nowrap; }
+.wfpop > summary::-webkit-details-marker { display: none; }
+.wfpop[open] > summary { border-color: var(--g); }
+.wfpop > .wf-ctl { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: 5; padding: 6px; white-space: nowrap;
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+
+/* Waffen: 45/55, short card titles, the status line in the card body, the tube bank (F3) */
+.st.wpn { grid-template-columns: minmax(0, 45fr) minmax(0, 55fr); }
+.wcard .wstat { color: var(--g2); letter-spacing: 0.04em; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wcard > button { letter-spacing: 0.03em; padding-left: 6px; padding-right: 6px; }
+.wcard .tubebank { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 4px 0; }
+.st.wpn .listpanel { min-height: 120px; }
+
+/* Radar/ESM: the ESM list is the column's one scrolling part (F4) */
+.st.fradar .listpanel { min-height: 120px; }
+
+/* Brücke: the sightings list (F5) */
+.sightlist .row > span:first-child { flex: 1; }
+.sightlist .row > span:last-child { min-width: 52px; text-align: right; }
+
+@media (max-width: 1150px) {
+  /* Stacked (G3): main display at most 50vh, two of a kind share the height */
+  .st.wpn { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .st.opz .fill, .st.wpn .fill, .st.fradar .fill, .st.bridge .fill { height: 50vh; }
+  .st.fsonar .fill { height: 32vh; }
+  /* The chart first, then the weapons with their fire buttons, the target and the list */
+  .st.wpn > .st-col:last-child { order: -1; }
+  .st.wpn > .st-col:first-child > .panel:first-child { order: 1; }
+  .st.wpn > .st-col:first-child > .listpanel { order: 2; }
+  /* The selected contact's actions right after the chart */
+  .st.opz .selcard { order: -1; min-height: 0; }
+  .st.wpn .listpanel, .st.fradar .listpanel { min-height: 0; }
+}

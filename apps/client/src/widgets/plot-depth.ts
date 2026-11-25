@@ -264,12 +264,12 @@ function isobaths(ctx: CanvasRenderingContext2D, depths: Float32Array, cols: num
   return labels;
 }
 
-/** Depth scale in the upper left corner (the lower edge of the plot can be cut off by its panel). */
-function legend(ctx: CanvasRenderingContext2D, _w: number, _hgt: number): void {
-  const marks = [0, 50, 200, 1000, 3000];
+/** Depth scale in the lower left corner, above the grid note (the top carries the chart's tool buttons). */
+function legend(ctx: CanvasRenderingContext2D, _w: number, hgt: number): void {
+  const marks = [0, 200, 1000, 3000];
   const bw = 150;
   const x = 62;
-  const y = 12;
+  const y = hgt - 52;
   ctx.save();
   for (let i = 0; i < bw; i++) {
     // Same square-root scale as the tint, from 0 to 4000 m

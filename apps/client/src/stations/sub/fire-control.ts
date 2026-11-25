@@ -41,7 +41,7 @@ const FIX_MAX_AGE = 120; // s sim time
 
 /** Residual plot: one row per hypothesis (dot-stack) or a single scatter (hypothesis). */
 function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: number; err: number }[] }[]): void {
-  const H = rows.length > 1 ? 96 : 70;
+  const H = 70;
   const ctx = fitCanvas(c, H);
   const w = c.clientWidth;
   ctx.fillStyle = COL.bg;
@@ -73,48 +73,54 @@ function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: nu
 }
 
 export function fireControlStation(): Station {
-  // Left: the plot takes the height, the contact list below it. Right: the TMA, then the torpedo
-  // with the tube bank (load state and reload of every tube), then the wires and the decoys
-  // (the old Torpedoraum): aiming, firing and the hardware in one place.
-  const el = h(`<div class="st two">
+  // Left: the plot takes the height, under it the contacts (four rows, the one list that
+  // scrolls) and a strip with the wires and the decoy. Right: the TMA at a fixed height, the
+  // tube bank in one row, the torpedo settings as a 2-column grid and at the foot the sticky
+  // action bar (take over the solution, FEUER). Stacked below 1150 px: plot, action bar,
+  // wires, tube bank, TMA, settings, contacts (--stack).
+  const el = h(`<div class="st two sub-fc stack">
     <div class="st-col">
-      <div class="panel grow"><div class="hd"><span>Feuerleitung · Lagebild</span><span id="tgt-st" class="dim"></span></div>
+      <div class="panel grow" style="--stack:1"><div class="hd"><span>Feuerleitung · Lagebild</span><span id="tgt-st" class="dim"></span></div>
         <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
         <div class="hint">GELBEN KREIS ZIEHEN = TMA · RECHTSKLICK = AKTIONEN</div>
       </div>
-      <div class="panel listpanel"><div id="list"></div></div>
-    </div>
-    <div class="st-col scroll">
-      <div class="panel"><div class="hd"><span>Zielbewegungsanalyse</span><span id="tgt" class="amber"></span></div>
-        <div class="seg wide"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></div>
-        <div class="btnrow"><button id="auto" class="primary">Auto-TMA</button><button id="clear">Verwerfen</button><button id="ekel-take" style="display:none">Ekelund-Entfernung übernehmen</button></div>
-        <div class="row"><span class="dim">BEOBACHTBARKEIT</span><span id="v-obs"></span></div>
-        <div class="row" id="ekel-row" style="display:none"><span class="dim">EKELUND</span><span id="v-ekel"></span></div>
-        <div class="row"><span class="dim">ENTFERNUNG</span><span id="v-rng"></span></div><input id="s-rng" type="range" min="500" max="40000" step="100">
-        <div class="row"><span class="dim">ZIELKURS</span><span id="v-crs"></span></div><input id="s-crs" type="range" min="0" max="359" step="1">
-        <div class="row"><span class="dim">ZIELFAHRT</span><span id="v-spd"></span></div><input id="s-spd" type="range" min="0" max="30" step="0.5">
-        <div class="row"><span class="dim">GÜTE / FEHLER</span><span id="v-q"></span></div>
-        <div class="row"><span class="dim">LÖSUNG ALTER</span><span id="v-age"></span></div>
-        <canvas id="res" style="margin-top:4px"></canvas>
-        <div id="steps" style="margin-top:6px"></div>
+      <div class="panel fc-wire" style="--stack:3" title="Draht: unter 12 kn bleiben · nach dem Täuschkörper abdrehen und Tiefe wechseln">
+        <span class="tl">DRAHT</span><div id="wires"></div>
+        <button id="tr-nm" class="warn" title="Geräuschboje gegen anlaufende Torpedos; danach abdrehen und Tiefe wechseln">Täuschkörper${keycap('decoy')}</button>
       </div>
-      <div class="panel"><div class="hd"><span>Torpedo</span><span id="tubes" class="dim"></span></div>
+    </div>
+    <div class="st-col">
+      <div class="panel fc-tma" style="--stack:5"><div class="hd"><span>Zielbewegungsanalyse</span><span id="tgt" class="amber"></span></div>
+        <div class="fc-tmabar"><span class="seg"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></span>
+          <button id="auto" class="primary">Auto-TMA</button><button id="clear">Verwerfen</button></div>
+        <div class="row"><span class="dim">BEOBACHTBARKEIT</span><span id="v-obs"></span></div>
+        <div class="row" id="ekel-row" style="display:none"><span class="dim">EKELUND</span><span id="v-ekel"></span><button id="ekel-take" style="display:none" title="Ekelund-Entfernung übernehmen">Übernehmen</button></div>
+        <div class="tma-sl">
+          <div><div class="row"><span class="dim">ENTFERNUNG</span><b id="v-rng"></b></div><input id="s-rng" type="range" min="500" max="40000" step="100" aria-label="Entfernung"></div>
+          <div><div class="row"><span class="dim">ZIELKURS</span><b id="v-crs"></b></div><input id="s-crs" type="range" min="0" max="359" step="1" aria-label="Zielkurs"></div>
+          <div><div class="row"><span class="dim">ZIELFAHRT</span><b id="v-spd"></b></div><input id="s-spd" type="range" min="0" max="30" step="0.5" aria-label="Zielfahrt"></div>
+        </div>
+        <div class="row"><span><span class="dim">GÜTE / FEHLER</span> <span id="v-q"></span></span><span><span class="dim">LÖSUNG ALTER</span> <span id="v-age"></span></span></div>
+        <canvas id="res"></canvas>
+        <div id="steps" class="tma-step"></div>
+      </div>
+      <div class="panel fc-tubes" style="--stack:4"><div class="hd"><span>Torpedo</span><span id="tubes" class="dim"></span></div>
         <div id="tr-tubes" class="tubebank"></div>
-        <div class="row"><span class="dim">LAUFGESCHWINDIGKEIT</span><select id="t-spd"><option>40</option><option>30</option></select></div>
-        <div class="row"><span class="dim">SUCHKOPF EIN NACH</span><span><input id="t-en" type="number" value="2000" step="250" style="width:80px"> M</span></div>
-        <div class="row"><span class="dim">SUCHTIEFE</span><span><input id="t-dep" type="number" value="15" step="5" style="width:80px"> M</span></div>
-        <div class="row"><span class="dim">SUCHMODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select></div>
-        <div class="row"><span class="dim">SCHUSSKURS</span><span><input id="t-hdg" type="number" min="0" max="359" style="width:80px">°</span></div>
-        <div class="row"><span class="dim">SALVE</span><span class="steps" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span></div>
-        <div class="row"><span class="dim">FÄCHER</span><span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3" style="width:80px">° <span id="t-spread-auto" class="dim"></span></span></div>
-        <div class="btnrow"><button id="calc">Lösung übernehmen</button><button id="fire" class="fire" style="flex:1">Feuer${keycap('fire')}</button></div>
+      </div>
+      <div class="panel fc-set" style="--stack:6">
+        <div class="fc-grid">
+          <label title="Laufgeschwindigkeit"><span class="dim">LAUF</span><select id="t-spd"><option>40</option><option>30</option></select><span class="u">KN</span></label>
+          <label title="Suchkopf ein nach"><span class="dim">SUCHKOPF</span><input id="t-en" type="number" value="2000" step="250"><span class="u">M</span></label>
+          <label><span class="dim">SUCHTIEFE</span><input id="t-dep" type="number" value="15" step="5"><span class="u">M</span></label>
+          <label title="Suchmodus"><span class="dim">MODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select><span class="u"></span></label>
+          <label><span class="dim">SCHUSSKURS</span><input id="t-hdg" type="number" min="0" max="359" placeholder="—"><span class="u">°</span></label>
+          <label title="Fächerwinkel zwischen zwei Torpedos"><span class="dim">FÄCHER</span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3"><span class="u">°</span></label>
+          <div class="lbl span2"><span class="dim">SALVE</span><span class="seg" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span><span id="t-spread-auto" class="dim"></span></div>
+        </div>
         <div id="fire-why" class="row amber" style="display:none;margin-top:4px;align-items:center"><span id="fire-why-t"></span><button id="fire-fix"></button></div>
       </div>
-      <div class="panel"><div class="hd"><span>Draht · Täuschkörper</span><span class="dim">UNTER 12 KN BLEIBEN</span></div>
-        <div id="wires"></div>
-        <div class="btnrow"><button id="tr-nm" class="warn" title="Geräuschboje gegen anlaufende Torpedos">Täuschkörper ausstoßen${keycap('decoy')}</button></div>
-        <div class="hint">NACH DEM TÄUSCHKÖRPER ABDREHEN UND TIEFE WECHSELN</div>
-      </div>
+      <div class="panel fc-list" style="--stack:7"><div id="list"></div></div>
+      <div class="actionbar" style="--stack:2"><button id="calc" style="flex:3">Lösung übernehmen</button><button id="fire" class="fire" style="flex:4">Feuer${keycap('fire')}</button></div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
@@ -286,14 +292,19 @@ export function fireControlStation(): Station {
       btnState(q('#calc'), hasSol ? { label: 'LÖSUNG' } : { label: 'KEINE', tone: 'empty' });
       const legs = c ? c.history.length : 0;
       const fitQ = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
-      const step = (done: boolean, text: string) => `<div class="${done ? '' : 'amber'}">${done ? '✓' : '▸'} ${text}</div>`;
-      setHtml(q('#steps'), [
-        step(!!c, 'Kontakt wählen (Liste, Karte oder Wasserfall)'),
-        step(legs > 40, 'Peilungen sammeln, dabei einmal den Kurs um 30–60° ändern'),
-        step(!!sol, 'Auto-TMA oder gelben Kreis auf der Karte ziehen'),
-        step(fitQ > 60, 'Güte über 60 % bringen'),
-        step(s.torpedoes.length > 0, 'Lösung übernehmen und Feuer'),
-      ].join(''));
+      // The checklist in one line: the first step still open, the whole list in the tooltip
+      const steps: [boolean, string][] = [
+        [!!c, 'Kontakt wählen (Liste, Karte oder Wasserfall)'],
+        [legs > 40, 'Peilungen sammeln, dabei einmal den Kurs um 30–60° ändern'],
+        [!!sol, 'Auto-TMA oder gelben Kreis auf der Karte ziehen'],
+        [fitQ > 60, 'Güte über 60 % bringen'],
+        [s.torpedoes.length > 0, 'Lösung übernehmen und Feuer'],
+      ];
+      const open = steps.find(([done]) => !done);
+      const nDone = steps.filter(([done]) => done).length;
+      const stepsEl = q('#steps');
+      setHtml(stepsEl, open ? `<span class="dim">${nDone}/5</span> <span class="amber">▸ ${open[1]}</span>` : '<span>✓ Lösung steht, Torpedo läuft</span>');
+      stepsEl.title = steps.map(([done, text]) => `${done ? '✓' : '▸'} ${text}`).join('\n');
       if (c && sol) {
         const fit = evaluateSolution(sol, c.history, store.ownTrack);
         const now = targetPosAt(sol, s.time);

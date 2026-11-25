@@ -20,6 +20,10 @@
 .st .panel.grow.listpanel { max-height: none; }
 .st .panel.grow.listpanel > .scroll { flex: 1; min-height: 0; }
 
+/* Sticky action bar (G2): the primary action at the foot of its column, never below the fold */
+.actionbar { position: sticky; bottom: 0; display: flex; gap: var(--sp2); padding: var(--sp2) 0; background: var(--panel); border-top: 1px solid var(--line); z-index: 2; }
+.actionbar > button { min-height: 32px; }
+
 /* Footer under a display: its own controls left, the how-to hint after them */
 .foot { display: flex; gap: var(--sp2) var(--sp3); align-items: center; flex-wrap: wrap; margin-top: var(--sp2); }
 .foot .hint { margin-top: 0; flex: 1 1 160px; }
@@ -113,6 +117,11 @@
   .fill { flex: none; height: 52vh; }
   .st .listpanel { max-height: none; }
   /* Stacked: one page scroll, no scroll boxes inside it (tab panes and columns take their full height) */
-  .st-col.scroll, .st .panel.tabbed > .pane, .st .panel.grow.listpanel > .scroll { overflow: visible; flex: none; }
+  .st-col.scroll, .st .panel.tabbed > .pane, .st .panel.grow.tabbed > .pane, .st .panel.grow.listpanel > .scroll { overflow: visible; flex: none; }
   .st-col.scroll > .panel.grow { min-height: 0; }
+  /* Stacking order (G3): a station marked .stack dissolves its columns so its blocks interleave
+     by --stack (main display, action bar, list, the rest); the action bar sits in the flow */
+  .st.stack > .st-col { display: contents; }
+  .st.stack > .st-col > * { order: var(--stack, 50); }
+  .st.stack .actionbar { position: static; }
 }

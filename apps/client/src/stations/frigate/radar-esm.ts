@@ -3,9 +3,9 @@ import { net } from '../../net.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { COL, FONT, fitCanvas, h, setHtml } from '../../widgets/format.js';
+import { FONT, fitCanvas, h, setHtml } from '../../widgets/format.js';
 import { fillBox } from '../../widgets/fill.js';
-import { RadarScope, SCOPE } from '../../widgets/radar-scope.js';
+import { RadarScope, SCOPE, esmStrobeRgb } from '../../widgets/radar-scope.js';
 import { fromNorthUp, trueDeg } from '../../north.js';
 import { airDefPanel, samAction } from '../../widgets/airdef-panel.js';
 import { openMenu } from '../../widgets/menu.js';
@@ -20,20 +20,20 @@ const ESM_HEARS_NM = Math.round(esmReach(3, 20) / NM);
 /** Radar room: phosphor PPI with range scales, radar status and an ESM bearing rose. */
 export function radarEsmStation(): Station {
   // The PPI fills the left column; ESM bearings show as strobes on its outer ring (no separate
-  // rose). Right: radar status, air defence and the ESM list.
-  const el = h(`<div class="st two">
+  // rose). Right: radar status and air defence at their own height, then the ESM list, the one
+  // part that scrolls.
+  const el = h(`<div class="st two fradar">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Luft-/Seeraumradar · <span id="rng">12</span> SM</span><span id="rs" class="dim"></span></div>
-        <div class="fill" id="ppi-box"><canvas id="ppi"></canvas></div>
+        <div class="fill" id="ppi-box" title="Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)"><canvas id="ppi"></canvas></div>
         <div class="foot"><button id="radar" class="primary">Radar</button>
-          <span class="seg">${RANGES.map((r) => `<button data-rng="${r}" title="Bereich ${r} SM">${r} SM</button>`).join('')}</span>
-          <span class="hint">KLICK AUF ECHO WÄHLT · ROTE STRICHE AM RAND = ESM-PEILUNGEN</span></div>
+          <span class="seg">${RANGES.map((r) => `<button data-rng="${r}" title="Bereich ${r} SM">${r} SM</button>`).join('')}</span></div>
       </div>
     </div>
-    <div class="st-col scroll">
+    <div class="st-col">
       <div class="panel"><div class="hd"><span>Radarstatus</span><span id="emit" class="dim"></span></div><div id="status"></div></div>
       <div id="airdef"></div>
-      <div class="panel"><div class="hd"><span>ESM · Funkpeilung</span><span id="esm-n" class="dim"></span></div><div id="esm"></div></div>
+      <div class="panel grow listpanel"><div class="hd"><span>ESM · Funkpeilung</span><span id="esm-n" class="dim"></span></div><div id="esm" class="scroll"></div></div>
     </div>
   </div>`);
   // Air defence sits with the air picture: radar, ESM and the SAM in one place
@@ -100,21 +100,22 @@ export function radarEsmStation(): Station {
     ctx.font = FONT.label;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const strobe = (brg: number, age: number, label: string) => {
+    const strobe = (brg: number, age: number, label: string, emitter: string | undefined) => {
       const a = ((trueDeg(brg) - 90) * Math.PI) / 180;
       const fresh = age < 20;
-      ctx.strokeStyle = `rgba(240,149,149,${fresh ? 0.6 + 0.4 * Math.sin(t * 6) : Math.max(0.15, 0.8 - age / 700)})`;
+      const rgb = esmStrobeRgb(emitter);
+      ctx.strokeStyle = `rgba(${rgb},${fresh ? 0.6 + 0.4 * Math.sin(t * 6) : Math.max(0.15, 0.8 - age / 700)})`;
       ctx.lineWidth = fresh ? 3 : 2;
       ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r * 0.86, cy + Math.sin(a) * r * 0.86); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.stroke();
-      ctx.fillStyle = COL.red;
+      ctx.fillStyle = `rgb(${rgb})`;
       ctx.fillText(label, cx + Math.cos(a) * r * 0.79, cy + Math.sin(a) * r * 0.79);
     };
     for (const c of s.contacts) {
       if (!c.sensors.includes('esm')) continue;
       const age = s.time - c.lastSeen;
-      if (age <= 600) strobe(c.bearing, age, c.label);
+      if (age <= 600) strobe(c.bearing, age, c.label, c.emitter);
     }
-    for (const p of s.planes ?? []) if (p.via.includes('esm')) strobe(p.bearing, 0, '✈');
+    for (const p of s.planes ?? []) if (p.via.includes('esm')) strobe(p.bearing, 0, '✈', p.emitter);
     ctx.restore();
   }
 
@@ -145,7 +146,7 @@ export function radarEsmStation(): Station {
         <div class="dim" style="margin-top:6px;line-height:1.5">${on ? `Jede U-Boot-Funkpeilantenne in ${ESM_HEARS_NM} SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.` : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`);
       const esm = s.contacts.filter((c) => c.sensors.includes('esm')).sort((a, b) => b.lastSeen - a.lastSeen);
       const airEsm = (s.planes ?? []).filter((p) => p.via.includes('esm'));
-      const airRows = airEsm.map((p) => esmRow('✈', p.bearing, 'JETZT', p.emitter, p.esmLvl, p.esmTrend, 'red')).join('');
+      const airRows = airEsm.map((p) => esmRow('✈', p.bearing, 'JETZT', p.emitter, p.esmLvl, p.esmTrend, esmTone(p.emitter))).join('');
       el.querySelector('#esm-n')!.textContent = esm.length + airEsm.length ? `${esm.length + airEsm.length} PEILUNGEN` : 'ALLES STILL';
       setHtml(el.querySelector('#esm')!, airRows + (esm.length
         ? esm.map((c) => {

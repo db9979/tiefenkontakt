@@ -50,6 +50,7 @@ import {
   pingRangeOf,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
+import { escortCommandFor } from './escort-command.js';
 
 export interface PlayerExtras {
   /** Briefing already delivered on this connection. */
@@ -264,6 +265,7 @@ export function buildSnapshot(
     planes: shifted ? planesFor(w, own).map((p) => (p.x !== undefined && p.y !== undefined ? { ...p, x: Math.round(p.x + dr.x), y: Math.round(p.y + dr.y) } : p)) : planesFor(w, own),
     orders: ordersFor(w, own),
     hunt: huntFor(w, own),
+    command: escortCommandFor(w, own),
     airdef: airDefFor(w, own),
     ssm: ssmFor(w, own),
     mines: shifted ? minesFor(w, own).map((m) => ({ ...m, x: Math.round(m.x + dr.x), y: Math.round(m.y + dr.y) })) : minesFor(w, own),
@@ -315,7 +317,7 @@ export function buildSnapshot(
       return d.items;
     })(),
     env: {
-      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light, rain: w.env.rain || inSquall(w.env.met, own.pos), clock: w.env.weather?.clock, met: metView(w.env.met),
+      ...layerView(w, own), seaState: w.env.seaState, light: w.env.light, rain: w.env.rain || inSquall(w.env.met, own.pos), clock: w.env.weather?.clock, met: metView(w.env.met),
       bottom: w.env.seabed ? Math.round(depthAt(w.env.seabed, own.pos.x, own.pos.y)) : undefined, seabed: w.env.seabed,
       ...currentView(w, own),
       ...sunView(w),
@@ -351,4 +353,12 @@ export function briefingRng(seed: number, shipId: string): () => number {
   for (const ch of shipId) h = Math.imul(h ^ ch.charCodeAt(0), 0x9e3779b1) >>> 0;
   const r = new Rng(h);
   return () => r.next();
+}
+
+/** The measured layer as the crew sees it here: none where the water is shallower than the layer (mixed to the bottom). */
+function layerView(w: World, own: Ship): { layerDepth?: number; noLayer?: boolean } {
+  const l = own.btLayer;
+  if (l === undefined) return {};
+  const bottom = w.env.seabed ? depthAt(w.env.seabed, own.pos.x, own.pos.y) : Infinity;
+  return l > 0 && bottom > l + 2 ? { layerDepth: l } : { noLayer: true };
 }

@@ -177,7 +177,9 @@ function learnLayer(w: World, s: Ship): void {
 
 /** Bathythermograph: an expendable probe (frigate) measures the layer depth. */
 export function measureLayer(w: World, s: Ship): void {
-  s.btLayer = w.env.layerDepth > 0 ? Math.round(w.env.layerDepth + w.rng.gauss(0, 4)) : 0;
+  // In water shallower than the layer the probe finds the column mixed to the bottom: no layer here
+  const bottom = w.env.seabed ? depthAt(w.env.seabed, s.pos.x, s.pos.y) : Infinity;
+  s.btLayer = w.env.layerDepth > 0 && bottom > w.env.layerDepth + 2 ? Math.round(w.env.layerDepth + w.rng.gauss(0, 4)) : 0;
 }
 
 /** Running torpedoes are loud noise sources that every sonar can hear. */
