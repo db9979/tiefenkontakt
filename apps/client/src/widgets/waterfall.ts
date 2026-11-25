@@ -1,4 +1,4 @@
-import { angleDiff, iceCover, type Snapshot } from '@tk/shared';
+import { angleDiff, bearing, iceCover, type Snapshot } from '@tk/shared';
 import { COL, deg3, fitCanvas } from './format.js';
 import { gameDeg, trueDeg } from '../north.js';
 
@@ -41,6 +41,8 @@ export class Waterfall {
       lines.push({ b: trueDeg(c.bearing), amp, width: 1 + 4 * Math.exp(-c.se / 6) });
       if (c.bearingAlt !== undefined) lines.push({ b: trueDeg(c.bearingAlt), amp, width: 1 + 4 * Math.exp(-c.se / 6) });
     }
+    // Own wire-guided torpedoes: loud and close, a bright narrow trace on their bearing
+    for (const t of s.torpedoes) lines.push({ b: trueDeg(bearing(s.own, t)), amp: 0.9, width: 1.2 });
     const row = this.bctx.createImageData(BINS, 1);
     const stern = trueDeg(s.own.heading + 180);
     const selfNoise = Math.min(0.35, Math.max(0, (s.own.noiseDb - 110) / 120));
@@ -98,9 +100,16 @@ export class Waterfall {
     const hx = pl + (trueDeg(s.own.heading) / 360) * pw;
     ctx.fillStyle = COL.blue;
     ctx.fillText('▼', hx, pt + 9);
-    const shown = s.contacts
-      .filter((c) => c.via === 'own' && s.time - c.lastSeen <= 5 && c.sensors.some((x) => this.sensors.includes(x)))
-      .sort((a, b) => trueDeg(a.bearing) - trueDeg(b.bearing));
+    // Own torpedoes: a red marker over their trace
+    ctx.fillStyle = COL.red;
+    for (const t of s.torpedoes) ctx.fillText(`▼${t.id}`, pl + (trueDeg(bearing(s.own, t)) / 360) * pw, pt + 9);
+    // Contacts and the own torpedoes (on the wire) share the label rows; torpedoes in red
+    const shown = [
+      ...s.contacts
+        .filter((c) => c.via === 'own' && s.time - c.lastSeen <= 5 && c.sensors.some((x) => this.sensors.includes(x)))
+        .map((c) => ({ label: c.label, bearing: c.bearing, torp: false })),
+      ...s.torpedoes.map((t) => ({ label: t.id, bearing: bearing(s.own, t), torp: true })),
+    ].sort((a, b) => trueDeg(a.bearing) - trueDeg(b.bearing));
     if (!shown.length) {
       // Empty state: say what to do instead of a black screen
       ctx.fillStyle = COL.dim;
@@ -130,7 +139,7 @@ export class Waterfall {
     for (const o of overflow) ctx.fillText(`+${o.n}`, o.x, pt + ph + 13 + 3 * 12);
     for (const { c, x, row } of placed) {
       const sel = c.label === selected;
-      ctx.fillStyle = sel ? COL.amber : COL.g2;
+      ctx.fillStyle = sel ? COL.amber : c.torp ? COL.red : COL.g2;
       ctx.fillText(c.label, x, pt + ph + 13 + row * 12);
       if (sel) {
         ctx.strokeStyle = COL.amber;

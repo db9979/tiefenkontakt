@@ -1,5 +1,6 @@
 import type { SoundVoice } from '@tk/shared';
 import type { Fx } from './audio-fx.js';
+import { BioCalls } from './audio-bio.js';
 
 /**
  * The hydrophone in the operator's headphones, synthesised (no recordings):
@@ -58,7 +59,7 @@ export class SonarVoice {
   private tgt: { g: GainNode; lp: BiquadFilterNode; band: BiquadFilterNode; beat: GainNode; blade: OscillatorNode; bladeDepth: GainNode; shaft: OscillatorNode; shaftDepth: GainNode; pan: StereoPannerNode };
   private cav: GainNode;
   private tones: { o: OscillatorNode; g: GainNode }[];
-  private bio: { song: OscillatorNode; songG: GainNode; songLfo: OscillatorNode; clicks: AudioBufferSourceNode; clickG: GainNode; whistle: OscillatorNode; whistleG: GainNode; whistleLfo: OscillatorNode; snap: GainNode; pulse: OscillatorNode; pulseG: GainNode; pulseAm: OscillatorNode };
+  private bio: { songG: GainNode; clicks: AudioBufferSourceNode; clickG: GainNode; whistleG: GainNode; snap: GainNode; pulse: OscillatorNode; pulseG: GainNode; pulseAm: OscillatorNode; calls: BioCalls };
   private whine: { o: OscillatorNode; g: GainNode; vib: OscillatorNode };
   private t0: number;
 
@@ -127,23 +128,21 @@ export class SonarVoice {
     });
     // Biology
     const osc = (type: OscillatorType, hz: number) => { const o = c.createOscillator(); o.type = type; o.frequency.value = hz; o.start(); return o; };
-    const song = osc('sine', 300); const songG = c.createGain(); songG.gain.value = 0;
-    const songLfo = osc('sine', 0.15); const songDepth = c.createGain(); songDepth.gain.value = 120;
-    songLfo.connect(songDepth).connect(song.frequency);
-    song.connect(songG).connect(pan);
+    // Whale song and dolphin whistles: single calls with pauses (audio-bio.ts)
+    const songG = c.createGain(); songG.gain.value = 0;
+    songG.connect(pan);
     const clicks = c.createBufferSource(); clicks.buffer = clickBuffer(c, 3, 0.006); clicks.loop = true;
     const clickG = c.createGain(); clickG.gain.value = 0;
     clicks.connect(clickG).connect(pan); clicks.start();
-    const whistle = osc('sine', 5000); const whistleG = c.createGain(); whistleG.gain.value = 0;
-    const whistleLfo = osc('triangle', 0.7); const wd = c.createGain(); wd.gain.value = 1800;
-    whistleLfo.connect(wd).connect(whistle.frequency);
-    whistle.connect(whistleG).connect(pan);
+    const whistleG = c.createGain(); whistleG.gain.value = 0;
+    whistleG.connect(pan);
+    const calls = new BioCalls(c, whistleG, songG);
     const snap = loop(clickBuffer(c, 400, 0.003), 'highpass', 2000).g;
     const pulse = osc('sine', 80); const pulseG = c.createGain(); pulseG.gain.value = 0;
     const pulseAm = osc('square', 0.8); const pam = c.createGain(); pam.gain.value = 0.5;
     pulseAm.connect(pam).connect(pulseG.gain);
     pulse.connect(pulseG).connect(pan);
-    this.bio = { song, songG, songLfo, clicks, clickG, whistle, whistleG, whistleLfo, snap, pulse, pulseG, pulseAm };
+    this.bio = { songG, clicks, clickG, whistleG, snap, pulse, pulseG, pulseAm, calls };
     // Torpedo: a high, rising whine with a fast flutter of its screw
     const wo = osc('sawtooth', 1400); const wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 1600; wf.Q.value = 4;
     const wg = c.createGain(); wg.gain.value = 0;
@@ -210,7 +209,7 @@ export class SonarVoice {
     const b = this.bio;
     const on = (v: SoundVoice) => (voice === v ? sig : 0);
     b.songG.gain.setTargetAtTime(on('gesang') * 0.8, t, k);
-    b.song.frequency.setTargetAtTime(180 + 120 * Math.sin((t - this.t0) * 0.21), t, 0.5);
+    b.calls.tick(t, voice === 'pfiffe' && sig > 0, voice === 'gesang' && sig > 0);
     b.clickG.gain.setTargetAtTime(on('klicks') * 2 + on('pfiffe') * 0.8, t, k);
     b.clicks.playbackRate.setTargetAtTime(voice === 'pfiffe' ? 6 : 1, t, k);
     b.whistleG.gain.setTargetAtTime(on('pfiffe') * 0.25, t, k);

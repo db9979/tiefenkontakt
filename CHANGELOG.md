@@ -27,6 +27,14 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   (`npx tsx scripts/handbook/recog-pdf.ts` baut es neu).
 - **Schelf ausgeglichen:** Die U-Boote warten 12 statt 10 km abseits der Route. KI-Arena je 12 Partien, Grund / Ost
   gemischt / West gemischt / beide gemischt: vorher 4:8, 11:1, 2:10, 2:10, jetzt 5:7, 7:5, 6:6, 4:8.
+- **Grundaufstellung ausgeglichen:** Das Atom-U-Boot der KI schießt schon bei einer etwas gröberen Lösung. KI-Arena
+  (60 Partien, alle fünf Missionen): Grund 43:17 -> 33:27, West gemischt 30:30 -> 32:28.
+- **Eigene Torpedos am richtigen Ort:** Getaucht zeigt die Karte das Boot am Koppelort; die drahtgelenkten Torpedos
+  standen bisher an ihrer wahren Position und tauchten deshalb um den Koppelfehler versetzt irgendwo auf. Jetzt laufen sie
+  vom gezeichneten Boot los. Im Horchraum erscheinen sie als helle Spur mit rotem Namen (T1 …) in der Zeile der Kontakte,
+  lassen sich anklicken und sind dann auf Karte und in der Drahtsteuerung hervorgehoben.
+- **Natürlichere Biolaute:** Delfinpfiffe und Walgesang sind keine schwingenden Dauertöne mehr, sondern einzelne Rufe mit
+  wechselndem Verlauf und Pausen (Pfiffe in kurzen Gruppen, Gesang in langen gleitenden Einheiten mit Oberton).
 - **Jagd-U-Boot zurückhaltender:** Es schießt erst ab 7,5 km und abwechselnd zwei und einen Torpedo. Beide Seiten gemischt
   in der KI-Arena (60 Partien, alle fünf Missionen) 42:18 -> 38:22, West gemischt unverändert 29:31.
 - **Peillinien-Schalter deutlicher:** Der Knopf rechts oben auf der Karte leuchtet amber, wenn die Peillinien aus sind,

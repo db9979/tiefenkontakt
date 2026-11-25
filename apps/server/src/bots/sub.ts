@@ -163,7 +163,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   }
   const choice = voted(m, target);
   const solved = solveFor(m, target, now, choice);
-  const goodTma = solved && solved.q >= k.tmaQuality + tr.tma;
+  // The fast nuclear boat shoots on a rougher solution (arena, base setup 60 games: 43:17 -> 33:27, West mixed 30:30 -> 32:28)
+  const goodTma = solved && solved.q >= k.tmaQuality + tr.tma - (s.cls === 'ssn' ? SSN_TMA_RELIEF : 0);
   // Against boats there's no periscope range: shoot on a good TMA (or a close, loud contact)
   const close = duel && target.se > 18 ? 4000 : undefined;
   const measured = target.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : undefined;
@@ -220,6 +221,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
 const GUARD_CLEAR_M = 3000;
 /** A guarding boat holds its first shot until the target is this close (m). */
 const GUARD_FIRE_M = 7500;
+/** TMA quality points the nuclear boat may lack and still shoot. */
+const SSN_TMA_RELIEF = 16;
 
 function headingTo(s: Ship, r: { x: number; y: number; b: number }): number {
   // Steer for a point 12 km down the reported bearing from where it was reported

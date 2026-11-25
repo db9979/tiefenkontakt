@@ -156,9 +156,12 @@ export function buildSnapshot(
     friendlies.push(...x.reports.values());
   }
 
+  // The wire reports where the torpedo is relative to the boat: on the chart it sits beside the
+  // dead-reckoned own position, so it carries the same reckoning error
+  const dr = own.drErr ?? { x: 0, y: 0 };
   const torpedoes = (w.weapons?.torpedoes ?? [])
     .filter((t) => t.ownerId === own.id && t.wire)
-    .map((t) => ({ id: t.id, x: t.pos.x, y: t.pos.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run }));
+    .map((t) => ({ id: t.id, x: t.pos.x + dr.x, y: t.pos.y + dr.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run }));
 
   let air: Snapshot['air'];
   if (hasDatalink(own) && w.air) {

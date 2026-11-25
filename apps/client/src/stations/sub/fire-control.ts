@@ -260,7 +260,7 @@ export function fireControlStation(): Station {
       const tubes = s.own.loadout.tubes;
       setHtml(q('#tubes'), tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`);
       setHtml(q('#wires'), s.torpedoes.map((t) => `
-        <div class="row"><span>${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
+        <div class="row ${t.id === store.selected ? 'selrow amber' : ''}"><span>${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
         <span>${tdeg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
     },
     frame() {

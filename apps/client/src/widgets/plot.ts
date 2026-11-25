@@ -320,8 +320,7 @@ export class Plot {
     for (const t of s.torpedoes) {
       const p = P(t);
       const v = screenDir(t.heading);
-      ctx.fillStyle = COL.red;
-      ctx.strokeStyle = COL.red;
+      ctx.fillStyle = ctx.strokeStyle = t.id === store.selected ? COL.amber : COL.red;
       ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + v.x * 14, p.y + v.y * 14); ctx.stroke();
       ctx.fillText(`${t.id}${t.homing ? ' ZIEL' : ''}`, p.x + 6, p.y - 6);

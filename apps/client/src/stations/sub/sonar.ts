@@ -1,4 +1,4 @@
-import { angleDiff, CLASSES } from '@tk/shared';
+import { angleDiff, bearing, CLASSES } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
@@ -22,6 +22,11 @@ export function pickByBearing(b: number, maxDeg = 6): string | undefined {
       const d = Math.abs(angleDiff(cb, b));
       if (d < bd) [best, bd] = [c.label, d];
     }
+  }
+  // The own torpedoes on the wire can be picked too (fire control steers the selected one)
+  for (const t of s.torpedoes) {
+    const d = Math.abs(angleDiff(bearing(s.own, t), b));
+    if (d < bd) [best, bd] = [t.id, d];
   }
   return best;
 }

@@ -80,7 +80,8 @@ export const store = {
       this.ownTrack.push({ t: s.time, x: s.own.x, y: s.own.y });
       if (this.ownTrack.length > 3600) this.ownTrack.shift();
     }
-    if (this.selected && !s.contacts.some((c) => c.label === this.selected)) this.selected = undefined;
+    // A selection lapses when its contact (or own torpedo on the wire) is gone
+    if (this.selected && !s.contacts.some((c) => c.label === this.selected) && !s.torpedoes.some((t) => t.id === this.selected)) this.selected = undefined;
   },
 
   reset(): void {
