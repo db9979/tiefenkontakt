@@ -35,3 +35,45 @@
   /* The list tab keeps six rows and scrolls (G3); threat and active sonar show in full */
   .sub-horch .panel.tabbed > .pane[data-pane="list"] { max-height: 230px; overflow: auto; }
 }
+
+/* ---- Feuerleitung (U3): plot 55 %, TMA and torpedo 45 % with FEUER in the action bar ---- */
+@media (min-width: 1151px) { .st.sub-fc { grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); } }
+/* Contacts: four rows, the list scrolls */
+.sub-fc .fc-list { max-height: 150px; overflow: auto; padding-top: 4px; padding-bottom: 4px; }
+/* Wire strip: the running torpedoes on the wire and the decoy (key T) */
+.sub-fc .fc-wire { display: flex; align-items: center; gap: var(--sp3); padding-top: 4px; padding-bottom: 4px; }
+.sub-fc .fc-wire > .tl { font-size: var(--fs-cap); color: var(--g); letter-spacing: 0.08em; }
+.sub-fc .fc-wire > #wires { flex: 1; min-width: 0; }
+.sub-fc .fc-wire > #wires .row { border-bottom: 0; padding: 1px 0; }
+.sub-fc .fc-wire > button { flex: none; white-space: nowrap; }
+/* TMA: one bar of methods and actions, the three sliders side by side with their values */
+.sub-fc .fc-tmabar { display: flex; flex-wrap: wrap; gap: var(--sp2); margin: var(--sp2) 0; }
+.sub-fc .fc-tmabar > .seg { flex: 1 1 auto; }
+.sub-fc .fc-tmabar > .seg > button { flex: 1; padding-left: 4px; padding-right: 4px; }
+.sub-fc .fc-tmabar > button { min-height: 0; }
+.sub-fc .fc-tma .row { padding: 2px 0; }
+.sub-fc #ekel-row button { padding: 0 6px; min-height: 0; }
+.sub-fc .tma-sl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp3); margin: var(--sp2) 0; }
+.sub-fc .tma-sl .row { border-bottom: 0; padding: 0; font-size: var(--fs-cap); }
+.sub-fc .tma-sl b { font-weight: 600; white-space: nowrap; }
+.sub-fc .tma-sl input[type=range] { width: 100%; margin: 2px 0 0; }
+.sub-fc #res { display: block; margin-top: var(--sp2); }
+.sub-fc .tma-step { margin-top: var(--sp2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+/* Torpedo: the tube bank in one row of six */
+.sub-fc .fc-tubes .tubebank { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); margin: var(--sp2) 0 0; }
+.sub-fc .fc-tubes .tube { padding: 2px 4px; }
+.sub-fc .fc-tubes .tube > b { font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Settings: a 2-column grid, label left, control right */
+.sub-fc .fc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp2) var(--sp4); }
+.sub-fc .fc-grid > label, .sub-fc .fc-grid > .lbl { display: flex; justify-content: space-between; align-items: center; gap: var(--sp2); min-height: 28px; border-bottom: 1px solid var(--line); }
+.sub-fc .fc-grid > .span2 { grid-column: span 2; }
+.sub-fc .fc-grid input[type=number] { width: 72px; }
+.sub-fc .fc-grid .seg > button { padding: 1px 8px; min-height: 24px; }
+/* The action bar at the foot of the right column */
+.sub-fc .actionbar { margin-top: auto; }
+.sub-fc .actionbar > button { min-width: 0; padding-left: 4px; padding-right: 4px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 1150px) {
+  .sub-fc .fill { height: 50vh; }
+  .sub-fc .fc-list { max-height: 170px; }
+}
