@@ -6,6 +6,45 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Expertenpanel-Überarbeitung:** U-Boot- und Fregattenkapitän, Entwickler, Grafikdesigner und Spieletester haben
+  das ganze Spiel geprüft und diskutiert; die folgenden Punkte sind ihr gemeinsamer Beschluss.
+- **Stationen zusammengelegt:** U-Boot 4 Stationen (Horchraum, Sehrohr mit Radarwarner, Feuerleitung mit Rohrbank,
+  Zentrale mit Tauchstand), Fregatte 5 (OPZ mit Hubschrauber- und Verbands-Tab, Sonar mit Aktiv/VDS/BT, Waffen,
+  Radar/ESM, Brücke). Jede Station füllt ihre Höhe, eine gemeinsame Kontaktliste (neue Kontakte oben, Sensor als
+  Buchstabe), Tutorials mit hervorgehobenem Bedienelement und „Warum?“, Notfall-Tasten.
+- **Sehrohr mit Sichtfeld:** Es sieht nur, wohin es zeigt (32°/8°/4° bei 1,5×/6×/12×). Profi: keine Klasse und keine
+  Entfernung geschenkt, Entfernung nur über das Stadimeter. Einsteiger: Klasse nach 10 s Beobachtung bei ≥6×.
+- **Radar gegen Mast und Schnorchel** einmal je Antennenumdrehung, Sehrohr bis 5 sm, Schnorchel bis 8 sm; Seegang
+  stört. **Flugzeugradar** findet Schnorchel (Seefernaufklärer 30 km, Hubschrauber 15 km) und gibt der Eskorte eine
+  ungenaue Position. **ESM/Radarwarner** reichen nur bis zum Funkhorizont (U-Boot–Fregatte etwa 18 sm).
+- **Sonar:** Bojen empfindlicher, Schleppsonar +8 dB nur gegen laute Boote (Schnorchel, Pumpen, Kavitation); der
+  geschleppte Täuschkörper kostet Eigenrauschen und begrenzt auf 25 kn. Aktivsonar mit Einzelping und Bereich
+  4/8/16 km (Ping alle 6/11/22 s). Schleppsonar beruhigt sich nach kleinen Kursänderungen schneller.
+- **Batterie zählt:** Diesel-Boote starten mit 40–70 %, schnelle Fahrt zehrt stark (1 + v³/70 %/h), Reichweite bei
+  dieser Fahrt wird angezeigt.
+- **Torpedos:** 40 kn → 15 km, 30 kn → 25 km; Abschuss nur bis 15 kn und 0,8 × Tauchtiefe (FEUER zeigt den Grund und
+  behebt ihn mit einem Klick); Fächer 1–4; Restlaufzeit je Draht. Frachter: ein Treffer macht ihn zum Nachzügler, der
+  nach 15 min sinkt, zwei Treffer versenken ihn.
+- **U-Jagd-Waffen:** Rakete mit Streuung und 1,8 km Mindestentfernung, Leichttorpedos suchen ober- und unterhalb der
+  gemessenen Schicht, Fregatten mit 6 Rohren und 15 min Nachladen, Wasserbomben ersetzt durch einen nach vorn
+  geworfenen Werfer. Mast nicht über 10 kn.
+- **Bordhubschrauber in der Luft:** Auftragsliste (Bojenlinie, Tauchsonar mit Ortswechsel, MAD, Angriff auf die letzte
+  Position), 90 min Ausdauer, dann 10 min Tanken und Aufmunitionieren.
+- **Tempo:** Das Zeitlimit gilt in echten Minuten (Standard 40, Zeitraffer bleibt ×1), die Aufstellung richtet sich
+  nach der Seezeit, erster Kontakt binnen etwa 10 Minuten. „Zeitraffer bis Ereignis“ (×6) stoppt bei Kontakt, Alarm
+  oder erledigtem Schritt; im Mehrspieler nur, wenn alle zustimmen.
+- **Versenkt, aber dabei:** bei einem Mitspieler mitfahren, verzögert zuschauen oder sofort zur Nachbesprechung.
+- **Lobby für Neue:** „Neu hier? → U-Boot / Fregatte lernen“, klare Spielmodi, Einstellungen hinter „Erweitert“,
+  Einsteiger-Klassen markiert. **Auswertung** mit Ergebnisstufen (knapper Sieg, Unentschieden …) und Wertung je
+  Spieler.
+- **Gestaltung:** Schrift- und Abstands-Stufen, Farbrollen (Rot nur für Gefahr), besserer Kontrast im Hellmodus,
+  Kopfzeile ohne Überlappung, Seitentabs mit Zählern, Ruderstand mit Telegrafenleiste, kein Flackern, Rasterzeilen
+  wahlweise.
+- **Vereinfacht:** Moral-Anzeige entfernt, Gefechtsstationen automatisch bei Alarm, zufällige Crew-Pannen ersetzt durch
+  Geräusche, die der Spieler selbst verursacht (Nachladen, Trimmpumpen, Alarmtauchen bei Schleichfahrt).
+- **Stabilität:** Partie friert nicht mehr ein, wenn ein Mitspieler zurückkommt; Peilverläufe bleiben nach
+  Wiederverbinden erhalten; Verbindungsüberwachung; Kursbefehle beim Ziehen gehen nicht mehr verloren; zwei Lücken im
+  Nebel des Krieges geschlossen; keine Speicher- und WebGL-Lecks mehr zwischen Partien; englische Oberfläche schneller.
 - **Rückwärtsfahrt:** Fahrstufen achteraus (bis 40 % der Höchstfahrt, höchstens 8 kn). Das Schiff verliert erst die
   Fahrt und nimmt dann langsam Fahrt achteraus auf; das Ruder wirkt rückwärts nur halb. Ein aufgelaufenes Schiff kann
   sich achteraus freifahren, wenn hinter ihm tieferes Wasser ist.
