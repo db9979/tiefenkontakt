@@ -65,6 +65,16 @@ export function fitCanvas(c: HTMLCanvasElement, cssHeight: number): CanvasRender
   return ctx;
 }
 
+/** Canvas type scale: scale ticks 10 px, labels 11 px, values and big readouts semibold. Nothing smaller. */
+export const FONT = {
+  tick: '10px ui-monospace, monospace',
+  label: '11px ui-monospace, monospace',
+  value: '600 12px ui-monospace, monospace',
+  big: '600 15px ui-monospace, monospace',
+} as const;
+/** Canvas line weights: grid, bearing lines, tracks, own ship, threats. */
+export const LW = { grid: 1, bearing: 1.25, track: 1.5, own: 2.5, threat: 2 } as const;
+
 export const COL = {
   bg: '#080c0b', grid: 'rgba(93,202,165,0.12)', g: '#5dcaa5', g2: '#9fe1cb', dim: '#5f7a72',
   amber: '#fac775', red: '#f09595', blue: '#85b7eb',

@@ -1,4 +1,5 @@
 import { FOG_SPEED, SQUALL_SPEED, type MetCells, type Vec2 } from '@tk/shared';
+import { FONT } from './format.js';
 
 /**
  * Met forecast on the plot: fog banks, rain squalls and ice fields as shaded areas, icebergs
@@ -40,7 +41,7 @@ export function drawMet(ctx: CanvasRenderingContext2D, met: MetCells | undefined
   if (!met) return;
   ctx.save();
   ctx.lineWidth = 1;
-  ctx.font = '10px ui-monospace, monospace';
+  ctx.font = FONT.label;
   ctx.textAlign = 'center';
   for (const f of met.floes) {
     const c = P(f);

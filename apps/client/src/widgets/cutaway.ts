@@ -1,5 +1,6 @@
 import { CLASSES, compartmentLayout, type ClassId, type CompartmentView, type WreckView } from '@tk/shared';
 import type { RecogMeta } from './recog-render.js';
+import { FONT } from './format.js';
 
 /**
  * Schnittzeichnung for damage control: the own ship as rendered from her 3D model (above and
@@ -279,7 +280,7 @@ export function drawCutaway(ctx: CanvasRenderingContext2D, w: number, h: number,
   }
 
   // Numbers above, selection frame, the party's marker
-  ctx.font = 'bold 10px ui-monospace, monospace';
+  ctx.font = `bold ${FONT.label}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   st.comps.forEach((c, i) => {

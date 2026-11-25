@@ -3,7 +3,7 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { trueDeg } from '../north.js';
 import { btnState } from './btn-state.js';
-import { COL, deg3, esc, fitCanvas, h, km, setHtml } from './format.js';
+import { COL, deg3, esc, fitCanvas, FONT, h, km, setHtml } from './format.js';
 import { simNow } from './smooth.js';
 
 /** Speed of sound for the display (m/s); the ring shows the two-way travel, so it runs at half. */
@@ -128,7 +128,7 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
         ctx.lineWidth = 1;
       }
       // Returns: appear as the ring passes, fade with age; older pings fainter; CW coloured by Doppler
-      ctx.font = '10px ui-monospace, monospace';
+      ctx.font = FONT.label;
       for (const e of echoes) {
         const age = now - e.ping;
         if (age * C_WATER / 2 < e.r || e.r > rM) continue;

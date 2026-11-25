@@ -1,7 +1,7 @@
 import { gameDeg } from '../north.js';
 import { CLASSES, headingVec, type ClassId, type ServerMsg, type TruthView } from '@tk/shared';
 import { net } from '../net.js';
-import { CLASS_LABEL, esc, h, tdeg3 } from './format.js';
+import { CLASS_LABEL, esc, FONT, h, LW, tdeg3 } from './format.js';
 import { Plot } from './plot.js';
 
 /**
@@ -25,8 +25,8 @@ function drawTruth(plot: Plot): void {
   // Extrapolate the twice-a-second picture along each unit's course
   const dt = ((performance.now() - truth.at) / 1000) * truth.scale;
   ctx.save();
-  ctx.font = '10px ui-monospace, monospace';
-  ctx.lineWidth = 1.5;
+  ctx.font = FONT.label;
+  ctx.lineWidth = LW.track;
   for (const s of v.ships) {
     const d = headingVec(s.heading);
     const p = plot.toScreen({ x: s.x + d.x * s.speedKn * 0.514444 * dt, y: s.y + d.y * s.speedKn * 0.514444 * dt });
