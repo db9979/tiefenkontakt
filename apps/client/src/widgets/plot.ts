@@ -7,7 +7,7 @@ import { COL, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { lastFix } from './contact-pos.js';
 import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
-import { touchable } from './touch.js';
+import { onRelease, touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
 import { drawOrderMarks } from './order-marks.js';
@@ -104,8 +104,11 @@ export class Plot {
       e.preventDefault();
       this.scale = Math.min(MAX_SCALE, Math.max(5, this.scale * (e.deltaY > 0 ? 1.15 : 1 / 1.15)));
     }, { passive: false });
-    canvas.addEventListener('pointerdown', (e) => this.down(e));
-    window.addEventListener('pointerup', (e) => this.up(e));
+    canvas.addEventListener('pointerdown', (e) => {
+      this.down(e);
+      // The release may happen outside the chart; listening only for this gesture leaves nothing on the window
+      onRelease(e, (u) => (u.type === 'pointerup' ? this.up(u) : (this.drag = undefined)));
+    });
     canvas.addEventListener('pointermove', (e) => this.move(e));
     canvas.addEventListener('pointerleave', () => (this.mouse = undefined));
     canvas.addEventListener('contextmenu', (e) => this.context(e));

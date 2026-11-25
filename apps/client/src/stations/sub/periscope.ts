@@ -10,11 +10,13 @@ import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
 import { isKey } from '../../widgets/keys.js';
-import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, tdeg1, tdeg3 } from '../../widgets/format.js';
+import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { SkySearch } from '../../widgets/sky-search.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 import { periscopeEsmRows } from '../../widgets/esm-text.js';
+import { LazyGl } from '../../widgets/lazy-gl.js';
+import { onRelease } from '../../widgets/touch.js';
 
 interface Wave {
   x: number;
@@ -62,24 +64,9 @@ export function periscopeStation(): Station {
     <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
-  let glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
-  let gl: Periscope3D | undefined;
-  let glOff = localStorage.getItem('tk_3d') === '0';
-  let loading = false;
-  let freeTimer: ReturnType<typeof setTimeout> | undefined;
   // three.js is loaded only when the periscope is used (falls back to 2D without WebGL2) and freed 20 s after leaving
-  const ensureGl = () => {
-    clearTimeout(freeTimer);
-    if (gl || loading || glOff) return;
-    loading = true;
-    import('../../widgets/periscope3d.js')
-      .then((m) => {
-        loading = false;
-        if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas);
-        else glOff = true;
-      })
-      .catch(() => (glOff = true));
-  };
+  const g3 = new LazyGl<Periscope3D>(el.querySelector<HTMLCanvasElement>('#gl')!, (c) =>
+    import('../../widgets/periscope3d.js').then((m) => (m.Periscope3D.supported() ? new m.Periscope3D(c) : undefined)));
   let periBearing = 0;
   /** Where the operator trains the scope; the optic follows smoothly. */
   let periTarget = 0;
@@ -144,8 +131,8 @@ export function periscopeStation(): Station {
     dragX = e.clientX;
     dragY = e.clientY;
     dragged = false;
+    onRelease(e, () => (dragX = undefined));
   });
-  window.addEventListener('pointerup', () => (dragX = undefined));
   view.addEventListener('pointermove', (e) => {
     if (dragX === undefined) return;
     const dx = e.clientX - dragX;
@@ -236,7 +223,7 @@ export function periscopeStation(): Station {
       btnState(el.querySelector<HTMLElement>('#sky'), sky.sweeping ? { on: true, label: 'SUCHT', tone: 'busy' } : { on: false, label: '' });
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
-      el.querySelector('#data')!.innerHTML = `
+      setHtml(el.querySelector('#data')!, `
         <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${tdeg1(periBearing)}°</span></div>
         <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : '—'}</span></div>
         <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : target ? 'ERKENNUNG ÖFFNEN' : '—'}</span></div>
@@ -247,22 +234,18 @@ export function periscopeStation(): Station {
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>
         ${periscopeEsmRows(s)}
-        ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`;
+        ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`);
     },
     hide() {
-      freeTimer = setTimeout(() => {
-        if (!gl) return;
-        gl.dispose();
-        gl = undefined;
-        const fresh = glCanvas.cloneNode() as HTMLCanvasElement;
-        glCanvas.replaceWith(fresh);
-        glCanvas = fresh;
-      }, 20_000);
+      g3.freeLater();
+    },
+    dispose() {
+      g3.dispose();
     },
     frame() {
       radarScope.frame();
       // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
-      if (store.snap && mastState(store.snap.own).ext > 0) ensureGl();
+      if (store.snap && mastState(store.snap.own).ext > 0) g3.ensure();
       const s = store.snap;
       // The optic fills the station height (within reason) instead of a fixed strip
       const H = Math.max(320, Math.min(680, window.innerHeight - 290));
@@ -290,8 +273,9 @@ export function periscopeStation(): Station {
       const R = Math.min(w * 0.42, H * 0.47);
       const mst = s ? mastState(s.own) : { ext: 0, raised: false, moving: undefined };
       // The head breaks the surface at about 55 % of its travel
+      const gl = g3.scene;
       const use3d = !!gl && mst.ext >= 0.55;
-      glCanvas.style.visibility = use3d ? 'visible' : 'hidden';
+      g3.canvas.style.visibility = use3d ? 'visible' : 'hidden';
       if (use3d && s) {
         const fov = pfov();
         const sols = store.solutions;
@@ -420,7 +404,7 @@ export function periscopeStation(): Station {
         photoReq = false;
         if (s && mst.raised) {
           const fov = pfov();
-          snapPhoto({ layers: [glCanvas, view], crop: { x: cx - R, y: cy - R, w: 2 * R, h: 2 * R }, bearing: periBearing, fov, vfov: fov, pitch: sky.elev, label: store.selected });
+          snapPhoto({ layers: [g3.canvas, view], crop: { x: cx - R, y: cy - R, w: 2 * R, h: 2 * R }, bearing: periBearing, fov, vfov: fov, pitch: sky.elev, label: store.selected });
           flashAt = nowMs;
         }
       }

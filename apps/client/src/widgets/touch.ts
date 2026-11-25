@@ -60,18 +60,32 @@ export function touchable(el: HTMLElement, onPinch?: (factor: number) => void): 
  * scroll gesture (pointercancel or movement) does not trigger it.
  */
 export function onTap(el: HTMLElement, selector: string, fn: (target: HTMLElement) => void): void {
-  let down: { target: HTMLElement; x: number; y: number; id: number } | undefined;
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const target = (e.target as HTMLElement).closest<HTMLElement>(selector);
-    down = target ? { target, x: e.clientX, y: e.clientY, id: e.pointerId } : undefined;
+    if (!target) return;
+    const x = e.clientX;
+    const y = e.clientY;
+    // On the window: the original row may already be detached when the finger lifts
+    onRelease(e, (u) => {
+      if (u.type === 'pointerup' && Math.hypot(u.clientX - x, u.clientY - y) <= 12) fn(target);
+    });
   });
-  el.addEventListener('pointercancel', () => (down = undefined));
-  // On the window: the original row may already be detached when the finger lifts
-  window.addEventListener('pointerup', (e) => {
-    const d = down;
-    down = undefined;
-    if (!d || e.pointerId !== d.id || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) return;
-    fn(d.target);
-  });
+}
+
+/**
+ * Wait for the end of the gesture that `down` started, wherever the pointer is released (the
+ * window listens, so a drag that leaves the element still ends). The listeners exist only for
+ * that one gesture: nothing stays on the window when the element (or the whole match) is gone.
+ * `fn` also runs on pointercancel (check `up.type`).
+ */
+export function onRelease(down: PointerEvent, fn: (up: PointerEvent) => void): void {
+  const ac = new AbortController();
+  const end = (u: PointerEvent) => {
+    if (u.pointerId !== down.pointerId) return;
+    ac.abort();
+    fn(u);
+  };
+  window.addEventListener('pointerup', end, { signal: ac.signal });
+  window.addEventListener('pointercancel', end, { signal: ac.signal });
 }

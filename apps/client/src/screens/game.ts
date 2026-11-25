@@ -42,6 +42,7 @@ import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { ordersPanel } from '../widgets/orders-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
 import { resetPhotoCounter } from '../widgets/photo.js';
+import { FRIGATE_STATIONS, SUB_STATIONS, frigateStation, subStation } from '../stations/titles.js';
 
 export interface Station {
   title: string;
@@ -55,11 +56,22 @@ export interface Station {
   key?(e: KeyboardEvent): boolean;
   /** Called when the player switches away (free heavy resources such as 3D scenes). */
   hide?(): void;
+  /** Called once when the game screen closes: give back WebGL contexts, timers and anything outside `el`. */
+  dispose?(): void;
+}
+
+/** Typing into a field (radio text, chat, a select, an editable note) must not steer the ship. */
+function typing(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
 }
 
 export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   store.reset();
   resetPhotoCounter();
+  // Every window/document listener of this screen hangs on this signal: one abort on leaving removes them all
+  const life = new AbortController();
+  const signal = life.signal;
   store.loadLocal();
   const saver = setInterval(() => store.saveLocal(), 2000);
   const el = h(`<div class="game">
@@ -164,10 +176,14 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const assistant = mountAssistant(q('.station-wrap'), (i) => i < stations.length && show(i));
   const banner = document.createElement('div');
   banner.className = 'banner blink';
+  // A torpedo warning is a way to the countermeasure: click jumps to the decoys
+  // (submarine: torpedo room; frigate: towed decoy on the weapons station)
+  let bannerGo: number | undefined;
+  banner.addEventListener('click', () => bannerGo !== undefined && bannerGo < stations.length && show(bannerGo));
   let endShown = false;
 
   const unlock = () => audio.unlock();
-  window.addEventListener('pointerdown', unlock);
+  window.addEventListener('pointerdown', unlock, { signal });
   const menu = settingsMenu({
     onRealism: () => stations[current]?.snap?.(),
     onBriefing: () => store.briefing && showBriefing(store.briefing, true),
@@ -232,6 +248,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation(), centralStation(), subOrtungStation(), torpedoRoomStation()]
       : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d, frigateOrtungStation(), ...(own && hasHelicopter(own) ? [flightStation()] : [])];
     views3d = new Set([view3d]);
+    // Hints, tutorials and help find stations through stations/titles.ts: say so when the two drift apart
+    const expect: readonly string[] = sub ? SUB_STATIONS : FRIGATE_STATIONS;
+    if (stations.some((st, i) => st.title !== expect[i])) console.warn('Stationsliste weicht von stations/titles.ts ab', stations.map((st) => st.title));
     tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
     tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.onclick = () => show(Number(b.dataset.i))));
     q('#quick').innerHTML = (sub ? ['Konvoi gesichtet', 'Greife an', 'Werde gejagt', 'Position'] : ['Kontakt', 'Torpedo im Wasser', 'Suche Sektor', 'Position'])
@@ -291,6 +310,16 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     document.body.appendChild(ov);
   }
 
+  /** Make the banner a link to a station (the stylesheet keeps banners click-through otherwise). */
+  function setBannerGo(i: number | undefined): void {
+    bannerGo = i;
+    banner.style.pointerEvents = i === undefined ? '' : 'auto';
+    banner.style.cursor = i === undefined ? '' : 'pointer';
+    banner.title = i === undefined ? '' : 'Torpedo! Klick: zum Täuschkörper';
+    if (i === undefined) banner.removeAttribute('role');
+    else banner.setAttribute('role', 'button');
+  }
+
   function renderSide(): void {
     const s = store.snap!;
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
@@ -329,10 +358,12 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       banner.textContent = store.realism === 'profi'
         ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${tdeg3(torp.bearing ?? 0)}`
         : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
+      setBannerGo(sub ? subStation('Torpedoraum') : frigateStation('Waffen'));
       if (!banner.isConnected) document.body.appendChild(banner);
     } else banner.remove();
     if (!s.own.alive && !banner.isConnected) {
       banner.textContent = 'EIGENES SCHIFF GESUNKEN';
+      setBannerGo(undefined);
       document.body.appendChild(banner);
     }
   }
@@ -405,7 +436,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   });
 
   const onKey = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    if (typing(e.target)) return;
     const n = stationKey(e);
     if (n >= 0 && n < stations.length) return show(n);
     if (isKey(e, 'help') || e.key === '?') return helpOverlay(store.snap ? CLASSES[store.snap.own.cls].submarine : true);
@@ -416,7 +447,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     if (stations[current]?.key?.(e)) return;
     helm.key(e);
   };
-  window.addEventListener('keydown', onKey);
+  window.addEventListener('keydown', onKey, { signal });
   // Gamepad: same helm orders as mouse and keyboard; LB/RB cycle stations, Start ⚙, Back help
   const unPad = setPadTarget({
     orderedHeading: () => store.snap?.own.order.heading,
@@ -451,12 +482,16 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     else store.saveLocal();
     off();
     cancelAnimationFrame(raf);
-    window.removeEventListener('keydown', onKey);
+    life.abort();
+    // Stations: the shown one first gets its hide(), then all give back what they hold (WebGL contexts above all)
+    stations[current]?.hide?.();
+    for (const st of stations) st.dispose?.();
+    stations = [];
+    views3d.clear();
     unPad();
     vp.dispose();
     sandbox.dispose();
     voice.leave();
-    window.removeEventListener('pointerdown', unlock);
     banner.remove();
     depthAlarms.dispose();
     orders.dispose();

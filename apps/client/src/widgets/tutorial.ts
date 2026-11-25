@@ -57,7 +57,7 @@ export const LESSON_STEPS: Record<string, { title: string; steps: Step[]; sequen
       { where: '2 · Sonar', text: 'Bringe das Schleppsonar mit 900 m aus (unter der Sprungschicht). Die Winde braucht knapp 4 Minuten; danach 60 s Kurs halten.', done: (s) => s.own.towedLength >= 600 },
       { where: '1 · OPZ', text: 'Rechtsklick vor den Konvoi: „Sonarboje tief“ abwerfen.', done: (s) => (s.air?.buoys.length ?? 0) > 0 },
       { where: '2 · Sonar', text: 'Finde den leisen Kontakt und klassifiziere ihn per LOFAR/DEMON als U-Boot.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine') },
-      { where: '2 · Sonar', text: 'Kurz pingen (LFM ist genauer), um die Entfernung zu bekommen.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine' && c.range !== undefined) },
+      { where: '6 · Ortung', text: 'Auf der Ortung kurz pingen (LFM ist genauer), um die Entfernung zu bekommen.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine' && c.range !== undefined) },
       { where: '3 · Waffen', text: 'U-Jagd-Rakete auf das U-Boot (Knopf oder Rechtsklick auf die Karte).', done: (s) => s.own.loadout.rockets < 8 },
     ],
   },

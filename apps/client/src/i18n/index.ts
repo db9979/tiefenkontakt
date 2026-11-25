@@ -11,8 +11,9 @@ import { EN_RECOG, EN_RECOG_PHRASES } from './en-recog.js';
 /**
  * Language switch. The UI is written in German; for English, rendered text nodes and
  * title/placeholder attributes are translated as they appear (dictionary first, then
- * phrase rules for text with numbers). Canvas drawings, radio messages and text typed
- * by players stay as they are.
+ * phrase rules for text with numbers). Canvas labels are looked up exactly (no phrase
+ * rules: they are drawn every frame); dynamic canvas text stays German unless the draw site
+ * translates it. Radio messages and text typed by players stay as they are.
  */
 
 export type Lang = 'de' | 'en';
@@ -81,6 +82,16 @@ const mark = (en: string): string => {
 const ATTRS = ['title', 'placeholder'] as const;
 const SKIP = '.radio, input, textarea, [data-noi18n]';
 
+/** Translate one attribute of one element (an attribute change says nothing about the subtree). */
+function translateAttr(el: Element, a: string): void {
+  if (el.closest(SKIP) && el.tagName !== 'INPUT') return;
+  const v = el.getAttribute(a);
+  if (v && !produced.has(v)) {
+    const en = t(v);
+    if (en !== v) el.setAttribute(a, mark(en));
+  }
+}
+
 function translateTree(root: Node): void {
   if (root.nodeType === Node.TEXT_NODE) {
     if (!root.parentElement?.closest(SKIP)) translateText(root as Text);
@@ -128,22 +139,50 @@ export function initI18n(): void {
   if (lang === 'de') return;
   patchCanvas();
   translateTree(document.body);
+  // Only what the records name: the changed text node, the changed attribute, the added
+  // subtrees (new, so they must be walked) — never the element's whole subtree again
   new MutationObserver((muts) => {
     for (const m of muts) {
-      if (m.type === 'characterData') translateTree(m.target);
-      else if (m.type === 'attributes') translateTree(m.target);
-      else m.addedNodes.forEach(translateTree);
+      if (m.type === 'characterData') {
+        if (m.target.isConnected) translateTree(m.target);
+      } else if (m.type === 'attributes') {
+        if (m.attributeName && m.target instanceof Element) translateAttr(m.target, m.attributeName);
+      } else {
+        // Nodes added and removed again within the same batch (panels rebuilt 10×/s) are skipped
+        m.addedNodes.forEach((n) => n.isConnected && translateTree(n));
+      }
     }
   }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'placeholder'] });
 }
 
-/** Canvas labels (plot, waterfall, scope, depth profile) go through the same dictionary. */
+/**
+ * Canvas labels (plot, waterfall, scope, depth profile): exact dictionary lookups only. Canvas text
+ * is drawn every frame and changes with every number in it, so the phrase rules (a hundred
+ * regexes per new string) would run all the time; a label made of known parts ("1 · OPZ") is
+ * still put together from the dictionary.
+ */
+const canvasMemo = new Map<string, string>();
+export function canvasText(s: string): string {
+  const hit = canvasDict.get(s) ?? dict.get(s);
+  if (hit !== undefined) return hit;
+  if (!s.includes(' · ')) return s;
+  const m = canvasMemo.get(s);
+  if (m !== undefined) return m;
+  const parts = s.split(' · ');
+  const out = parts.every((p) => canvasDict.has(p) || dict.has(p) || !/[A-Za-zÄÖÜäöü]/.test(p))
+    ? parts.map((p) => canvasDict.get(p) ?? dict.get(p) ?? p).join(' · ')
+    : s;
+  if (canvasMemo.size > 2000) canvasMemo.clear();
+  canvasMemo.set(s, out);
+  return out;
+}
+
 function patchCanvas(): void {
   const proto = CanvasRenderingContext2D.prototype;
   const fill = proto.fillText;
   const stroke = proto.strokeText;
   const measure = proto.measureText;
-  const tr = (s: string) => (typeof s === 'string' && /[A-Za-zÄÖÜäöü]/.test(s) ? canvasDict.get(s) ?? t(s) : s);
+  const tr = (s: string) => (typeof s === 'string' ? canvasText(s) : s);
   proto.fillText = function (this: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth?: number) {
     return maxWidth === undefined ? fill.call(this, tr(text), x, y) : fill.call(this, tr(text), x, y, maxWidth);
   };
