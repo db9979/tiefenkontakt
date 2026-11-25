@@ -14,6 +14,9 @@ import {
   emptyDamage,
   depthAt,
   aircraftPosition,
+  heloLow,
+  heloView,
+  HELO_REFUEL_S,
   cavitationSpeedKn,
   sourceLevel,
   towedArrayReady,
@@ -212,14 +215,21 @@ export function buildSnapshot(
       const p = team.has(s.shipId) && ship ? aircraftPosition(s, w.time, ship) : undefined;
       if (p) helos.push({ ...p, kind: s.kind ?? 'buoy', hovering: s.hoverUntil !== undefined && w.time >= s.dropAt && w.time <= s.hoverUntil });
     }
-    const mine = w.air.sorties.filter((s) => s.shipId === own.id && s.kind !== 'mpa').map((s) => s.readyAt);
+    const KIND = { dip: 'dip', buoys: 'buoy', mad: 'mad', attack: 'torpedo', return: 'transit' } as const;
+    for (const h of Object.values(w.air.helos ?? {})) {
+      if (!team.has(h.shipId) || h.state !== 'air') continue;
+      const low = heloLow(h);
+      helos.push({ x: h.x, y: h.y, kind: h.queue[0] ? KIND[h.queue[0].kind] : 'transit', hovering: low === 'dip' });
+    }
     const mpa = w.air.mpa?.[own.team];
+    const helo = heloView(w, own);
     air = {
       buoys: w.air.buoys.filter((b) => team.has(b.ownerId)).map((b) => ({ id: b.id, x: b.pos.x, y: b.pos.y, depth: b.depth, leftS: b.expiresAt - w.time, active: b.active })),
       helos,
-      stock: w.air.stock.get(own.id) ?? 0,
-      heloReadyInS: Math.max(0, ...mine.map((t) => t - w.time)),
-      heloTorps: w.air.heloTorps?.get(own.id) ?? 0,
+      stock: helo?.buoys ?? 0,
+      heloReadyInS: !helo ? 0 : helo.state === 'deck' ? helo.readyInS : helo.fuelS + HELO_REFUEL_S,
+      heloTorps: helo?.torps ?? 0,
+      helo,
       mpaReadyInS: mpa ? Math.max(0, mpa.readyAt - w.time) : 0,
       mpaBuoys: mpa?.buoys ?? 0,
     };
