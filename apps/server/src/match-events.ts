@@ -20,6 +20,7 @@ import {
 } from '@tk/shared';
 
 import { airdefAlerts } from './airdef-events.js';
+import type { PlayerExtras } from './snapshot.js';
 
 /** Turning simulation events into per-player alerts (what each crew can hear or is told). */
 
@@ -40,6 +41,16 @@ export interface AlertContext {
   alert(playerId: string, a: AlertView): void;
   /** Team radio line for a player (AI escorts announcing their roles). */
   radio?(playerId: string, r: RadioMsg): void;
+}
+
+/** Add an alert to a player's capped list (counting what falls off the front, for the deltas). */
+export function pushAlert(x: PlayerExtras | undefined, a: AlertView): void {
+  if (!x) return;
+  x.alerts.push(a);
+  if (x.alerts.length > 40) {
+    x.alerts.shift();
+    x.alertsDropped = (x.alertsDropped ?? 0) + 1;
+  }
 }
 
 export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void {

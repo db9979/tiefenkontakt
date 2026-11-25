@@ -29,14 +29,14 @@ import { Recorder, type RecorderState } from './recorder.js';
 import { buildLesson, lessonResult } from './lessons.js';
 import { learnFrom } from './learning.js';
 import { applyCommand, type GameCommand } from './input.js';
-import { alertsFor } from './match-events.js';
+import { alertsFor, pushAlert } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, isMixedClass, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
 import { resolveLobby } from './variation.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
 import { radioToTeam, spectateView } from './match-io.js';
-import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
+import { briefingRng, buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 
 export interface Conn {
   playerId: string;
@@ -58,7 +58,9 @@ export const MAX_PER_TEAM = 6;
 const SPECTATE_EVERY = 30; // ticks (3 s)
 /** Spectators see the truth this many sim seconds late, so it can't be relayed to a team. */
 export const SPECTATE_DELAY = 240;
-const SNAP_EVERY = 1; // ticks -> 10 Hz (clients also extrapolate between snapshots)
+/** Sandbox sim steps always run per tick; more (up to the time scale) only within the budget. */
+const SANDBOX_SURE_STEPS = 4;
+const SANDBOX_TICK_BUDGET_MS = 40;
 
 type Side = 'west' | 'east';
 
@@ -138,7 +140,7 @@ export class Match {
 
   get connected(): number { return this.conns.size; }
 
-  /** Ticks run so far (the store skips rewriting a match that hasn't moved). */
+  /** Ticks so far (the store doesn't rewrite a match that hasn't moved). */
   get ticks(): number { return this.tickCount; }
 
   online(playerId: string): boolean { return this.conns.has(playerId); }
@@ -275,7 +277,7 @@ export class Match {
     if (this.state !== 'running' || !this.world) return 'Zuschauen geht nur bei laufenden Partien';
     if (this.settings.lesson) return 'Ausbildungen sind privat';
     this.spectators.set(conn.playerId, conn);
-    this.sendSpectate(conn);
+    conn.send({ t: 'spectate', delayS: SPECTATE_DELAY, d: spectateView(this.recorder, this.world, this.slots, SPECTATE_DELAY) });
     return undefined;
   }
 
@@ -285,10 +287,6 @@ export class Match {
   setTimeScale(n: number): void {
     this.settings.timeScale = n;
     for (const x of this.extras.values()) x.timeScale = n;
-  }
-
-  private sendSpectate(conn: Conn): void {
-    if (this.world) conn.send({ t: 'spectate', delayS: SPECTATE_DELAY, d: spectateView(this.recorder, this.world, this.slots, SPECTATE_DELAY) });
   }
 
   /** Join a teammate's ship as crew (or leave the crew with null). */
@@ -422,21 +420,10 @@ export class Match {
     return undefined;
   }
 
-  private alert(playerId: string, a: AlertView): void {
-    const x = this.extras.get(playerId);
-    if (x) {
-      x.alerts.push(a);
-      if (x.alerts.length > 40) {
-        x.alerts.shift();
-        x.alertsDropped = (x.alertsDropped ?? 0) + 1;
-      }
-    }
-  }
-
   private processEvents(w: World): void {
     const fresh = w.events.slice(this.eventCursor);
     this.eventCursor = w.events.length;
-    alertsFor(w, fresh, { slots: this.slots, shipOf: (id) => this.shipOf(id), aboard: (id) => this.aboard(id), alert: (id, a) => this.alert(id, a), radio: (id, r) => this.extras.get(id)?.radio.push(r) });
+    alertsFor(w, fresh, { slots: this.slots, shipOf: (id) => this.shipOf(id), aboard: (id) => this.aboard(id), alert: (id, a) => pushAlert(this.extras.get(id), a), radio: (id, r) => this.extras.get(id)?.radio.push(r) });
   }
 
   tick(): void {
@@ -444,7 +431,10 @@ export class Match {
     if (!w || this.state !== 'running') return;
     // Paused while no human is connected (reload, lost link, server restart)
     if (this.conns.size === 0) return;
+    // Sandbox ×10: past the first steps only while the tick is cheap (one sandbox can't starve the server)
+    const started = performance.now();
     for (let i = 0; i < this.settings.timeScale; i++) {
+      if (this.settings.sandbox && i >= SANDBOX_SURE_STEPS && performance.now() - started > SANDBOX_TICK_BUDGET_MS) break;
       stepWorld(w);
       this.recorder.step(w);
       this.bots.step(w);
@@ -457,32 +447,15 @@ export class Match {
       if (mastExposed(ship)) x.mastUpSince ??= w.time;
       else x.mastUpSince = undefined;
     }
-    if (this.spectators.size && this.tickCount % SPECTATE_EVERY === 0) for (const c of this.spectators.values()) this.sendSpectate(c);
+    if (this.spectators.size && this.tickCount % SPECTATE_EVERY === 0) {
+      // One view for all spectators (it rebuilds the whole debrief so far)
+      const d = spectateView(this.recorder, w, this.slots, SPECTATE_DELAY);
+      for (const c of this.spectators.values()) c.send({ t: 'spectate', delayS: SPECTATE_DELAY, d });
+    }
     const limit = simTimeLimit(this.settings);
     const result = this.settings.lesson ? lessonResult(w, this.settings.lesson, limit) : evaluate(w, limit, this.settings.mission);
     this.tickCount++;
-    if (this.tickCount % SNAP_EVERY === 0 || result) {
-      const score = { ...computeScore(w), timeLeftS: Math.max(0, limit - w.time) };
-      for (const s of this.slots) {
-        const ship = this.shipOf(s.playerId);
-        const x = this.extras.get(s.playerId);
-        const c = this.conns.get(s.playerId);
-        // Skipped before building, so the delta bookkeeping only advances for what was sent
-        if (ship && x && c && !c.congested?.()) {
-          const full = !x.histSent;
-          const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)]);
-          snap.full = full;
-          snap.crew = this.aboard(ship.id).map((a) => a.callsign);
-          snap.lesson = this.settings.lesson;
-          if (!x.briefed && !this.settings.lesson) {
-            snap.briefing = buildBriefing(w, ship, this.settings, Math.random);
-            x.briefed = true;
-          }
-          snap.stations = this.aboard(ship.id).filter((a) => a.station !== undefined).map((a) => ({ callsign: a.callsign, station: a.station! }));
-          c.send({ t: 'snap', s: snap });
-        }
-      }
-    }
+    this.sendSnapshots(w, limit);
     if (result) {
       this.state = 'ended';
       this.stop();
@@ -493,6 +466,29 @@ export class Match {
       }
       this.onFinish?.(this.finished.debrief);
       this.onChange?.();
+    }
+  }
+
+  /** Each connected player's view of the world (10 Hz; clients extrapolate in between). */
+  private sendSnapshots(w: World, limit: number): void {
+    const score = { ...computeScore(w), timeLeftS: Math.max(0, limit - w.time) };
+    for (const s of this.slots) {
+      const ship = this.shipOf(s.playerId);
+      const x = this.extras.get(s.playerId);
+      const c = this.conns.get(s.playerId);
+      // A congested link is skipped before building, so the delta bookkeeping only advances for what was sent
+      if (!ship || !x || !c || c.congested?.()) continue;
+      const full = !x.histSent;
+      const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)]);
+      snap.full = full;
+      snap.crew = this.aboard(ship.id).map((a) => a.callsign);
+      snap.lesson = this.settings.lesson;
+      if (!x.briefed && !this.settings.lesson) {
+        snap.briefing = buildBriefing(w, ship, this.settings, briefingRng(this.seed, ship.id));
+        x.briefed = true;
+      }
+      snap.stations = this.aboard(ship.id).filter((a) => a.station !== undefined).map((a) => ({ callsign: a.callsign, station: a.station! }));
+      c.send({ t: 'snap', s: snap });
     }
   }
 

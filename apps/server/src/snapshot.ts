@@ -40,6 +40,7 @@ import {
   sunPosition,
   nextSatPassIn,
   REGIONS,
+  Rng,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
 
@@ -303,4 +304,12 @@ function sunView(w: World): { sun?: { el: number; az: number }; month?: number }
   const p = sunPosition(lat, month, weather.clock);
   const turn = seabed?.region ? REGIONS[seabed.region].bearing : 0;
   return { sun: { el: Math.round(p.el * 10) / 10, az: Math.round(wrap360(p.az - turn)) }, month };
+}
+
+/** The briefing's own random stream: the same text after a reconnect, the sim's stream untouched. */
+export function briefingRng(seed: number, shipId: string): () => number {
+  let h = seed >>> 0;
+  for (const ch of shipId) h = Math.imul(h ^ ch.charCodeAt(0), 0x9e3779b1) >>> 0;
+  const r = new Rng(h);
+  return () => r.next();
 }
