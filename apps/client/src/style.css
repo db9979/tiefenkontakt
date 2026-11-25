@@ -449,3 +449,8 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 .depth-callout.danger { border: 2px solid var(--red); background: #2a0d0d; color: #ffd0d0; }
 /* Helm compass: a round dial without the square screen bezel */
 .helm #h-compass { border-radius: 50%; box-shadow: none !important; filter: none !important; }
+/* Status strip: nothing overlaps; the ship name and the convoy text give way first */
+.topbar .status .st-ship { min-width: 6ch; }
+.st-prog { flex: 0 1 auto; overflow: hidden; }
+.st-clock { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1500px) { #pb-txt { display: none; } }
