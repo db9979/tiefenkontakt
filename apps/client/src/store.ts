@@ -45,7 +45,13 @@ export const store = {
 
   ingest(s: Snapshot): void {
     if (s.full) {
-      this.histories.clear();
+      // A full snapshot (reconnect) resends only the server's recent bearings: keep the older
+      // local ones (a TMA needs both legs) and replace the overlap with the server's samples
+      for (const c of s.contacts) {
+        const first = c.history[0]?.t;
+        const prev = this.histories.get(c.label);
+        if (prev && first !== undefined) this.histories.set(c.label, prev.filter((h) => h.t < first));
+      }
       this.evidence.clear();
       this.alerts = [];
       this.radio = [];

@@ -160,6 +160,10 @@ export class Match {
   /** A returning player gets their connection back; the match resumes. */
   reattach(conn: Conn): void {
     this.conns.set(conn.playerId, conn);
+    // The sim was stopped when the last connected player left (a detached teammate kept it alive)
+    if (this.state === 'running' && !this.timer) {
+      this.timer = setInterval(() => metrics.timeTick(() => this.tick()), SIM_DT * 1000);
+    }
     const x = this.extras.get(conn.playerId);
     if (x) {
       // Next snapshot is complete: full histories, evidence, recent alerts and radio

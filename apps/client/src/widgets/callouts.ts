@@ -95,10 +95,11 @@ export class Callouts {
   update(s: Snapshot): void {
     const p = this.prev;
     this.prev = s;
-    if (!p) {
+    // First snapshot, or a full one after a reconnect: the gap's alerts arrive at once
+    if (!p || s.full) {
       for (const c of s.contacts) this.known.add(c.label);
       // After a reconnect the recent alerts arrive at once: list them, don't speak them
-      for (const a of s.alerts) this.log.push({ time: a.time, text: a.text, level: LEVEL[a.kind] ?? 'info' });
+      for (const a of s.alerts) if (!p || a.time > p.time) this.log.push({ time: a.time, text: a.text, level: LEVEL[a.kind] ?? 'info' });
       return;
     }
     const sub = CLASSES[s.own.cls].submarine;

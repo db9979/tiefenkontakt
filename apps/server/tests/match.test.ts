@@ -415,3 +415,20 @@ describe('new missions', () => {
     expect(m.slots[0]!.cls).toBe('ssk');
   });
 });
+
+describe('sim keeps running for a returning player', () => {
+  it('restarts the clock when a detached teammate reconnects after the last connected player left', () => {
+    const { lobby, m, west, east } = setup();
+    // West loses the link, then East quits: nobody connected, the sim stops
+    lobby.disconnect(west);
+    lobby.handle(east, { t: 'leave' });
+    m.stop();
+    expect((m as unknown as { timer?: unknown }).timer).toBeUndefined();
+    // West comes back: the clock must run again
+    const back = fakeConn('w1');
+    lobby.connect(back);
+    lobby.resume(back);
+    expect((m as unknown as { timer?: unknown }).timer).toBeDefined();
+    m.stop();
+  });
+});
