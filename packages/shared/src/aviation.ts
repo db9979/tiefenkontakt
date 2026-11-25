@@ -80,6 +80,7 @@ const MAD_SURE_M = 250;
 const MAD_MAX_M = 400;
 const DIP_PING_S = 20;
 const DIP_RANGE = 12_000;
+export { DIP_RANGE };
 const MPA_SPEED = 300 * KN;
 const MPA_COOLDOWN = 1800;
 const MPA_PATTERN = 6;

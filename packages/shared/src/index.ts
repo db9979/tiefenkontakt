@@ -42,6 +42,7 @@ export * from './weather.js';
 export * from './met.js';
 export * from './met-step.js';
 export * from './recognition.js';
+export * from './recog-sheet.js';
 export * from './badges.js';
 export * from './terrain.js';
 export * from './currents.js';

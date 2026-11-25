@@ -86,6 +86,7 @@ export function fading(key: string, t: number): number {
 const RADAR_RANGE = 22 * NM;
 const RADAR_MAST_RANGE = 6 * NM;
 const ESM_RANGE = 40 * NM;
+export { RADAR_RANGE, RADAR_MAST_RANGE };
 
 export interface SensorContext {
   ships: readonly Ship[];
