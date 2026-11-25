@@ -36,34 +36,62 @@ export function announce(text: string, level: 'info' | 'warn' | 'alarm'): void {
 /** Elements that act on a click but are no buttons: rows of lists, map symbols, cards. */
 const CLICKABLE = '.clickable, [data-c], [data-ev], [data-sys], [data-log], [data-cls], [data-sort], [data-st], [data-mission], .mcard';
 
-function label(root: ParentNode): void {
-  for (const b of root.querySelectorAll<HTMLButtonElement>('button:not([aria-label])')) {
-    const text = b.textContent?.trim() ?? '';
-    // Icon only (⚙, ?, ×, ☀, +, −, ◎ …): the title says what it does
-    if (b.title && !/[A-Za-zÄÖÜäöü0-9]{2}/.test(text)) b.setAttribute('aria-label', b.title);
-  }
-  for (const c of root.querySelectorAll<HTMLCanvasElement>('canvas:not([role])')) {
-    c.setAttribute('role', 'img');
-    const hd = c.closest('.panel')?.querySelector('.hd span')?.textContent?.trim();
-    const name = c.title || hd;
-    if (name) c.setAttribute('aria-label', name);
-  }
+function labelButton(b: HTMLButtonElement): void {
+  if (b.hasAttribute('aria-label')) return;
+  const text = b.textContent?.trim() ?? '';
+  // Icon only (⚙, ?, ×, ☀, +, −, ◎ …): the title says what it does
+  if (b.title && !/[A-Za-zÄÖÜäöü0-9]{2}/.test(text)) b.setAttribute('aria-label', b.title);
+}
+
+function labelCanvas(c: HTMLCanvasElement): void {
+  if (c.hasAttribute('role')) return;
+  c.setAttribute('role', 'img');
+  const hd = c.closest('.panel')?.querySelector('.hd span')?.textContent?.trim();
+  const name = c.title || hd;
+  if (name) c.setAttribute('aria-label', name);
+}
+
+function labelTab(b: HTMLButtonElement): void {
+  b.setAttribute('role', 'tab');
+  const sel = b.classList.contains('on') ? 'true' : 'false';
+  if (b.getAttribute('aria-selected') !== sel) b.setAttribute('aria-selected', sel);
+}
+
+function labelClickable(el: HTMLElement): void {
+  if (el.tabIndex >= 0 || el.matches('button, a, input, select, textarea')) return;
+  el.tabIndex = 0;
+  if (!el.getAttribute('role')) el.setAttribute('role', 'button');
+}
+
+function labelOverlay(o: HTMLElement): void {
+  if (o.hasAttribute('role')) return;
+  o.setAttribute('role', 'dialog');
+  o.setAttribute('aria-modal', 'true');
+}
+
+/** Label one element by what it is (no descendants). */
+function labelOne(el: Element): void {
+  if (!(el instanceof HTMLElement)) return;
+  if (el instanceof HTMLButtonElement) {
+    labelButton(el);
+    if (el.parentElement?.matches('#tabs, #side-tabs')) labelTab(el);
+  } else if (el instanceof HTMLCanvasElement) labelCanvas(el);
+  if (el.matches('#tabs, #side-tabs')) el.setAttribute('role', 'tablist');
+  if (el.matches(CLICKABLE)) labelClickable(el);
+  if (el.matches('.overlay')) labelOverlay(el);
+}
+
+/** Label an element and everything below it. */
+function label(root: Element): void {
+  labelOne(root);
+  for (const b of root.querySelectorAll<HTMLButtonElement>('button:not([aria-label])')) labelButton(b);
+  for (const c of root.querySelectorAll<HTMLCanvasElement>('canvas:not([role])')) labelCanvas(c);
   for (const t of root.querySelectorAll<HTMLElement>('#tabs, #side-tabs')) {
     t.setAttribute('role', 'tablist');
-    for (const b of t.querySelectorAll('button')) {
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', b.classList.contains('on') ? 'true' : 'false');
-    }
+    for (const b of t.querySelectorAll('button')) labelTab(b);
   }
-  for (const el of root.querySelectorAll<HTMLElement>(CLICKABLE)) {
-    if (el.tabIndex >= 0 || el.matches('button, a, input, select, textarea')) continue;
-    el.tabIndex = 0;
-    if (!el.getAttribute('role')) el.setAttribute('role', 'button');
-  }
-  for (const o of root.querySelectorAll<HTMLElement>('.overlay:not([role])')) {
-    o.setAttribute('role', 'dialog');
-    o.setAttribute('aria-modal', 'true');
-  }
+  for (const el of root.querySelectorAll<HTMLElement>(CLICKABLE)) labelClickable(el);
+  for (const o of root.querySelectorAll<HTMLElement>('.overlay:not([role])')) labelOverlay(o);
 }
 
 /**
@@ -81,15 +109,37 @@ export function activate(el: HTMLElement): void {
 export function installA11y(): void {
   regions();
   label(document.body);
+  // Only the elements the mutation records name: added subtrees are labelled whole, an element
+  // whose class changed only by itself (tabs switching "on", rows becoming clickable). The
+  // game rebuilds panels ten times a second, so this runs at most four times a second.
+  const added = new Set<Element>();
+  const changed = new Set<Element>();
   let queued = false;
-  new MutationObserver(() => {
-    if (queued) return;
+  const flush = () => {
+    queued = false;
+    for (const el of added) {
+      // A subtree inside another added subtree is labelled with it
+      let up = el.parentElement;
+      while (up && !added.has(up)) up = up.parentElement;
+      if (!up && el.isConnected) label(el);
+    }
+    for (const el of changed) if (el.isConnected && !added.has(el)) labelOne(el);
+    added.clear();
+    changed.clear();
+  };
+  new MutationObserver((muts) => {
+    for (const m of muts) {
+      if (m.type === 'attributes') {
+        if (m.target instanceof Element) changed.add(m.target);
+      } else {
+        m.addedNodes.forEach((n) => n instanceof Element && added.add(n));
+        // A text change inside a button may turn it into (or out of) an icon-only button
+        if (m.target instanceof HTMLButtonElement) changed.add(m.target);
+      }
+    }
+    if (queued || (!added.size && !changed.size)) return;
     queued = true;
-    // At most four passes a second: the game redraws its panels ten times a second
-    setTimeout(() => {
-      queued = false;
-      label(document.body);
-    }, 250);
+    setTimeout(flush, 250);
   }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
   document.addEventListener('keydown', (e) => {
     const t = e.target as HTMLElement;
