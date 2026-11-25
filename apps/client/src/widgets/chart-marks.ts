@@ -139,8 +139,34 @@ function segDist(p: Vec2, a: Vec2, b: Vec2): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
+/**
+ * A lane's name at a point of the lane where it fits whole inside the chart and clear of the
+ * depth legend in the lower left, the tool buttons along the top and the points to keep clear
+ * (the own ship); tried along the lane from its middle outwards, left out if nowhere fits.
+ */
+function laneLabel(ctx: CanvasRenderingContext2D, text: string, pts: Vec2[], avoid: Vec2[]): void {
+  const cv = ctx.canvas as HTMLCanvasElement;
+  const w = cv.clientWidth || cv.width;
+  const h = cv.clientHeight || cv.height;
+  const tw = ctx.measureText(text).width;
+  // Candidates every 30 px along the lane
+  const cand: Vec2[] = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!;
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 30));
+    for (let k = 0; k < n; k++) cand.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n - 5 });
+  }
+  const m = cand.length / 2;
+  const order = cand.map((_, i) => i).sort((a, b) => Math.abs(a - m) - Math.abs(b - m));
+  const free = (x: number, y: number) => x - tw / 2 >= 4 && x + tw / 2 <= w - 50 && y - 10 >= 40 && y + 2 <= h - 4
+    && !(x - tw / 2 < 240 && y + 2 > h - 70)
+    && avoid.every((p) => Math.abs(p.x - x) > tw / 2 + 24 || Math.abs(p.y - y) > 24);
+  const at = order.map((i) => cand[i]!).find((p) => free(p.x, p.y));
+  if (at) ctx.fillText(text, at.x, at.y);
+}
+
 /** Shipping lanes, ferry routes and fishing banks as the printed chart shows them (faint magenta). */
-export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, region: RegionId | undefined): void {
+export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, region: RegionId | undefined, avoid: Vec2[] = []): void {
   const lanes = lanesOf(region);
   const grounds = groundsOf(region);
   if (!lanes.length && !grounds.length) return;
@@ -155,8 +181,7 @@ export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, r
     ctx.beginPath();
     l.xy.forEach((p, i) => { const q = P(p); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); });
     ctx.stroke();
-    const mid = P(l.xy[Math.floor(l.xy.length / 2)]!);
-    ctx.fillText(l.name.toUpperCase(), mid.x, mid.y - 5);
+    laneLabel(ctx, l.name.toUpperCase(), l.xy.map(P), avoid);
   }
   ctx.setLineDash([3, 3]);
   for (const g of grounds) {

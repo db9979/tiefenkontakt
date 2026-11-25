@@ -18,6 +18,7 @@ import { chartToScreen, chartToWorld, northUpGrid, panDelta, screenDir } from '.
 import { trueDeg } from '../north.js';
 import { esmPlotLabel } from './esm-text.js';
 import { RoutePlot } from './route-plot.js';
+import { chartLabel } from './canvas-text.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -379,7 +380,7 @@ export class Plot {
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y + v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 
-    drawLanes(ctx, P, s.env.seabed?.region); drawHavens(ctx, P, s);
+    drawLanes(ctx, P, s.env.seabed?.region, [o]); drawHavens(ctx, P, s);
     this.marks.draw(ctx, P, this.scale);
     this.route?.draw(ctx, s);
     ctx.fillStyle = COL.dim;
@@ -390,6 +391,12 @@ export class Plot {
       const wp = this.toWorld(this.mouse);
       foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))} · ` + foot;
     }
+    // On a plate (the legend's plate reaches down here, a longer mouse readout gets its own)
+    const fw = ctx.measureText(foot).width;
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,14,16,0.72)';
+    ctx.fillRect(4, height - 20, fw + 8, 16);
+    ctx.restore();
     ctx.fillText(foot, 8, height - 8);
   }
 
@@ -463,14 +470,14 @@ export class Plot {
         const lb = headingVec(cur ?? c.bearing);
         const me = ownNow();
         const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
-        ctx.fillText(c.sensors.includes('esm') ? esmPlotLabel(c.label, c.emitter) : c.label, lp.x + 4, lp.y - 4);
+        chartLabel(ctx, c.sensors.includes('esm') ? esmPlotLabel(c.label, c.emitter) : c.label, lp.x + 4, lp.y - 4, 8);
       }
       const fix = lastFix(c, s);
       if (fix) {
         const p = P(fix.pos);
         const aff: Affiliation = friendly ? 'friend' : c.assigned && c.assigned !== 'unknown' && c.assigned !== 'bio' ? 'hostile' : 'unknown';
         drawSymbol(ctx, p.x, p.y, aff, c.assigned === 'submarine' || c.assigned === 'torpedo' ? 'subsurface' : 'surface', 6, sel);
-        ctx.fillText(c.label, p.x + 9, p.y - 6);
+        chartLabel(ctx, c.label, p.x + 9, p.y - 6, 18);
       }
       const sol = store.solutions.get(c.label);
       if (sol) {

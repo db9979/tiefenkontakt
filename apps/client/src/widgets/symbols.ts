@@ -1,3 +1,4 @@
+import { chartLabel } from './canvas-text.js';
 /**
  * Simplified NATO APP-6 frames for the tactical plot: friend = circle, hostile = diamond,
  * unknown = quatrefoil, neutral = square. Subsurface contacts show only the lower half.
@@ -86,6 +87,6 @@ export function drawNavUncertainty(ctx: CanvasRenderingContext2D, o: { x: number
   ctx.beginPath(); ctx.arc(o.x, o.y, rPx, 0, 7); ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle = 'rgba(250,199,117,0.8)';
-  ctx.fillText(`KOPPELORT ±${(rM / 1852).toFixed(1).replace('.', ',')} SM`, o.x + rPx * 0.72, o.y - rPx * 0.72);
+  chartLabel(ctx, `KOPPELORT ±${(rM / 1852).toFixed(1).replace('.', ',')} SM`, o.x + rPx * 0.72, o.y - rPx * 0.72, rPx * 1.44);
   ctx.restore();
 }

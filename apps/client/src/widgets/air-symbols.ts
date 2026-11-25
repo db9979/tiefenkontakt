@@ -2,6 +2,7 @@ import type { PlaneView, Snapshot } from '@tk/shared';
 import { drawMines, drawMissiles, drawSsm } from './airdef-symbols.js';
 import { northOff, trueDeg } from '../north.js';
 import { FONT, LW } from './format.js';
+import { chartLabel } from './canvas-text.js';
 
 /**
  * Air contacts on canvases (radar scope, plot): NATO-style air symbols – the upper half of
@@ -73,7 +74,7 @@ export function drawAir(
       ctx.setLineDash([]);
       airSymbol(ctx, q.x, q.y, p.side);
       const km = Math.hypot(ex - s.own.x, ey - s.own.y) / 1000;
-      ctx.fillText(`${NAME[p.kind]} SICHT ~${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} KM ${(p.alt ?? 0) > 1500 ? 'HOCH' : 'TIEF'}`, q.x + 9, q.y - 6);
+      airLabel(ctx, `${NAME[p.kind]} SICHT ~${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} KM ${(p.alt ?? 0) > 1500 ? 'HOCH' : 'TIEF'}`, q.x + 9, q.y - 6);
       continue;
     }
     const q = toScreen(p.x, p.y);
@@ -88,13 +89,21 @@ export function drawAir(
       ctx.stroke();
     }
     const alt = p.alt !== undefined ? (p.alt >= 1000 ? `${(p.alt / 1000).toFixed(1).replace('.', ',')} KM` : `${Math.round(p.alt / 10) * 10} M`) : '';
-    ctx.fillText(`${NAME[p.kind]} ${alt}`, q.x + 9, q.y - 6);
+    airLabel(ctx, `${NAME[p.kind]} ${alt}`, q.x + 9, q.y - 6);
   }
   ctx.restore();
   // Missiles in flight everywhere; mines only on the plot (not the radar scope)
   drawMissiles(ctx, s, toScreen);
   drawSsm(ctx, s, toScreen);
   if (!only) drawMines(ctx, s, toScreen);
+}
+
+/**
+ * An aircraft's label: on a semi-opaque plate (it crosses depth labels and contours on the chart)
+ * and kept inside the canvas (it flips to the left of the symbol at the right edge).
+ */
+function airLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+  chartLabel(ctx, text, x, y, 18);
 }
 
 /** A steady number in [0, 1) per aircraft, so the guessed range does not jump every second. */

@@ -2,6 +2,7 @@ import { CLASSES, PERISCOPE_DEPTH, batteryChargePctH, type Snapshot } from '@tk/
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { COL, clock, fitCanvas } from './format.js';
+import { clampTextX, plateText } from './canvas-text.js';
 
 /**
  * Battery figures for a submarine: charge in %, and either the charging rate on the snorkel,
@@ -70,31 +71,38 @@ export class DepthProfile {
     const step = H < 220 ? 100 : 50;
     for (let d = 0; d <= maxD; d += step) {
       ctx.beginPath(); ctx.moveTo(40, Y(d)); ctx.lineTo(w, Y(d)); ctx.stroke();
-      ctx.fillText(`${d}`, 4, Y(d) + 4);
+      // The unit on the top tick (the header no longer has to say it)
+      ctx.fillText(d === 0 ? '0 M' : `${d}`, 4, Y(d) + 4);
     }
+    // Labels on a plate, left-aligned in the free stretch before the own-depth marker, inside the canvas
+    const lx = (text: string) => clampTextX(ctx, text, w - 170, 44, w - 66);
     const layer = s.env.layerDepth;
     if (layer !== undefined) {
       ctx.fillStyle = 'rgba(250,199,117,0.18)';
       ctx.fillRect(40, Y(layer) - 4, w - 40, 8);
       ctx.fillStyle = COL.amber;
-      ctx.fillText(`SPRUNGSCHICHT ${layer} M`, w - 170, Y(layer) - 8);
-    } else {
-      ctx.fillStyle = COL.dim;
-      ctx.fillText(s.env.noLayer ? 'KEINE SPRUNGSCHICHT · DURCHMISCHT BIS GRUND' : 'SPRUNGSCHICHT UNBEKANNT', 46, H - 6);
+      plateText(ctx, `SPRUNGSCHICHT ${layer} M`, lx(`SPRUNGSCHICHT ${layer} M`), Y(layer) - 9, COL.bg, 2);
     }
     const bottom = s.env.bottom;
     if (bottom !== undefined && bottom < maxD) {
       ctx.fillStyle = 'rgba(120, 96, 60, 0.35)';
       ctx.fillRect(40, Y(bottom), w - 40, H - Y(bottom));
       ctx.fillStyle = COL.amber;
-      ctx.fillText(`MEERESGRUND ${bottom} M`, w - 170, Y(bottom) + 14);
+      plateText(ctx, `MEERESGRUND ${bottom} M`, lx(`MEERESGRUND ${bottom} M`), Y(bottom) + 14, COL.bg, 2);
+    }
+    if (layer === undefined) {
+      // No layer measured: the caption at the foot, right-aligned, clear of the depth scale on the left
+      ctx.fillStyle = COL.dim;
+      ctx.textAlign = 'right';
+      plateText(ctx, s.env.noLayer ? 'KEINE SPRUNGSCHICHT · DURCHMISCHT BIS GRUND' : 'SPRUNGSCHICHT UNBEKANNT', w - 6, H - 3, COL.bg, 2);
+      ctx.textAlign = 'left';
     }
     ctx.strokeStyle = COL.blue;
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(40, Y(PERISCOPE_DEPTH)); ctx.lineTo(w, Y(PERISCOPE_DEPTH)); ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = COL.blue;
-    ctx.fillText('SEHROHRTIEFE', w - 170, Y(PERISCOPE_DEPTH) - 4);
+    plateText(ctx, 'SEHROHRTIEFE', lx('SEHROHRTIEFE'), Y(PERISCOPE_DEPTH) - 5, COL.bg, 2);
     ctx.strokeStyle = COL.blue;
     ctx.lineWidth = 2;
     ctx.beginPath();
