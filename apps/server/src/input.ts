@@ -38,6 +38,7 @@ import {
   ROUTE_MAX_WPS,
 } from '@tk/shared';
 import { z } from 'zod';
+import { convoyOrder, escortTask } from './escort-command.js';
 
 const deg = z.number().finite().min(0).max(360);
 const team = z.enum(['west', 'east']);
@@ -88,6 +89,15 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('mad'), bearing: deg, range: z.number().finite().min(200).max(30_000) }),
   z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds', 'mineavoid', 'sounding']), on: z.boolean() }),
   z.object({ t: z.literal('convoy_detour'), offset: z.number().finite().min(-4000).max(4000) }),
+  z.object({
+    t: z.literal('escort_task'), shipId: z.string().min(1).max(40), task: z.enum(['station', 'sector', 'datum', 'helo', 'cancel']),
+    x: z.number().finite().min(-400_000).max(400_000).optional(), y: z.number().finite().min(-400_000).max(400_000).optional(),
+    rel: deg.optional(), range: z.number().finite().min(1000).max(20_000).optional(),
+  }),
+  z.object({
+    t: z.literal('convoy_order'), order: z.enum(['turn', 'zigzag', 'speed']),
+    side: z.union([z.literal(-1), z.literal(0), z.literal(1)]).optional(), on: z.boolean().optional(), adj: z.number().int().min(-2).max(2).optional(),
+  }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
     t: z.literal('fire'), heading: deg, enableAfter: z.number().finite().min(0).max(30_000),
@@ -163,7 +173,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'escort_task' | 'convoy_order' | 'route' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -316,6 +326,10 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       setConvoyOffset(w.convoy, m.offset);
       return undefined;
     }
+    case 'escort_task':
+      return escortTask(w, s, m);
+    case 'convoy_order':
+      return convoyOrder(w, s, m);
     case 'noisemaker': {
       const r = launchNoisemaker(w, s);
       return r === true ? undefined : r;

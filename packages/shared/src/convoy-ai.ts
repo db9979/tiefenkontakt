@@ -21,6 +21,40 @@ export interface ConvoyState {
   offset?: number;
   /** Where the first leg starts (the detour's parallel track is measured from the leg line). */
   origin?: Vec2;
+  /** Emergency turn ordered by the escort commander: the convoy holds this course until then, then resumes the route. */
+  turn?: { course: number; until: number; side: -1 | 1 };
+  /** Speed ordered by the escort commander relative to the route speed (kn, ±CONVOY_SPEED_ADJ_MAX). */
+  speedAdj?: number;
+}
+
+/** Emergency turn: how far (deg) and how long it is held before the convoy resumes its route (s). */
+export const EMERGENCY_TURN_DEG = 45;
+export const EMERGENCY_TURN_S = 600;
+/** Most the escort commander may change the convoy's speed from the route speed (kn). */
+export const CONVOY_SPEED_ADJ_MAX = 2;
+
+/** Speed the convoy guide makes now: route speed plus the commander's change. */
+export function convoySpeedKn(c: ConvoyState): number {
+  return Math.max(3, c.baseSpeedKn + (c.speedAdj ?? 0));
+}
+
+/**
+ * Emergency turn 45° to port (−1) or starboard (+1) from the convoy's mean course (zigzag left out):
+ * held for ten minutes, then the convoy resumes its route. side 0 cancels a turn under way.
+ */
+export function emergencyTurn(c: ConvoyState, side: -1 | 0 | 1, now: number): void {
+  if (side === 0) {
+    c.turn = undefined;
+    return;
+  }
+  const wp = c.waypoints[c.wpIndex];
+  const base = wp ? bearing(c.guide, legTarget(c, wp, c.waypoints[c.wpIndex - 1] ?? c.origin ?? c.guide)) : c.guideHeading;
+  c.turn = { course: wrap360(base + EMERGENCY_TURN_DEG * side), until: now + EMERGENCY_TURN_S, side };
+}
+
+/** Convoy speed change ordered by the escort commander, bounded to ±2 kn of the route speed. */
+export function setConvoySpeedAdj(c: ConvoyState, adj: number): void {
+  c.speedAdj = clamp(Math.round(adj), -CONVOY_SPEED_ADJ_MAX, CONVOY_SPEED_ADJ_MAX) || undefined;
 }
 
 const ZIG_PERIOD = 480; // s per leg
@@ -95,9 +129,11 @@ export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: n
     const cur = c.waypoints[c.wpIndex] ?? wp;
     const leg = bearing(c.guide, legTarget(c, cur, c.waypoints[c.wpIndex - 1] ?? prev));
     const zig = c.zigzag ? (Math.floor(now / ZIG_PERIOD) % 2 === 0 ? ZIG_ANGLE : -ZIG_ANGLE) : 0;
-    c.guideHeading = wrap360(leg + zig);
+    // An emergency turn holds its course (no zigzag) until it runs out
+    if (c.turn && now >= c.turn.until) c.turn = undefined;
+    c.guideHeading = c.turn ? c.turn.course : wrap360(leg + zig);
     const v = headingVec(c.guideHeading);
-    const step = c.baseSpeedKn * KN * dt;
+    const step = convoySpeedKn(c) * KN * dt;
     c.guide = { x: c.guide.x + v.x * step, y: c.guide.y + v.y * step };
   }
   const final = c.waypoints[c.waypoints.length - 1];
@@ -131,6 +167,6 @@ export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: n
     // Along-track error: positive when the station is ahead of the ship
     const along = (sp.x - m.pos.x) * lead.x + (sp.y - m.pos.y) * lead.y;
     const offCourse = Math.abs(angleDiff(m.heading, m.order.heading)) > 60 ? -2 : 0;
-    m.order.speedKn = clamp(c.baseSpeedKn + along / 300 + offCourse, 4, 14);
+    m.order.speedKn = clamp(convoySpeedKn(c) + along / 300 + offCourse, 4, 14);
   }
 }

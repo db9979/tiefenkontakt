@@ -46,6 +46,7 @@ import {
   pingRangeOf,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
+import { escortCommandFor } from './escort-command.js';
 
 export interface PlayerExtras {
   /** Briefing already delivered on this connection. */
@@ -228,6 +229,7 @@ export function buildSnapshot(
     planes: shifted ? planesFor(w, own).map((p) => (p.x !== undefined && p.y !== undefined ? { ...p, x: Math.round(p.x + dr.x), y: Math.round(p.y + dr.y) } : p)) : planesFor(w, own),
     orders: ordersFor(w, own),
     hunt: huntFor(w, own),
+    command: escortCommandFor(w, own),
     airdef: airDefFor(w, own),
     ssm: ssmFor(w, own),
     mines: shifted ? minesFor(w, own).map((m) => ({ ...m, x: Math.round(m.x + dr.x), y: Math.round(m.y + dr.y) })) : minesFor(w, own),
