@@ -1,5 +1,4 @@
 import { CLASSES, compartmentLayout, type ClassId, type CompartmentView, type WreckView } from '@tk/shared';
-import { t } from '../i18n/index.js';
 
 /**
  * Schnittzeichnung: the own ship cut open lengthwise, bow to the right. Each compartment is
@@ -25,6 +24,33 @@ export interface CutawayGeom {
 }
 
 const PAD = 10;
+
+/** One letter per system or special space in a compartment: A drive, S sonar, W weapons, B battery, M magazine, R reactor/engine. */
+export function sysTags(spec: { sys: Partial<Record<string, number>>; tag?: string }): string[] {
+  const out: string[] = [];
+  if ((spec.sys.antrieb ?? 0) >= 0.5) out.push('A');
+  if ((spec.sys.sonar ?? 0) >= 0.5) out.push('S');
+  if ((spec.sys.waffen ?? 0) >= 0.5) out.push('W');
+  if (spec.tag === 'battery') out.push('B');
+  if (spec.tag === 'magazine') out.push('M');
+  return out;
+}
+
+const pics = new Map<ClassId, HTMLImageElement | null>();
+/** The class side silhouette as an image (rendered once from the 3D model; undefined until ready). */
+function silhouette(cls: ClassId): HTMLImageElement | undefined {
+  if (pics.has(cls)) return pics.get(cls) ?? undefined;
+  pics.set(cls, null);
+  void import('./recog-render.js').then((r) => {
+    r.renderRecog([cls]);
+    const src = r.recogImage(cls, 'side');
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => pics.set(cls, img);
+    img.src = src;
+  });
+  return undefined;
+}
 
 /** Cell edges from the volume shares: bow (index 0) on the right. */
 export function cutawayGeom(cls: ClassId, w: number): CutawayGeom {
@@ -86,20 +112,19 @@ export function drawCutaway(ctx: CanvasRenderingContext2D, w: number, h: number,
   ctx.save();
   ctx.translate(w / 2, cy + (sub ? 0 : H * 0.3 * settle));
   ctx.rotate(trim);
-  // Superstructure / sail above the hull (drawn first, outside the cut)
-  ctx.fillStyle = '#16211e';
-  ctx.strokeStyle = '#5f7a72';
-  ctx.lineWidth = 1;
-  if (sub) {
-    ctx.fillRect(L * 0.05, -H * 0.95, L * 0.11, H * 0.5);
-    ctx.strokeRect(L * 0.05, -H * 0.95, L * 0.11, H * 0.5);
+  // The ship above the deck: the silhouette rendered from her 3D model (recognition pictures), else a simple block
+  const pic = silhouette(st.cls);
+  if (pic) {
+    const ph = (pic.naturalHeight / pic.naturalWidth) * L;
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(pic, -L / 2, (sub ? -H * 0.15 : -H * 0.5) - ph * (sub ? 0.75 : 0.98), L, ph);
+    ctx.globalAlpha = 1;
   } else {
-    ctx.fillRect(-L * 0.02, -H * 1.05, L * 0.22, H * 0.5);
-    ctx.strokeRect(-L * 0.02, -H * 1.05, L * 0.22, H * 0.5);
-    ctx.beginPath();
-    ctx.moveTo(L * 0.08, -H * 1.05);
-    ctx.lineTo(L * 0.08, -H * 1.5);
-    ctx.stroke();
+    ctx.fillStyle = '#16211e';
+    ctx.strokeStyle = '#5f7a72';
+    ctx.lineWidth = 1;
+    if (sub) ctx.fillRect(L * 0.05, -H * 0.95, L * 0.11, H * 0.5);
+    else ctx.fillRect(-L * 0.02, -H * 1.05, L * 0.22, H * 0.5);
   }
   hullPath(ctx, sub, L, H);
   ctx.fillStyle = '#0d1614';
@@ -175,6 +200,19 @@ export function drawCutaway(ctx: CanvasRenderingContext2D, w: number, h: number,
       }
     }
   });
+  // Decks and frames: the ship's structure through the cut
+  ctx.strokeStyle = 'rgba(159,225,203,0.16)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const f of sub ? [-0.15, 0.2] : [-0.2, 0.15]) {
+    ctx.moveTo(-L / 2, H * f);
+    ctx.lineTo(L / 2, H * f);
+  }
+  for (let x = -L / 2; x < L / 2; x += 6) {
+    ctx.moveTo(x, bot - 3);
+    ctx.lineTo(x, bot);
+  }
+  ctx.stroke();
   ctx.restore();
   // Bulkheads between cells: thin when open, heavy amber when closed (either neighbour sealed)
   for (let i = 0; i + 1 < geom.cells.length; i++) {
@@ -200,11 +238,29 @@ export function drawCutaway(ctx: CanvasRenderingContext2D, w: number, h: number,
     if (!cell) return;
     const xm = (cell.x0 + cell.x1) / 2 - w / 2;
     const cw = cell.x1 - cell.x0;
-    const name = t(layout[i]!.name.toUpperCase());
-    const label = cw > name.length * 5.6 ? name : name.slice(0, Math.max(3, Math.floor(cw / 6))) + '.';
-    ctx.fillStyle = c.sealed ? '#fac775' : c.fire > 0.3 ? '#ffd27a' : '#9fe1cb';
-    ctx.fillText(label, xm, H * 0.08);
-    if (c.flood > 0.02) ctx.fillText(`${Math.round(c.flood * 100)}%`, xm, H * 0.08 + 10);
+    // Compartment number in a badge (the names are in the table below), water level, systems inside
+    const warn = c.sealed ? '#fac775' : c.fire > 0.02 ? '#ff9a5a' : c.flood > 0.3 ? '#7fc4ff' : '#9fe1cb';
+    ctx.fillStyle = 'rgba(5,12,10,0.75)';
+    ctx.beginPath(); ctx.arc(xm, top + 9, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = warn;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = warn;
+    ctx.font = 'bold 9px ui-monospace, monospace';
+    ctx.fillText(String(i + 1), xm, top + 12);
+    ctx.font = '9px ui-monospace, monospace';
+    if (c.flood > 0.02) {
+      ctx.fillStyle = '#cfeaff';
+      ctx.fillText(`${Math.round(c.flood * 100)}%`, xm, H * 0.05);
+    }
+    const tags = sysTags(layout[i]!);
+    if (cw > tags.length * 9) {
+      tags.forEach((tg, k) => {
+        const x = xm + (k - (tags.length - 1) / 2) * 9;
+        ctx.fillStyle = c.dmg > 0.6 || c.sealed ? '#f09595' : c.dmg > 0.25 ? '#fac775' : 'rgba(159,225,203,0.75)';
+        ctx.fillText(tg, x, bot - 6);
+      });
+    }
     if (i === st.selected) {
       ctx.strokeStyle = '#ffffff';
       ctx.setLineDash([3, 3]);

@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Schadensabwehr neu gestaltet:** Schnittzeichnung mit der echten Schiffssilhouette, Decks und Spanten, nummerierten
+  Abteilungen und den Systemen darin (A/S/W/B/M nach Zustand gefärbt); darunter Zustand, Schlagseite, Trimm und Wasser im
+  Schiff, je Abteilung eine Zeile mit Wasser, Feuer, Leck und Schaden und den Knöpfen Trupp und Schott, Systeme mit Wirkung.
 - **Küsten im 3D genau:** Das Gelände nahe am Schiff hat 100-m-Raster und die Uferlinie liegt genau bei Wassertiefe 0
   der Seekarte; vorher ragte die Küste bis zu 300 m ins Wasser und man schien über Land zu fahren.
 - **Auflaufen mit Folgen:** Wer mit Fahrt auf Grund läuft, bleibt sofort stehen und nimmt Schaden je nach Fahrt, am
