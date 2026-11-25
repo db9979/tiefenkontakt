@@ -16,7 +16,7 @@ export function helpOverlay(submarine: boolean): void {
        <tr><td>3 · Angreifen</td><td>Kontakt wählen, dann im Waffenleitstand „Rakete auf Ziel“ oder Rechtsklick auf die Karte und „U-Jagd-Rakete hierher“.</td></tr>
        <tr><td>Schützen</td><td>Bleib zwischen U-Boot und Konvoi. Bei einem Torpedo: Täuschkörper-Schleppe und abdrehen.</td></tr>`;
   const ov = h(`<div class="overlay help"><div class="panel" style="padding:18px 22px">
-    <div class="hd"><span>Bedienung</span><span><a class="btnlink" href="/handbuch.pdf" download="Tiefenkontakt-Handbuch.pdf" title="Ausführliches Spielerhandbuch zum Drucken (A4)">Handbuch (PDF)</a> <button id="close">Schließen</button></span></div>
+    <div class="hd"><span>Bedienung</span><span><a class="btnlink" href="/handbuch.pdf" download="Tiefenkontakt-Handbuch.pdf" title="Ausführliches Spielerhandbuch zum Drucken (A4)">Handbuch (PDF)</a> <a class="btnlink" href="/erkennungsheft.pdf" download="Tiefenkontakt-Erkennungsheft.pdf" title="Alle Klassen zum Ausdrucken: Silhouetten im Maßstab, Akustik, Bedrohung, Radar (A4)">Erkennungsheft (PDF)</a> <button id="close">Schließen</button></span></div>
     <h3>MAUS</h3>
     <table>
       <tr><td>Karte</td><td>Ziehen verschiebt, Rad oder + − zoomt, ◎ zentriert. Linksklick wählt einen Kontakt. Rechtsklick öffnet Aktionen: Kurs, Waffen, TMA.</td></tr>

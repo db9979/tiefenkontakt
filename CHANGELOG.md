@@ -21,6 +21,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Neue Reiter „Akustik“ (Blattzahl, Drehzahl, Schmalbandlinien als Balken, Klang) und „Bedrohung“ (Waffen und Sensoren
   mit Reichweiten aus dem Spiel, ein taktischer Hinweis), außerdem „Verwechslungsgefahr“ mit Unterscheidungsmerkmal.
   Auf dem Telefon in voller Breite.
+- **Erkennungsheft als PDF:** In der Lobby und in der Hilfe neben dem Handbuch zum Herunterladen: Titelseite mit allen
+  Silhouetten im Maßstab, dann je Klasse eine A4-Seite mit Sicht, Bedrohung, Radar im ESM und Akustik
+  (`npx tsx scripts/handbook/recog-pdf.ts` baut es neu).
+- **Weniger ESM-Meldungen:** Dasselbe Radar auf derselben Peilung kommt nur neu, stärker, näherkommend oder nach zwei
+  Minuten wieder ins Meldungsprotokoll (Flugzeug- und Feuerleitradar nach 30 s).
 - **Zeitraffer voreingestellt auf Echtzeit:** 2× und 3× bleiben in der Lobby wählbar.
 
 ### Moderation

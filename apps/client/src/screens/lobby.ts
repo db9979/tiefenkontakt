@@ -61,7 +61,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="err" id="merr"></div>
         </div>
         <div class="panel" style="margin-top:10px">
-          <div class="hd"><span>Ausbildung</span><span class="dim">EINZELSPIELER · MIT ANLEITUNG · <a class="btnlink" href="/handbuch.pdf" download="Tiefenkontakt-Handbuch.pdf" title="Ausführliches Spielerhandbuch zum Drucken (A4, PDF)">HANDBUCH (PDF)</a></span></div>
+          <div class="hd"><span>Ausbildung</span><span class="dim">EINZELSPIELER · MIT ANLEITUNG · <a class="btnlink" href="/handbuch.pdf" download="Tiefenkontakt-Handbuch.pdf" title="Ausführliches Spielerhandbuch zum Drucken (A4, PDF)">HANDBUCH (PDF)</a> · <a class="btnlink" href="/erkennungsheft.pdf" download="Tiefenkontakt-Erkennungsheft.pdf" title="Alle Klassen zum Ausdrucken: Silhouetten im Maßstab, Akustik, Bedrohung, Radar (A4, PDF)">ERKENNUNGSHEFT (PDF)</a></span></div>
           <button data-lesson="feindfahrt" class="on" style="width:100%;text-align:left;text-transform:none;margin-bottom:6px" title="Geführte Einsteiger-Mission: Schritt für Schritt vom Tauchen bis zum Torpedoschuss"><div>Erste Feindfahrt · Einstieg mit Anleitung</div><div class="dim">Tiefe und Ruder, Horchen, Kurswechsel und Lösung, Sehrohr, Torpedo, Ablaufen</div></button>
           <button data-lesson="geleitfahrt" class="on" style="width:100%;text-align:left;text-transform:none;margin-bottom:6px" title="Geführte Einsteiger-Mission auf der Fregatte: vom Schleppsonar bis zur U-Jagd-Rakete"><div>Erste Geleitfahrt · Fregatte mit Anleitung</div><div class="dim">Schleppsonar, Sonarboje, Klassifizieren, Konvoi umleiten, Ping, U-Jagd-Rakete</div></button>
           <div class="grid2">
