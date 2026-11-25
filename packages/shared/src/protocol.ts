@@ -300,7 +300,7 @@ export interface AlertView {
   /** Lookout sightings: what, rough range and the contact label. */
   what?: 'mast' | 'snorkel' | 'surfaced';
   range?: number;
-  label?: string;
+  label?: string; /** ESM: emitter (emitters.ts), strength 0..2, trend. */ emitter?: string; esmLvl?: number; esmTrend?: number;
   bearing?: number;
   /** Sinking noises of a ship that was already reported hit (no new detonation). */
   sink?: boolean;

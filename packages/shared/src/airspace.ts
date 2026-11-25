@@ -5,6 +5,7 @@ import { canCopy } from './command-radio.js';
 import { isConvoyShip, mastRaised, type Ship } from './entities.js';
 import { KN, angleDiff, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { World } from './world.js';
+import { aircraftEmitter, esmLevel, esmTrend } from './emitters.js';
 
 /**
  * Air traffic and aircraft as sensors see them. Civil airliners cross on airways high up,
@@ -159,6 +160,10 @@ export interface PlaneView {
   /** Seen by eye only: the plot shows a rough estimate (bearing good, range and height guessed). */
   rough?: boolean;
   via: AirVia[];
+  /** ESM: the aircraft's radar (emitters.ts), signal strength 0..2 and trend. */
+  emitter?: string;
+  esmLvl?: number;
+  esmTrend?: number;
 }
 
 const SORTIE_ALT: Record<string, number> = { mpa: 300, mad: 60, dip: 25, buoy: 120, torpedo: 120 };
@@ -220,6 +225,7 @@ export function planesFor(w: World, own: Ship): PlaneView[] {
       id: p.id, kind: p.kind, bearing: bearing(own.pos, p.pos), via, radar: p.radar,
       side: p.team === own.team ? 'friend' : p.team === 'neutral' ? 'neutral' : fix || via.includes('esm') ? 'hostile' : 'unknown',
       lit, ...(rough ? { rough: true } : {}),
+      ...(via.includes('esm') ? { emitter: aircraftEmitter(p.kind), esmLvl: esmLevel(d, AIR_RADAR_M * 2), esmTrend: esmTrend(own.pos, own.heading, own.speed, p.pos, p.heading, p.speedKn * KN) } : {}),
       ...(fix ? { x: Math.round(p.pos.x), y: Math.round(p.pos.y), alt: Math.round(p.alt), heading: Math.round(p.heading), speedKn: Math.round(p.speedKn) } : {}),
     });
   }
