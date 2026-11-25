@@ -4,6 +4,7 @@ import { btnState, depthBtn } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { COL, clock, fitCanvas, h, setHtml } from '../../widgets/format.js';
+import { depthAlarms } from '../../widgets/depth-alarm-ui.js';
 
 const STEPS = [
   { label: 'Schleich', kn: 3 }, { label: 'Langsam', kn: 6 }, { label: 'Halbe', kn: 12 }, { label: 'Volle', kn: 99 },
@@ -23,11 +24,13 @@ export function diveEngineStation(): Station {
         <div class="grid2" id="steps"></div>
         <div style="display:flex;gap:6px;margin-top:8px"><button id="snort">Schnorcheln</button><button id="nm" class="warn">Täuschkörper</button></div>
       </div>
+      <div class="panel" id="alarms"><div class="hd"><span>Alarme</span><span class="dim">TIEFE · GRUND</span></div></div>
       <div class="panel"><div class="hd"><span>Status</span></div><div id="stat"></div></div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const depthHist: { t: number; d: number }[] = [];
+  q('#alarms').appendChild(depthAlarms.panel());
 
   setHtml(q('#steps'), STEPS.map((s, i) => `<button data-step="${i}">${s.label}</button>`).join(''));
   el.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => {

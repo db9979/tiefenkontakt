@@ -38,6 +38,7 @@ ${fig(figTma(), 'Abb. 8 · Zielbewegungsanalyse (TMA) mit zwei Schenkeln.')}
 <tr><td>Trimm</td><td>Fahrt und Tiefenwechsel bringen das Boot aus dem Trimm. Ein schlecht getrimmtes Boot steuert Tiefe träge.</td></tr>
 <tr><td>Pressluft</td><td>Drei Flaschen. „Notanblasen“ (zweimal tippen) bringt das Boot schnell nach oben, ist aber sehr laut und kostet eine Flasche.</td></tr>
 <tr><td>Testtiefe</td><td>Unter der Tauchtiefe drohen Lecks und Schäden.</td></tr>
+<tr><td>Tiefenalarme</td><td>Im Tauchstand unter „Alarme“ einstellbar und einzeln abschaltbar: Obergrenze (meldet, wenn das Boot ungewollt flacher steigt; schweigt bei befohlener Sehrohrtiefe), Untergrenze (Vorgabe 90 % der Testtiefe) und Grundabstand mit WARNUNG (50 m) und GEFAHR (25 m) Wasser unter dem Kiel. Ein Alarm ertönt einmal und erscheint auf jeder Station unter der Kopfleiste und in der Tiefenzeile des Ruderstands; erneut erst, wenn das Boot den Bereich um einige Meter verlassen hat. Die Werte gelten je Bootsklasse und bleiben gespeichert.</td></tr>
 <tr><td>Koppelort</td><td>Getaucht wird die eigene Position nur gekoppelt und immer ungenauer (bis 8 sm). Ein Fix am Mast setzt sie zurück.</td></tr>
 <tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
 </table>

@@ -33,6 +33,7 @@ import { setPadTarget } from '../gamepad.js';
 import { mountAssistant } from '../widgets/assistant.js';
 import { showBriefing } from '../widgets/briefing.js';
 import { callouts } from '../widgets/callouts.js';
+import { depthAlarms } from '../widgets/depth-alarm-ui.js';
 import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { ordersPanel } from '../widgets/orders-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
@@ -448,6 +449,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     voice.leave();
     window.removeEventListener('pointerdown', unlock);
     banner.remove();
+    depthAlarms.dispose();
     orders.dispose();
     helmToggle.remove();
     document.body.classList.remove('helm-open');

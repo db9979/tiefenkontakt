@@ -383,3 +383,16 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 @keyframes btn-ack { 0% { box-shadow: 0 0 0 2px var(--g), inset 0 0 10px rgba(93, 202, 165, 0.5); } 100% { box-shadow: 0 0 0 0 transparent; } }
 @keyframes st-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { button.ack, button.st-busy[data-bst]::after { animation: none; } }
+/* Depth alarms: settings block in the dive station, callout under the top bar on every station */
+.depth-alarms .da-row { align-items: center; }
+.depth-alarms .da-on, .depth-alarms .da-lbl { flex: 1; text-align: left; }
+.depth-alarms .da-lbl { padding-left: 8px; }
+.depth-alarms .da-set { display: flex; align-items: center; gap: 3px; }
+.depth-alarms .da-set button { padding: 2px 8px; }
+.depth-alarms input[type=number] { width: 56px; text-align: right; }
+.depth-alarms .da-now { padding: 4px 0 6px; letter-spacing: 0.08em; }
+.depth-alarms .da-now .red, .depth-alarms .da-now .amber { font-size: 1.1667rem; }
+.depth-callout { position: fixed; top: 100px; left: 50%; transform: translateX(-50%); z-index: 39; padding: 4px 16px;
+  font-size: 1rem; letter-spacing: 0.1em; pointer-events: none; text-align: center; }
+.depth-callout.warning { border: 1px solid var(--amber); background: #2a2008; color: var(--amber); }
+.depth-callout.danger { border: 2px solid var(--red); background: #2a0d0d; color: #ffd0d0; }
