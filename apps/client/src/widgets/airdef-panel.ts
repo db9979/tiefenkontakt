@@ -103,6 +103,7 @@ export function airDefPanel(): { el: HTMLElement; update(): void } {
       q('#ad-sel').textContent = target ? `${NAME[target.kind]} ${target.id}${st?.pk !== undefined ? ` · TREFFER CA. ${Math.round(st.pk * 100)} %` : ` · ${st?.text ?? ''}`}` : '—';
       const fire = q<HTMLButtonElement>('#ad-fire');
       fire.disabled = !st?.ok || !a.sam || a.sam.left <= 0 || a.sam.readyInS > 0;
+      fire.classList.toggle('armed', !fire.disabled);
       fire.textContent = a.sam && a.sam.readyInS > 0 ? `Starter lädt ${Math.ceil(a.sam.readyInS)} s` : 'Feuer';
       fire.style.display = a.sam ? '' : 'none';
       const f = a.fighter;

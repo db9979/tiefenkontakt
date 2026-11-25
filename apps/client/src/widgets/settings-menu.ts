@@ -12,6 +12,8 @@ export function applyDisplayPrefs(): void {
   document.documentElement.style.fontSize = `${12 * scale}px`;
   document.body.classList.toggle('cb', localStorage.getItem('tk_cb') === '1');
   document.body.classList.toggle('crt', localStorage.getItem('tk_crt') !== '0');
+  // Scanlines are opt-in: they cost contrast on small text
+  document.body.classList.toggle('scan', localStorage.getItem('tk_scan') === '1');
   document.body.classList.toggle('redlight', localStorage.getItem('tk_red') === '1');
   document.documentElement.dataset.theme = isLight() ? 'light' : 'dark';
   setInkLight(isLight());
@@ -68,6 +70,7 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
     { id: 'assist', label: 'Nächster-Schritt-Hilfe', ...flag('tk_assist', true) },
     { id: 'real', label: 'Einsteiger-Modus', get: () => store.realism === 'einsteiger', set: (on) => { store.setRealism(on ? 'einsteiger' : 'profi'); opts.onRealism(); } },
     { id: 'crt', label: 'Röhren-Effekt', ...flag('tk_crt', true) },
+    { id: 'scan', label: 'Rasterzeilen', ...flag('tk_scan', false) },
     { id: 'red', label: 'Rotlicht (Nacht)', ...flag('tk_red', false) },
     { id: 'cb', label: 'Farbenblind-Palette', ...flag('tk_cb', false) },
   ];

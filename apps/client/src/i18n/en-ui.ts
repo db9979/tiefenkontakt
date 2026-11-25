@@ -399,4 +399,5 @@ export const EN_UI: [string, string][] = [
   ['Dauerstrich, Zielverfolgung', 'continuous wave, tracking'], ['Konusabtastung, Zielverfolgung', 'conical scan, tracking'], ['Zielverfolgung, Doppelkeule', 'tracking, twin beam'],
   ['Navigationsradar, kurze Pulse', 'navigation radar, short pulses'], ['kleines Navigationsradar, schwach', 'small navigation radar, weak'], ['Sektorabtastung, Pulskompression', 'sector scan, pulse compression'],
   ['kurze Pulse, schnelle Rundsuche', 'short pulses, fast all-round search'], ['lange Pulse, Seeraumüberwachung', 'long pulses, sea surveillance'],
+  ['Rasterzeilen', 'Scanlines'], ['LIEGT AN', 'STEADY'], ['MITTE', 'MIDSHIPS'], ['Fahrt 1 kn weniger', 'Speed 1 kn less'], ['Fahrt 1 kn mehr', 'Speed 1 kn more'], ['Maschinentelegraf', 'Engine telegraph'], ['MELD', 'LOG'], ['BOOT', 'BOAT'], ['SCHADEN', 'DAMAGE'], ['BEFEHLE', 'ORDERS'],
 ];

@@ -34,6 +34,9 @@ html[data-theme='light'] button:active { box-shadow: inset 0 2px 3px rgba(0, 0, 
 html[data-theme='light'] button.on { background: linear-gradient(180deg, #dcf1e9, #c4e4d8); color: var(--on-fg); box-shadow: inset 0 0 6px rgba(27, 116, 88, 0.2); }
 html[data-theme='light'] button.warn { border-color: #c9953d; }
 html[data-theme='light'] button.fire { border-color: #d98a84; }
+html[data-theme='light'] button.fire:not(.armed) { background: linear-gradient(180deg, #ffffff, #e8eeeb); }
+html[data-theme='light'] button.fire.armed { background: linear-gradient(180deg, #c33a30, #a3261c); border-color: #8e1d16; color: #fff; box-shadow: none; }
+html[data-theme='light'] button.primary { background: linear-gradient(180deg, #23866a, #1b7458); border-color: #145a44; color: #fff; box-shadow: none; }
 html[data-theme='light'] button.danger { border-color: #d98a84; color: #a3261c; }
 html[data-theme='light'] .row { border-bottom-color: #dde6e2; }
 html[data-theme='light'] .order-row { border-bottom-color: #dde6e2; }
@@ -41,10 +44,10 @@ html[data-theme='light'] .order-row { border-bottom-color: #dde6e2; }
 html[data-theme='light'] .panel {
   border-color: #b9c8c3 !important;
   background:
-    radial-gradient(circle at 7px 7px, #9fb0aa 0 1.6px, transparent 2.4px),
-    radial-gradient(circle at calc(100% - 7px) 7px, #9fb0aa 0 1.6px, transparent 2.4px),
-    radial-gradient(circle at 7px calc(100% - 7px), #9fb0aa 0 1.6px, transparent 2.4px),
-    radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #9fb0aa 0 1.6px, transparent 2.4px),
+    radial-gradient(circle at 4px 4px, #a9b9b3 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at calc(100% - 4px) 4px, #a9b9b3 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at 4px calc(100% - 4px), #a9b9b3 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at calc(100% - 4px) calc(100% - 4px), #a9b9b3 0 1.1px, transparent 1.7px),
     linear-gradient(180deg, #fbfcfc 0%, #f2f6f4 100%);
   box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(40, 60, 55, 0.18);
 }
@@ -89,7 +92,7 @@ html[data-theme='light'] .banner { background: #fbe3e1; color: #8e1d16; }
 }
 
 /* 2D displays draw in light-mode ink themselves (widgets/ink.ts); no CRT glow on paper */
-html[data-theme='light'] body.crt .panel canvas:not(.gl):not(.keep) { filter: none; animation: none; }
+html[data-theme='light'] body.crt .panel canvas:not(.gl):not(.keep) { filter: none; }
 html[data-theme='light'] .panel canvas { box-shadow: 0 0 0 1px #b9c8c3; }
 
 /* Theme switch next to the language switch */
@@ -99,3 +102,4 @@ html[data-theme='light'] .panel canvas { box-shadow: 0 0 0 1px #b9c8c3; }
 }
 html[data-theme='light'] button.prog { background: linear-gradient(90deg, rgba(27, 116, 88, 0.22) var(--pct, 0%), transparent var(--pct, 0%)), linear-gradient(180deg, #ffffff, #e8eeeb); }
 html[data-theme='light'] button.prog.st-busy { background: linear-gradient(90deg, rgba(180, 110, 20, 0.25) var(--pct, 0%), transparent var(--pct, 0%)), linear-gradient(180deg, #ffffff, #e8eeeb); }
+html[data-theme='light'] .side-tabs .cnt { color: #fff; }

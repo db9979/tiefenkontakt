@@ -1,5 +1,6 @@
 import type { Snapshot } from '@tk/shared';
 import { northOff } from '../north.js';
+import { FONT, LW } from './format.js';
 
 /**
  * Plot symbols for air defence and mines: a missile's track from the launcher with a
@@ -14,7 +15,7 @@ export function drawMissiles(ctx: CanvasRenderingContext2D, s: Snapshot, toScree
   const list = s.airdef?.missiles ?? [];
   if (!list.length) return;
   ctx.save();
-  ctx.font = '10px ui-monospace, monospace';
+  ctx.font = FONT.label;
   for (const m of list) {
     const p = toScreen(m.x, m.y);
     if (!p) continue;
@@ -62,7 +63,7 @@ export function drawSsm(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: To
   const list = s.ssm?.missiles ?? [];
   if (!list.length) return;
   ctx.save();
-  ctx.font = '10px ui-monospace, monospace';
+  ctx.font = FONT.label;
   for (const m of list) {
     const p = toScreen(m.x, m.y);
     if (!p) continue;
@@ -92,8 +93,8 @@ export function drawMines(ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: 
   const list = s.mines ?? [];
   if (!list.length) return;
   ctx.save();
-  ctx.font = '10px ui-monospace, monospace';
-  ctx.lineWidth = 1.3;
+  ctx.font = FONT.label;
+  ctx.lineWidth = LW.bearing;
   for (const m of list) {
     const p = toScreen(m.x, m.y);
     if (!p) continue;

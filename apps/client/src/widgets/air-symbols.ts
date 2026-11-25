@@ -1,6 +1,7 @@
 import type { PlaneView, Snapshot } from '@tk/shared';
 import { drawMines, drawMissiles, drawSsm } from './airdef-symbols.js';
 import { northOff, trueDeg } from '../north.js';
+import { FONT, LW } from './format.js';
 
 /**
  * Air contacts on canvases (radar scope, plot): NATO-style air symbols – the upper half of
@@ -41,8 +42,8 @@ export function drawAir(
   origin: { x: number; y: number }, len: number, only?: (p: PlaneView) => boolean,
 ): void {
   ctx.save();
-  ctx.lineWidth = 1.3;
-  ctx.font = '10px ui-monospace, monospace';
+  ctx.lineWidth = LW.bearing;
+  ctx.font = FONT.label;
   ctx.textAlign = 'left';
   for (const p of s.planes ?? []) {
     if (only && !only(p)) continue;

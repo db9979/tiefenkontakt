@@ -1,7 +1,7 @@
 import { SIGNATURES, bearing, distance, iceCover, inSquall, shaftHz, type Evidence } from '@tk/shared';
 import { audio, type ListenMode } from '../audio.js';
 import { store } from '../store.js';
-import { COL, fitCanvas, h } from './format.js';
+import { COL, fitCanvas, FONT, h } from './format.js';
 import { renderVerdict } from './verdict.js';
 import { Fader, dbToAmp, showChance } from './signal-display.js';
 
@@ -362,7 +362,7 @@ export class AcousticAnalysis {
       else ctx.moveTo(4 + x, y);
     }
     ctx.stroke();
-    ctx.font = '10px ui-monospace, monospace';
+    ctx.font = FONT.tick;
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'center';
     const tick = hi - lo > 100 ? 50 : hi - lo > 40 ? 10 : 5;

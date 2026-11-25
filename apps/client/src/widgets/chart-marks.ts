@@ -1,6 +1,6 @@
 import { CLASSES, HAVEN_M, bearing, distance, groundsOf, lanesOf, type RegionId, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
-import { deg3, km } from './format.js';
+import { deg3, FONT, km, LW } from './format.js';
 import { trueDeg } from '../north.js';
 
 /**
@@ -99,7 +99,7 @@ export class ChartMarks {
     ctx.save();
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = LW.track;
     ctx.font = '11px ui-monospace, monospace';
     for (const s of [...this.shapes, ...(this.draft ? [this.draft] : [])]) {
       if (s.k === 'mark') {
@@ -148,7 +148,7 @@ export function drawLanes(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, r
   ctx.strokeStyle = 'rgba(214,120,200,0.45)';
   ctx.fillStyle = 'rgba(214,120,200,0.6)';
   ctx.lineWidth = 1;
-  ctx.font = '9px ui-monospace, monospace';
+  ctx.font = FONT.tick;
   ctx.textAlign = 'center';
   for (const l of lanes) {
     ctx.setLineDash(l.shuttle ? [2, 4] : [8, 5]);
@@ -176,7 +176,7 @@ export function drawHavens(ctx: CanvasRenderingContext2D, P: (p: Vec2) => Vec2, 
   ctx.strokeStyle = 'rgba(110,170,255,0.55)';
   ctx.fillStyle = 'rgba(110,170,255,0.06)';
   ctx.setLineDash([10, 6]);
-  ctx.font = '9px ui-monospace, monospace';
+  ctx.font = FONT.tick;
   ctx.textAlign = 'center';
   for (const b of boats) {
     const c = P(b), e = P({ x: b.x + HAVEN_M, y: b.y });

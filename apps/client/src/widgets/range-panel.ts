@@ -1,5 +1,5 @@
 import { predictRanges, predictionSummary, type RangePrediction, type Snapshot } from '@tk/shared';
-import { COL, fitCanvas, h, setText } from './format.js';
+import { COL, fitCanvas, FONT, h, setText } from './format.js';
 
 /**
  * Listening-range prediction ("Reichweitenvorhersage"): a range × depth section from the
@@ -109,7 +109,7 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
   // Frame, range and depth scale
   ctx.strokeStyle = '#2c3a36';
   ctx.strokeRect(g.l + 0.5, g.t + 0.5, g.w, g.h);
-  ctx.font = '10px ui-monospace, monospace';
+  ctx.font = FONT.tick;
   ctx.fillStyle = COL.dim;
   ctx.textAlign = 'center';
   const stepKm = p.maxRange > 40_000 ? 10 : 5;

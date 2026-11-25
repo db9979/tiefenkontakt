@@ -193,7 +193,7 @@ export class RadarScope {
     // Range rings with labels
     ctx.strokeStyle = 'rgba(93,202,165,0.22)';
     ctx.lineWidth = 1;
-    ctx.font = `${Math.max(9, 11 * k)}px ui-monospace, monospace`;
+    ctx.font = `${Math.max(10, 11 * k)}px ui-monospace, monospace`;
     ctx.fillStyle = 'rgba(159,230,204,0.7)';
     ctx.textAlign = 'left';
     for (let i = 1; i <= 4; i++) {
@@ -263,7 +263,7 @@ export class RadarScope {
       ctx.font = `${Math.max(11, 14 * k)}px ui-monospace, monospace`;
       ctx.fillText('STANDBY · SENDER AUS', cx, cy - 8);
       ctx.fillStyle = 'rgba(159,230,204,0.6)';
-      ctx.font = `${Math.max(9, 11 * k)}px ui-monospace, monospace`;
+      ctx.font = `${Math.max(11, 11 * k)}px ui-monospace, monospace`;
       ctx.fillText('ESM HÖRT WEITER MIT', cx, cy + 12);
     }
     // Tube vignette

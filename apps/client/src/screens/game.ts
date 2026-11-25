@@ -91,13 +91,13 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     <div class="side">
       <div class="panel helm" id="helm"></div>
       <div class="side-tabs steps" id="side-tabs">
-        <button data-st="alerts">Meldungen</button><button data-st="crew">Boot</button><button data-st="damage">Schaden</button><button data-st="radio">Funk</button><button data-st="orders" title="Befehle der Führung">Befehle</button>
+        <button data-st="alerts" title="Meldungen">MELD<b class="cnt"></b></button><button data-st="crew" title="Besatzung &amp; Boot">BOOT<b class="cnt"></b></button><button data-st="damage" title="Schadensabwehr">SCHADEN<span id="st-dmg"></span><b class="cnt"></b></button><button data-st="radio" title="Funk">FUNK<b class="cnt"></b></button><button data-st="orders" title="Befehle der Führung">BEFEHLE<b class="cnt"></b></button>
       </div>
       <div class="side-body">
       <div class="panel" id="damage" data-sp="damage"></div>
       <div id="crew-slot"></div>
       <div id="orders-slot"></div>
-      <div class="panel alerts" data-sp="alerts"><div class="hd"><span>Meldungen</span><span class="dim">KLICK = HINGEHEN</span></div><div id="alert-chips"></div><div id="alerts"></div></div>
+      <div class="panel alerts" data-sp="alerts"><div id="alert-chips"></div><div id="alerts" title="KLICK = HINGEHEN"></div></div>
       <div class="panel" data-sp="radio"><div class="hd"><span>Funk</span><span id="radio-state" class="dim"></span></div>
         <div class="radio" id="radio"></div>
         <div style="display:flex;gap:4px;margin-top:6px"><input id="rtext" maxlength="200" placeholder="Konvoi Peilung 052" style="flex:1;min-width:0"><button id="rsend">Senden</button></div>
@@ -119,28 +119,47 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const orders = ordersPanel(() => showSide('orders'));
   q('#orders-slot').replaceWith(orders.el);
   orders.el.dataset.sp = 'orders';
-  // Right column: helm always visible, the rest as tabs (one panel at a time, a dot marks news elsewhere)
-  let sideTab = localStorage.getItem('tk-side') ?? 'alerts';
+  // Right column: helm always visible, the rest as tabs (one panel at a time). A tab in the back
+  // counts what is new since it was last open; Meldungen is the default, damage brings Schaden forward
+  let sideTab = 'alerts';
+  /** Game time each tab was last looked at (new items are newer than that). */
+  const sideSeenAt: Record<string, number> = {};
   const sideSeen: Record<string, string> = {};
   const sideKey: Record<string, string> = {};
   function showSide(t: string): void {
     sideTab = t;
-    localStorage.setItem('tk-side', t);
     sideSeen[t] = sideKey[t] ?? '';
+    sideSeenAt[t] = store.snap?.time ?? 0;
     el.querySelectorAll<HTMLElement>('[data-sp]').forEach((p) => p.classList.toggle('on', p.dataset.sp === t));
     el.querySelectorAll<HTMLElement>('[data-st]').forEach((b) => {
       b.classList.toggle('on', b.dataset.st === t);
-      if (b.dataset.st === t) b.classList.remove('news');
+      if (b.dataset.st === t) badge(t, 0);
     });
+  }
+  /** Count badge on a tab: a number, '!' for a change without a count, nothing for 0; red for alarms. */
+  function badge(t: string, n: number | string, alarm = false): void {
+    const b = el.querySelector(`[data-st="${t}"] .cnt`);
+    if (!b) return;
+    const txt = n === 0 || n === '' ? '' : typeof n === 'number' && n > 99 ? '99+' : String(n);
+    if (b.textContent !== txt) b.textContent = txt;
+    b.classList.toggle('alarm', alarm && !!txt);
   }
   onTap(el, '[data-st]', (b) => showSide(b.dataset.st!));
   showSide(sideTab);
+  /** Items newer than the tab's last look (0 while it is open). */
+  function countSide(t: string, times: number[], alarm = false): void {
+    if (t === sideTab) sideSeenAt[t] = store.snap?.time ?? 0;
+    const since = sideSeenAt[t] ?? -Infinity;
+    badge(t, t === sideTab ? 0 : times.filter((x) => x > since).length, alarm);
+  }
+  /** A tab without countable items: '!' when its content changed since the last look. */
   function markSide(t: string, key: string): void {
     sideKey[t] = key;
     if (sideSeen[t] === undefined) sideSeen[t] = key;
     if (t === sideTab) sideSeen[t] = key;
-    el.querySelector(`[data-st="${t}"]`)!.classList.toggle('news', sideSeen[t] !== key);
+    badge(t, sideSeen[t] !== key ? '!' : 0);
   }
+  let sideHp: number | undefined;
   // Alert log with level filter chips (none on = everything)
   const LOG_ID = 'alerts';
   const logChips = () => (q('#alert-chips').innerHTML = filterChips(LOG_ID, [
@@ -324,7 +343,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const s = store.snap!;
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} UHR · ` : '';
     const wx = `SEEGANG ${s.env.seaState}${s.env.rain ? ' · REGEN' : ''}${fogAt(s.env.met, s.own) > 0.3 ? ' · NEBEL' : ''}${iceCover(s.env.met, s.own) > 0.1 ? ' · EIS' : ''}`;
-    q('#clock').textContent = `${hh}${s.env.rain ? '🌧 ' : ''}${wx} · REST ${s.score.timeLeftS > 1e8 ? '∞' : `${clock(s.score.timeLeftS)}${s.timeScale > 0 && s.timeScale !== 1 ? ` (ECHT ${clock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`}`;
+    q('#clock').textContent = `${hh}${wx} · REST ${s.score.timeLeftS > 1e8 ? '∞' : `${clock(s.score.timeLeftS)}${s.timeScale > 0 && s.timeScale !== 1 ? ` (ECHT ${clock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`}`;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;
     // Convoy tonnage bar: red grows from the left (sunk), blue from the right (safe in port);
@@ -347,10 +366,19 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       : `Konvoi-Tonnage. Rot: von uns versenkt (${sunk} %), blau: entkommen (${safe} %). Die Hälfte versenkt = Sieg; kommt mehr als die Hälfte an, ist die Partie verloren. Bei Zeitablauf reichen 30 % (Strich).`;
     renderLog(s);
     showRadio(s.radio, s.own.name);
-    markSide('radio', String(s.radio.length));
-    markSide('alerts', String(s.alerts.filter((a) => a.kind === 'torpedo' || a.kind === 'ping').length));
+    countSide('radio', s.radio.filter((r) => r.from !== s.own.name).map((r) => r.time));
+    const unseenLog = callouts.log.filter((e) => e.level !== 'info');
+    countSide('alerts', unseenLog.map((e) => e.time), unseenLog.some((e) => e.level === 'alarm' && e.time > (sideSeenAt.alerts ?? -Infinity)));
     const d = s.own.damage;
-    markSide('damage', d ? `${s.own.hp}|${Object.values(d).map((x) => Math.round(x * 10)).join(',')}` : String(s.own.hp));
+    markSide('damage', d ? `${Math.round(s.own.hp)}|${Object.values(d).map((x) => Math.round(x * 10)).join(',')}` : String(Math.round(s.own.hp)));
+    // Hull integrity in the tab label; a hit brings the damage panel forward
+    const hpPct = Math.max(0, Math.round((100 * s.own.hp) / CLASSES[s.own.cls].hp));
+    const dmg = q('#st-dmg');
+    const dmgTxt = hpPct < 100 ? ` ${hpPct}%` : '';
+    if (dmg.textContent !== dmgTxt) dmg.textContent = dmgTxt;
+    dmg.className = hpPct < 50 ? 'red' : hpPct < 80 ? 'amber' : '';
+    if (sideHp !== undefined && s.own.hp < sideHp - 0.5 && sideTab !== 'damage') showSide('damage');
+    sideHp = s.own.hp;
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (mastState(s.own).raised ? '<span class="amber">MAST OBEN · PEILBAR</span>' : mastState(s.own).moving ? `<span class="amber">MAST FÄHRT ${mastState(s.own).moving === 'aus' ? 'AUS' : 'EIN'}</span>` : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();

@@ -1,3 +1,5 @@
+import { FONT, LW } from './format.js';
+
 /**
  * Binocular reticle: a mil scale across (10 mil steps, 1 mil = 1 m at 1 km) and a vertical one
  * below the centre, for estimating range from a known mast height or ship length.
@@ -8,8 +10,8 @@ export function reticle(ctx: CanvasRenderingContext2D, w: number, hgt: number, f
   ctx.save();
   ctx.strokeStyle = 'rgba(20,24,22,0.85)';
   ctx.fillStyle = 'rgba(20,24,22,0.85)';
-  ctx.lineWidth = 1.2;
-  ctx.font = '10px ui-monospace, monospace';
+  ctx.lineWidth = LW.bearing;
+  ctx.font = FONT.tick;
   ctx.textAlign = 'center';
   const span = Math.min(50, Math.floor((r * 0.85) / pxPerMil / 10) * 10);
   ctx.beginPath();

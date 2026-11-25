@@ -2,6 +2,7 @@ import { isInkLight } from './ink.js';
 import { depthAt, type Snapshot, type Vec2 } from '@tk/shared';
 import { ensureGrid } from './bathy-client.js';
 import { northOff } from '../north.js';
+import { FONT, LW } from './format.js';
 
 /**
  * The plot's chart background from the (public) seabed: a continuous depth tint, hill shading
@@ -187,7 +188,7 @@ function paint(j: Job, reuse?: HTMLCanvasElement): { img: HTMLCanvasElement; lab
 function drawLabels(ctx: CanvasRenderingContext2D, r: Render, sx: number, sy: number, k: number, rad: number, w: number, hgt: number): void {
   const cos = Math.cos(rad), sin = Math.sin(rad);
   ctx.save();
-  ctx.font = '9px ui-monospace, monospace';
+  ctx.font = FONT.tick;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const l of r.labels) {
@@ -238,7 +239,7 @@ function isobaths(ctx: CanvasRenderingContext2D, depths: Float32Array, cols: num
     if (!segs.length) continue;
     const major = MAJOR.has(z);
     ctx.strokeStyle = z === 0 ? 'rgba(170,190,150,0.85)' : major ? 'rgba(130,200,180,0.42)' : 'rgba(110,170,155,0.2)';
-    ctx.lineWidth = z === 0 ? 1.4 : major ? 1 : 0.7;
+    ctx.lineWidth = z === 0 ? LW.track : major ? LW.grid : 0.7 * LW.grid;
     ctx.beginPath();
     for (let s = 0; s < segs.length; s += 4) {
       ctx.moveTo(segs[s]! * CELL, segs[s + 1]! * CELL);
@@ -279,7 +280,7 @@ function legend(ctx: CanvasRenderingContext2D, _w: number, _hgt: number): void {
   }
   ctx.strokeStyle = 'rgba(130,200,180,0.5)';
   ctx.strokeRect(x - 0.5, y - 0.5, bw + 1, 8);
-  ctx.font = '9px ui-monospace, monospace';
+  ctx.font = FONT.tick;
   ctx.fillStyle = 'rgba(150,210,190,0.8)';
   ctx.textAlign = 'center';
   for (const m of marks) {

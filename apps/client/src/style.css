@@ -12,11 +12,26 @@
   --track: #132320;
   --well: #07100e;
   --amber-line: #6b4a1a;
+  /* Design tokens. Type: caption, body, data, readout, big figure (rem so the font-size setting scales
+     them; nothing below 10 px). Spacing steps, row/button/header heights. */
+  --fs-cap: max(10px, 0.8333rem);
+  --fs-body: 1rem;
+  --fs-data: 1.0833rem;
+  --fs-read: 1.3333rem;
+  --fs-big: 1.8333rem;
+  --sp1: 2px; --sp2: 4px; --sp3: 8px; --sp4: 12px; --sp5: 16px;
+  --row-h: 22px;
+  --btn-h: 26px;
+  --hd-h: 22px;
+  font-variant-numeric: tabular-nums;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 12px;
   color: var(--g2);
   background: var(--bg);
 }
+/* Colour roles (aliases of the palette; declared on body too so the colour-blind palette on body
+   reaches them): ok/own = green, attention = amber, threat and damage only = red, friend = blue */
+:root, body { --c-ok: var(--g); --c-attn: var(--amber); --c-threat: var(--red); --c-friend: var(--blue); --c-data: var(--g2); --c-mute: var(--dim); }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100vh; }
 button, input, select {
@@ -28,11 +43,29 @@ button:hover { border-color: var(--g); }
 button.on { background: #12302a; border-color: var(--g); color: #d8fff0; }
 button.warn { border-color: #6b4a1a; color: var(--amber); }
 button.fire { border-color: #7a2a2a; color: var(--red); }
+/* Button hierarchy: primary (the one action of a panel), default, segmented group, fire (red fill only when armed) */
+:where(button) { min-height: var(--btn-h); }
+button.primary { min-height: 30px; border-color: var(--g); color: #e6fff6; background: linear-gradient(180deg, #1d5446, #133a30); }
+button.primary:hover { border-color: var(--g2); }
+.seg { display: inline-flex; align-items: stretch; }
+.seg > button { border-radius: 0; margin-left: -1px; }
+.seg > button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.seg > button:last-child { border-radius: 0 3px 3px 0; }
+.seg > button.on { position: relative; z-index: 1; }
+button.fire.armed { background: linear-gradient(180deg, #7a2323, #561717); border-color: var(--red); color: #fff0f0; }
+button.fire:not(.armed) { background: linear-gradient(180deg, #111b18, #0a1110); }
 input:focus, select:focus { outline: 1px solid var(--g); }
 .amber { color: var(--amber); } .red { color: var(--red); } .dim { color: var(--dim); } .blue { color: var(--blue); }
 .panel { background: var(--panel); border: 1px solid var(--line2); border-radius: 4px; padding: 8px 10px; }
-.hd { display: flex; justify-content: space-between; gap: 12px; color: var(--g); border-bottom: 1px solid var(--line);
-  padding-bottom: 4px; margin-bottom: 6px; text-transform: uppercase; }
+.hd { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--g); border-bottom: 1px solid var(--line);
+  min-height: var(--hd-h); padding-bottom: 2px; margin-bottom: 6px; text-transform: uppercase; white-space: nowrap; }
+/* Header: one line, title left, status right; whichever is too long is cut with an ellipsis */
+.hd > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hd > :first-child { flex: 0 1 auto; }
+.hd > :last-child:not(:first-child) { flex: 0 1 auto; text-align: right; }
+/* How-to text belongs in a footer line under the display, not in the header */
+.hint { font-size: var(--fs-cap); color: var(--dim); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: var(--sp2); text-transform: uppercase; }
 .row { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid #111a18; padding: 3px 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .err { color: var(--red); min-height: 1.4em; margin-top: 4px; }
@@ -97,15 +130,19 @@ button[disabled] { opacity: 0.4; cursor: default; }
 .tutorial { border-color: var(--amber); max-height: 40vh; overflow: auto; }
 .tutorial .row { padding: 4px 0; }
 
-/* CRT console look: phosphor glow on canvases, scanlines and vignette over each panel */
+/* CRT console look: phosphor glow on canvases and a vignette over each panel; scanlines only when
+   switched on in the ⚙ menu (body.scan, off by default) */
 body.crt .panel { position: relative; }
 body.crt .panel canvas { filter: drop-shadow(0 0 1.5px rgba(93, 202, 165, 0.55)) contrast(1.08) brightness(1.05); }
 body.crt .panel::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: 4px;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+  mix-blend-mode: multiply;
+}
+body.crt.scan .panel::after {
   background:
     repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px),
     radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
-  mix-blend-mode: multiply;
 }
 /* A panel the phone camera must read (QR code): no scanlines over it */
 body.crt .panel.plain::after { display: none; }
@@ -150,6 +187,9 @@ button.link { background: none; border: none; color: var(--dim, #6f8a78); text-t
 }
 .langbtn { position: fixed; left: 8px; bottom: 8px; z-index: 80; font-size: 0.8333rem; padding: 2px 6px; opacity: 0.7; }
 .langbtn:hover { opacity: 1; }
+/* In a match language and theme live in the ⚙ menu: no floating buttons over the console */
+body:has(.game) .langbtn { display: none; }
+.langbtn, button.link, .rline .racts button, .chip { min-height: 0; }
 
 /* Briefing and assistant */
 .station-wrap { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
@@ -222,10 +262,10 @@ body { background:
 .panel {
   border: 1px solid #27332f !important;
   background:
-    radial-gradient(circle at 7px 7px, #42504c 0 1.6px, #10171560 2.4px, transparent 3px),
-    radial-gradient(circle at calc(100% - 7px) 7px, #42504c 0 1.6px, #10171560 2.4px, transparent 3px),
-    radial-gradient(circle at 7px calc(100% - 7px), #42504c 0 1.6px, #10171560 2.4px, transparent 3px),
-    radial-gradient(circle at calc(100% - 7px) calc(100% - 7px), #42504c 0 1.6px, #10171560 2.4px, transparent 3px),
+    radial-gradient(circle at 4px 4px, #42504c 0 1.2px, #10171560 1.8px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 4px) 4px, #42504c 0 1.2px, #10171560 1.8px, transparent 2.2px),
+    radial-gradient(circle at 4px calc(100% - 4px), #42504c 0 1.2px, #10171560 1.8px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 4px) calc(100% - 4px), #42504c 0 1.2px, #10171560 1.8px, transparent 2.2px),
     linear-gradient(180deg, #0c1311 0%, #080c0b 100%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.5);
   border-radius: 4px;
@@ -238,9 +278,8 @@ button.on { background: linear-gradient(180deg, #164036, #0f2a24); box-shadow: i
 /* Screens: dark glass inset into the bezel */
 .panel canvas { border-radius: 6px; box-shadow: 0 0 0 1px #050807, 0 0 0 3px #18221f; }
 
-/* CRT: curvature vignette, phosphor glow and a faint flicker */
-body.crt .panel canvas { box-shadow: 0 0 0 1px #050807, 0 0 0 3px #18221f, 0 0 14px rgba(93,202,165,0.10); animation: phosphor 4s infinite; }
-@keyframes phosphor { 0%, 100% { opacity: 1; } 47% { opacity: 0.985; } 48% { opacity: 1; } 73% { opacity: 0.992; } }
+/* CRT: curvature vignette and phosphor glow (no flicker: it read as a fault and cost frames) */
+body.crt .panel canvas { box-shadow: 0 0 0 1px #050807, 0 0 0 3px #18221f, 0 0 14px rgba(93,202,165,0.10); }
 body.crt .station-wrap { position: relative; }
 body.crt .station-wrap::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: 6px;
   background: radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,0.35) 100%); }
@@ -256,7 +295,7 @@ body.hit::after { content: ''; position: fixed; inset: 0; z-index: 90; pointer-e
 /* Station switch: a short CRT power-on */
 .station > * { animation: poweron 0.28s ease-out; }
 @keyframes poweron { from { opacity: 0; filter: brightness(2.2) blur(1px); transform: scaleY(0.96); } to { opacity: 1; filter: none; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .station > *, body.crt .panel canvas, body.hit .game { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .station > *, body.hit .game { animation: none !important; } }
 
 /* Lobby: mission cards, ranks, chat */
 .mcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
@@ -308,7 +347,9 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 .badgechip { white-space: nowrap; cursor: help; }
 .badgechip .badge { color: var(--amber, #e0b050); }
 .badgechip.dim .badge { color: inherit; }
-.topbar .status .st-ship { flex-shrink: 0; }
+.topbar .status .st-ship { flex: 0 1 auto; min-width: 0; max-width: 34ch; white-space: nowrap; }
+.pbar { flex: 0 0 130px; }
+@media (max-width: 1500px) { .pb-lbl { display: none; } .pbar { flex-basis: 80px; width: 80px; } }
 .st-prog { min-width: 0; }
 #pb-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Lookout hit inset */
@@ -327,8 +368,17 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 /* Right column tabs: helm on top, one of messages / boat / damage / radio below, no scrolling of the whole column */
 .side { overflow: hidden; }
 .side-tabs { margin: 0; flex: none; }
-.side-tabs button { position: relative; }
-.side-tabs button.news::after { content: ''; position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+.side-tabs { flex-wrap: nowrap; gap: 2px; }
+.side-tabs button { position: relative; flex: 1 1 auto; min-width: 0; padding: 3px 4px; font-size: var(--fs-cap); letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Count of what is new behind a tab: amber, red when an alarm is among it */
+.side-tabs .cnt { display: inline-block; min-width: 14px; margin-left: 3px; padding: 0 3px; border-radius: 7px; line-height: 14px;
+  font-weight: 600; letter-spacing: 0; background: var(--c-attn); color: #1a1205; text-align: center; }
+.side-tabs .cnt:empty { display: none; }
+.side-tabs .cnt.alarm { background: var(--c-threat); color: #1a0505; }
+.side-tabs #st-dmg { margin-left: 3px; }
+/* A panel in a tab: the tab is its title, no second header */
+.side-body .dp-hd { display: none; }
 .side-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .side-body > [data-sp] { display: none; flex: 1; min-height: 0; overflow: auto; }
 .side-body > [data-sp].on { display: block; }
@@ -373,7 +423,7 @@ a.btnlink:hover { background: #12302a; }
 input:focus-visible, select:focus-visible { outline: 2px solid var(--amber); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* Status on the button itself (widgets/btn-state.ts): tag, progress fill, press flash */
-button[data-bst]::after { content: attr(data-bst); display: inline-block; margin-left: 6px; padding: 0 4px; font-size: 0.75rem; line-height: 1.3; border: 1px solid currentColor; border-radius: 2px; opacity: 0.8; text-transform: none; letter-spacing: 0; vertical-align: 1px; }
+button[data-bst]::after { content: attr(data-bst); display: inline-block; margin-left: 6px; padding: 0 4px; font-size: var(--fs-cap); line-height: 1.3; border: 1px solid currentColor; border-radius: 2px; opacity: 0.8; text-transform: none; letter-spacing: 0; vertical-align: 1px; }
 button.on[data-bst]::after { color: var(--g); opacity: 1; }
 button.st-busy[data-bst]::after, button.st-warn[data-bst]::after { color: var(--amber); opacity: 1; }
 button.st-busy[data-bst]::after { animation: st-pulse 1s ease-in-out infinite; }
@@ -397,3 +447,10 @@ button.ack { animation: btn-ack 0.45s ease-out; }
   font-size: 1rem; letter-spacing: 0.1em; pointer-events: none; text-align: center; }
 .depth-callout.warning { border: 1px solid var(--amber); background: #2a2008; color: var(--amber); }
 .depth-callout.danger { border: 2px solid var(--red); background: #2a0d0d; color: #ffd0d0; }
+/* Helm compass: a round dial without the square screen bezel */
+.helm #h-compass { border-radius: 50%; box-shadow: none !important; filter: none !important; }
+/* Status strip: nothing overlaps; the ship name and the convoy text give way first */
+.topbar .status .st-ship { min-width: 6ch; }
+.st-prog { flex: 0 1 auto; overflow: hidden; }
+.st-clock { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1500px) { #pb-txt { display: none; } }
