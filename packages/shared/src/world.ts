@@ -147,8 +147,11 @@ function checkGround(w: World, s: Ship): void {
   // Damage and the report come with the strike, not every minute while she sits on the ground
   if (w.time - last > 60 && struckKn > (sub ? 2 : 1)) {
     groundedAt.set(s, w.time);
-    s.hp -= 8;
-    applyHitDamage(s, 25, w.rng, { u: 0.03, fireChance: 0.05, w });
+    // A touch at dead slow scrapes the paint; at speed she tears her bottom open, worst on a rocky shore
+    const hard = Math.max(0, struckKn - 3) * (bottom <= 0 ? 4.5 : 3);
+    s.hp -= 8 + hard;
+    applyHitDamage(s, 25 + hard * 2, w.rng, { u: 0.03, fireChance: 0.05, w });
+    if (!sub) s.speed = 0;
     w.events.push({ kind: 'grounded', time: w.time, shipId: s.id });
   }
 }

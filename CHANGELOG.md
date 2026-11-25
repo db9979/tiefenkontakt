@@ -6,6 +6,13 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Küsten im 3D genau:** Das Gelände nahe am Schiff hat 100-m-Raster und die Uferlinie liegt genau bei Wassertiefe 0
+  der Seekarte; vorher ragte die Küste bis zu 300 m ins Wasser und man schien über Land zu fahren.
+- **Auflaufen mit Folgen:** Wer mit Fahrt auf Grund läuft, bleibt sofort stehen und nimmt Schaden je nach Fahrt, am
+  Felsufer mehr als auf einer Sandbank (bei 12 kn rund 35 Punkte statt pauschal 8).
+- **Kontaktklang am Hydrophon:** Schmalbandlinien im Breitband nur noch leise und nicht mehr hochoktaviert (klang wie
+  eine Orgel), Rauschen tiefer gewichtet, deutlicherer Blattschlag.
+- **Handy-Fernglas:** Land sichtbar, Maske im hellen Modus schwarz, beide Okulare sauber ausgeschnitten.
 - **Land im 3D:** Küsten, Inseln und Berge aus der Seekarte erscheinen in Sehrohr und Brücke (Strand, Grün, Fels,
   Schnee nach Höhe), um das eigene Schiff herum und mit dem Dunst verblassend.
 - **Neue Geräusche:** Schnorchel-Diesel, Drahtbruch, Suchkopf-Pings eines anlaufenden Torpedos (immer schneller),
