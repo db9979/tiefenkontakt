@@ -17,6 +17,9 @@ export interface FinishedMatch {
   players: string[];
 }
 
+/** Tables a reset empties (drop-outs and graphics samples are the admin insights). */
+const RESET_TABLES = ['matches', 'results', 'habits', 'ratings', 'dropout_agg', 'perf_agg'];
+
 /**
  * Moderation of the recorded statistics: list finished matches, take single ones out
  * (balance, results, habits) and reset everything. A match's results are tied to it by
@@ -53,11 +56,11 @@ export class StatsAdmin {
     return true;
   }
 
-  /** Clear all match statistics: balance, results (rankings, careers), habits and ratings. Accounts and campaign progress stay. */
+  /** Clear all match statistics: balance, results (rankings, careers), habits, ratings, drop-outs and graphics samples. Accounts and campaign progress stay. */
   reset(): number {
     const n = (this.db.prepare('SELECT COUNT(*) AS n FROM matches').get() as { n: number }).n;
     this.tx(() => {
-      for (const t of ['matches', 'results', 'habits', 'ratings']) {
+      for (const t of RESET_TABLES) {
         const exists = this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(t);
         if (exists) this.db.exec(`DELETE FROM ${t}`);
       }

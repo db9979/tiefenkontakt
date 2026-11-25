@@ -8,8 +8,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ### Moderation
 - **Beendete Partien verwalten:** Das Moderationspanel listet die aufgezeichneten Partien (Zeit, Mission, Sieger, Dauer,
   Spieler und Endgrund, der jetzt mitgespeichert wird). Einzelne Partien lassen sich aus Balance, Rangliste und Dienstbuch
-  nehmen. „Alles zurücksetzen“ löscht nach Eingabe von RESET alle Partie-Statistiken samt Wertung; Konten und Kampagne
-  bleiben. Bereits verrechnete Wertungspunkte einer einzeln gelöschten Partie bleiben stehen.
+  nehmen. „Alles zurücksetzen“ löscht nach Eingabe von RESET alle Partie-Statistiken samt Wertung, Ausstiegen und
+  Grafikleistung; Konten, Kampagne, Wochenlagen und Saisonarchiv bleiben. Bereits verrechnete Wertungspunkte einer einzeln gelöschten Partie bleiben stehen.
 
 ### Spiel
 - **Knöpfe zeigen ihren Status:** Jeder Druck blinkt sofort auf. Schalter tragen AN/AUS, laufende Vorgänge Prozent und

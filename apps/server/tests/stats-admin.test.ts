@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Debrief } from '@tk/shared';
 import { AuthStore } from '../src/auth.js';
+import { DropoutStore } from '../src/dropouts.js';
 import { Ratings } from '../src/rating.js';
 import { StatsStore } from '../src/stats.js';
 import { StatsAdmin } from '../src/stats-admin.js';
@@ -62,5 +63,11 @@ describe('moderation of the statistics', () => {
     expect(ratings.get(a)).toBe(1000);
     expect(st.campaign(a).find((s) => s.id === 'm1')?.done).toBe(true);
     expect(auth.db.prepare('SELECT COUNT(*) AS n FROM users').get()).toMatchObject({ n: 2 });
+    // Drop-out counters and graphics samples go too
+    const drops = new DropoutStore(auth.db);
+    drops.add({ kind: 'match', minute: 3, team: 'west', cls: 'ffg', how: 'disconnect' });
+    expect(drops.view().matches.left).toBe(1);
+    admin.reset();
+    expect(drops.view().matches).toMatchObject({ left: 0, disconnects: 0, finished: 0 });
   });
 });

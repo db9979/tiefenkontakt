@@ -64,7 +64,7 @@ export function adminPanel(): HTMLElement {
         if (confirm(lang === 'en' ? 'Take this match out of balance, rankings and careers?' : 'Diese Partie aus Balance, Rangliste und Dienstbuch nehmen?')) r = await post('/api/admin/delete', { finishedId: Number(id) });
         break;
       case 'reset': {
-        const typed = prompt(lang === 'en' ? 'Clear ALL match statistics (balance, rankings, careers, ratings)? Accounts and campaign stay. Type RESET:' : 'ALLE Partie-Statistiken löschen (Balance, Rangliste, Dienstbuch, Wertung)? Konten und Kampagne bleiben. RESET eintippen:');
+        const typed = prompt(lang === 'en' ? 'Clear ALL statistics (balance, rankings, careers, ratings, drop-outs, graphics)? Accounts and campaign stay. Type RESET:' : 'ALLE Statistiken löschen (Balance, Rangliste, Dienstbuch, Wertung, Ausstiege, Grafikleistung)? Konten und Kampagne bleiben. RESET eintippen:');
         if (typed === 'RESET') r = await post('/api/admin/reset', { confirm: 'RESET' });
         break;
       }
