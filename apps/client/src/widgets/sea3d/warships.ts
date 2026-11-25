@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { add, box, cyl, navLights, smoke, wake } from './parts.js';
-import { K, lathe, loftHull, mast, railing, whip, windowBand, hullNumber } from './hullkit.js';
+import { K, lathe, loftHull, mast, railing, whip, windowBand, hullNumber, type HullSpec } from './hullkit.js';
 import { COLORS, DARK2, MARK, V, YELLOW, base, boat, bridgeGlass, forecastle, house, lattice, profileSolid, rbu, strut, vlathe } from './warkit.js';
 
 /**
@@ -11,11 +11,17 @@ import { COLORS, DARK2, MARK, V, YELLOW, base, boat, bridgeGlass, forecastle, ho
  * or on another part.
  */
 
+/** Hulls of F-30 and K-7 (also used by the own ship's close-range model, own-detail.ts). */
+export const F30_HULL: HullSpec = { len: 113, beam: 12.5, freeboard: 5, draft: 5.6, sheerBow: 3.2, sheerStern: 0.3, rake: 7, flare: 0.12, fullness: 0.12, transom: 0.72, bilge: 0.45, colors: COLORS };
+export const K7_HULL: HullSpec = { len: 72, beam: 10, freeboard: 3.1, draft: 3.7, sheerBow: 2.6, sheerStern: 0.2, rake: 7, flare: 0.17, fullness: 0.1, transom: 0.74, bilge: 0.4, colors: COLORS };
+/** K-7's raised forecastle: from z0 forward, rise above the main deck. */
+export const K7_FORECASTLE = { z0: -12, rise: 2.1 };
+
 /** Frigate with variable-depth sonar (F-30), after the Leander class: 113 m, flush deck with strong sheer forward. */
 export function vdsFrigate(g: THREE.Group): void {
   const L = 113;
   const B = 12.5;
-  const h = loftHull(g, { len: L, beam: B, freeboard: 5, draft: 5.6, sheerBow: 3.2, sheerStern: 0.3, rake: 7, flare: 0.12, fullness: 0.12, transom: 0.72, bilge: 0.45, colors: COLORS });
+  const h = loftHull(g, F30_HULL);
   const N = K.navy;
   const D = K.navyDark;
   // Forecastle: V breakwater, capstans and the twin 4.5-inch gunhouse on its ring
@@ -132,8 +138,8 @@ export function vdsFrigate(g: THREE.Group): void {
 export function corvette(g: THREE.Group): void {
   const L = 72;
   const B = 10;
-  const h = loftHull(g, { len: L, beam: B, freeboard: 3.1, draft: 3.7, sheerBow: 2.6, sheerStern: 0.2, rake: 7, flare: 0.17, fullness: 0.1, transom: 0.74, bilge: 0.4, colors: COLORS });
-  const fc = forecastle(g, h, -12, 2.1);
+  const h = loftHull(g, K7_HULL);
+  const fc = forecastle(g, h, K7_FORECASTLE.z0, K7_FORECASTLE.rise);
   const N = K.navy;
   const D = K.navyDark;
   // Foredeck: windlass and the round pop-up missile bin

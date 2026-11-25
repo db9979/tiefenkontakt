@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { add, box, cyl, navLights, smoke, wake } from './parts.js';
-import { K, loftHull, mast, railing, whip, windowBand, hullNumber } from './hullkit.js';
+import { K, loftHull, mast, railing, whip, windowBand, hullNumber, type HullSpec } from './hullkit.js';
 import { COLORS, MARK, base, boat, bridgeGlass, house, lattice, profileSolid, rbu, vlathe } from './warkit.js';
 
 /**
@@ -25,11 +25,14 @@ function gun(g: THREE.Object3D, y: number, z: number, dir: number, w: number, tw
   }
 }
 
+/** F-12 hull (also used by the own ship's close-range model, own-detail.ts). */
+export const F12_HULL: HullSpec = {
+  len: 136, beam: 14, freeboard: 6, draft: 5.6, sheerBow: 2.6, rake: 6, flare: 0.1, fullness: 0.15, transom: 0.78, bilge: 0.45, colors: COLORS,
+};
+
 /** Long-hull ASW frigate with helicopter (F-12): 136 m, flush deck, articulated superstructure. */
 export function asw(g: THREE.Group): void {
-  const h = loftHull(g, {
-    len: 136, beam: 14, freeboard: 6, draft: 5.6, sheerBow: 2.6, rake: 6, flare: 0.1, fullness: 0.15, transom: 0.78, bilge: 0.45, colors: COLORS,
-  });
+  const h = loftHull(g, F12_HULL);
   const N = K.navy;
   const D = K.navyDark;
   // Forecastle: anchor gear, breakwater and the gun

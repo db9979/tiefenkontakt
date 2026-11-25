@@ -11,6 +11,7 @@ import { SkyFx } from './sea3d/sky.js';
 import { applyWaves, hullOnSea, oceanGrid, ownRoll, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
 import { wakeUniforms } from './sea3d/wake.js';
 import { bridgeFront, cullNear, handShake } from './sea3d/own-ship.js';
+import { ownDetail } from './sea3d/own-detail.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
@@ -170,6 +171,8 @@ export class Periscope3D {
       // Eye just behind the forward bridge windows; parts right at the eye (dome, mast foot) would fill the view
       const bridgeZ = bridgeFront(g) - 1.5;
       cullNear(g, new THREE.Vector3(0, this.eye, bridgeZ), 6);
+      // Close-range detail (hull, foredeck, fittings, lookout platform): only the own ship gets it
+      if (opts.own === 'ffg' || opts.own === 'kor' || opts.own === 'ffv') ownDetail(g, opts.own, this.eye, bridgeZ);
       this.own = { g: mergeStatic(g), bridgeZ };
       this.scene.add(g);
     }
@@ -323,7 +326,9 @@ export class Periscope3D {
       const hdg = o.ownHeading ?? 0;
       const m = this.ownMotion(hdg);
       const rel = look - (hdg * Math.PI) / 180;
-      this.camera.position.set(0, this.eye + m.heave + this.own.bridgeZ * Math.sin(m.pitch), 0);
+      // The eye is a point of the ship: it rides her heave, pitch and roll (her lookout platform stays underfoot)
+      this.placeOwn(hdg, m, listRad);
+      this.camera.position.set(0, this.eye, this.own.bridgeZ).applyMatrix4(this.own.g.matrixWorld);
       if (!o.stabilize) {
         camPitch += m.pitch * Math.cos(rel) - m.roll * Math.sin(rel);
         camRoll += -m.roll * Math.cos(rel) - m.pitch * Math.sin(rel);
@@ -385,21 +390,26 @@ export class Periscope3D {
     this.fire.intensity = this.glow * 4;
     this.missiles.update(o.missiles?.list ?? [], o.missiles?.me ?? { x: 0, y: 0 }, o.t, o.light);
     if (this.own) {
-      // Keep the own hull under the camera: the bridge point sits below the eye, the ship heaves and rolls with it
-      const c = ((o.ownHeading ?? 0) * Math.PI) / 180;
+      // The own hull was posed with the eye (above): wake, bow wave, smoke and radar
       const g = this.own.g;
-      const m = this.ownMotion(o.ownHeading ?? 0);
-      g.rotation.order = 'YXZ';
-      g.rotation.y = Math.PI - c;
-      g.rotation.x = -m.pitch;
-      g.rotation.z = m.roll + listRad;
-      g.position.set(-this.own.bridgeZ * Math.sin(c), m.heave, this.own.bridgeZ * Math.cos(c));
       this.animate(g, o.t, o.ownKn ?? 12, 0.3);
       const bow = g.getObjectByName('bow');
       if (bow) bow.scale.setScalar(Math.max(0.2, (o.ownKn ?? 12) / 12));
       g.getObjectByName('wake')?.scale.set(1, 1, Math.max(0.05, (o.ownKn ?? 12) / 10));
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Set the own ship's pose: bridge point over the origin, heading, motion and list. */
+  private placeOwn(heading: number, m: { heave: number; pitch: number; roll: number }, listRad: number): void {
+    const c = (heading * Math.PI) / 180;
+    const g = this.own!.g;
+    g.rotation.order = 'YXZ';
+    g.rotation.y = Math.PI - c;
+    g.rotation.x = -m.pitch;
+    g.rotation.z = m.roll + listRad;
+    g.position.set(-this.own!.bridgeZ * Math.sin(c), m.heave, this.own!.bridgeZ * Math.cos(c));
+    g.updateMatrixWorld(true);
   }
 
   /** The own ship on the sea at the eye (bridge view): heave, pitch (bow up) and roll (port up). */
