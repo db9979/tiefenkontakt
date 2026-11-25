@@ -1,5 +1,5 @@
 import { inkOn } from './ink.js';
-import { depthAt, headingVec, type Snapshot } from '@tk/shared';
+import { depthAt, headingVec, isDangerEmitter, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
 import { northOff, toNorthUp } from '../north.js';
 
@@ -8,6 +8,14 @@ import { northOff, toNorthUp } from '../north.js';
  * layer as the sweep passes (sea clutter, rain, coastline from the chart, contacts) and
  * fade until the next revolution. Bezel with bearing ring and ship's-head marker on top.
  */
+
+/**
+ * ESM strobe colour (r,g,b) by what was intercepted: red only for a classified hostile radar
+ * (fire control, aircraft); unknown emitters and radio (FUNK) amber.
+ */
+export function esmStrobeRgb(emitter: string | undefined): string {
+  return isDangerEmitter(emitter) ? '240,149,149' : '250,199,117';
+}
 
 const S = 560; // persistence layer size (px)
 const C = S / 2;
@@ -229,7 +237,7 @@ export class RadarScope {
       for (const c of s.contacts) {
         if (!c.sensors.includes('esm') || s.time - c.lastSeen > 300) continue;
         const a = toRad(c.bearing);
-        ctx.strokeStyle = `rgba(240,149,149,${0.75 - (s.time - c.lastSeen) / 500})`;
+        ctx.strokeStyle = `rgba(${esmStrobeRgb(c.emitter)},${0.75 - (s.time - c.lastSeen) / 500})`;
         ctx.setLineDash([6, 4]);
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); ctx.stroke();
         ctx.setLineDash([]);
