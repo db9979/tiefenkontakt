@@ -68,6 +68,11 @@ export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): M
   return undefined;
 }
 
+/** Held contact the shadowing pack needs: 25 minutes, at most half the time at sea. */
+export const shadowGoalS = (timeLimitS: number): number => Math.min(SHADOW_GOAL_S, timeLimitS * 0.5);
+/** How long a reporting boat must stay alive after its report: 20 minutes, at most a quarter of the time at sea. */
+export const escapeS = (timeLimitS: number): number => Math.min(1200, timeLimitS * 0.25);
+
 const lastEval = new WeakMap<World, number>();
 
 /** Shadowing, strait breakthrough and reconnaissance: goals beyond sinking ships. */
@@ -85,7 +90,9 @@ function special(w: World, timeLimitS: number, mission: string): MatchResult | u
     const holding = subs.some((s) => reported.has(s.id) && convoy.some((c) => distance(s.pos, c.pos) < SHADOW_RANGE_M) &&
       w.books.get(s.id)?.entries().some(([id, tr]) => ids.has(id) && w.time - tr.lastSeen < 30));
     if (holding) w.env.shadowS = (w.env.shadowS ?? 0) + (w.time - prev);
-    if ((w.env.shadowS ?? 0) >= SHADOW_GOAL_S) return { winner: 'east', reason: 'Fühlung 25 Minuten gehalten, der Konvoi ist gemeldet' };
+    // A short match at sea asks for less: at most half the time limit (25 minutes in the long one)
+    const goal = shadowGoalS(timeLimitS);
+    if ((w.env.shadowS ?? 0) >= goal) return { winner: 'east', reason: `Fühlung ${Math.round(goal / 60)} Minuten gehalten, der Konvoi ist gemeldet` };
     if (w.time >= timeLimitS) return { winner: 'west', reason: 'Zeit abgelaufen, die Fühlung ist abgerissen' };
     return undefined;
   }
@@ -111,7 +118,7 @@ function special(w: World, timeLimitS: number, mission: string): MatchResult | u
     if (!reporter?.alive) {
       w.env.reportAt = undefined;
       w.env.reportBy = undefined;
-    } else if (w.time - w.env.reportAt >= 1200) return { winner: 'east', reason: 'Feindmeldung abgesetzt und entkommen' };
+    } else if (w.time - w.env.reportAt >= escapeS(timeLimitS)) return { winner: 'east', reason: 'Feindmeldung abgesetzt und entkommen' };
   }
   if (w.time >= timeLimitS) return { winner: 'west', reason: 'Zeit abgelaufen, keine Feindmeldung' };
   return undefined;

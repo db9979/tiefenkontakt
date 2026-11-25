@@ -2,7 +2,7 @@ import { CLASSES, distance, isConvoyShip, stepWorld, type Debrief, type PlayerSl
 import { BotCrew } from './bots/index.js';
 import { Recorder } from './recorder.js';
 import { evaluate, computeScore, type MatchResult } from './rules.js';
-import { DEFAULT_SETTINGS, allowedClasses, buildScenario, simTimeLimit, type MissionId, type PlayableClass, type ScenarioSettings } from './scenario.js';
+import { DEFAULT_SETTINGS, allowedClasses, buildScenario, fixSeaTime, simTimeLimit, type MissionId, type PlayableClass, type ScenarioSettings } from './scenario.js';
 import { resolveLobby } from './variation.js';
 
 /** Bot-vs-bot matches without a server: used by the arena script and by replay series. */
@@ -19,6 +19,8 @@ export interface ArenaSetup {
   /** Sea area (default: the mission's home area). */
   area?: ScenarioSettings['area'];
   season?: ScenarioSettings['season'];
+  /** Time scale the lobby would have set (default 1×): the sea time is timeLimitMin × scale. */
+  timeScale?: number;
 }
 
 export const DEFAULT_ARENA: ArenaSetup = { mission: 'groenland', timeOfDay: 'tag', botSkill: 'normal', west: ['ffg', 'ffg'], east: ['ssk', 'ssn'], timeLimitMin: 40 };
@@ -64,10 +66,11 @@ export class ArenaGame {
   result?: MatchResult;
 
   constructor(readonly setup: ArenaSetup, readonly seed: number, record = false) {
-    this.settings = resolveLobby({
+    this.settings = fixSeaTime(resolveLobby({
       ...DEFAULT_SETTINGS, mission: setup.mission, timeOfDay: setup.timeOfDay, botSkill: setup.botSkill, timeLimitMin: setup.timeLimitMin,
+      timeScale: setup.timeScale ?? DEFAULT_SETTINGS.timeScale,
       variation: setup.variation ?? DEFAULT_SETTINGS.variation, area: setup.area, season: setup.season,
-    }, seed);
+    }, seed));
     const slots = arenaSlots(setup);
     this.world = buildScenario(slots, this.settings, seed);
     this.crew = new BotCrew(setup.botSkill);

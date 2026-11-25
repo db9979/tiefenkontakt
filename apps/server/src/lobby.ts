@@ -153,7 +153,9 @@ export class Lobby {
     if (this.matches.size >= MAX_MATCHES) return 'Zu viele Partien';
     if (metrics.simLoad() > MAX_LOAD) return 'Der Server ist gerade ausgelastet, versuch es gleich noch einmal';
     const m = new Match(randomUUID().slice(0, 8), name);
-    if (lesson) Object.assign(m.settings, { lesson, fillBots: false, timeLimitMin: 30 });
+    // 50 real minutes at 1× (the old 30 lobby minutes ran 90 at sea): the attack lesson's target
+    // passes at about minute 32; "Zeitraffer bis Ereignis" shortens the waiting
+    if (lesson) Object.assign(m.settings, { lesson, fillBots: false, timeLimitMin: 50 });
     this.hook(m);
     this.matches.set(m.id, m);
     this.broadcastList();

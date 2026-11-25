@@ -23,12 +23,22 @@ import { buoySensors, type AirState } from './aviation.js';
 export const SIM_DT = 0.1; // s, 10 Hz
 export const SENSOR_INTERVAL = 1; // s
 /**
- * Time compression: the lobby's time limit is in real minutes at the standard 3×; the battle
- * always lasts that many minutes times SEA_TIME_FACTOR at sea (routes and balance are sized on
- * it). A slower scale only stretches the real duration.
+ * Time compression: the lobby's time limit is in REAL minutes; the battle lasts that many
+ * minutes times the time scale at sea (seaMinutes in the server's scenario.ts), fixed when the
+ * match starts. Matches saved before that rule ran SEA_TIME_FACTOR sea minutes per lobby minute
+ * whatever the scale: only those old saves still use it.
  */
 export const SEA_TIME_FACTOR = 3;
+/** Sea time the mission geometry was designed for (40 lobby minutes at the old 3×). */
+export const REFERENCE_SEA_S = 120 * 60;
 export const TIME_SCALES = [3, 2, 1] as const;
+/**
+ * "Zeitraffer bis Ereignis": fast-forward at this scale until something happens (new contact,
+ * alarm, tutorial step). Only this mode may run the sim at 6×; the lobby offers 1–3×.
+ */
+export const FAST_FORWARD_SCALE = 6;
+/** Sea minutes of a match with this lobby limit (real minutes) at this time scale. */
+export const seaMinutesFor = (timeLimitMin: number, timeScale: number): number => timeLimitMin * Math.max(1, Math.min(3, Math.round(timeScale) || 1));
 
 export type GameEvent =
   | { kind: 'transmission'; time: number; senderId: string; text: string }

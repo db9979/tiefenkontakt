@@ -1,6 +1,7 @@
 import {
   CLASSES,
   SIM_DT,
+  SEA_TIME_FACTOR,
   isAtPeriscopeDepth,
   mastExposed,
   mastRaised,
@@ -31,7 +32,7 @@ import { learnFrom } from './learning.js';
 import { applyCommand, type GameCommand } from './input.js';
 import { alertsFor } from './match-events.js';
 import { computeScore, evaluate, type MatchResult } from './rules.js';
-import { DEFAULT_SETTINGS, allowedClasses, buildScenario, isMixedClass, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
+import { DEFAULT_SETTINGS, allowedClasses, buildScenario, fixSeaTime, isMixedClass, simTimeLimit, type PlayableClass, type ScenarioSettings } from './scenario.js';
 import { resolveLobby } from './variation.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
@@ -115,7 +116,8 @@ export class Match {
   static restore(d: SavedMatch): Match {
     const m = new Match(d.id, d.name, d.seed);
     m.slots = d.slots;
-    m.settings = d.settings;
+    // Saved before the lobby limit meant real minutes: those ran 3 sea minutes per lobby minute
+    m.settings = d.settings.seaMin === undefined ? { ...d.settings, seaMin: d.settings.timeLimitMin * SEA_TIME_FACTOR } : d.settings;
     m.world = restoreWorld(d.world);
     m.eventCursor = d.eventCursor;
     m.tickCount = d.tickCount;
@@ -340,6 +342,8 @@ export class Match {
 
   start(): void {
     this.bots.setSkill(this.settings.botSkill ?? 'normal');
+    // The time at sea is fixed now: a later fast-forward or sandbox speed does not move the end
+    this.settings = fixSeaTime(this.settings);
     if (this.settings.lesson) {
       const built = buildLesson(this.settings.lesson, this.slots[0]!, this.seed);
       this.world = built.world;

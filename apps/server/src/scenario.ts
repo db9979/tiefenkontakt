@@ -28,7 +28,8 @@ import {
   KIND_REGION,
   REGIONS,
   areasFor,
-  SEA_TIME_FACTOR,
+  REFERENCE_SEA_S,
+  seaMinutesFor,
 } from '@tk/shared';
 import { loadBathymetry } from './bathy-load.js';
 import type { LessonId } from './lessons.js';
@@ -104,6 +105,11 @@ export interface ScenarioSettings {
   timeOfDay: TimeOfDay | 'zufall';
   /** Sim seconds per real second. Gives room to hunt within a playable real-time match. */
   timeScale: number;
+  /**
+   * Minutes at sea, fixed when the match starts (lobby limit in real minutes × time scale), so
+   * a later change of the scale (sandbox, "Zeitraffer bis Ereignis") does not move the end.
+   */
+  seaMin?: number;
   layerDepth: number;
   seaState: number;
   timeLimitMin: number;
@@ -134,9 +140,29 @@ export interface ScenarioSettings {
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */
 export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: 1, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft', variation: 'leicht' };
 
-/** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
+/** Minutes at sea of a match: fixed at the start, else the lobby's real minutes × time scale. */
+export function seaMinutes(s: ScenarioSettings): number {
+  return s.seaMin ?? seaMinutesFor(s.timeLimitMin, s.timeScale);
+}
+
+/** Fix the sea time when a match starts (before any change of the time scale). */
+export function fixSeaTime(s: ScenarioSettings): ScenarioSettings {
+  return { ...s, seaMin: seaMinutes(s) };
+}
+
+/**
+ * How far the start geometry is shrunk for a shorter sea time: 1 at the 120 sea minutes the
+ * missions were designed for (40 min at the old 3×), 1/3 at 40 minutes in real time. Distances
+ * the ships must cover before they meet scale with it, so first contact comes within about ten
+ * minutes at 1× (and the long battles at 3× stay as balanced before).
+ */
+export function geometryScale(s: ScenarioSettings): number {
+  return Math.max(0.25, Math.min(1, (seaMinutes(s) * 60) / REFERENCE_SEA_S));
+}
+
+/** Convoy route length: sized so a 9 kn convoy needs most of the time at sea. */
 export function routeLength(s: ScenarioSettings): number {
-  return 9 * 0.514444 * s.timeLimitMin * 60 * SEA_TIME_FACTOR * 0.85;
+  return 9 * 0.514444 * seaMinutes(s) * 60 * 0.85;
 }
 
 /**
@@ -147,12 +173,46 @@ export function routeLength(s: ScenarioSettings): number {
  */
 export const GROENLAND_BANK_FRAC = 0.4;
 
+/**
+ * Start geometry for a sea time (k = geometryScale): at k = 1 exactly the designed missions.
+ * subFrac: where along the route the first boat waits (the next ones up to 30 % further);
+ * spread: factor on the mission's sideways subSpread; harbour/strait: the boats' start line and
+ * the strait's exit line. Tuned with the bot arena at 1× (40 min at sea, k = 1/3).
+ */
+export function startGeometry(mission: MissionId, k: number): { subFrac: number; spread: number; harbourSubY: number; straitStartY: number; straitExitY: number } {
+  // 0 at the designed long battle, 1 at 40 minutes in real time; tuned values in between
+  const t = Math.max(0, Math.min(1, (1 - k) / (2 / 3)));
+  const short = SHORT_GEOMETRY[mission] ?? {};
+  const lerp = (a: number, b: number) => a + (b - a) * t;
+  return {
+    subFrac: lerp(0.45, short.subFrac ?? 0.45),
+    spread: lerp(1, short.spread ?? Math.sqrt(1 / 3)),
+    harbourSubY: lerp(HARBOUR_SUB_Y, short.harbourSubY ?? HARBOUR_SUB_Y),
+    straitStartY: lerp(-1500, short.straitStartY ?? -1500),
+    straitExitY: lerp(STRAIT_EXIT_Y, short.straitExitY ?? STRAIT_EXIT_Y),
+  };
+}
+
+/**
+ * The short battle (40 min at sea, 1×) per mission, tuned with the bot arena (seeds 1000 and
+ * 5000, 30 games each): where the first boat waits along the route, the factor on its
+ * sideways distance, the harbour boats' start line and the strait's start and exit lines (m).
+ */
+const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: number; harbourSubY?: number; straitStartY?: number; straitExitY?: number }>> = {
+  groenland: { subFrac: 0.45, spread: 0.45 },
+  schelf: { subFrac: 0.45, spread: 1 / 3 },
+  fjord: { subFrac: 0.65, spread: 0.6 },
+  // The anchorage lies about 3.5 km up the bay
+  hafen: { harbourSubY: 11_000 },
+  meerenge: { straitStartY: 4200, straitExitY: 12_500 },
+};
+
 /** Sandbox matches run without a time limit (the time scale changes while they run). */
 export const SANDBOX_LIMIT_S = 1e9;
 
-/** Match time limit in sim seconds: the same at sea for every time scale (only the real duration changes). */
+/** Match time limit in sim seconds (the sea time fixed at the start). */
 export function simTimeLimit(s: ScenarioSettings): number {
-  return s.sandbox ? SANDBOX_LIMIT_S : s.timeLimitMin * 60 * SEA_TIME_FACTOR;
+  return s.sandbox ? SANDBOX_LIMIT_S : seaMinutes(s) * 60;
 }
 
 /**
@@ -197,11 +257,15 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
       speedKn: sub ? 5 : mission === 'hafen' || mission === 'meerenge' ? 8 : 12, depth: sub ? 80 : undefined,
     }));
   });
+  // Shorter sea time, shorter approach: the pack waits closer (see geometryScale)
+  const k = geometryScale(settings);
+  const g = startGeometry(mission, k);
   east.forEach((p, i) => {
-    const frac = custom ? custom.subFrac : mission === 'hafen' ? 0.9 : v.subFrac(i, 0.45 + ((i * 0.37) % 0.3));
-    const spread = MISSIONS[mission].subSpread;
+    const frac = custom ? custom.subFrac : mission === 'hafen' ? 0.9 : v.subFrac(i, g.subFrac + ((i * 0.37) % 0.3));
+    const spread = MISSIONS[mission].subSpread * g.spread;
     const x = v.subX(i, (i % 2 === 0 ? 1 : -1) * (spread + (i * spread) / 2));
-    const y = mission === 'duell' ? 25_000 + v.subDy(i) : mission === 'meerenge' ? -1500 - i * 800 + v.subDy(i) : mission === 'hafen' ? HARBOUR_SUB_Y + v.subDy(i) : route * frac;
+    const dy = v.subDy(i) * Math.sqrt(k);
+    const y = mission === 'duell' ? 2500 + 22_500 * k + dy : mission === 'meerenge' ? g.straitStartY - i * 800 * k + dy : mission === 'hafen' ? g.harbourSubY + dy : route * frac;
     // The patrol ship steams ahead of the waiting boats toward the convoy, on the surface
     const surface = !CLASSES[p.cls].submarine;
     const ahead = mission === 'meerenge' ? 3000 : -4000;
@@ -238,7 +302,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     w.env.weaponsTight = 'east';
     w.env.shadowS = 0;
   }
-  if (mission === 'meerenge') w.env.exitY = STRAIT_EXIT_Y;
+  if (mission === 'meerenge') w.env.exitY = g.straitExitY;
   // The light by the sun over the real area: noon, dusk or the darkest hour of that day
   const hour = startHourFor(w.env.lat, month, tod);
   w.env.weather = initWeather(w.env, hour, settings.weather !== 'stabil');

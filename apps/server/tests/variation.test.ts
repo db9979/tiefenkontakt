@@ -39,8 +39,11 @@ describe('mission variation', () => {
       for (const seed of [1, 2, 3]) expect(layout({ mission, variation: 'stark' }, seed).route?.every(([x]) => x === 0) ?? true).toBe(true);
     }
     for (const seed of [1, 2, 3, 4, 5, 6]) {
-      const w = buildScenario(slots, { ...DEFAULT_SETTINGS, variation: 'stark' }, seed);
+      // The designed long battle (3×) and the short one at 1×, whose route is a third as long
+      const w = buildScenario(slots, { ...DEFAULT_SETTINGS, variation: 'stark', timeScale: 3 }, seed);
       for (const sub of w.ships.filter((x) => x.team === 'east')) expect(sub.pos.y).toBeGreaterThan(5000);
+      const short = buildScenario(slots, { ...DEFAULT_SETTINGS, variation: 'stark' }, seed);
+      for (const sub of short.ships.filter((x) => x.team === 'east')) expect(sub.pos.y).toBeGreaterThan(3000);
     }
   });
 

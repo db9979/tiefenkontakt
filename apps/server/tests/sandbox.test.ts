@@ -95,7 +95,7 @@ describe('sandbox truth view', () => {
 
 describe('replay series', () => {
   it('plays a bot match to the end with detections and a replay', () => {
-    const g = new ArenaGame({ ...DEFAULT_ARENA, timeLimitMin: 10 }, 7, true);
+    const g = new ArenaGame({ ...DEFAULT_ARENA, timeLimitMin: 10, timeScale: 3 }, 7, true);
     while (!g.step(2000));
     const s = g.summary();
     expect(['west', 'east']).toContain(s.winner);

@@ -317,6 +317,8 @@ export interface Briefing {
   intel: string[];
   steps: string[];
   timeLimitMin: number; timeScale?: number;
+  /** Minutes at sea (lobby limit in real minutes × time scale); absent in old saves: limit × 3. */
+  seaMin?: number;
   timeOfDay: string;
   ship: string;
 }
