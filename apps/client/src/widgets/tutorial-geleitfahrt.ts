@@ -59,8 +59,8 @@ export const FIRST_ESCORT_STEPS: Lesson & { sequential: true } = {
     },
     {
       station: 'sonar', where: 'Entfernung', target: '#as-one',
-      do: 'Reiter „Aktiv“: „LFM“ wählen und einen Einzelping senden.',
-      why: 'Passiv gibt es nur die Peilung; LFM misst die Entfernung genau. Jeder Ping verrät die Fregatte. Liegt das U-Boot achteraus, erst darauf zudrehen: achtern ist das Rumpfsonar taub.',
+      do: 'Reiter „Aktiv“: „LFM“ und „16 KM“ wählen, dann Einzelpings, bis eine Entfernung steht.',
+      why: 'Passiv gibt es nur die Peilung; LFM misst die Entfernung genau. Nicht jeder Ping bringt ein Echo: nach dem Nachhall noch einmal. Jeder Ping verrät die Fregatte. Liegt das U-Boot achteraus, erst darauf zudrehen: achtern ist das Rumpfsonar taub.',
       done: (s) => !!sub(s)?.sensors.includes('active') && sub(s)?.range !== undefined,
     },
     {

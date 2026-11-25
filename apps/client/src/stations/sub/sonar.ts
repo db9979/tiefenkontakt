@@ -52,7 +52,7 @@ export function subSonarStation(): Station {
     </div>
     <div class="st-col">
       <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
-      <div class="panel grow tabbed" id="tabs">
+      <div class="panel grow tabbed" id="st-tabs">
         <div class="hd">${tabRow([['list', 'Kontakte'], ['threat', 'Bedrohung', 'Wer pingt uns, Ausweichvorschlag, Hörreichweite'], ['active', 'Aktiv', 'Einzelping: Entfernung, verrät aber das Boot']])}<span id="tab-st" class="dim"></span></div>
         <div class="pane" data-pane="list"><div id="list"></div></div>
         <div class="pane" data-pane="threat"><div id="threat-slot"></div><div id="range-slot"></div></div>
@@ -74,7 +74,9 @@ export function subSonarStation(): Station {
   q('#range-slot').replaceWith(range.el);
   const scope = activeScope({ height: 260, compact: true });
   q('#as-slot').replaceWith(scope.el);
-  const tabs = panelTabs(q('#tabs'), 'horch');
+  // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
+  let redraw = () => {};
+  const tabs = panelTabs(q('#st-tabs'), 'horch', () => redraw());
 
   wfCanvas.style.cursor = 'pointer';
   wfCanvas.onmousedown = (e) => {
@@ -86,7 +88,7 @@ export function subSonarStation(): Station {
     if (o) net.send({ t: 'towed', length: (o.towedOrder ?? o.towedLength) > 0 ? 0 : (CLASSES[o.cls].towed?.maxLength ?? 0) });
   };
 
-  return {
+  const station: Station = {
     id: 'horch',
     title: 'Horchraum',
     el,
@@ -128,4 +130,8 @@ export function subSonarStation(): Station {
       box.dispose();
     },
   };
+  redraw = () => {
+    if (store.snap) station.snap?.();
+  };
+  return station;
 }

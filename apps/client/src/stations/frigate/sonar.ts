@@ -38,7 +38,7 @@ export function frigateSonarStation(): Station {
       </div>
     </div>
     <div class="st-col">
-      <div class="panel grow tabbed" id="tabs">
+      <div class="panel grow tabbed" id="st-tabs">
         <div class="hd">${tabRow([['ana', 'Analyse', 'LOFAR / DEMON des gewählten Kontakts'], ['active', 'Aktiv', 'Aktivsonar: Einzelping, CW/LFM, Echos'], ['vds', 'VDS/BT', 'Tiefensonar, Bathythermograph, Minenmeiden, Hörreichweite'], ['list', 'Kontakte']])}<span id="lab" class="amber"></span></div>
         <div class="pane scroll" data-pane="ana"><div id="ana"></div></div>
         <div class="pane scroll" data-pane="active"><div id="as-slot"></div></div>
@@ -72,11 +72,13 @@ export function frigateSonarStation(): Station {
   const towBox = fillBox(q('#tow-box'), 150);
   const analysis = new AcousticAnalysis(170);
   q('#ana').appendChild(analysis.el);
-  const scope = activeScope({ height: () => Math.max(240, Math.min(420, q('#tabs').clientHeight - 150)), pingKey: true });
+  const scope = activeScope({ height: () => Math.max(240, Math.min(420, q('#st-tabs').clientHeight - 150)), pingKey: true });
   q('#as-slot').replaceWith(scope.el);
   const range = rangePanel();
   q('#range-slot').replaceWith(range.el);
-  const tabs = panelTabs(q('#tabs'), 'fsonar');
+  // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
+  let redraw = () => {};
+  const tabs = panelTabs(q('#st-tabs'), 'fsonar', () => redraw());
   for (const [wf, cv] of [[hull, hullCv], [tow, towCv]] as const) {
     cv.style.cursor = 'pointer';
     cv.onmousedown = (e) => {
@@ -97,7 +99,7 @@ export function frigateSonarStation(): Station {
   q<HTMLButtonElement>('#mav').onclick = () => net.send({ t: 'toggle', what: 'mineavoid', on: !store.snap?.own.mineAvoid });
   q<HTMLButtonElement>('#vds').onclick = () => net.send({ t: 'toggle', what: 'vds', on: !(store.snap?.own.vdsOrder ?? 0) });
 
-  return {
+  const station: Station = {
     id: 'sonar',
     title: 'Sonar',
     el,
@@ -167,4 +169,8 @@ export function frigateSonarStation(): Station {
       document.removeEventListener('pointerdown', closePop);
     },
   };
+  redraw = () => {
+    if (store.snap) station.snap?.();
+  };
+  return station;
 }
