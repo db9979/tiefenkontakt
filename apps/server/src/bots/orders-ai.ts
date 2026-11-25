@@ -1,4 +1,4 @@
-import { PERISCOPE_DEPTH, activeOrders, bearing, distance, mastRaised, transmit, type Ship, type World } from '@tk/shared';
+import { KN, MAST_MAX_KN, PERISCOPE_DEPTH, activeOrders, bearing, distance, mastRaised, transmit, type Ship, type World } from '@tk/shared';
 import { classify, type BotMemory } from './common.js';
 
 /**
@@ -23,12 +23,13 @@ export function obeySub(w: World, m: BotMemory, s: Ship): void {
     } else if (o.kind === 'report') {
       // Report as soon as the next pack report is possible
       m.lastReport = Math.min(m.lastReport, now - 3600);
-    } else if (o.kind === 'sitrep' && !hunted && (o.deadline - now < 900 || !w.ships.some((x) => x.team === s.team && x.id < s.id && x.alive))) {
+    } else if (o.kind === 'sitrep' && !hunted && now >= (m.radarDownUntil ?? 0) && (o.deadline - now < 900 || !w.ships.some((x) => x.team === s.team && x.id < s.id && x.alive))) {
       // One boat (the first of the pack, or whoever when time runs short) goes up and reports
       s.order.depth = PERISCOPE_DEPTH;
       s.order.speedKn = Math.min(s.order.speedKn, 5);
       s.snorkel = false;
-      if (s.depth <= PERISCOPE_DEPTH + 0.5) s.mastUp = true;
+      // The mast goes up only below 10 kn (it would bend or tear above)
+      if (s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN) s.mastUp = true;
       if (mastRaised(s)) {
         transmit(w, s, 'Lagebericht: Boot einsatzbereit');
         s.mastUp = false;

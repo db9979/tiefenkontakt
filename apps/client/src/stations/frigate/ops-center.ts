@@ -8,7 +8,7 @@ import { h, setHtml, setText } from '../../widgets/format.js';
 import { mountHeloPanel } from '../../widgets/helo-panel.js';
 import { panelTabs, tabRow } from '../../widgets/panel-tabs.js';
 import { Plot } from '../../widgets/plot.js';
-import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
+import { buoyAction, courseAction, escortOrderActions, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 
 /** The ASW strip above the chart: the state of every hunting tool at one glance. */
 function aswStrip(s: Snapshot): string {
@@ -56,7 +56,7 @@ export function opsCenterStation(): Station {
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
-    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...(store.snap && hasHelicopter(store.snap.own.cls) ? buoyAction(p) : []), ...mpaAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...(store.snap && hasHelicopter(store.snap.own.cls) ? buoyAction(p) : []), ...mpaAction(p), ...escortOrderActions(p)],
   });
   plot.scale = 80;
   const box = fillBox(q('#plot-box'), 300);
@@ -76,7 +76,7 @@ export function opsCenterStation(): Station {
       q('[data-ptab="helo"]').hidden = !hasHelo;
       if (!hasHelo && tabs.current === 'helo') tabs.show('list');
       if (tabs.current === 'list') renderContactList(q('#list'));
-      else if (tabs.current === 'group') escort.update();
+      else if (tabs.current === 'group') escort.update(s);
       else helo.update(s);
       const hostile = s.contacts.filter((c) => c.assigned === 'submarine' || c.assigned === 'torpedo').length;
       setText(q('#opz-st'), hostile ? `${hostile} FEINDKONTAKT${hostile > 1 ? 'E' : ''}` : '');
@@ -88,7 +88,7 @@ export function opsCenterStation(): Station {
     },
     dispose() {
       box.dispose();
-      escort.dispose();
+      escort.dispose?.();
       helo.dispose?.();
     },
   };
