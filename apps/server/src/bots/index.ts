@@ -3,7 +3,7 @@ import { SKILL, heardBearing, newMemory, recordTrack, type BotMemory, type BotSk
 import { thinkFrigate } from './frigate.js';
 import { thinkAirDefense } from './airdef.js';
 import { thinkSub, type PackReport } from './sub.js';
-import { planSide, type EscortTask } from './escort-team.js';
+import { heardLaunchDatum, planSide, type EscortTask } from './escort-team.js';
 import { obeySub } from './orders-ai.js';
 
 export type { BotSkill } from './common.js';
@@ -25,6 +25,8 @@ export class BotCrew {
   /** Escort teamwork: tasks from the last plan (rebuilt every think interval). */
   private tasks = new Map<string, EscortTask>();
   private planAt = -1e9;
+  /** Events already scanned for torpedo alerts on the side's ships (heard datum). */
+  private alertCursor = 0;
 
   constructor(private skill: BotSkill = 'normal') {}
 
@@ -56,6 +58,7 @@ export class BotCrew {
 
   step(w: World): void {
     const k = SKILL[this.skill];
+    this.heardAlerts(w);
     if (w.time - this.planAt >= k.think) {
       this.planAt = w.time;
       const mems = new Map(this.bots.map((b) => [b.shipId, b]));
@@ -86,6 +89,24 @@ export class BotCrew {
     this.pack = this.pack.filter((r) => w.time - r.t < 3600);
   }
 
+  /**
+   * A torpedo alert on a surface ship of a side with AI escorts: the team gets a datum down the
+   * heard bearing of the launch (escort-team.ts), never the true launch position.
+   */
+  private heardAlerts(w: World): void {
+    if (this.alertCursor > w.events.length) this.alertCursor = 0;
+    const fresh = w.events.slice(this.alertCursor);
+    this.alertCursor = w.events.length;
+    if (!fresh.length) return;
+    const mems = new Map(this.bots.filter((b) => !b.passive).map((b) => [b.shipId, b]));
+    for (const e of fresh) {
+      if (e.kind !== 'torpedo_alert') continue;
+      const victim = w.ships.find((s) => s.id === e.shipId);
+      if (!victim?.alive || CLASSES[victim.cls].submarine) continue;
+      heardLaunchDatum(w, victim, e.bearing, mems);
+    }
+  }
+
   private readEvents(w: World, m: BotMemory): void {
     const ship = w.ships.find((s) => s.id === m.shipId)!;
     const fresh = w.events.slice(m.eventCursor);
@@ -105,6 +126,8 @@ export class BotCrew {
         if (b !== undefined) {
           m.lead = { x: ship.pos.x, y: ship.pos.y, b, t: w.time };
           m.alertUntil = w.time + 600;
+          // An escort that hears a tube flood or a launch keeps the line for the team's heard datum
+          if (!sub && (e.what === 'flood' || e.what === 'launch')) m.launchHeard = { x: ship.pos.x, y: ship.pos.y, b, t: w.time };
         }
       } else if (e.kind === 'recon' && sub && ship.team === 'east') {
         // Air recon via fleet command: head for the reported convoy

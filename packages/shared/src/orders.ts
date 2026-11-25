@@ -351,4 +351,34 @@ export interface HuntPlan {
   /** Last role each ship announced on team radio. */
   said: Record<string, string>;
   saidAt?: Record<string, number>;
+  /** Escort commander's orders to AI escorts (ship id → task), honoured until cancelled or done. */
+  cmds?: Record<string, EscortCmd>;
+  /** Role the planner gave each AI escort last round (for the commander's list). */
+  roles?: Record<string, string>;
+  /**
+   * Datum from a heard torpedo launch: down the heard bearing of the flood/launch transient (or of
+   * the running torpedo) at a guessed range, with its error radius (m). Never the true launch point.
+   */
+  heard?: { x: number; y: number; t: number; err: number; victim?: string };
+  /** When each ship last committed its helicopter (commitHelo). */
+  heloAt?: Record<string, number>;
+}
+
+/** Kinds of task an escort commander gives an AI escort. */
+export type EscortCmdKind = 'station' | 'sector' | 'datum' | 'helo';
+
+/** Task an escort commander gave one AI escort. */
+export interface EscortCmd {
+  kind: EscortCmdKind;
+  /** Sector / datum / helicopter: the world point. */
+  x?: number;
+  y?: number;
+  /** Station: bearing relative to the convoy's course (deg) and range from its centre (m). */
+  rel?: number;
+  r?: number;
+  /** When it was given and by whom (ship id). */
+  at: number;
+  by: string;
+  /** Datum: when the ship first got within reach of it. */
+  reachedAt?: number;
 }
