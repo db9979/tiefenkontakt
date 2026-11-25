@@ -32,15 +32,21 @@ function loadOpts(): WfOpts {
 /** Split-window normaliser: value over the mean of the neighbours 4°–20° away on both sides, back on a noise floor. */
 export function normalise(raw: Float32Array): Float32Array {
   const n = raw.length;
-  const out = new Float32Array(n);
-  for (let x = 0; x < n; x++) {
+  // Two passes: a first background, then the background again with the peaks clipped to it, so a
+  // loud trace does not raise its neighbours' reference and dig a pale trench beside itself
+  const window = (x: number, clip: number) => {
     let sum = 0;
     let k = 0;
     for (let d = 4; d <= 20; d++) {
-      sum += raw[(x + d) % n]! + raw[(x - d + n) % n]!;
+      sum += Math.min(clip, raw[(x + d) % n]!) + Math.min(clip, raw[(x - d + n) % n]!);
       k += 2;
     }
-    const bg = sum / k;
+    return sum / k;
+  };
+  const out = new Float32Array(n);
+  for (let x = 0; x < n; x++) {
+    const bg0 = window(x, Infinity);
+    const bg = window(x, bg0 * 1.3);
     out[x] = 0.18 + Math.max(0, raw[x]! - bg) * 1.6 + (raw[x]! - bg < 0 ? (raw[x]! - bg) * 0.3 : 0);
   }
   return out;
