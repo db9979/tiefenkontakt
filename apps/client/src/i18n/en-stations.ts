@@ -13,6 +13,14 @@ export const EN_STATIONS: [string, string][] = [
   ['Kontakte (eigen + Datalink)', 'Contacts (own + datalink)'], ['Verband und Konvoi', 'Group and convoy'], ['Bordhubschrauber und Seefernaufklärer', 'Ship\'s helicopter and patrol aircraft'],
   ['LOFAR / DEMON des gewählten Kontakts', 'LOFAR / DEMON of the selected contact'], ['Aktivsonar: Einzelping, CW/LFM, Echos', 'Active sonar: single ping, CW/LFM, returns'],
   ['Tiefensonar, Bathythermograph, Minenmeiden, Hörreichweite', 'Variable-depth sonar, bathythermograph, mine avoidance, listening range'],
+  // Submarine stations, layout round 3 (U1–U4)
+  ['LOFAR-Filter und Anzeige', 'LOFAR filters and display'], ['Himmel', 'Sky'], ['Übernehmen', 'Take over'],
+  ['LAUF', 'RUN'], ['SUCHKOPF', 'SEEKER'], ['MODUS', 'MODE'], ['KN', 'KN'], ['Laufgeschwindigkeit', 'Run speed'], ['Suchkopf ein nach', 'Seeker on after'], ['Suchmodus', 'Search mode'],
+  ['Geräuschboje gegen anlaufende Torpedos; danach abdrehen und Tiefe wechseln', 'Noise buoy against incoming torpedoes; then turn away and change depth'],
+  ['Draht: unter 12 kn bleiben · nach dem Täuschkörper abdrehen und Tiefe wechseln', 'Wire: stay below 12 kn · after the decoy turn away and change depth'],
+  ['✓ Lösung steht, Torpedo läuft', '✓ Solution set, torpedo running'], ['Navigation', 'Navigation'],
+  ['Koppelort, Standort, Echolot, Strom und Gezeit', 'Dead reckoning, fix, echo sounder, current and tide'], ['Obergrenze, Untergrenze, Wasser unter dem Kiel', 'Upper limit, lower limit, water under the keel'],
+  ['Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)', 'Radar warner: bearings of the radars heard (north up, own course dashed; red = aircraft or fire-control radar)'],
   // Hints and footers
   ['KLICK WÄHLT · RECHTSKLICK = KURS', 'CLICK SELECTS · RIGHT-CLICK = COURSE'], ['KLICK IN DAS PROFIL = BEFOHLENE TIEFE', 'CLICK THE PROFILE = ORDERED DEPTH'],
   ['KLICK WÄHLT · RECHTSKLICK = KURS / RAKETE / BOJE', 'CLICK SELECTS · RIGHT-CLICK = COURSE / ROCKET / BUOY'], ['KLICK AUF EINE SPUR WÄHLT', 'CLICK A TRACE TO SELECT'],
