@@ -12,6 +12,7 @@ import { measureEvidence, sigKeyOf } from './signatures.js';
 import { isCavitating } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { depthAt } from './seabed.js';
+import { aircraftRadarSweep } from './airspace.js';
 import { soundPathDepth as pathDepth, terrainLossDb } from './terrain.js';
 import type { World } from './world.js';
 
@@ -23,8 +24,8 @@ export const HELO_TURNAROUND = 120; // s on deck after landing
 export const BUOY_LIFE = 1800; // s
 export const BUOY_BEARING_SD = 4; // deg (DIFAR)
 const BUOY_SHALLOW = 30;
-/** DIFAR array gain plus narrowband processing. */
-const BUOY_GAIN = 10;
+/** DIFAR array gain plus narrowband processing (LOFAR on the buoy's tonals). */
+export const BUOY_GAIN = 16;
 
 export interface Buoy {
   id: string;
@@ -259,7 +260,10 @@ export function airSystem(w: World): void {
       }
     }
   }
-  if (Math.floor(w.time) !== Math.floor(w.time - 0.1)) madSweep(w);
+  if (Math.floor(w.time) !== Math.floor(w.time - 0.1)) {
+    madSweep(w);
+    aircraftRadarSweep(w);
+  }
   air.sorties = air.sorties.filter((s) => w.time < s.readyAt + 1);
   air.buoys = air.buoys.filter((b) => w.time < b.expiresAt && w.ships.some((s) => s.id === b.ownerId && s.alive));
   // Buoys drift with the current; active ones ping on their own
