@@ -20,6 +20,8 @@ import {
 } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, tubeTag } from '../../widgets/btn-state.js';
+import { guardFire } from '../../widgets/fire-guard.js';
+import { isFriendlyContact } from '../../widgets/friendly.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
@@ -175,15 +177,25 @@ export function fireControlStation(): Station {
     const rng = distance(s.own, targetPosAt(sol, s.time));
     q<HTMLInputElement>('#t-en').value = String(Math.max(500, Math.round((rng * 0.7) / 250) * 250));
   };
-  q<HTMLButtonElement>('#fire').onclick = () => {
+  // Fire asks twice on a weak or missing solution, or with our own ship as the target
+  guardFire(q<HTMLButtonElement>('#fire'), () => {
+    if (q<HTMLInputElement>('#t-hdg').value === '') return { block: 'KEIN SCHUSSKURS' };
+    const c = store.selectedContact();
+    const s = store.snap;
+    if (c && s && isFriendlyContact(c, s)) return { warn: 'EIGENES SCHIFF' };
+    const sol = c ? store.solutions.get(c.label) : undefined;
+    const qual = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
+    if (qual < 30) return { warn: `GÜTE ${Math.round(qual)} %` };
+    return {};
+  }, () => {
     const hdg = Number(q<HTMLInputElement>('#t-hdg').value);
-    if (!Number.isFinite(hdg) || q<HTMLInputElement>('#t-hdg').value === '') return;
+    if (!Number.isFinite(hdg)) return;
     net.send({
       t: 'fire', heading: gameDeg(hdg), enableAfter: Number(q<HTMLInputElement>('#t-en').value),
       mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active', searchDepth: Number(q<HTMLInputElement>('#t-dep').value),
       speedKn: Number(q<HTMLSelectElement>('#t-spd').value),
     });
-  };
+  });
   el.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
   onTap(q('#wires'), '[data-steer]', (b) => {
     const t = store.snap?.torpedoes.find((x) => x.id === b.dataset.steer);

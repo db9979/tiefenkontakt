@@ -78,11 +78,13 @@ export function centralStation(): Station {
   return {
     title: 'Zentrale',
     el,
+    collect() {
+      if (store.snap) wf.push(store.snap);
+    },
     snap() {
       const s = store.snap!;
       const o = s.own;
       const spec = CLASSES[o.cls];
-      wf.push(s);
       renderContactList(q('#list'));
       const layer = s.env.layerDepth;
       const pct = spec.battery && o.battery !== undefined ? (100 * o.battery) / spec.battery.capacityKnH : undefined;

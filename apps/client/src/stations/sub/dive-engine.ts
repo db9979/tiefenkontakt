@@ -72,13 +72,17 @@ export function diveEngineStation(): Station {
   return {
     title: 'Tauchstand',
     el,
+    collect() {
+      const s = store.snap;
+      if (!s) return;
+      const last = depthHist[depthHist.length - 1];
+      if (!last || s.time - last.t >= 2) depthHist.push({ t: s.time, d: s.own.depth });
+      if (depthHist.length > 300) depthHist.shift();
+    },
     snap() {
       const s = store.snap!;
       const o = s.own;
       const spec = CLASSES[o.cls];
-      const last = depthHist[depthHist.length - 1];
-      if (!last || s.time - last.t >= 2) depthHist.push({ t: s.time, d: o.depth });
-      if (depthHist.length > 300) depthHist.shift();
       q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
       q('#snort').style.display = spec.battery ? '' : 'none';
       // Snorkel: the mast's way up as a fill, then the battery charging

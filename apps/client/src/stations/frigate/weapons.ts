@@ -1,6 +1,7 @@
-import { bearing, distance, targetPosAt } from '@tk/shared';
+import { bearing, distance, headingVec, targetPosAt } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, tubeTag } from '../../widgets/btn-state.js';
+import { guardFire, targetCheck } from '../../widgets/fire-guard.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
@@ -55,21 +56,30 @@ export function weaponsStation(): Station {
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
-  q<HTMLButtonElement>('#rocket').onclick = () => {
+  // Every weapon asks twice when the target is our own or friends are near where it lands
+  const aimPoint = () => {
+    const s = store.snap;
+    const a = aim();
+    if (!s || !a) return undefined;
+    const v = headingVec(a.bearing);
+    return { x: s.own.x + v.x * a.range, y: s.own.y + v.y * a.range };
+  };
+  const needsFix = () => (aim() ? {} : { block: 'KEINE ENTFERNUNG' });
+  guardFire(q<HTMLButtonElement>('#rocket'), () => ({ ...needsFix(), ...targetCheck(aimPoint()) }), () => {
     const a = aim();
     if (a) net.send({ t: 'rocket', bearing: a.bearing, range: Math.min(20_000, Math.max(1000, a.range)) });
-  };
-  q<HTMLButtonElement>('#ssm').onclick = () => {
+  });
+  guardFire(q<HTMLButtonElement>('#ssm'), () => ({ ...needsFix(), ...targetCheck(aimPoint()) }), () => {
     const a = aim();
     if (a) net.send({ t: 'ssm', bearing: a.bearing, range: Math.min(60_000, Math.max(1000, a.range)) });
-  };
-  q<HTMLButtonElement>('#tube').onclick = () => {
+  });
+  guardFire(q<HTMLButtonElement>('#tube'), () => targetCheck(aimPoint()), () => {
     const a = aim();
     const c = store.selectedContact();
     const b = a?.bearing ?? c?.bearing;
     if (b === undefined) return;
     net.send({ t: 'fire', heading: b, enableAfter: 500, mode: 'active', searchDepth: Number(q<HTMLInputElement>('#tdep').value) || 100, speedKn: 45 });
-  };
+  });
   el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => (b.onclick = () => net.send({ t: 'dc', depth: Number(b.dataset.dc) })));
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
   q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();

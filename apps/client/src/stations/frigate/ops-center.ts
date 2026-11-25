@@ -1,3 +1,4 @@
+import { hasHelicopter } from '@tk/shared';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -23,7 +24,7 @@ export function opsCenterStation(): Station {
     </div>
   </div>`);
   const plot = new Plot(el.querySelector<HTMLCanvasElement>('#plot')!, {
-    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...(store.snap && hasHelicopter(store.snap.own.cls) ? buoyAction(p) : []), ...mpaAction(p)],
   });
   plot.scale = 80;
   el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => net.send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));
@@ -39,17 +40,19 @@ export function opsCenterStation(): Station {
       el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => b.classList.toggle('on', Number(b.dataset.detour) === off));
       const merchants = s.friendlies.filter((f) => f.cls === 'merchant');
       const escorts = s.friendlies.filter((f) => f.cls !== 'merchant');
+      // Only what this ship and side actually have: convoy lines with a convoy, flight lines with a helicopter
+      const helo = hasHelicopter(s.own.cls) && s.air;
       setHtml(el.querySelector('#group')!, `
-        <div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>
+        ${merchants.length ? `<div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>` : ''}
         <div class="row"><span class="dim">DATALINK-TEILNEHMER</span><span>${escorts.length}</span></div>
         <div class="row"><span class="dim">WASSERTIEFE</span><span class="${(s.env.bottom ?? 999) < 30 ? 'red' : ''}">${s.env.bottom !== undefined ? s.env.bottom + ' M' : '—'}</span></div>
         ${s.env.current ? `<div class="row"><span class="dim">STROM</span><span>${s.env.current.kn >= 0.1 ? `${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1).replace('.', ',')} KN` : '—'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'}, KENTERT IN ${Math.round(s.env.tide.turnsInS / 60)} MIN` : ''}</span></div>` : ''}
         <div class="row"><span class="dim">TAGESZEIT</span><span>${(s.env.light ?? 1) > 0.8 ? 'TAG' : (s.env.light ?? 1) > 0.3 ? 'DÄMMERUNG' : 'NACHT · SICHT STARK EINGESCHRÄNKT'}</span></div>
-        <div class="row"><span class="dim">HUBSCHRAUBER</span><span>${!s.air ? '—' : s.air.heloReadyInS > 0 ? `<span class="amber">UNTERWEGS · BEREIT IN ${Math.ceil(s.air.heloReadyInS / 60)} MIN</span>` : 'AN DECK · BEREIT'}</span></div>
-        <div class="row"><span class="dim">SONARBOJEN</span><span>${s.air ? `${s.air.stock} AN BORD · ${s.air.buoys.length} IM WASSER` : '—'}</span></div>
-        <div class="row"><span class="dim">HUBSCHRAUBER-TORPEDOS</span><span>${s.air?.heloTorps ?? 0}</span></div>
-        <div class="row"><span class="dim">SEEFERNAUFKLÄRER</span><span>${!s.air ? '—' : s.air.mpaReadyInS > 0 ? `BEREIT IN ${Math.ceil(s.air.mpaReadyInS / 60)} MIN` : `BEREIT · ${s.air.mpaBuoys} BOJEN`}</span></div>
-        <div class="dim" style="margin-top:4px">RECHTSKLICK AUF DIE KARTE: SONARBOJE ABWERFEN</div>
+        ${helo ? `<div class="row"><span class="dim">HUBSCHRAUBER</span><span>${helo.heloReadyInS > 0 ? `<span class="amber">UNTERWEGS · BEREIT IN ${Math.ceil(helo.heloReadyInS / 60)} MIN</span>` : 'AN DECK · BEREIT'}</span></div>
+        <div class="row"><span class="dim">SONARBOJEN</span><span>${helo.stock} AN BORD · ${helo.buoys.length} IM WASSER</span></div>
+        <div class="row"><span class="dim">HUBSCHRAUBER-TORPEDOS</span><span>${helo.heloTorps ?? 0}</span></div>
+        <div class="dim" style="margin-top:4px">KARTE: RECHTSKLICK BZW. LANGE TIPPEN FÜR BOJEN UND HUBSCHRAUBER</div>` : ''}
+        ${s.air && s.own.team === 'west' ? `<div class="row"><span class="dim">SEEFERNAUFKLÄRER</span><span>${s.air.mpaReadyInS > 0 ? `BEREIT IN ${Math.ceil(s.air.mpaReadyInS / 60)} MIN` : `BEREIT · ${s.air.mpaBuoys} BOJEN`}</span></div>` : ''}
         ${escorts.map((e) => `<div class="row"><span>${e.name}</span><span class="${e.alive ? '' : 'red'}">${e.alive ? `${e.speedKn.toFixed(0)} KN` : 'GESUNKEN'}</span></div>`).join('')}`);
     },
     frame() {

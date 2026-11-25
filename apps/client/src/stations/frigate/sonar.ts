@@ -76,8 +76,6 @@ export function frigateSonarStation(): Station {
     el,
     snap() {
       const s = store.snap!;
-      hull.push(s);
-      tow.push(s, 15);
       range.update(s);
       const o = s.own;
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
@@ -96,8 +94,11 @@ export function frigateSonarStation(): Station {
       el.querySelector('#ts')!.textContent = winch
         ? `${tgt > o.towedLength ? 'AUSBRINGEN' : 'EINHOLEN'} ${o.towedLength} / ${tgt} M`
         : o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
+      const maxTow = CLASSES[o.cls].towed?.maxLength ?? 0;
       el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => {
         const len = Number(b.dataset.len);
+        // Only the lengths this ship's cable has
+        b.style.display = len <= maxTow ? '' : 'none';
         if (len !== tgt) return btnState(b, { on: false, label: '' });
         btnState(b, winch ? { on: true, label: `${o.towedLength} M`, pct: (100 * o.towedLength) / Math.max(1, len, o.towedLength), tone: 'busy' }
           : { on: true, label: len && !o.towedReady ? 'STAB…' : '✓', tone: len && !o.towedReady ? 'busy' : undefined });
@@ -111,6 +112,12 @@ export function frigateSonarStation(): Station {
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));
       setHtml(el.querySelector('#tas-hint')!, !c ? 'KONTAKT WÄHLEN' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
         : c.tas?.resolved ? 'DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">MEHRDEUTIG · 20° WENDEN UND SPUREN VERGLEICHEN</span>' : 'EINDEUTIG');
+    },
+    collect() {
+      const s = store.snap;
+      if (!s) return;
+      hull.push(s);
+      tow.push(s, 15);
       analysis.update();
     },
     frame() {

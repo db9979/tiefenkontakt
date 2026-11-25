@@ -13,10 +13,14 @@ export interface BtnState {
   pct?: number;
   /** busy: amber and pulsing (under way); warn: amber; empty: dim (nothing left). */
   tone?: 'busy' | 'warn' | 'empty';
+  /** Set by the fire guard: overrides the station's own label while a warning shows. */
+  force?: boolean;
 }
 
 export function btnState(b: HTMLElement | null | undefined, s: BtnState): void {
   if (!b) return;
+  // A guarded fire button showing its warning keeps it until the guard clears it
+  if (b.dataset.guard && !s.force) return;
   if (s.on !== undefined) b.classList.toggle('on', s.on);
   const tag = s.label ?? (s.on === undefined ? '' : s.on ? 'AN' : 'AUS');
   const txt = tag ? t(tag) : '';

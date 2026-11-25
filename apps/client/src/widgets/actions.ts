@@ -1,8 +1,12 @@
-import { bearing, distance, type Vec2 } from '@tk/shared';
+import { bearing, distance, type Snapshot, type Vec2 } from '@tk/shared';
+import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { km, tdeg3 } from './format.js';
 import type { MenuItem } from './menu.js';
+
+/** A warning in front of a weapon order when own or friendly ships are near where it lands. */
+const warnNear = (s: Snapshot, p: Vec2): string => (friendNear(s, p, 2000) ? '⚠ EIGENE IN DER NÄHE · ' : '');
 
 /** Right-click map actions shared by stations. */
 export function courseAction(p: Vec2): MenuItem[] {
@@ -18,7 +22,7 @@ export function torpedoAction(p: Vec2, opts: { speedKn: number; searchDepth: num
   const b = bearing(s.own, p);
   const d = distance(s.own, p);
   return [{
-    label: `Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
+    label: `${warnNear(s, p)}Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
     danger: true,
     run: () => net.send({ t: 'fire', heading: b, enableAfter: Math.max(500, d * 0.7), mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn }),
   }];
@@ -30,7 +34,7 @@ export function rocketAction(p: Vec2): MenuItem[] {
   const d = distance(s.own, p);
   if (d < 1000 || d > 18_000) return [{ label: 'U-Jagd-Rakete: 1–18 km Reichweite', run: () => undefined }];
   return [{
-    label: `U-Jagd-Rakete hierher (${km(d)})`,
+    label: `${warnNear(s, p)}U-Jagd-Rakete hierher (${km(d)})`,
     danger: true,
     run: () => net.send({ t: 'rocket', bearing: bearing(s.own, p), range: d }),
   }];
@@ -44,7 +48,7 @@ export function ssmAction(p: Vec2): MenuItem[] {
   const d = distance(s.own, p);
   if (d < (fk.minRange ?? 0) || d > (fk.maxRange ?? 0)) return [{ label: `Seeziel-FK: ${km(fk.minRange ?? 0)}–${km(fk.maxRange ?? 0)}`, run: () => undefined }];
   if (fk.readyInS) return [{ label: `Seeziel-FK: Starter lädt (${fk.readyInS} s)`, run: () => undefined }];
-  return [{ label: `Seeziel-FK hierher (${km(d)}, noch ${fk.left})`, danger: true, run: () => net.send({ t: 'ssm', bearing: bearing(s.own, p), range: d }) }];
+  return [{ label: `${warnNear(s, p)}Seeziel-FK hierher (${km(d)}, noch ${fk.left})`, danger: true, run: () => net.send({ t: 'ssm', bearing: bearing(s.own, p), range: d }) }];
 }
 
 export function buoyAction(p: Vec2): MenuItem[] {

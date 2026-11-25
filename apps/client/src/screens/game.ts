@@ -46,6 +46,8 @@ export interface Station {
   frame(): void;
   /** Called on each new snapshot. */
   snap?(): void;
+  /** Called on each new snapshot for every station, shown or not: keep histories (waterfalls, profiles) without gaps. */
+  collect?(): void;
   key?(e: KeyboardEvent): boolean;
   /** Called when the player switches away (free heavy resources such as 3D scenes). */
   hide?(): void;
@@ -339,6 +341,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     uiAt = performance.now();
     const s = store.snap;
     if (!s) return;
+    for (const st of stations) st.collect?.();
     stations[current]?.snap?.();
     helm.update();
     tutorial?.update();

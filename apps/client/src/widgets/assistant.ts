@@ -41,7 +41,11 @@ function subHint(s: Snapshot): Hint {
 function frigateHint(s: Snapshot): Hint {
   const o = s.own;
   if (s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 45)) return { text: L('Torpedo! Täuschkörper-Schleppe ausbringen und mit hoher Fahrt abdrehen.', 'Torpedo! Stream the towed decoy and turn away at high speed.'), station: 2, urgent: true };
-  if (CLASSES[o.cls].towed && (o.towedOrder ?? o.towedLength) === 0) return { text: L('Schleppsonar ausbringen (Sonar → 900 m), danach 60 s Kurs halten.', 'Stream the towed array (sonar → 900 m), then hold course for 60 s.'), station: 1 };
+  const tow = CLASSES[o.cls].towed;
+  if (tow && (o.towedOrder ?? o.towedLength) === 0) {
+    const len = Math.min(900, tow.maxLength);
+    return { text: L(`Schleppsonar ausbringen (Sonar → ${len} m), danach 60 s Kurs halten.`, `Stream the towed array (sonar → ${len} m), then hold course for 60 s.`), station: 1 };
+  }
   const fresh = s.contacts.filter((c) => s.time - c.lastSeen < 60 && c.via === 'own');
   if (!fresh.length) return { text: L('Kein Kontakt: zwischen Konvoi und vermuteter U-Boot-Richtung bleiben, Sonarbojen voraus werfen (Rechtsklick auf die Karte).', 'No contact: stay between the convoy and the likely submarine sector, drop sonobuoys ahead (right-click the map).'), station: 0 };
   const c = store.selectedContact();

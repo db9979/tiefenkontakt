@@ -80,7 +80,6 @@ export function subSonarStation(): Station {
     el,
     snap() {
       const s = store.snap!;
-      wf.push(s);
       threat.update(s);
       range.update(s);
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
@@ -95,6 +94,11 @@ export function subSonarStation(): Station {
       btnState(tow, tgt !== o.towedLength ? { on: tgt > 0, label: `${tgt > o.towedLength ? 'AUS' : 'EIN'} ${o.towedLength} M`, pct: (100 * o.towedLength) / maxLen, tone: 'busy' }
         : o.towedLength > 0 ? (o.towedReady ? { on: true, label: `${o.towedLength} M` } : { on: true, label: 'STABILISIERT…', tone: 'busy' }) : { on: false });
       setText(el.querySelector('#lab')!, store.selected ?? '');
+    },
+    collect() {
+      const s = store.snap;
+      if (!s) return;
+      wf.push(s);
       analysis.update();
     },
     frame() {
