@@ -68,7 +68,38 @@ export interface PeriscopeEffect {
 
 const DEFAULT_KN: Partial<Record<ClassId, number>> = { merchant: 9, ffg: 14, kor: 14 };
 
-interface Placed { g: THREE.Group; key: string; bearing: number }
+interface Placed { g: THREE.Group; key: string; bearing: number; born?: number }
+
+/** Seconds a newly sighted ship takes to come out of the haze, and a lost one to fade into it. */
+const FADE_IN_S = 5;
+const FADE_OUT_S = 4;
+
+/**
+ * Fade a whole model (k 0..1): its materials are cloned once so other ships sharing them are not
+ * touched, made transparent while fading and restored to their own opacity when fully in view.
+ */
+function fadeModel(g: THREE.Object3D, k: number): void {
+  const full = k >= 0.999;
+  if (full && !g.userData.fading) return;
+  g.userData.fading = !full;
+  g.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.material) return;
+    if (!g.userData.ownMats) m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone();
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+      const ud = mat.userData as { op?: number; tr?: boolean };
+      ud.op ??= mat.opacity;
+      ud.tr ??= mat.transparent;
+      mat.opacity = ud.op * (full ? 1 : k);
+      const tr = full ? ud.tr : true;
+      if (mat.transparent !== tr) {
+        mat.transparent = tr;
+        mat.needsUpdate = true;
+      }
+    }
+  });
+  g.userData.ownMats = true;
+}
 
 export class Periscope3D {
   private renderer: THREE.WebGLRenderer;
@@ -78,6 +109,8 @@ export class Periscope3D {
   private hemi = new THREE.HemisphereLight(0xb8c8d0, 0x1a2a30, 1.2);
   private sun = new THREE.DirectionalLight(0xffffff, 1.2);
   private ships = new Map<string, Placed>();
+  /** Lost ships fading into the haze: model and the time the fade began. */
+  private fading: { g: THREE.Group; at: number }[] = [];
   private sinking: Sinking[] = [];
   private slicks: Slick[] = [];
   private ownPos = { x: 0, y: 0 };
@@ -399,10 +432,14 @@ export class Periscope3D {
       if (!s || s.key !== key) {
         if (s) this.scene.remove(s.g);
         s = { g: mergeStatic(tg.plane ? aircraftModel(tg.plane, tg.label) : tg.sighting ? sightingModel(tg.sighting, tg.cls) : shipModel(tg.cls, tg.label)), key, bearing: tg.bearing };
+        // A ship seen before (key change, re-acquired) comes back without a fade
+        s.born = this.ships.has(tg.label) ? -Infinity : t;
         this.ships.set(tg.label, s);
         this.scene.add(s.g);
       }
       s.bearing = tg.bearing;
+      // Newly sighted: it comes out of the haze over a few seconds instead of popping in
+      fadeModel(s.g, Math.min(1, (t - (s.born ?? -Infinity)) / FADE_IN_S));
       if (tg.plane) {
         // Aircraft: at its height (earth curvature taken off), nose along the course, rotors turning
         const b = (tg.bearing * Math.PI) / 180;
@@ -483,9 +520,19 @@ export class Periscope3D {
           const p = ud.wpos;
           const nearBlast = [...this.effects.values()].some((g) => g.position.distanceTo(s.g.position) < 300);
           if (p && !nearBlast) addSlick(this.slicks, this.scene, p.x, p.y, t, seed % 6);
-        } else this.scene.remove(s.g);
+        } else this.fading.push({ g: s.g, at: t });
       }
     }
+    // Lost from sight: fade into the haze, then go
+    this.fading = this.fading.filter((f) => {
+      const k = 1 - (t - f.at) / FADE_OUT_S;
+      if (k <= 0) {
+        this.scene.remove(f.g);
+        return false;
+      }
+      fadeModel(f.g, k);
+      return true;
+    });
     this.sinking = this.sinking.filter((k) => {
       const going = stepSinking(k, t);
       if (!going) this.scene.remove(k.g);
