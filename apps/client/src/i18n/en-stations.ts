@@ -1,5 +1,6 @@
 /** German → English: the restructured stations (4 submarine, 5 frigate), the shared contact list, tutorial steps and help rows. */
 export const EN_STATIONS: [string, string][] = [
+  ['FLUGZEUGE IN SICHT', 'AIRCRAFT IN SIGHT'], ['KLASSE ZUWEISEN ▸', 'ASSIGN CLASS ▸'], ['ERST KLASSE ZUWEISEN', 'ASSIGN A CLASS FIRST'], ['Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen', 'Open the recognition book and assign the contact a class'],
   // Station titles, tabs and headers
   ['Horchraum', 'Sonar room'], ['Sehrohr', 'Periscope'], ['Feuerleitung', 'Fire control'], ['Zentrale', 'Control room'],
   ['OPZ', 'CIC'], ['Sonar', 'Sonar'], ['Waffen', 'Weapons'], ['Radar/ESM', 'Radar/ESM'], ['Brücke', 'Bridge'],

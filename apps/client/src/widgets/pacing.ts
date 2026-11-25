@@ -41,7 +41,11 @@ export function mountFastForward(): { el: HTMLElement; update(s: Snapshot): void
       btn.title = ff.blocked ?? (vote
         ? 'Abstimmen: ×6 bis zum nächsten Ereignis, sobald alle an Bord eines Schiffes zugestimmt haben und niemand frischen Feindkontakt hat'
         : 'Zeitraffer ×6 bis zum nächsten Ereignis: neuer Kontakt, Alarm, Ausbildungsschritt');
-      note.innerHTML = ff.on ? '' : ff.blocked ? esc(ff.blocked) : ff.stopped ? `GESTOPPT: ${esc(ff.stopped.toUpperCase())}` : '';
+      // Why it stopped or can't run goes into the tooltip, not the crowded top bar
+      note.innerHTML = '';
+      const why = ff.on ? '' : ff.blocked ? ff.blocked : ff.stopped ? `Gestoppt: ${ff.stopped}` : '';
+      if (why) btn.title = `${why} · ${btn.title}`;
+      void esc;
     },
   };
 }

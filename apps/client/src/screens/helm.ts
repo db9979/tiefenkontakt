@@ -3,7 +3,7 @@ import { t } from '../i18n/index.js';
 import { net } from '../net.js';
 import { depthBtn } from '../widgets/btn-state.js';
 import { store } from '../store.js';
-import { COL, FONT, LW, fitCanvas, kn, setHtml, tdeg3 } from '../widgets/format.js';
+import { COL, FONT, LW, fitCanvas, kn, setHtml, setText, tdeg3 } from '../widgets/format.js';
 import { gameDeg, trueDeg } from '../north.js';
 import { isFriendlyContact } from '../widgets/friendly.js';
 import { isKey } from '../widgets/keys.js';
@@ -109,7 +109,7 @@ html[data-theme='light'] .hm-tel button.made.stop{background:#e2ebe7}
 /** Helm: compass rose for the course, instrument tiles, engine telegraph strip (ahead and astern), depth. Visible on every station. */
 export function mountHelm(el: HTMLElement) {
   el.innerHTML = `${HELM_CSS}
-    <div class="hd"><span>Ruderstand</span><span id="h-rot" class="dim"></span></div>
+    <div class="hd"><span>Ruderstand<span id="h-ship" class="h-ship"></span></span><span id="h-rot" class="dim"></span></div>
     <div class="hm-top">
       <canvas id="h-compass" style="cursor:pointer" title="Klicken oder ziehen, um den Kurs zu setzen"></canvas>
       <div class="hm-tiles">
@@ -387,6 +387,7 @@ export function mountHelm(el: HTMLElement) {
       const rAbs = Math.abs(rudder);
       setHtml(q('#h-rud'), rAbs < 1.5 ? '0°<small> MITTE</small>' : `${rAbs.toFixed(0)}°<small> ${rudder > 0 ? 'STB' : 'BB'}</small>`);
       q('#h-rud-i').style.left = `${50 + (rudder / 35) * 50}%`;
+      setText(q('#h-ship'), ` · ${o.name}`);
       setHtml(q('#h-rot'), Math.abs(rot) > 0.05 ? `DREHT ${Math.abs(rot).toFixed(1).replace('.', ',')}°/S` : '');
       // Telegraph strip: the step she is making filled, the ordered step outlined amber
       const ordered = o.order.speedKn;

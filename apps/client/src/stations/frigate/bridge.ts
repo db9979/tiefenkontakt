@@ -155,6 +155,10 @@ export function bridgeStation(): Station {
     airTrack = air[(i + 1) % air.length]!.label;
   };
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Brücke', el);
+  // "Klasse zuweisen" in the lookout panel opens the recognition book as well
+  el.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-recog]')) toggleRecogBook('Brücke', el);
+  });
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector('#foto')!.after(phoneButton());
   for (const id of ['#left', '#right', '#ahead', '#report']) el.querySelector(id)!.addEventListener('click', () => (airTrack = undefined));
@@ -215,13 +219,17 @@ export function bridgeStation(): Station {
     const air = (s.planes ?? []).filter((p) => p.via.includes('visual'));
     const f = air.find((p) => p.id === airTrack);
     const NAME = { airliner: 'VERKEHRSFLUGZEUG', light: 'KLEINFLUGZEUG', recon: 'FERNAUFKLÄRER', mpa: 'SEEAUFKLÄRER', helo: 'HUBSCHRAUBER' } as const;
-    return `<div class="row"><span class="dim">LUFT IN SICHT</span><span>${air.length || '—'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
+    // What is in the air, by kind ("1 VERKEHRSFLUGZEUG"), not a bare count
+    const kinds = new Map<string, number>();
+    for (const p of air) kinds.set(NAME[p.kind], (kinds.get(NAME[p.kind]) ?? 0) + 1);
+    const what = [...kinds].map(([k, n]) => `${n} ${k}`).join(' · ');
+    return `<div class="row"><span class="dim">FLUGZEUGE IN SICHT</span><span>${what || 'KEINE'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
   };
 
   /** Selected contact with its assigned class (from the recognition book) and the photo counter. */
   const selLine = () => {
     const c = store.selectedContact();
-    return `${c ? `<div class="row"><span class="dim">KONTAKT · ${c.label}</span><span class="${c.assignedCls ? '' : 'amber'}">${c.assignedCls ? CLASS_LABEL[c.assignedCls] : 'KLASSE ZUWEISEN'}</span></div>` : ''}<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>`;
+    return `${c ? `<div class="row"><span class="dim">KONTAKT · ${c.label}</span><button data-recog class="${c.assignedCls ? '' : 'warn'}" style="min-height:22px;padding:1px 8px" title="Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen">${c.assignedCls ? `${CLASS_LABEL[c.assignedCls]} ✎` : 'KLASSE ZUWEISEN ▸'}</button></div>` : ''}<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>`;
   };
 
   return {

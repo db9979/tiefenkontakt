@@ -159,6 +159,9 @@ export function periscopeStation(): Station {
   el.querySelector<HTMLButtonElement>('#eldn')!.onclick = () => sky.nudge(-pfov() / 4);
   el.querySelector<HTMLButtonElement>('#sky')!.onclick = () => (sky.sweeping ? sky.cancel() : (sky.startSweep(performance.now(), periTarget), setZoom(1.5)));
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Sehrohr', el);
+  el.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-recog]')) toggleRecogBook('Sehrohr', el);
+  });
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
   el.querySelector('#foto')!.after(phoneButton());
@@ -280,11 +283,11 @@ export function periscopeStation(): Station {
       const autoCls = easy && !target?.assignedCls && !target?.assigned ? target?.classified : undefined;
       const rangeRow = !target ? '—'
         : easy && target.range !== undefined ? `${stad !== undefined ? km(stad) : '—'} <span class="dim">· ORTUNG</span> ${km(target.range)}`
-        : stad !== undefined ? km(stad) : target.assignedCls ? '—' : '<span class="dim">KLASSE ZUWEISEN</span>';
+        : stad !== undefined ? km(stad) : target.assignedCls ? '—' : '<span class="dim">ERST KLASSE ZUWEISEN</span>';
       setHtml(el.querySelector('#data')!, `
         <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${tdeg1(periBearing)}°</span></div>
         <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : '—'}</span></div>
-        <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls && !autoCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : autoCls ? `${CLASS_LABEL[autoCls]} <span class="dim">AUTO</span>` : target ? 'ERKENNUNG ÖFFNEN' : '—'}</span></div>
+        <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls && !autoCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : autoCls ? `${CLASS_LABEL[autoCls]} <span class="dim">AUTO</span>` : target ? '<button data-recog class="warn" style="min-height:22px;padding:1px 8px" title="Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen">KLASSE ZUWEISEN ▸</button>' : '—'}</span></div>
         <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
         <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>

@@ -389,12 +389,12 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     q('#pb-arr').style.width = `${safe}%`;
     const escort = s.own.team === 'west';
     const txt = q('#pb-txt');
-    txt.innerHTML = escort
-      ? `<span class="red">VERLOREN ${sunk} %${part}</span> · <span class="blue">SICHER ${safe} %</span> <span class="dim">· SIEG: ÜBER 50 % SICHER</span>`
-      : `<span class="red">VERSENKT ${sunk} %${part}</span> · <span class="blue">ENTKOMMEN ${safe} %</span> <span class="dim">· SIEG: 50 % VERSENKT</span>`;
+    // Compact: the two figures only; what they mean and the win rule are in the tooltip
+    txt.innerHTML = `<span class="red">${sunk} %${counted !== sunk ? `·${counted}` : ''}</span> <span class="dim">/</span> <span class="blue">${safe} %</span>`;
+    void part;
     q('.st-prog').title = escort
-      ? `Konvoi-Tonnage. Rot: versenkt (${sunk} %), blau: sicher im Zielhafen (${safe} %). Mehr als die Hälfte im Ziel = Sieg, die Hälfte versenkt = Niederlage. Bei Zeitablauf verliert der Geleitschutz ab 30 % Verlust (Strich).`
-      : `Konvoi-Tonnage. Rot: von uns versenkt (${sunk} %), blau: entkommen (${safe} %). Die Hälfte versenkt = Sieg; kommt mehr als die Hälfte an, ist die Partie verloren. Bei Zeitablauf reichen 30 % (Strich).`;
+      ? `Konvoi-Tonnage${part}. Rot: versenkt (${sunk} %), blau: sicher im Zielhafen (${safe} %). Mehr als die Hälfte im Ziel = Sieg, die Hälfte versenkt = Niederlage. Bei Zeitablauf verliert der Geleitschutz ab 30 % Verlust (Strich).`
+      : `Konvoi-Tonnage${part}. Rot: von uns versenkt (${sunk} %), blau: entkommen (${safe} %). Die Hälfte versenkt = Sieg; kommt mehr als die Hälfte an, ist die Partie verloren. Bei Zeitablauf reichen 30 % (Strich).`;
     renderLog(s);
     showRadio(s.radio, s.own.name);
     countSide('radio', s.radio.filter((r) => r.from !== s.own.name).map((r) => r.time));
