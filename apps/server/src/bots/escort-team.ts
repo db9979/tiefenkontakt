@@ -177,15 +177,16 @@ const longArray = (s: Ship) => (CLASSES[s.cls].towed?.maxLength ?? 0) >= LONG_AR
 
 /**
  * Screen layout: one ship always on the close screen (5–6 km); the other long-array ships take
- * the outer screen (9–10 km on the threat axis, or ahead), the rest the close screen.
+ * the outer screen (9–10 km on the threat axis, or ahead), the rest the close screen. Around an
+ * anchorage (no convoy under way) everyone stays on the close screen.
  */
-export function screenStations(center: Vec2, axis: number, ships: Ship[]): Map<string, Vec2> {
+export function screenStations(center: Vec2, axis: number, ships: Ship[], outerScreen = true): Map<string, Vec2> {
   const out = new Map<string, Vec2>();
   if (!ships.length) return out;
   const sorted = [...ships].sort((a, b) => a.id.localeCompare(b.id));
   // The close screen keeps at least one ship: the shortest array (or the first) stays in
   const keeper = [...sorted].sort((a, b) => Number(longArray(a)) - Number(longArray(b)))[0]!;
-  const outer = sorted.filter((s) => s !== keeper && longArray(s)).slice(0, 3);
+  const outer = sorted.filter((s) => outerScreen && s !== keeper && longArray(s)).slice(0, 3);
   const close = sorted.filter((s) => !outer.includes(s));
   const assign = (group: Ship[], pts: Vec2[]) => {
     const free = [...pts];
@@ -288,7 +289,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   if (center && screens.length) {
     const ahead = w.convoy?.guideHeading ?? 0;
     const threat = d && now - d.t < DATUM_MAX_AGE ? bearing(center, d) : undefined;
-    const st = screenStations(center, threat ?? ahead, screens);
+    const st = screenStations(center, threat ?? ahead, screens, !!w.convoy);
     // In mine water one screen sweeps the track close ahead with its mine-avoidance sonar (the
     // barrage-laying boat is ahead on the track too)
     const sweep = sweepStation(w, center);
@@ -300,7 +301,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
     }
     // The helicopter pounces on a datum too far out for a ship to leave the screen
     const far = d && now - d.t < 600 && distance(center, d) > 10_000 && distance(center, d) < HELO_POUNCE_R + 3000 ? d : undefined;
-    const helo = far && !hunters.length ? screens.filter((s) => hasHelicopter(s.cls)).sort((a, b) => distance(a.pos, far) - distance(b.pos, far))[0] : undefined;
+    const helo = far && !hunters.length && w.convoy ? screens.filter((s) => hasHelicopter(s.cls)).sort((a, b) => distance(a.pos, far) - distance(b.pos, far))[0] : undefined;
     if (helo) tasks.get(helo.id)!.helo = { x: far!.x, y: far!.y };
   }
   // A helicopter (of a ship that stays, or the hunter's own) goes for the heard datum
