@@ -20,17 +20,17 @@ const CSS = `<style>
 .dp-strip b{font-weight:normal;color:var(--dim);margin-right:3px}
 .dp-tbl{display:grid;grid-template-columns:14px minmax(0,1fr) 52px 30px;align-items:center;column-gap:5px;font-size:0.9167rem}
 .dp-tbl>div{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0;border-top:1px solid var(--line)}
-.dp-tbl .h{color:var(--dim);font-size:0.75rem;border-top:none;padding:0 0 1px}
+.dp-tbl .h{color:var(--dim);font-size:var(--fs-cap);border-top:none;padding:0 0 1px}
 .dp-row{cursor:pointer}
 .dp-sel{background:rgba(250,199,117,0.12)}
 html[data-theme='light'] .dp-sel{background:#fbf0d6}
 .dp-bar{position:relative;height:9px;background:var(--track);border-radius:1px}
 .dp-bar>i{position:absolute;left:0;top:0;bottom:0;display:block}
-.dp-bar>span{position:absolute;right:2px;top:-3px;font-size:0.6667rem;line-height:15px;color:var(--g2)}
+.dp-bar>span{position:absolute;right:2px;top:-3px;font-size:var(--fs-cap);line-height:15px;color:var(--g2)}
 .dp-fl{display:inline-block;width:14px;text-align:center;font-weight:bold}
 .dp-act{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0 0;padding:4px;border:1px solid var(--line2);border-radius:3px;font-size:0.8333rem}
 .dp-act>span{flex:1 1 100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dp-act button{flex:1 1 0;padding:2px 4px;min-height:0;font-size:0.75rem;white-space:nowrap}
+.dp-act button{flex:1 1 0;padding:2px 4px;min-height:0;font-size:var(--fs-cap);white-space:nowrap}
 .dp-sys{display:grid;grid-template-columns:62px minmax(0,1fr) 34px;align-items:center;column-gap:6px;font-size:0.9167rem}
 .dp-sys>div{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0}
 </style>`;
@@ -66,12 +66,12 @@ function animate(canvas: HTMLCanvasElement): void {
 
 function build(el: HTMLElement): void {
   el.style.overflowX = 'hidden';
-  el.innerHTML = `${CSS}<div class="hd"><span>Schadensabwehr</span><span id="dp-hp"></span></div>
+  el.innerHTML = `${CSS}<div class="hd dp-hd"><span>Schadensabwehr</span><span id="dp-hp"></span></div>
     <canvas id="dp-cut" class="keep" style="width:100%;cursor:pointer;display:block;border-radius:3px;border:1px solid var(--line)" title="Klick: Abteilung wählen, Schadenstrupp dorthin"></canvas>
     <div id="dp-state" class="dp-strip"></div>
     <div id="dp-comps" class="dp-tbl"></div>
     <div id="dp-act" class="dp-act"></div>
-    <div class="dim" style="margin:8px 0 2px;font-size:0.75rem">SYSTEME · KLICK = REPARATUR ZUERST</div>
+    <div class="dim" style="margin:8px 0 2px;font-size:var(--fs-cap)">SYSTEME · KLICK = REPARATUR ZUERST</div>
     <div id="dp-sys" class="dp-sys"></div>`;
   const cut = el.querySelector<HTMLCanvasElement>('#dp-cut')!;
   cut.addEventListener('click', (e) => {
