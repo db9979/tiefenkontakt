@@ -41,3 +41,7 @@ body.crt .analysis button.on { z-index: 2; }
 .analysis .steps.cls-grid { display: flex; flex-wrap: nowrap; gap: 3px; }
 .analysis .steps.cls-grid > button { flex: 1 1 auto; min-width: 0; padding: 2px 3px; font-size: var(--fs-cap); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 600px) { .analysis .steps.cls-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .wf-ctl button, .st.sub-horch .foot .lm-seg > button, .st.sub-horch .foot > button, .st.sub-horch details.pop > summary { padding-left: 5px; padding-right: 5px; }
+  .st.sub-horch .ana-foot { flex-wrap: wrap; row-gap: 4px; }
+}
