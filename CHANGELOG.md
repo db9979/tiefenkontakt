@@ -6,6 +6,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Eigenes Schiff im Detail:** von der Brücke sieht man jetzt ein eigenes Nahmodell statt der Fernansicht:
+  rutschfestes Deck mit Fugen, Abnutzung und Markierungen, Geschützturm mit Rohr, U-Jagd-Werfer bzw. Flugkörperbehälter,
+  Ankerspill mit Ketten, Poller, Lüfter, Wellenbrecher, Reling mit Stützen, Flaggenstock und eine Ausguckplattform
+  (F-12, F-30, K-7; das Wachschiff nutzt das F-30-Modell). Der Blick folgt dem Schiff in Stampfen und Rollen.
+- **Handy-Fernglas:** wurde nach spätestens 15 s getrennt (antwortete nicht auf die Verbindungsprüfung) – behoben.
 - **Gründliche Oberflächenprüfung:** ein strenger Prüfer hat jede Station, jeden Reiter und jedes Menü in Hell und
   Dunkel bei 1440, 1140 und 390 px durchgesehen; 64 Befunde behoben, u. a.: FLASH- und Torpedo-Banner verdecken nichts
   mehr, NIEDERLAGE in Rot, Kontaktlisten mit getrennten Spalten SENS / KLASSE / PEGEL, überall Dezimalkomma,
