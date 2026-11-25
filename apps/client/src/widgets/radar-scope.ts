@@ -32,6 +32,8 @@ export class RadarScope {
   private phos = document.createElement('canvas');
   private pc: CanvasRenderingContext2D;
   sweep = 0;
+  /** Transmitting in the last update (draw shows the sweep only then). */
+  private live = false;
 
   constructor() {
     this.phos.width = S;
@@ -42,14 +44,16 @@ export class RadarScope {
   }
 
   /** Advance the sweep and burn new returns into the phosphor. */
-  update(s: Snapshot | undefined, dt: number, rpm: number, rangeM: number): void {
+  update(s: Snapshot | undefined, dt: number, rpm: number, rangeM: number, opts: { on?: boolean; antennaM?: number } = {}): void {
     const pc = this.pc;
     pc.save();
     pc.beginPath(); pc.arc(C, C, R, 0, TAU); pc.clip();
     // Persistence: a full revolution fades the picture to a faint afterglow
     pc.fillStyle = `rgba(2,6,5,${Math.min(0.5, dt * (rpm / 60) * 2.2)})`;
     pc.fillRect(0, 0, S, S);
-    const on = !!s?.own.radarOn;
+    const on = opts.on ?? !!s?.own.radarOn;
+    this.live = on;
+    const antenna = opts.antennaM ?? 20;
     if (!on || !s) {
       // Standby: receiver noise only
       for (let i = 0; i < 30; i++) {
@@ -100,7 +104,7 @@ export class RadarScope {
           const r = (i / n) * rangeM;
           const d = depthAt(s.env.seabed, s.own.x + v.x * r, s.own.y + v.y * r);
           if (d >= 0) continue;
-          const tan = (-d - 20 - (r * r) / 17_000_000) / r;
+          const tan = (-d - antenna - (r * r) / 17_000_000) / r;
           if (tan > maxTan) {
             maxTan = tan;
             pc.fillStyle = `rgba(150,235,200,${0.3 + Math.random() * 0.4})`;
@@ -167,7 +171,7 @@ export class RadarScope {
     ctx.globalCompositeOperation = inkOn(ctx) ? 'darken' : 'lighter';
     ctx.drawImage(this.phos, ox, oy, size, size);
     ctx.restore();
-    const on = !!s?.own.radarOn;
+    const on = this.live;
     if (on) {
       // Sweep with a glowing trail
       const a = toRad(this.sweep);

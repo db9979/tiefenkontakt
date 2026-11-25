@@ -5,6 +5,7 @@ import type { Periscope3D } from '../../widgets/periscope3d.js';
 import { blasts } from '../../widgets/blasts.js';
 import { net } from '../../net.js';
 import { btnState, depthBtn, mastBtn } from '../../widgets/btn-state.js';
+import { subRadarPanel } from '../../widgets/sub-radar-panel.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
@@ -127,6 +128,8 @@ export function periscopeStation(): Station {
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
   el.querySelector('#foto')!.after(phoneButton());
+  const radarScope = subRadarPanel();
+  el.querySelector('#data')!.closest('.panel')!.before(radarScope.el);
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
     sky.level();
     const c = store.selectedContact();
@@ -257,6 +260,7 @@ export function periscopeStation(): Station {
       }, 20_000);
     },
     frame() {
+      radarScope.frame();
       // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
       if (store.snap && mastState(store.snap.own).ext > 0) ensureGl();
       const s = store.snap;

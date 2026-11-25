@@ -15,7 +15,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   wo mehrere Klassen dasselbe Gerät tragen, Stärke und Trend („SEEFALKE-2 · FREGATTE? (OBERFLÄCHENSUCHE) · STARK,
   STEIGEND“). Flugzeug- und Feuerleitradar sind rot („FLUGZEUGRADAR – TAUCHEN“). Gilt für Fregatten-ESM, Sehrohr und Lagebild.
 - **U-Boot-Radar am Mast:** Mit ganz ausgefahrenem Mast kann ein U-Boot kurz sein Radar einschalten und findet Schiffe bis
-  zum nahen Horizont (etwa 14 sm). Jedes ESM peilt es dabei als U-Boot-Radar an; Mast einfahren oder Tauchen schaltet es ab.
+  zum nahen Horizont (etwa 14 sm), auf einem eigenen Radarschirm am Sehrohr (16 sm, Küste, Echos). Jedes ESM peilt es dabei
+  als U-Boot-Radar an; Mast einfahren oder Tauchen schaltet es ab.
 - **Erkennungsheft erweitert:** Silhouetten im gemeinsamen Maßstab (Schiffe und U-Boote je eigener) mit Höhenraster,
   Wasserlinie, Länge, Tiefgang und Masthöhe fürs Stadimeter, dazu Draufsicht, Bugansicht und ein Vergleichsumriss.
   Neue Reiter „Akustik“ (Blattzahl, Drehzahl, Schmalbandlinien als Balken, Klang) und „Bedrohung“ (Waffen und Sensoren
