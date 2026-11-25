@@ -435,12 +435,14 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 @keyframes st-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { button.ack, button.st-busy[data-bst]::after { animation: none; } }
 /* Depth alarms: settings block in the dive station, callout under the top bar on every station */
-.depth-alarms .da-row { align-items: center; }
-.depth-alarms .da-on, .depth-alarms .da-lbl { flex: 1; text-align: left; }
-.depth-alarms .da-lbl { padding-left: 8px; }
+.depth-alarms .da-row { align-items: center; gap: var(--sp3); min-height: 26px; padding: 1px 0; }
+.depth-alarms .da-lbl { flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.depth-alarms .da-on { flex: none; width: 46px; min-height: 22px; padding: 0 4px; }
+.depth-alarms .da-on::after { margin-left: 0; }
+.depth-alarms .da-pad { display: inline-block; }
 .depth-alarms .da-set { display: flex; align-items: center; gap: 3px; }
-.depth-alarms .da-set button { padding: 2px 8px; }
-.depth-alarms input[type=number] { width: 56px; text-align: right; }
+.depth-alarms .da-set button { padding: 0 8px; min-height: 22px; }
+.depth-alarms input[type=number] { width: 56px; height: 22px; padding-top: 0; padding-bottom: 0; text-align: right; }
 .depth-alarms .da-now { padding: 4px 0 6px; letter-spacing: 0.08em; }
 .depth-alarms .da-now .red, .depth-alarms .da-now .amber { font-size: 1.1667rem; }
 .depth-callout { position: fixed; bottom: 14px; left: 38%; transform: translateX(-50%); z-index: 39; padding: 4px 16px;

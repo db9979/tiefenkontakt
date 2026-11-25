@@ -77,3 +77,22 @@
   .sub-fc .fill { height: 50vh; }
   .sub-fc .fc-list { max-height: 170px; }
 }
+
+/* ---- Zentrale (U4): chart 72 % over the depth profile 28 % (at most 170 px of canvas) ---- */
+.sub-central .zc-prof { flex: 0 1 28%; display: flex; flex-direction: column; min-height: 0; max-height: 226px; }
+.sub-central .zc-prof > .fill { min-height: 90px; max-height: 170px; }
+.sub-central .zc-prof > .hint { margin-top: 2px; }
+/* Orders: three per row; the longest label (GEFECHTSSTATIONEN) fits with its tag below */
+.sub-central .cmdgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sub-central .cmdgrid > button { min-width: 0; padding-left: 2px; padding-right: 2px; letter-spacing: 0.01em; }
+/* Navigation | Tiefenalarme | Minen: the rest of the column */
+.sub-central .panel.grow.tabbed { min-height: 170px; }
+.sub-central .pane .row { padding: 2px 0; }
+
+@media (max-width: 1150px) {
+  .sub-central .fill { height: 50vh; }
+  .sub-central .zc-prof { max-height: none; }
+  .sub-central .zc-prof > .fill { height: 32vh; max-height: 170px; }
+  .sub-central .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sub-central .panel.grow.tabbed { min-height: 0; }
+}
