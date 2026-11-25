@@ -20,8 +20,8 @@ const GLASS_MAGS = [6, 8, 10, 12];
 export function phoneScreen(root: HTMLElement, code: string): void {
   document.body.classList.add('phone-view');
   const el = h(`<div style="position:fixed;inset:0;background:#000;touch-action:none;user-select:none">
-    <canvas id="ph-gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
-    <canvas id="ph-ov" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+    <canvas id="ph-gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+    <canvas id="ph-ov" class="keep" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
     <div id="ph-top" style="position:absolute;top:0;left:0;right:0;padding:6px 10px;color:#9fd8c4;font:13px ui-monospace,monospace;background:rgba(0,0,0,0.45);display:flex;justify-content:space-between"></div>
     <div id="ph-bar" style="position:absolute;bottom:0;left:0;right:0;padding:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;background:rgba(0,0,0,0.5)">
       <button id="ph-ahead">Voraus</button><button id="ph-mag"></button><button id="ph-glass">Fernglas</button><button id="ph-stab">Stab</button>
@@ -210,7 +210,7 @@ export function phoneScreen(root: HTMLElement, code: string): void {
       gl.render({
         bearing: bearing(), fovDeg: isSub ? f * (w / Math.min(w, hgt)) : f, t, sea: s.env.seaState, light: s.env.light ?? 1,
         targets: isSub ? periscopeTargets(s) : bridgeTargets(s), rain: s.env.rain, hour: s.env.clock,
-        pitchDeg: isSub ? elev : glass ? elev - 0.15 : elev - 8, met: s.env.met, own, ownHeading: own.heading, ownKn: s.own.speedKn,
+        pitchDeg: isSub ? elev : glass ? elev - 0.15 : elev - 8, met: s.env.met, own, seabed: s.env.seabed, ownHeading: own.heading, ownKn: s.own.speedKn,
         stabilize: stab, shake: !isSub && glass ? 0.012 * mag : 0,
       });
     }
@@ -227,9 +227,13 @@ export function phoneScreen(root: HTMLElement, code: string): void {
       }
     } else if (glass) {
       const r = Math.min(w * 0.3, hgt * 0.46);
-      ctx.beginPath(); ctx.rect(0, 0, w, hgt);
-      for (const dx of [-0.55, 0.55]) { ctx.moveTo(w / 2 + dx * r + r, hgt / 2); ctx.arc(w / 2 + dx * r, hgt / 2, r, 0, 7, true); }
-      ctx.fill('evenodd');
+      // Black all round, then cut both eyepieces out (their overlap stays open, as in real binoculars)
+      ctx.fillRect(0, 0, w, hgt);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      for (const dx of [-0.55, 0.55]) { ctx.moveTo(w / 2 + dx * r + r, hgt / 2); ctx.arc(w / 2 + dx * r, hgt / 2, r, 0, 7); }
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
       reticle(ctx, w, hgt, f, r);
     }
     const sel = selected ? ` · ${selected}` : '';
