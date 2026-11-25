@@ -21,6 +21,7 @@ import { bottomFeatures } from './bottom-echo.js';
 import { lineOfSight, soundPathDepth as pathDepth, terrainLossDb } from './terrain.js';
 import { metVisibility } from './weather.js';
 import { CLASSES, type ClassId } from './classes.js';
+import { RECOG } from './recognition.js';
 import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
 import { KN, NM, angleDiff, bearing, dbSum, distance, headingVec, wrap360, type Vec2 } from './math.js';
@@ -49,6 +50,10 @@ export interface Detection {
   source?: 'hull' | 'dip' | 'buoy';
   /** Seen through the periscope with navigation lights burning. */
   lit?: boolean;
+  /** Periscope: power of the optic at the time (1.5, 6, 12). */
+  mag?: number;
+  /** Periscope: angle from waterline to masthead as the stadimeter marks it (mrad, with the marking error). */
+  subtense?: number;
   /** Narrowband/DEMON measurements for passive sonar looks. */
   evidence?: Evidence;
   /** CW active echo: target closing speed in kn (positive = approaching). */
@@ -345,7 +350,24 @@ export function horizonRange(eyeHeight: number, targetHeight: number): number {
 /** How far a submarine's mast radar finds ships: its horizon. */
 export const SUB_RADAR_RANGE = Math.min(RADAR_RANGE, horizonRange(SUB_RADAR_ANTENNA_M, SHIP_TOP_M));
 
+/** Field of view of the attack periscope (degrees) at a power: 32° at 1.5×, 8° at 6×, 4° at 12×. */
+export function scopeFov(mag: number): number {
+  return 48 / mag;
+}
+/** Ships just outside the circle still catch the eye at its rim (degrees beyond the half field). */
+export const SCOPE_MARGIN_DEG = 1;
+/** Stadimeter marking error (1 σ, fraction of the angle): the mast top is set on the waterline by eye. */
+export const STADIMETER_ERR = 0.06;
+
+/** Is this true bearing inside the periscope's field of view (with its small margin)? */
+export function inScopeView(scope: Ship['scope'], trueBearing: number): boolean {
+  return !!scope && Math.abs(angleDiff(scope.bearing, trueBearing)) <= scopeFov(scope.mag) / 2 + SCOPE_MARGIN_DEG;
+}
+
 function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
+  // Only what is inside the optic's field of view: nobody looking, nothing seen
+  const scope = obs.scope;
+  if (!scope) return;
   // Night cuts visual range sharply (darkened ships, no moon assumed)
   const light = ctx.env.light ?? 1;
   // As far as the horizon allows and the air carries (spray haze, rain); night cuts it to a third
@@ -353,16 +375,21 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   const vis = 0.3 + 0.7 * light;
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive || CLASSES[tgt.cls].submarine) continue;
+    const trueB = bearing(obs.pos, tgt.pos);
+    if (!inScopeView(scope, trueB)) continue;
     const range = distance(obs.pos, tgt.pos);
     // Navigation lights carry far at night: a lit ship is seen almost as well as by day
     const seen = tgt.lights ? Math.max(vis, 0.85) : vis;
     if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > air * seen) continue;
     // Behind a headland or island the masts are out of sight
     if (!lineOfSight(ctx.env.seabed, obs.pos, 1.5, tgt.pos, SHIP_TOP_M)) continue;
+    // Class and range stay on the server's books: a player gets them only by the rules of his
+    // realism mode (snapshot.ts); the stadimeter angle is what the eye really measures
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'periscope', time: ctx.time,
-      bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.3)),
-      range: range * (1 + ctx.rng.gauss(0, 0.05)), se: 20, classified: tgt.cls, lit: tgt.lights,
+      bearing: wrap360(trueB + ctx.rng.gauss(0, 0.3)),
+      range: range * (1 + ctx.rng.gauss(0, 0.05)), se: 20, classified: tgt.cls, lit: tgt.lights, mag: scope.mag,
+      subtense: (RECOG[tgt.cls].mast / Math.max(50, range)) * 1000 * (1 + ctx.rng.gauss(0, STADIMETER_ERR)),
     });
   }
 }

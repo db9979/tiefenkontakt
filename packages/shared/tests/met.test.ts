@@ -64,6 +64,7 @@ describe('met cells', () => {
     // Periscope of a boat at periscope depth looking at the frigate through the bank
     const p = createShip({ id: 'p', cls: 'ssk', name: 'P', pos: { x: 0, y: 3000 }, heading: 180, speedKn: 3, depth: 15, team: 'east' });
     p.mastUp = true;
+    p.scope = { bearing: 180, mag: 1.5 };
     const scope = (env: Environment) => runSensors({ ships: [f, p], env, time: 1, rng: new Rng(2) }).some((d) => d.sensor === 'periscope');
     expect(scope(clear)).toBe(true);
     expect(scope(foggy)).toBe(false);
