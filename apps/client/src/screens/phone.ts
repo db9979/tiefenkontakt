@@ -191,7 +191,7 @@ export function phoneScreen(root: HTMLElement, code: string): void {
     const m = await import('../widgets/periscope3d.js');
     gl?.dispose();
     const surface = !CLASSES[s.own.cls].submarine;
-    gl = new m.Periscope3D(glCanvas, surface ? { eye: 20, own: s.own.cls === 'kor' || s.own.cls === 'ffv' ? s.own.cls : 'ffg' } : {});
+    gl = new m.Periscope3D(glCanvas, surface ? { eye: 20, own: s.own.cls === 'kor' || s.own.cls === 'ffv' ? s.own.cls : s.own.cls === 'ffk' ? 'ffv' : 'ffg' } : {});
   }
 
   function draw(s: Snapshot, t: number): void {
