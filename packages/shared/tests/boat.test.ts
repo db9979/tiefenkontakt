@@ -37,7 +37,8 @@ describe('crew and boat systems', () => {
     a.candles = 0;
     const co2 = a.co2;
     run(w, 3600);
-    expect(u.air!.co2).toBeGreaterThan(co2 + 0.8);
+    // About 0.12 % CO2 per hour closed up (C16)
+    expect(u.air!.co2 - co2).toBeCloseTo(0.12, 2);
     // Nuclear boats make their own air
     expect(world(100, 'ssn').u.air).toBeUndefined();
   });

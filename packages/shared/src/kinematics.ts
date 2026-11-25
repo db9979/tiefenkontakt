@@ -14,6 +14,8 @@ export function asternMaxKn(cls: ClassId): number {
 
 /** Most a ship makes with the Nixie towed decoy streamed (the tow cable and body). */
 export const NIXIE_MAX_KN = 25;
+/** Above this speed the mast (periscope, ESM, radar) can't be raised: the water would bend or tear it (boat.ts lowers it). */
+export const MAST_MAX_KN = 10;
 
 /** Speed above which a snorkeling SSK floods the snorkel / can't charge. */
 export const SNORKEL_MAX_KN = 8;
@@ -79,7 +81,7 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     const atPd = s.depth <= PERISCOPE_DEPTH + 0.5;
     if (!atPd) s.mastUp = false;
     // A mast ordered on the way up goes up on arrival (unless the boat was sent deep again)
-    if (s.mastPending && atPd) {
+    if (s.mastPending && atPd && s.speed / KN <= MAST_MAX_KN) {
       s.mastUp = true;
       s.mastPending = false;
     }
@@ -143,27 +145,52 @@ export function isSnorkeling(s: Ship): boolean {
   return s.snorkel && isAtPeriscopeDepth(s) && (s.snorkelExt ?? 1) >= 1;
 }
 
+/**
+ * Battery drain in % of capacity per hour at a speed (kn): hotel load plus propulsion,
+ * which grows with the cube of the speed (1 %/h stopped, ≈5 %/h at 6 kn, ≈15 %/h at 10 kn,
+ * a full battery in about an hour flat out).
+ */
+export function batteryDrainPctH(kn: number): number {
+  return 1 + (kn * kn * kn) / 70;
+}
+
+/** Charge rate while snorkelling or surfaced (% per hour): the diesels give 40 %/h, less what the run takes. */
+export function batteryChargePctH(kn: number): number {
+  return 40 - batteryDrainPctH(kn);
+}
+
+/** Drain of this boat at this speed (% per hour); 0 below the AIP plant's speed. */
+function drainOf(s: Ship, kn: number): number {
+  const aip = CLASSES[s.cls].aipKn;
+  return aip !== undefined && kn <= aip ? 0 : batteryDrainPctH(kn);
+}
+
+/**
+ * Battery charge at the start of a match (% of capacity): boats have been on patrol for a
+ * while, so 40–70 %; beginners get at least 60 %.
+ */
+export function startBatteryPct(rnd: () => number, beginner = false): number {
+  const lo = beginner ? 60 : 40;
+  return lo + rnd() * (70 - lo);
+}
+
 function stepBattery(s: Ship, dt: number): void {
   const spec = CLASSES[s.cls];
   if (!spec.battery || s.battery === undefined) return;
+  const cap = spec.battery.capacityKnH;
   const hours = dt / 3600;
   const kn = s.speed / KN;
   const surfaced = s.depth <= 0.5;
-  if (surfaced || isSnorkeling(s)) {
-    s.battery = Math.min(spec.battery.capacityKnH, s.battery + 40 * hours);
-    return;
-  }
-  // AIP plant carries slow running on its own
-  if (spec.aipKn !== undefined && kn <= spec.aipKn) return;
-  // Drain grows roughly with the square of speed plus hotel load
-  const drain = 1 + (kn * kn) / 4;
-  s.battery = Math.max(0, s.battery - drain * hours);
+  // battery is stored in capacity units (knot-hours); the rates are in % of capacity
+  const pctH = surfaced || isSnorkeling(s) ? batteryChargePctH(kn) : -drainOf(s, kn);
+  s.battery = clamp(s.battery + (pctH / 100) * cap * hours, 0, cap);
 }
 
-/** Estimated remaining submerged endurance in seconds at current speed. */
+/** Estimated remaining submerged endurance in seconds at current speed (undefined: no battery, or AIP carries it). */
 export function batteryEndurance(s: Ship): number | undefined {
-  if (s.battery === undefined) return undefined;
-  const kn = s.speed / KN;
-  const drain = 1 + (kn * kn) / 4;
-  return (s.battery / drain) * 3600;
+  const cap = CLASSES[s.cls].battery?.capacityKnH;
+  if (s.battery === undefined || !cap) return undefined;
+  const drain = drainOf(s, s.speed / KN);
+  if (drain <= 0) return undefined;
+  return ((s.battery / cap) * 100 / drain) * 3600;
 }

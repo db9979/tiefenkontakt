@@ -10,6 +10,7 @@ import { Plot } from '../../widgets/plot.js';
 import { courseAction } from '../../widgets/actions.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 import { pickByBearing } from './sonar.js';
+import { batteryRows } from './dive-engine.js';
 
 /**
  * Zentrale: the commander's place in the boat. Unlike the frigate's operations room there is
@@ -93,7 +94,6 @@ export function centralStation(): Station {
       const spec = CLASSES[o.cls];
       renderContactList(q('#list'));
       const layer = s.env.layerDepth;
-      const pct = spec.battery && o.battery !== undefined ? (100 * o.battery) / spec.battery.capacityKnH : undefined;
       const torp = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 60);
       q('#c-alarm').textContent = torp ? 'TORPEDO!' : '';
       const mast = (o.mastExt ?? (o.mastUp ? 1 : 0));
@@ -104,7 +104,7 @@ export function centralStation(): Station {
         <div class="row"><span class="dim">KURS · FAHRT</span><span>${tdeg3(o.heading)}° · ${o.speedKn.toFixed(1)} KN${o.crew?.silent ? ' · <span class="amber">RUHE IM BOOT</span>' : ''}</span></div>
         ${s.env.current ? `<div class="row"><span class="dim">STROM (ATLAS)</span><span>${s.env.current.kn >= 0.1 ? `SETZT ${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1)} KN` : 'KEIN NENNENSWERTER'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'} KENTERT IN ${clock(s.env.tide.turnsInS)}` : ''}</span></div>` : ''}
         <div class="row"><span class="dim">EIGENGERÄUSCH</span><span class="${o.noiseDb > 135 ? 'red' : o.noiseDb > 122 ? 'amber' : ''}">${o.noiseDb.toFixed(0)} DB</span></div>
-        ${pct !== undefined ? `<div class="row"><span class="dim">BATTERIE</span><span class="${pct < 25 ? 'red' : pct < 50 ? 'amber' : ''}">${pct.toFixed(0)} %${o.batteryEnduranceS !== undefined ? ` · ${clock(o.batteryEnduranceS)} BEI DIESER FAHRT` : ''}</span></div>` : '<div class="row"><span class="dim">ANTRIEB</span><span>REAKTOR</span></div>'}
+        ${batteryRows(o)}
         <div class="row"><span class="dim">MAST</span><span class="${mast > 0.5 ? 'amber' : ''}">${mast >= 1 ? 'OBEN · SICHTBAR UND PEILBAR' : mast > 0 ? `FÄHRT ${Math.round(mast * 100)} %` : 'EINGEFAHREN'}${o.snorkel ? ' · SCHNORCHELT' : ''}</span></div>
         <div class="row"><span class="dim">TORPEDOS</span><span>${o.loadout.heavy} · ROHRE ${o.loadout.tubes.filter((t) => t.loaded).length}/${o.loadout.tubes.length} GELADEN · TÄUSCHKÖRPER ${o.loadout.noisemakers}</span></div>`);
       btnState(q('[data-cmd="silent"]'), { on: !!o.crew?.silent });

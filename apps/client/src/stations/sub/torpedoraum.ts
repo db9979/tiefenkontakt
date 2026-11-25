@@ -2,7 +2,7 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { btnState } from '../../widgets/btn-state.js';
-import { h, km, setHtml, tdeg1 } from '../../widgets/format.js';
+import { clock, h, km, setHtml, tdeg1 } from '../../widgets/format.js';
 import { minePanel } from '../../widgets/mine-panel.js';
 import { onTap } from '../../widgets/touch.js';
 
@@ -56,7 +56,7 @@ export function torpedoRoomStation(): Station {
         const sel = t.id === store.selected;
         return `<div class="row ${sel ? 'amber selrow' : ''}" style="align-items:center">
           <span class="clickable" data-pick="${t.id}">${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-          <span>${tdeg1(t.heading)}° · ${km(t.run)}</span>
+          <span>${tdeg1(t.heading)}° · ${km(t.run)} · LAUFZEIT <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">${t.leftS !== undefined ? clock(t.leftS) : '—'}</span></span>
           <span><button data-steer="${t.id}" data-d="-10">◀◀</button><button data-steer="${t.id}" data-d="-2">◀</button><button data-steer="${t.id}" data-d="2">▶</button><button data-steer="${t.id}" data-d="10">▶▶</button></span></div>`;
       }).join('') : '<div class="dim">KEIN TORPEDO AM DRAHT</div>');
       btnState(q('#tr-nm'), { label: String(l.noisemakers), tone: l.noisemakers ? undefined : 'empty' });

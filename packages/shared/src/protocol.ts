@@ -31,7 +31,8 @@ export type ClientMsg =
   | { t: 'blow' }
   | { t: 'mad'; bearing: number; range: number }
   | { t: 'towed'; length: number }
-  | { t: 'fire'; heading: number; enableAfter: number; mode: SeekerMode; searchDepth: number; speedKn: number }
+  /** salvo: 1–4 torpedoes fanned about heading, spread degrees apart (default one). */
+  | { t: 'fire'; heading: number; enableAfter: number; mode: SeekerMode; searchDepth: number; speedKn: number; salvo?: number; spread?: number }
   | { t: 'steer'; torpId: string; heading: number }
   | { t: 'rocket'; bearing: number; range: number }
   | { t: 'ssm'; bearing: number; range: number }
@@ -291,6 +292,8 @@ export interface TorpedoView {
   wire: boolean;
   homing: boolean;
   run: number;
+  /** Seconds of run left before the fuel is gone. */
+  leftS?: number;
 }
 
 export interface RadioMsg {

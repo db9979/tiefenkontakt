@@ -24,6 +24,11 @@ import {
   steerClear,
   CLASSES,
   isConvoyShip,
+  angleDiff,
+  dropDepthCharge,
+  MORTAR_MAX,
+  MORTAR_MIN,
+  ROCKET_MIN_RANGE,
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
@@ -217,7 +222,20 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   const err = SKILL[skill].aimErr;
   const scatter = (p: Vec2): Vec2 => (err ? { x: p.x + w.rng.gauss(0, err), y: p.y + w.rng.gauss(0, err) } : p);
   // A lightweight torpedo searches a wide circle: never fire near own ships
+  // Inside the rocket's minimum range: turn the bow on the datum and throw a mortar salvo once
+  // it lies 400–800 m ahead (fused below the measured layer, or at 60 m without one)
+  const mortar = (aim: Vec2) => {
+    const r = distance(s.pos, aim);
+    const brg = bearing(s.pos, aim);
+    s.order.heading = brg;
+    if (r < MORTAR_MIN || r > MORTAR_MAX || Math.abs(angleDiff(s.heading, brg)) > 10) return false;
+    if (friends.some((f) => f.id !== s.id && distance(f.pos, aim) < 600)) return false;
+    if (dropDepthCharge(w, s, s.btLayer ? s.btLayer + 30 : 60) !== true) return false;
+    m.lastShot = now;
+    return true;
+  };
   const shoot = (aim: Vec2) => {
+    if (distance(s.pos, aim) < ROCKET_MIN_RANGE) return mortar(aim);
     if (friends.some((f) => distance(f.pos, aim) < 3000)) return false;
     const p = scatter(aim);
     if (launchAswRocket(w, s, p) !== true) return false;

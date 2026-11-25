@@ -29,6 +29,7 @@ import {
   REGIONS,
   areasFor,
   SEA_TIME_FACTOR,
+  startBatteryPct,
 } from '@tk/shared';
 import { loadBathymetry } from './bathy-load.js';
 import type { LessonId } from './lessons.js';
@@ -256,6 +257,11 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
       const bottom = depthAt(w.env.seabed, s.pos.x, s.pos.y);
       s.depth = s.order.depth = Math.max(18, Math.min(s.depth, bottom - 30));
     }
+  }
+  // Diesel boats come off a patrol: the battery is part-charged (40–70 %, easy matches at least 60 %), drawn from the world's dice
+  for (const s of ships) {
+    const cap = CLASSES[s.cls].battery?.capacityKnH;
+    if (cap && s.battery !== undefined) s.battery = (startBatteryPct(() => w.rng.next(), settings.botSkill === 'leicht') / 100) * cap;
   }
   if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, v.waypoints(route), convoyKn, sp);
   installWeapons(w);

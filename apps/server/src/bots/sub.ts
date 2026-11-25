@@ -18,6 +18,8 @@ import {
   headingVec,
   isEscort,
   trueDeg3,
+  KN,
+  MAST_MAX_KN,
 } from '@tk/shared';
 import { considerMine } from './mines.js';
 import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
@@ -107,7 +109,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Learned: against escorts that ping a lot, stay under the layer even when it's quiet
   const quietDepth = w.env.adapt?.east?.ping && layer !== undefined ? Math.min(layer + 30, maxSafe) : Math.min(60, maxSafe);
   s.order.depth = peeking ? PERISCOPE_DEPTH : threatNear ? hide : quietDepth;
-  s.mastUp = peeking && s.depth <= PERISCOPE_DEPTH + 0.5;
+  s.mastUp = peeking && s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN;
   s.snorkel = false;
 
   // Diesel boats recharge when it's quiet

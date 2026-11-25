@@ -1,4 +1,4 @@
-import { bearing, distance, headingVec, targetPosAt } from '@tk/shared';
+import { MORTAR_MAX, MORTAR_MIN, ROCKET_MIN_RANGE, angleDiff, bearing, distance, headingVec, lightSearchDepths, targetPosAt } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, tubeTag } from '../../widgets/btn-state.js';
 import { guardFire, targetCheck } from '../../widgets/fire-guard.js';
@@ -31,15 +31,17 @@ export function weaponsStation(): Station {
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Waffenleitstand · Ziel</span><span id="src" class="dim"></span></div><div id="target"></div></div>
       <div class="panel"><div class="hd"><span>U-Jagd-Rakete</span><span id="rk"></span></div>
-        <div class="dim">TRÄGT EINEN LEICHTGEWICHTSTORPEDO BIS 18 KM, FLUGZEIT CA. 40 S. DER TORPEDO SUCHT AKTIV IM KREIS.</div>
+        <div class="dim">TRÄGT EINEN LEICHTGEWICHTSTORPEDO 1,8–18 KM WEIT, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. DER TORPEDO SUCHT AKTIV IM KREIS, ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div>
         <div style="display:flex;gap:4px;margin-top:6px"><button id="rocket" class="fire" style="flex:1">Rakete auf Ziel</button></div>
       </div>
       <div class="panel"><div class="hd"><span>Torpedorohre</span><span id="tb"></span></div>
-        <div class="row"><span class="dim">SUCHTIEFE</span><span><input id="tdep" type="number" value="100" step="10" style="width:80px"> M</span></div>
+        <div class="row"><span class="dim">SUCHTIEFE</span><span id="tdep"></span></div>
         <button id="tube" class="fire" style="width:100%;margin-top:6px">Torpedo auf Zielpeilung</button>
       </div>
-      <div class="panel"><div class="hd"><span>Wasserbomben</span><span id="dcn"></span></div>
-        <div style="display:flex;gap:4px">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}">${d} m</button>`).join('')}</div>
+      <div class="panel"><div class="hd"><span>Wasserbombenwerfer</span><span id="dcn"></span></div>
+        <div class="dim">ZIEL 400–800 M VORAUS AUF EIGENEM KURS</div>
+        <div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div>
+        <div style="display:flex;gap:4px">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}" class="fire">${d} m</button>`).join('')}</div>
       </div>
       <div class="panel"><div class="hd"><span>Torpedoabwehr</span></div>
         <button id="decoy" class="warn">Täuschkörper-Schleppe</button>
@@ -64,9 +66,10 @@ export function weaponsStation(): Station {
     return { x: s.own.x + v.x * a.range, y: s.own.y + v.y * a.range };
   };
   const needsFix = () => (aim() ? {} : { block: 'KEINE ENTFERNUNG' });
-  guardFire(q<HTMLButtonElement>('#rocket'), () => ({ ...needsFix(), ...targetCheck(aimPoint()) }), () => {
+  const tooClose = () => ((aim()?.range ?? Infinity) < ROCKET_MIN_RANGE ? { block: 'ZU NAH · UNTER 1,8 KM' } : {});
+  guardFire(q<HTMLButtonElement>('#rocket'), () => ({ ...needsFix(), ...tooClose(), ...targetCheck(aimPoint()) }), () => {
     const a = aim();
-    if (a) net.send({ t: 'rocket', bearing: a.bearing, range: Math.min(20_000, Math.max(1000, a.range)) });
+    if (a) net.send({ t: 'rocket', bearing: a.bearing, range: Math.min(20_000, Math.max(ROCKET_MIN_RANGE, a.range)) });
   });
   guardFire(q<HTMLButtonElement>('#ssm'), () => ({ ...needsFix(), ...targetCheck(aimPoint()) }), () => {
     const a = aim();
@@ -77,11 +80,11 @@ export function weaponsStation(): Station {
     const c = store.selectedContact();
     const b = a?.bearing ?? c?.bearing;
     if (b === undefined) return;
-    net.send({ t: 'fire', heading: b, enableAfter: 500, mode: 'active', searchDepth: Number(q<HTMLInputElement>('#tdep').value) || 100, speedKn: 45 });
+    // The search depth comes from the measured layer (weapons.ts); the field is only for the old protocol
+    net.send({ t: 'fire', heading: b, enableAfter: 500, mode: 'active', searchDepth: 100, speedKn: 45 });
   });
   el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => (b.onclick = () => net.send({ t: 'dc', depth: Number(b.dataset.dc) })));
   q<HTMLButtonElement>('#decoy').onclick = () => net.send({ t: 'toggle', what: 'decoy', on: !store.snap?.own.loadout.towedDecoy });
-  q<HTMLInputElement>('#tdep').onkeydown = (e) => e.stopPropagation();
   const plot: Plot = new Plot(q<HTMLCanvasElement>('#plot'), {
     bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...samAction(p, plot.scale * 14), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
   });
@@ -106,7 +109,15 @@ export function weaponsStation(): Station {
       if (fk) q('#ssmn').textContent = `${fk.left} AN BORD${fk.readyInS ? ` · LÄDT ${fk.readyInS} S` : ''}`;
       q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
       q('#tb').textContent = l.tubes.map((t, i) => `R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}`).join(' ') + ` · VORRAT ${l.light}`;
-      q('#dcn').textContent = `${l.depthCharges} VERFÜGBAR`;
+      q('#dcn').textContent = `Werfer: noch ${l.depthCharges} Salven`;
+      const [above, below] = lightSearchDepths(s.env.layerDepth);
+      q('#tdep').textContent = s.env.layerDepth ? `${above} / ${below} M (SCHICHT ${s.env.layerDepth} M)` : `${above} / ${below} M · SCHICHT NICHT GEMESSEN (BT)`;
+      // Mortar: is the target in the field the salvo covers (400–800 m, within a few degrees of the bow)?
+      const rel = a ? Math.abs(angleDiff(s.own.heading, a.bearing)) : undefined;
+      const inField = a && rel !== undefined && rel < 8 && a.range >= MORTAR_MIN - 40 && a.range <= MORTAR_MAX + 40;
+      setHtml(q('#dcz'), !a ? '<span class="dim">KEINE ENTFERNUNG</span>'
+        : inField ? '<span>IM WURFFELD</span>'
+        : `<span class="amber">${km(a.range)} · ${tdeg1(a.bearing)}° · BUG AUF DAS ZIEL, 400–800 M</span>`);
       btnState(q('#decoy'), { on: l.towedDecoy });
       btnState(q('#rocket'), l.rockets ? { label: String(l.rockets) } : { label: 'LEER', tone: 'empty' });
       btnState(q('#tube'), tubeTag(l.tubes));

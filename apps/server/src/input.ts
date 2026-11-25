@@ -4,6 +4,7 @@ import {
   setConvoyOffset,
   CLASSES,
   KN,
+  MAST_MAX_KN,
   PERISCOPE_DEPTH,
   dropDepthCharge,
   dropXbt,
@@ -11,7 +12,7 @@ import {
   sendDip,
   sendHeloTorpedo,
   callMpa,
-  fireTorpedo,
+  fireSalvo,
   headingVec,
   isAtPeriscopeDepth,
   launchAswRocket,
@@ -91,6 +92,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('fire'), heading: deg, enableAfter: z.number().finite().min(0).max(30_000),
     mode: z.enum(['passive', 'active']), searchDepth: z.number().finite().min(5).max(500), speedKn: z.number().finite().min(20).max(50),
+    salvo: z.number().int().min(1).max(4).optional(), spread: z.number().finite().min(0).max(10).optional(),
   }),
   z.object({ t: z.literal('steer'), torpId: z.string().max(20), heading: deg }),
   z.object({ t: z.literal('rocket'), bearing: deg, range: z.number().finite().min(1000).max(20_000) }),
@@ -182,6 +184,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'toggle':
       if (m.what === 'mast') {
         if (!spec.submarine) return 'Nur für U-Boote';
+        if (m.on && s.speed / KN > MAST_MAX_KN) return 'Mast und Sehrohr erst unter 10 kn';
         // Too deep: remember it, go to periscope depth, the mast follows on arrival
         if (m.on && !isAtPeriscopeDepth(s)) {
           s.mastPending = true;
@@ -234,7 +237,8 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       return;
     }
     case 'fire': {
-      const r = fireTorpedo(w, s, { heading: m.heading, enableAfter: m.enableAfter, mode: m.mode, searchDepth: m.searchDepth, speedKn: m.speedKn });
+      const o = { heading: m.heading, enableAfter: m.enableAfter, mode: m.mode, searchDepth: m.searchDepth, speedKn: m.speedKn };
+      const r = fireSalvo(w, s, o, m.salvo ?? 1, m.spread ?? 0);
       return typeof r === 'string' ? r : undefined;
     }
     case 'steer':

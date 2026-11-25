@@ -112,7 +112,7 @@ export function threatSheet(cls: ClassId): ThreatLine[] {
     const t = TORPEDO_SPECS.light;
     if (tubes) out.push({ kind: 'waffe', name: 'Leichttorpedos', count: l.light + loaded, details: [`${tubes} Rohre`, `${t.speedKn} kn`, 'sucht im Kreis'], rangeM: t.maxRun });
     if (l.rockets) out.push({ kind: 'waffe', name: 'U-Jagd-Raketen', count: l.rockets, details: ['tragen einen Leichttorpedo ans Ziel'], rangeM: ROCKET_MAX_RANGE });
-    if (l.depthCharges) out.push({ kind: 'waffe', name: 'Wasserbomben', count: l.depthCharges, details: ['über dem Ziel geworfen', `tödlich im Umkreis von ${DC_LETHAL} m`] });
+    if (l.depthCharges) out.push({ kind: 'waffe', name: 'Wasserbomben', count: l.depthCharges, details: ['Salve 400–800 m voraus geworfen', `tödlich im Umkreis von ${DC_LETHAL} m`] });
     const ssm = SSM_SPECS[cls];
     if (ssm) out.push({ kind: 'waffe', name: 'Seezielflugkörper', count: ssm.magazine, details: [ssm.name, 'gegen Schiffe', `ab ${kmText(ssm.minRange)}`], rangeM: ssm.maxRange });
     const sam = SAM_SPECS[cls];

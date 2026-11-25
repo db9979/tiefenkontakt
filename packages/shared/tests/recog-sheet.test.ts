@@ -11,7 +11,8 @@ describe('recognition book: threat sheet', () => {
     expect(names('ffg')).toEqual(expect.arrayContaining(['Leichttorpedos', 'U-Jagd-Raketen', 'Wasserbomben', 'Flugabwehrraketen', 'Bordhubschrauber', 'Schleppsonar', 'Radar']));
     expect(t.find((l) => l.name === 'Bordhubschrauber')?.rangeM).toBe(30_000);
     expect(t.find((l) => l.name === 'U-Jagd-Raketen')?.rangeM).toBe(18_000);
-    expect(t.find((l) => l.name === 'Leichttorpedos')?.count).toBe(6);
+    // Six in the tubes, two reloads in the magazine (C10)
+    expect(t.find((l) => l.name === 'Leichttorpedos')?.count).toBe(8);
     expect(names('ffg')).not.toContain('Tiefensonar (VDS)');
   });
 

@@ -24,6 +24,8 @@ export interface ConvoyState {
 }
 
 const ZIG_PERIOD = 480; // s per leg
+/** Most a crippled straggler makes (kn, damage.ts caps the ship to the same). */
+const STRAGGLER_KN = 4;
 const ZIG_ANGLE = 25; // deg
 
 export function createConvoy(merchants: Ship[], waypoints: Vec2[], baseSpeedKn: number, spacing = 900): ConvoyState {
@@ -106,6 +108,13 @@ export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: n
     if (final && distance(m.pos, final) < c.arriveRadius) {
       c.arrived.push(m.id);
       m.order.speedKn = 0;
+      continue;
+    }
+    // A crippled freighter can't keep station: she falls out of the formation as a straggler,
+    // dragging along on the convoy's general course at what speed she still makes
+    if (m.founderAt !== undefined) {
+      m.order.heading = c.guideHeading;
+      m.order.speedKn = Math.min(m.order.speedKn, STRAGGLER_KN);
       continue;
     }
     if (scattering && c.scatterFrom) {

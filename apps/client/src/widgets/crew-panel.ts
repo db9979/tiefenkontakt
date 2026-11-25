@@ -4,7 +4,7 @@ import { clock, h, setHtml, setText } from './format.js';
 import { onTap } from './touch.js';
 
 /**
- * Crew and boat: performance, fatigue, morale and wounded with the battle-stations and
+ * Crew and boat: performance, fatigue and wounded with the battle-stations (called on their own on an alarm) and
  * silent-running switches; on boats also air, trim, high-pressure air with the emergency
  * blow, the trailing buoy antenna, the fleet-command broadcast schedule and the
  * dead-reckoning uncertainty. Built once, then only values change (buttons stay tappable).
@@ -15,12 +15,11 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
   const el = h(`<div class="panel crew-panel">
     <div class="hd"><span>Besatzung &amp; Boot</span><span id="cp-perf" class="dim"></span></div>
     <div class="row"><span class="dim">ERMÜDUNG</span><span class="bar"><i id="cp-fat"></i></span></div>
-    <div class="row"><span class="dim">MORAL</span><span class="bar"><i id="cp-mor"></i></span></div>
     <div class="row" id="cp-wnd-row"><span class="dim">VERWUNDETE</span><span id="cp-wnd"></span></div>
     <div class="row" id="cp-xp-row" title="Erfahrung aus dem Feldzug: etwas besseres Gehör, schnellere Reparaturen, weniger Störungen"><span class="dim">ERFAHRUNG</span><span class="bar"><i id="cp-xp"></i></span></div>
     <div class="steps" style="margin:4px 0">
-      <button data-cp="battle" title="+10 % Leistung, ermüdet die Crew in etwa 90 Minuten">Gefechtsstationen</button>
-      <button data-cp="silent" title="−3 dB, weniger Missgeschicke; Reparaturen und Nachladen halb so schnell">Ruhe im Boot</button>
+      <button data-cp="battle" title="+10 % Leistung, ermüdet die Crew in etwa 90 Minuten; bei Alarm von selbst">Gefechtsstationen</button>
+      <button data-cp="silent" title="−3 dB; Reparaturen und Nachladen halb so schnell, Nachladen und Trimmen bleiben hörbar">Ruhe im Boot</button>
     </div>
     <div id="cp-sub">
       <div class="row"><span class="dim">LUFT</span><span id="cp-air"></span></div>
@@ -69,8 +68,6 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       q('#cp-perf').className = c && c.performance < 0.85 ? 'amber' : 'dim';
       const fat = c?.fatigue ?? 0;
       q<HTMLElement>('#cp-fat').style.cssText = `width:${Math.round(fat * 100)}%;background:${fat > 0.7 ? 'var(--red)' : fat > 0.4 ? 'var(--amber)' : 'var(--g)'}`;
-      const mor = c?.morale ?? 0.7;
-      q<HTMLElement>('#cp-mor').style.cssText = `width:${Math.round(mor * 100)}%;background:${mor < 0.35 ? 'var(--red)' : mor < 0.55 ? 'var(--amber)' : 'var(--g)'}`;
       q('#cp-wnd-row').style.display = c?.wounded ? '' : 'none';
       q('#cp-xp-row').style.display = c?.xp ? '' : 'none';
       q<HTMLElement>('#cp-xp').style.cssText = `width:${Math.round((c?.xp ?? 0) * 100)}%;background:var(--amber)`;

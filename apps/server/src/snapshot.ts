@@ -10,6 +10,7 @@ import {
   CLASSES,
   KN,
   batteryEndurance,
+  runTimeLeft,
   emptyDamage,
   depthAt,
   aircraftPosition,
@@ -200,7 +201,7 @@ export function buildSnapshot(
   const shifted = CLASSES[own.cls].submarine && (dr.x !== 0 || dr.y !== 0);
   const torpedoes = (w.weapons?.torpedoes ?? [])
     .filter((t) => t.ownerId === own.id && t.wire)
-    .map((t) => ({ id: t.id, x: t.pos.x + dr.x, y: t.pos.y + dr.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run }));
+    .map((t) => ({ id: t.id, x: t.pos.x + dr.x, y: t.pos.y + dr.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run, leftS: Math.round(runTimeLeft(t)) }));
 
   let air: Snapshot['air'];
   if (hasDatalink(own) && w.air) {
