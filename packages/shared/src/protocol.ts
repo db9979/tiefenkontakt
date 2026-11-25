@@ -6,6 +6,7 @@ import type { ContactTrack } from './contacts.js';
 import type { DamageState, ShipSystem } from './damage.js';
 import type { CompartmentView, WreckView } from './compartments.js';
 import type { ClassChoice } from './signatures.js';
+import type { StationId } from './stations.js';
 
 export type MissionKey = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
 export interface CustomMissionSettings {
@@ -70,7 +71,8 @@ export type ClientMsg =
   | { t: 'lesson_done' }
   /** Tutorial checklist: the step the player is on now (drop-out statistics). */
   | { t: 'lesson_step'; step: number }
-  | { t: 'station'; index: number }
+  /** The station this player now mans (older clients sent the tab number as `index`). */
+  | { t: 'station'; id: StationId }
   | { t: 'quick' }
   /** Start at once against the AI: a random situation, or this week's (same for everyone). */
   | { t: 'solo'; team: Exclude<Team, 'neutral'>; weekly?: boolean }
@@ -132,8 +134,8 @@ export interface PlayerSlot {
   bot?: boolean;
   /** Set when this player serves as crew on the captain's ship. */
   crewOf?: string;
-  /** Station the player mans (index into the ship's station tabs). */
-  station?: number;
+  /** Station the player mans. */
+  station?: StationId;
   /** Naval rank from the service record (accounts only). */
   rank?: string;
   /** Elo rating (accounts; guests 1000). */
@@ -346,7 +348,7 @@ export interface Snapshot {
   /** Callsigns of everyone aboard the own ship. */
   crew: string[];
   /** Who mans which station aboard. */
-  stations?: { callsign: string; station: number }[];
+  stations?: { callsign: string; station: StationId }[];
   /** Training lesson id when this is a lesson. */
   lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
   briefing?: Briefing;

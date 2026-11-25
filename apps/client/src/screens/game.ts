@@ -1,4 +1,4 @@
-import { CLASSES, fogAt, hasHelicopter, iceCover, type ServerMsg, type Snapshot } from '@tk/shared';
+import { CLASSES, fogAt, hasHelicopter, iceCover, legacyStation, type ServerMsg, type Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -289,7 +289,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     closeMenu();
     if (i !== current) stations[current]?.hide?.();
     current = i;
-    net.send({ t: 'station', index: i });
+    const id = legacyStation(i, !!store.snap && CLASSES[store.snap.own.cls].submarine);
+    if (id) net.send({ t: 'station', id });
     stationEl.replaceChildren(stations[i]!.el);
     tabs.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
     stations[i]?.snap?.();
@@ -414,7 +415,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     // Crew: show who mans which station
     if (s.crew.length > 1) {
       tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
-        const who = (s.stations ?? []).filter((x) => x.station === j).map((x) => x.callsign);
+        const sub = CLASSES[s.own.cls].submarine;
+        const who = (s.stations ?? []).filter((x) => x.station === legacyStation(j, sub)).map((x) => x.callsign);
         const t = `${j + 1} · ${stations[j]?.title ?? ''}${who.length ? ` (${who.join(', ')})` : ''}`;
         if (b.textContent !== t) b.textContent = t;
       });

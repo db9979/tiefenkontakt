@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SEA_TIME_FACTOR, type ServerMsg, type Snapshot } from '@tk/shared';
 import { parseClientMsg } from '../src/input.js';
 import { ABANDON_MS, Lobby } from '../src/lobby.js';
-import type { Conn } from '../src/match.js';
+import { migrateSlotStations, type Conn } from '../src/match.js';
 
 function fakeConn(id: string): Conn & { inbox: ServerMsg[] } {
   const inbox: ServerMsg[] = [];
@@ -368,11 +368,26 @@ describe('quick match, stations and spectators', () => {
     expect(new Set(m.slots.map((s) => s.team)).size).toBe(2);
   });
 
+  it('saved crew seats with old tab numbers map to station ids by side', () => {
+    const slots = [
+      { playerId: 'c', callsign: 'c', team: 'east', cls: 'ssk', ready: true, station: 6 },
+      { playerId: 'w', callsign: 'w', team: 'east', cls: 'ffg', ready: true, crewOf: 'c', station: 3 },
+      { playerId: 'f', callsign: 'f', team: 'west', cls: 'ffg', ready: true, station: 6 },
+      { playerId: 'x', callsign: 'x', team: 'west', cls: 'ffg', ready: true, station: 'radar' },
+    ] as unknown as Parameters<typeof migrateSlotStations>[0];
+    expect(migrateSlotStations(slots).map((s) => s.station)).toEqual(['feuerleitung', 'zentrale', 'opz', 'radar']);
+  });
+
+  it('a station message with an unknown id is refused', () => {
+    expect(parseClientMsg(JSON.stringify({ t: 'station', id: 'flug' }))).toBeUndefined();
+    expect(parseClientMsg(JSON.stringify({ t: 'station', id: 'horch' }))).toEqual({ t: 'station', id: 'horch' });
+  });
+
   it('stations are shared aboard; spectators see only delayed truth', () => {
     const { lobby, m, west } = setup();
-    lobby.handle(west, { t: 'station', index: 2 });
+    lobby.handle(west, { t: 'station', id: 'waffen' });
     for (let i = 0; i < 2; i++) m.tick();
-    expect(lastSnap(west)!.stations).toEqual([{ callsign: 'w1', station: 2 }]);
+    expect(lastSnap(west)!.stations).toEqual([{ callsign: 'w1', station: 'waffen' }]);
     const fan = fakeConn('fan');
     lobby.connect(fan);
     lobby.resume(fan);

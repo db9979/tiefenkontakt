@@ -36,6 +36,7 @@ import {
   setRoute,
   disengageRoute,
   ROUTE_MAX_WPS,
+  STATION_IDS,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -107,7 +108,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('bt') }),
   z.object({ t: z.literal('lesson_done') }),
   z.object({ t: z.literal('lesson_step'), step: z.number().int().min(0).max(50) }),
-  z.object({ t: z.literal('station'), index: z.number().int().min(0).max(7) }),
+  z.object({ t: z.literal('station'), id: z.enum(STATION_IDS) }),
   z.object({ t: z.literal('quick') }),
   z.object({ t: z.literal('solo'), team: z.enum(['west', 'east']), weekly: z.boolean().optional() }),
   z.object({ t: z.literal('spectate'), matchId: z.string().max(40) }),
