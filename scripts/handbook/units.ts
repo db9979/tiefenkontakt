@@ -21,7 +21,7 @@ const CARDS: Card[] = [
   {
     cls: 'kor', side: 'Westbund', role: 'Geleitkorvette',
     text: 'Klein, wendig und leise, aber mit kurzem Schleppsonar, schwächerem Rumpfsonar und ohne Hubschrauber. Ideal als Flankensicherung und für die schnelle Verfolgung eines Kontakts.',
-    tips: ['Flanke des Konvois sichern, Kontakte an die Fregatte melden.', 'Wasserbomben auf kurze Entfernung, Torpedorohre für den Gegenangriff.'],
+    tips: ['Flanke des Konvois sichern, Kontakte an die Fregatte melden.', 'Wasserbombenwerfer auf kurze Entfernung (400–800 m voraus), Torpedorohre für den Gegenangriff.'],
   },
   {
     cls: 'ssw', side: 'Westbund', role: 'Jagd-U-Boot im Geleitschutz (gemischter Platz)',
@@ -105,7 +105,7 @@ export function unitCards(): string {
       k.submarine && heavy ? `${heavy} schwere Torpedos` : '',
       !k.submarine && light ? `${light} leichte Torpedos` : '',
       l.rockets ? `${l.rockets} U-Jagd-Raketen` : '',
-      l.depthCharges ? `${l.depthCharges} Wasserbomben` : '',
+      l.depthCharges ? `${l.depthCharges} Werfersalven` : '',
       l.noisemakers ? `${l.noisemakers} Täuschkörper` : '',
       l.xbt ? `${l.xbt} BT-Sonden` : '',
     ].filter(Boolean).join(' · ') || '—';
@@ -159,7 +159,7 @@ export function bioTable(): string {
 }
 
 const AIR: { file: string; name: string; who: string; alt: string; kn: string; text: string }[] = [
-  { file: 'air-helo', name: 'Bordhubschrauber', who: 'Westbund (F-12)', alt: '25–120 m', kn: '120', text: 'Wirft Sonarbojen und Leichttorpedos, taucht sein Sonar, fliegt das MAD-Kleeblatt. Ohne eigenes Radar; dem U-Boot verrät er sich durch Rotorlärm und im Sehrohr.' },
+  { file: 'air-helo', name: 'Bordhubschrauber', who: 'Westbund (F-12)', alt: '25–120 m', kn: '120', text: 'Wirft Sonarbojen und Leichttorpedos, taucht sein Sonar, fliegt das MAD-Kleeblatt. Im Transit sucht er mit Radar (Schnorchel bis 15 km, Sehrohr bis 6 km), beim Schweben ist es aus; dem U-Boot verrät er sich durch Rotorlärm, sein Radar und im Sehrohr.' },
   { file: 'air-mpa', name: 'Seeaufklärer', who: 'Westbund (auf Anforderung)', alt: '300 m (MAD 60 m)', kn: '300', text: 'Vier Turboprops, Magnetsonde im Heck. Legt Bojenketten; sein Suchradar ist eingeschaltet und für jedes U-Boot mit ausgefahrenem Mast auf große Entfernung im ESM zu hören.' },
   { file: 'air-recon', name: 'Fernaufklärer', who: 'Ostpakt', alt: '1500 m, über dem Konvoi 300 m', kn: '330', text: 'Kommt etwa alle 40–60 Minuten, sucht mit eingeschaltetem Radar, kreist fünf Minuten tief über dem Konvoi und meldet Position, Kurs und Fahrt über die Führung an die U-Boote. Die Eskorte sieht ihn im Radar und hört sein Radar im ESM – abschießen kann sie ihn nicht.' },
   { file: 'air-airliner', name: 'Verkehrsflugzeug', who: 'Neutral', alt: '9–11,5 km', kn: '440–480', text: 'Kreuzt auf Luftstraßen. Bei Tag am Kondensstreifen bis 45 km zu sehen, nachts an den Lichtern; im Luftraumradar weit über den Horizont hinaus.' },

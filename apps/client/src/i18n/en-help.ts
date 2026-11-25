@@ -12,7 +12,7 @@ export const EN_HELP: [string, string][] = [
   ['ABLAUF U-BOOT', 'SUBMARINE WORKFLOW'], ['ABLAUF FREGATTE', 'FRIGATE WORKFLOW'],
   ['Ziehen verschiebt, Rad oder + − zoomt, ◎ zentriert. Linksklick wählt einen Kontakt. Rechtsklick öffnet Aktionen: Kurs, Waffen, TMA.', 'Drag pans, wheel or + − zooms, ◎ centres. Left-click selects a contact. Right-click (long press on touch) opens actions: course, weapons, TMA.'],
   ['Klicken oder ziehen setzt den Kurs. Gelb = befohlen, blau = aktuell.', 'Click or drag sets the course. Yellow = ordered, blue = current.'],
-  ['Fahrstufen-Knöpfe oder Schieberegler.', 'Speed buttons or sliders.'], ['Klick auf eine Spur oder ein Echo wählt den Kontakt.', 'Click a trace or an echo to select the contact.'],
+  ['Fahrt mit der Telegrafenleiste (links achteraus, rechts voraus) oder −1/+1 kn; Tiefe mit dem Schieberegler.', 'Speed with the telegraph strip (astern on the left, ahead on the right) or −1/+1 kn; depth with the slider.'], ['Klick auf eine Spur oder ein Echo wählt den Kontakt.', 'Click a trace or an echo to select the contact.'],
   ['Waagrecht ziehen dreht das Sehrohr, Klick auf ein Schiff wählt es.', 'Drag sideways to train the periscope, click a ship to select it.'],
   ['Kontakt wählen. Auf eine senkrechte Linie klicken (Cursor) und „Grundton markieren“. Die gestrichelten Linien 2f, 3f zeigen, ob die anderen Linien eine Familie bilden.', 'Select a contact. Click a vertical line (cursor) and “Mark fundamental”. The dashed 2f, 3f lines show whether the other lines form a family.'],
   ['Die tiefe Linie als „Welle“, die stärkere höhere als „Blatt“ markieren. Daraus folgen Blattzahl und Drehzahl.', 'Mark the low line as “shaft” and the stronger higher one as “blade”. Blade count and rpm follow.'],
@@ -86,8 +86,8 @@ export const EN_HELP: [string, string][] = [
   // Help: the bridge row (the other station rows are in en-stations.ts)
   ['Ausguck und Fernglas: Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen mit eigenen Augen. Nachts und bei Seegang kaum Sicht.',
     'Lookouts and binoculars: periscope feathers, snorkels and torpedo tracks with your own eyes. Little to see at night and in a heavy sea.'],
-  ['Alle Uhren zeigen Simulationszeit. Eine Zeitraffung (Einstellung in der Lobby) steht oben neben der Restzeit.',
-    'All clocks show simulation time. Time compression (a lobby setting) is shown at the top next to the time left.'],
+  ['Alle Uhren zeigen Simulationszeit. Die Einsatzdauer gilt in echten Minuten; ein Zeitraffer (Einstellung in der Lobby) steht oben neben der Restzeit. „⏩ Zeitraffer“ in der Kopfleiste läuft ×6 bis zum nächsten Ereignis.',
+    'All clocks show simulation time. The match length is in real minutes; time compression (a lobby setting) is shown at the top next to the time left. "⏩ Zeitraffer" in the top bar runs ×6 until the next event.'],
   ['Torpedo! Klick: zum Täuschkörper', 'Torpedo! Click: go to the decoys'],
 ];
 

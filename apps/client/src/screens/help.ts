@@ -49,7 +49,7 @@ export function helpOverlay(submarine: boolean): void {
     <table>
       <tr><td>Karte</td><td>Ziehen verschiebt, Rad oder + − zoomt, ◎ zentriert. Linksklick wählt einen Kontakt. Rechtsklick öffnet Aktionen: Kurs, Waffen, TMA.</td></tr>
       <tr><td>Kompass</td><td>Klicken oder ziehen setzt den Kurs. Gelb = befohlen, blau = aktuell.</td></tr>
-      <tr><td>Fahrt / Tiefe</td><td>Fahrstufen-Knöpfe oder Schieberegler.</td></tr>
+      <tr><td>Fahrt / Tiefe</td><td>Fahrt mit der Telegrafenleiste (links achteraus, rechts voraus) oder −1/+1 kn; Tiefe mit dem Schieberegler.</td></tr>
       <tr><td>Wasserfall / Radar</td><td>Klick auf eine Spur oder ein Echo wählt den Kontakt.</td></tr>
       <tr><td>Sehrohr</td><td>Waagrecht ziehen dreht das Sehrohr, Klick auf ein Schiff wählt es.</td></tr>
     </table>
@@ -90,7 +90,7 @@ export function helpOverlay(submarine: boolean): void {
     </table>
     <h3>${submarine ? 'ABLAUF U-BOOT' : 'ABLAUF FREGATTE'}</h3>
     <table>${howto}</table>
-    <div class="dim" style="margin-top:10px">Alle Uhren zeigen Simulationszeit. Eine Zeitraffung (Einstellung in der Lobby) steht oben neben der Restzeit.</div>
+    <div class="dim" style="margin-top:10px">Alle Uhren zeigen Simulationszeit. Die Einsatzdauer gilt in echten Minuten; ein Zeitraffer (Einstellung in der Lobby) steht oben neben der Restzeit. „⏩ Zeitraffer“ in der Kopfleiste läuft ×6 bis zum nächsten Ereignis.</div>
   </div></div>`);
   const close = () => {
     ov.remove();

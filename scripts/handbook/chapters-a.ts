@@ -19,8 +19,14 @@ die eigene Seite keine U-Jagd-Waffe wirft; außerhalb ist jedes unbekannte U-Boo
 <div class="box"><h4>Sieg für die U-Boote</h4><ul><li>Die Hälfte der Konvoi-Tonnage versenkt, oder</li><li>bei Zeitablauf mindestens 30 % versenkt.</li></ul><p>Frachter, die das Wachschiff mit Seezielflugkörpern versenkt, zählen nur zur Hälfte: Der Konvoi ist Sache der U-Boote. Die Anzeige zeigt dann „ZÄHLT …&nbsp;%“.</p></div>
 <div class="box"><h4>Sieg für den Geleitschutz</h4><ul><li>Mehr als die Hälfte der Tonnage im Zielhafen, oder</li><li>alle U-Boote versenkt, oder</li><li>bei Zeitablauf weniger als 30 % Verlust.</li></ul></div>
 </div>
-<p>Die Zeit läuft dreifach gerafft: Eine Stunde Simulationszeit dauert 20 Minuten. Alle Uhren im Spiel zeigen Simulationszeit.
-Eine Partie dauert je nach Mission 30 bis 60 Minuten.</p>
+<p>Die <b>Einsatzdauer</b> gilt in echten Minuten (20, 30, 40 oder 60, voreingestellt 40; Lektionen 50). Voreingestellt läuft die Zeit in
+Echtzeit; mit Zeitraffer 2× oder 3× vergeht auf See entsprechend mehr Zeit, die echte Spieldauer bleibt gleich. Die Aufstellung richtet sich
+nach dieser Seezeit, sodass der erste Kontakt meist binnen etwa zehn Minuten kommt. Alle Uhren im Spiel zeigen Simulationszeit.</p>
+<p>Wird eine Partie entschieden, sagt die Auswertung auch, wie knapp: <b>Sieg</b>, <b>knapper Sieg</b>, <b>Unentschieden</b>, <b>knappe Niederlage</b>
+oder <b>Niederlage</b>, gemessen am Abstand auf dem Maß, das die Partie entschieden hat (etwa der versenkten Tonnage gegen die 30-%-Marke).
+Dazu bekommt jeder Spieler eine eigene Bewertung (von „ausgezeichnet“ bis „mangelhaft“): das U-Boot für klassifizierte Kontakte, die beste
+TMA-Güte, die Zeit unentdeckt sowie Schüsse und Treffer, die Eskorte für klassifizierte und gehaltene Kontakte, Angriffe und Treffer und die
+geschützten Frachter; Überleben zählt bei beiden.</p>
 ${fig(figConvoy(), 'Abb. 1 · Konvoi mit Sicherung. Gefährlich ist der Bereich vorn und seitlich, auf den der Konvoi zuläuft.')}
 `;
 
@@ -29,7 +35,12 @@ export const chapterStart = `
 <h2>Konto, Gast und Lobby</h2>
 <ol>
 <li><b>Anmelden</b> mit Rufzeichen und Passwort oder als Gast. Mit Konto werden Rang, Statistik und Karriere gespeichert.</li>
-<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Einsatzdauer und KI-Stärke. Der <b>Zeitraffer</b> (3×, 2× oder Echtzeit) ändert nur die echte Spieldauer: Die Lage auf See bleibt gleich, eine Einsatzdauer von 120 Minuten Seezeit dauert bei 3× 40 Minuten, in Echtzeit 120. Voreingestellt ist Echtzeit. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
+<li><b>Lobby:</b> Ganz oben steht für Neue <b>„Neu hier?“</b> mit <b>„→ U-Boot lernen“</b> und <b>„→ Fregatte lernen“</b> (die geführten Lektionen). Darunter
+<b>„Gegen KI spielen“</b> (allein, ohne Lobby, sofort los) und <b>„Mit anderen spielen“</b>: <b>„Offener Partie beitreten“</b> sucht die passendste offene Partie
+(gibt es keine, wird eine eröffnet), <b>„Eigene Partie erstellen“</b> eröffnet eine neue. Einsteiger-Klassen sind markiert. Der Gastgeber wählt Mission,
+Tageszeit und <b>Einsatzdauer</b> in echten Minuten; Seegebiet, Jahreszeit, Wetter, Seegang, Variation, Zeitraffer, KI und Übungsmodus stehen unter
+<b>„Erweitert“</b>. Der <b>Zeitraffer</b> (Echtzeit, 2× oder 3×, voreingestellt Echtzeit) ändert nur, wie viel Zeit auf See vergeht: 40 Minuten bei 3× sind
+120 Minuten auf See, der Weg des Konvois ist entsprechend länger. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
 <li><b>Team und Klasse</b> wählen. Beim Teamkameraden „Mitfahren“ macht euch zur gemeinsamen Besatzung eines Schiffs, jeder an einer Station.</li>
 <li><b>Bereit</b> melden. Leere Plätze besetzt die KI.</li>
 <li>Vor dem Auslaufen erscheint die <b>Einsatzbesprechung</b> mit Auftrag, Lagebild, Aufklärung über den gegnerischen Kommandanten und den ersten Schritten.</li>
@@ -56,11 +67,24 @@ Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Ei
 <h2>Der Bildschirm</h2>
 <table class="grid">
 <tr><th>Bereich</th><th>Inhalt</th></tr>
-<tr><td>Obere Leiste</td><td>Stationen (Tasten 1–5), Schiff, Tonnage-Balken (rot versenkt, blau entkommen, Strich bei 50 %), Uhrzeit, Seegang, Restzeit, Ton, Einstellungen, Hilfe.</td></tr>
-<tr><td>Mitte</td><td>Die gewählte Station: Sonar, Sehrohr, Feuerleitung, Tauchstand bzw. Operationszentrale, Sonar, Waffen, Radar, Brücke.</td></tr>
-<tr><td>Rechts oben</td><td>Ruderstand: Kompass (Klick setzt den Kurs), Fahrstufen, Tiefe, Sehrohr bzw. Mast. Immer sichtbar.</td></tr>
-<tr><td>Rechts unten</td><td>Reiter <b>Meldungen · Boot · Schaden · Funk</b>. Ein roter Punkt zeigt Neues in einem anderen Reiter.</td></tr>
+<tr><td>Obere Leiste</td><td>Stationen (U-Boot Tasten 1–4, Fregatte 1–5), Schiff, Tonnage-Balken (rot versenkt, blau entkommen, Strich bei 50 %), Uhrzeit, Seegang, Restzeit, <b>Zeitraffer</b>, Ton, Einstellungen, Hilfe.</td></tr>
+<tr><td>Mitte</td><td>Die gewählte Station: Horchraum, Sehrohr, Feuerleitung, Zentrale bzw. OPZ, Sonar, Waffen, Radar/ESM, Brücke. Jede Station füllt die ganze Höhe; alle zeigen dieselbe Kontaktliste (neue Kontakte oben mit gelbem NEU, der Sensor als Buchstabe, eigene und verbündete Einheiten blass unten).</td></tr>
+<tr><td>Rechts oben</td><td>Ruderstand, immer sichtbar: Kompass mit Gradskala, Sollkurs-Marke und Drehbogen (Klick setzt den Kurs), Instrumente für Kurs, Fahrt und Ruderlage, darunter der <b>Maschinentelegraf</b> als Leiste von „AK zurück“ über „Stopp“ bis „AK“ (die gemachte Stufe gefüllt, die befohlene gelb umrandet) mit −1/+1 kn, beim U-Boot Tiefe und Mast.</td></tr>
+<tr><td>Rechts unten</td><td>Reiter <b>MELD · BOOT · SCHADEN · FUNK · BEFEHLE</b> mit Zählern für Neues (rot, wenn ein Alarm neu ist). Ein Treffer holt die Schadensabwehr nach vorn.</td></tr>
 </table>
+<h2>Fahrt achteraus</h2>
+<p>Die linke Hälfte des Telegrafen fährt rückwärts: höchstens 40 % der Höchstfahrt und nie mehr als 8 kn. Das Schiff verliert erst seine Fahrt
+und nimmt dann langsam Fahrt achteraus auf; das Ruder wirkt rückwärts nur halb. Wer aufgelaufen ist, kann sich achteraus freifahren, wenn hinter ihm
+tieferes Wasser liegt. Auflaufen mit Fahrt stoppt das Schiff sofort und beschädigt es je nach Fahrt, am Felsufer mehr als auf einer Sandbank.</p>
+<h2>Zeitraffer bis Ereignis</h2>
+<p>Der Knopf <b>„⏩ Zeitraffer“</b> in der oberen Leiste lässt die Zeit sechsfach laufen, bis etwas passiert, das ein Kommandant sehen muss: ein neuer
+Kontakt, ein Alarm (Torpedo, Ping, Treffer, Sichtung, Radarwarnung, Meldung aus dem Boot) oder ein erledigter Ausbildungsschritt. Solange er läuft, steht
+dort ein gelbes <b>×6</b>, danach kurz der Grund, warum er gestoppt hat. Im Mehrspieler ist der Knopf eine Abstimmung: Es geht erst los, wenn alle
+Spieler an Bord eines schwimmenden Schiffs zugestimmt haben, und nicht, solange jemand frischen Feindkontakt (aus der letzten Minute) hat.</p>
+<h2>Versenkt – und nun?</h2>
+<p>Geht das eigene Schiff unter, bleibt man trotzdem dabei: <b>„Mitfahren bei …“</b> bringt einen als Besatzung an Bord eines Teamkameraden (die eigene
+Wertung bleibt erhalten), <b>„Zuschauen (verzögert)“</b> zeigt die wahre Lage mit einigen Minuten Verzögerung, damit niemand seinem Team helfen kann, und
+<b>„Nachbesprechung jetzt“</b> zeigt die Auswertung bis zu diesem Zeitpunkt und verlässt die Partie.</p>
 <h2>Bedienung mit der Maus</h2>
 <table class="grid">
 <tr><td>Karte</td><td>Ziehen verschiebt, Rad zoomt, Linksklick wählt einen Kontakt. <b>Rechtsklick</b> öffnet Aktionen: Kurs hierher, Torpedo hierher, Rakete, Boje, Hubschrauber, TMA.</td></tr>
@@ -93,7 +117,7 @@ ${fig(figLayer(), 'Abb. 3 · Schallausbreitung an der Sprungschicht.')}
 Dort hört man laute Schiffe plötzlich wieder, dazwischen ist Stille.</p>
 ${fig(figCz(), 'Abb. 4 · Konvergenzzonen in der Grönland-Lücke.')}
 <h2>Reichweitenvorhersage</h2>
-<p>Im Horchraum des Boots und am Sonar der Fregatte zeigt die aufklappbare <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
+<p>Im Horchraum des Boots (Reiter „Bedrohung“) und am Sonar der Fregatte (Reiter „VDS/BT“) zeigt die <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
 nach unten die Tiefe. <b>Grün</b> ist, wo man ein typisches Ziel hört (Boot: Geleitfahrzeug mit 15 kn, blass ein Frachter mit 9 kn; Fregatte: Diesel-U-Boot mit 5 kn
 auf Batterie), <b>rot schraffiert</b>, wo der Gegner einen selbst hört. Beim Boot ist die Tiefe die eigene: Man sieht, wie es unter der Schicht stiller wird.
 Bei der Fregatte ist es die Tiefe des Boots. Die Vorhersage rechnet mit eigener Fahrt, Seegang, Wassertiefe und der gemessenen Schicht. Ohne Messung steht

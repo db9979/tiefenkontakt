@@ -6,7 +6,7 @@ const MISSIONS: [string, string, string][] = [
   ['Fjordausfahrt', 'Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf.', 'Der Konvoi ist berechenbar – die U-Boote auch: Die Rinne zwingt beide auf wenige Wege.'],
   ['Hafenangriff', 'Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt.', 'Langsam an der Einfahrt horchen; Schüsse auf ankernde Ziele brauchen keine TMA.'],
   ['U-Boot-Duell', 'U-Boote gegen U-Boote, kein Konvoi.', 'Wer zuerst hört, gewinnt: sehr langsam, Schleppsonar, aktive Torpedos.'],
-  ['Fühlung halten', 'Waffen gesperrt: 25 Minuten Kontakt zum Konvoi aus höchstens 12 km.', 'Die Eskorte muss das Boot abdrängen, nicht versenken.'],
+  ['Fühlung halten', 'Waffen gesperrt: 25 Minuten Kontakt zum Konvoi aus höchstens 12 km (in einer kurzen Partie höchstens die Hälfte der Seezeit).', 'Die Eskorte muss das Boot abdrängen, nicht versenken.'],
   ['Meerengen-Durchbruch', 'Die U-Boote müssen durch eine bewachte Enge (Gibraltar: nach Osten ins Mittelmeer).', 'Tief und langsam durch das tiefste Wasser; die Eskorte legt Bojensperren.'],
   ['Aufklärung', 'Ein Geleitschiff im Sehrohr erkennen und per Funk melden.', 'Ein kurzer Blick auf unter 4 km, dann senden – und sofort weg.'],
   ['Eigene Mission', 'Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar.', 'Zum Üben einzelner Lagen.'],
@@ -20,6 +20,8 @@ ${MISSIONS.map(([a, b, c]) => `<tr><td><b>${a}</b></td><td>${b}</td><td>${c}</td
 </table>
 <h2>Einstellungen der Partie</h2>
 <table class="grid">
+<tr><td>Einsatzdauer</td><td>20, 30, 40 oder 60 echte Minuten (voreingestellt 40). Die Aufstellung richtet sich nach der Seezeit.</td></tr>
+<tr><td>Zeitraffer</td><td>Unter „Erweitert“: Echtzeit, 2× oder 3×. Die echte Dauer bleibt, auf See vergeht mehr Zeit und der Konvoi kommt weiter.</td></tr>
 <tr><td>Tageszeit</td><td>Tag, Dämmerung oder Nacht; die Uhr läuft mit. Nachts sieht man nur beleuchtete Schiffe und Mündungsfeuer weit.</td></tr>
 <tr><td>Seegang</td><td>Mehr Seegang heißt mehr Störpegel, mehr Seegangsechos im Radar und schwerere Sicht im Sehrohr.</td></tr>
 <tr><td>Sprungschicht</td><td>Tiefe und Stärke der Schicht; im Flachwasser schwächer.</td></tr>
@@ -49,8 +51,16 @@ und werden ersetzt, wenn sie das Gebiet verlassen. Sie sind laut, verdecken leis
 <h2>Strömung</h2>
 <p>Eine Meeresströmung versetzt alle Bojen. Eine Boje, die vor 20 Minuten gesetzt wurde, liegt nicht mehr dort, wo sie abgeworfen wurde – die Karte zeigt ihre aktuelle Position.</p>
 <h2>Schäden</h2>
-<p>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Im Reiter „Schaden“ legt ein Klick die Reparatur-Priorität fest.
-Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
+<p>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch und Brände. Der Reiter <b>SCHADEN</b> (die Schadensabwehr) zeigt oben eine
+Schnittzeichnung des eigenen Schiffs aus dem 3D-Modell, über und unter der Wasserlinie, mit den Abteilungen genau im Rumpf eingefärbt: Wasser, Brand,
+Schaden und Schotten. Schlagseite, Trimm und Absinken folgen dem Wasser im Schiff. Darunter:</p>
+<table class="grid">
+<tr><td>Statuszeile</td><td>Schlagseite, Trimm, Wasser im Schiff in Prozent der Reserve (ab 100 % sinkt es) und brennende Abteilungen.</td></tr>
+<tr><td>Abteilungen</td><td>Eine Zeile je Abteilung mit Wasser, Brand, Leck und Schaden; die Kennbuchstaben sagen, was darin sitzt (A Antrieb, S Sonar, W Waffen, B Batterie, M Magazin). Ein Klick wählt die Abteilung.</td></tr>
+<tr><td>Befehle</td><td>Für die gewählte Abteilung: <b>Trupp hierher</b> (Lecks dichten, lenzen, Brand löschen, reparieren) oder <b>Abschotten</b> (hält das Wasser auf, sperrt aber auch den Trupp aus; „Schott öffnen“ lässt ihn wieder hinein).</td></tr>
+<tr><td>Systeme</td><td>Balken für Antrieb (Höchstfahrt sinkt), Sonar (Eigenlärm steigt), Waffen (Nachladen dauert länger, ab 90 % Ausfall) und Wasser; ein Klick legt fest, was zuerst repariert wird.</td></tr>
+</table>
+<p>Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
 `;
 
 export const chapterTactics = `
@@ -58,7 +68,8 @@ export const chapterTactics = `
 <div class="cols2">
 <div class="box"><h4>Für U-Boote</h4><ol>
 <li>Vor den Konvoi setzen, nicht hinterherlaufen: Er kommt zu dir.</li>
-<li>Unter 6 kn bleiben, solange nicht geschossen wird. Kavitation verrät dich auf viele Kilometer.</li>
+<li>Unter 6 kn bleiben, solange nicht geschossen wird. Kavitation verrät dich auf viele Kilometer, und schnelle Fahrt leert die Batterie.</li>
+<li>Sehrohr und Schnorchel kurz halten: Jedes Radar hat bei jeder Antennenumdrehung eine neue Chance, den Mast zu sehen.</li>
 <li>Die Sprungschicht ist dein Mantel. Horchen darüber, verstecken darunter.</li>
 <li>Funken nur, wenn es sich lohnt: Jede Meldung ist eine Funkpeilung für die Eskorte.</li>
 <li>Nach dem Schuss sofort weg: Transienten haben dich verraten.</li>
@@ -67,9 +78,9 @@ export const chapterTactics = `
 </ol></div>
 <div class="box"><h4>Für die Eskorte</h4><ol>
 <li>Zuerst die Schicht messen (BT), dann das Schleppsonar auf die passende Länge.</li>
-<li>Passiv suchen, aktiv bestätigen. Wer ständig pingt, warnt jedes U-Boot.</li>
+<li>Passiv suchen, aktiv bestätigen: ein Einzelping im passenden Bereich statt Dauerpingen. Wer ständig pingt, warnt jedes U-Boot.</li>
 <li>Kreuzpeilungen mit dem zweiten Schiff liefern Entfernungen ohne Ping.</li>
-<li>Funkpeilungen sofort mit Hubschrauber oder Bojen nachgehen.</li>
+<li>Funkpeilungen und Radarfixe aus der Luft sofort mit Hubschrauber oder Bojen nachgehen.</li>
 <li>Im Flachwasser: LFM-Puls, aktive Bojen, VDS. Der Nachhall frisst CW-Echos.</li>
 <li>Unter dem eigenen Kiel bist du blind – ein Boot, das nah und tief steht, braucht Hubschrauber oder VDS.</li>
 <li>Den Konvoi bei Gefahr abdrehen und verdunkeln lassen.</li>
@@ -78,8 +89,10 @@ export const chapterTactics = `
 `;
 
 const KEYS: [string, string][] = [
-  ['1 … 5', 'Stationen'], ['← →', 'Kurs 5° (mit ⇧ 1°)'], ['↑ ↓', 'Fahrt ± 1 kn'], ['Bild ↑ / Bild ↓', 'Tiefe ∓ 10 m'],
-  ['A / D', 'Sehrohr drehen'], ['V (halten)', 'Sprechfunk senden'], ['H', 'Hilfe'], ['M', 'Ton an/aus'], ['Esc', 'Menüs und Fenster schließen'],
+  ['1 … 4 / 1 … 5', 'Stationen (U-Boot 1–4, Fregatte 1–5)'], ['← →', 'Kurs 5° (mit ⇧ 1°)'], ['↑ ↓', 'Fahrt ± 1 kn'], ['Bild ↑ / Bild ↓', 'Tiefe ∓ 10 m'],
+  ['A / D · W / S', 'Sehrohr bzw. Fernglas drehen · heben und senken'], ['E · G', 'Vergrößerung wechseln · Stabilisierung'],
+  ['T', 'Notfall: Täuschkörper (U-Boot) bzw. Täuschkörper-Schleppe (Fregatte)'], ['X', 'Notfall U-Boot: Alarmtauchen'], ['Q', 'Notfall U-Boot: Mast einfahren'],
+  ['F', 'Notfall U-Boot: Feuer (zur Feuerleitung)'], ['P', 'Notfall Fregatte: Einzelping'], ['R', 'Notfall Fregatte: U-Jagd-Rakete (zu den Waffen)'], ['V (halten)', 'Sprechfunk senden'], ['H', 'Hilfe'], ['M', 'Ton an/aus'], ['Esc', 'Menüs und Fenster schließen'],
 ];
 
 const GLOSSARY: [string, string][] = [
@@ -106,7 +119,7 @@ const GLOSSARY: [string, string][] = [
 
 export const chapterReference = `
 <h1 id="k12">12 · Tastatur und Glossar</h1>
-<p>Die Maus ist das Hauptwerkzeug; die Tasten sind Abkürzungen und lassen sich in der Hilfe (H) frei belegen.</p>
+<p>Die Maus ist das Hauptwerkzeug; die Tasten sind Abkürzungen und lassen sich in der Hilfe (H) frei belegen. Die Notfall-Tasten wirken auf jeder Station und stehen als Tastenkappe auf dem Knopf, den sie drücken; Feuer und Rakete gehen dabei über den Sicherheitsknopf ihrer Station.</p>
 <table class="grid keys">${KEYS.map(([k, v]) => `<tr><td><kbd>${k}</kbd></td><td>${v}</td></tr>`).join('')}</table>
 <h2>Glossar</h2>
 <table class="grid gloss">${GLOSSARY.map(([k, v]) => `<tr><td><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>

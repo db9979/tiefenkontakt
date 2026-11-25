@@ -62,8 +62,14 @@ die eigene Seite keine U-Jagd-Waffe wirft; außerhalb ist jedes unbekannte U-Boo
 <div class="box"><h4>Sieg für die U-Boote</h4><ul><li>Die Hälfte der Konvoi-Tonnage versenkt, oder</li><li>bei Zeitablauf mindestens 30 % versenkt.</li></ul><p>Frachter, die das Wachschiff mit Seezielflugkörpern versenkt, zählen nur zur Hälfte: Der Konvoi ist Sache der U-Boote. Die Anzeige zeigt dann „ZÄHLT …&nbsp;%“.</p></div>
 <div class="box"><h4>Sieg für den Geleitschutz</h4><ul><li>Mehr als die Hälfte der Tonnage im Zielhafen, oder</li><li>alle U-Boote versenkt, oder</li><li>bei Zeitablauf weniger als 30 % Verlust.</li></ul></div>
 </div>
-<p>Die Zeit läuft dreifach gerafft: Eine Stunde Simulationszeit dauert 20 Minuten. Alle Uhren im Spiel zeigen Simulationszeit.
-Eine Partie dauert je nach Mission 30 bis 60 Minuten.</p>
+<p>Die <b>Einsatzdauer</b> gilt in echten Minuten (20, 30, 40 oder 60, voreingestellt 40; Lektionen 50). Voreingestellt läuft die Zeit in
+Echtzeit; mit Zeitraffer 2× oder 3× vergeht auf See entsprechend mehr Zeit, die echte Spieldauer bleibt gleich. Die Aufstellung richtet sich
+nach dieser Seezeit, sodass der erste Kontakt meist binnen etwa zehn Minuten kommt. Alle Uhren im Spiel zeigen Simulationszeit.</p>
+<p>Wird eine Partie entschieden, sagt die Auswertung auch, wie knapp: <b>Sieg</b>, <b>knapper Sieg</b>, <b>Unentschieden</b>, <b>knappe Niederlage</b>
+oder <b>Niederlage</b>, gemessen am Abstand auf dem Maß, das die Partie entschieden hat (etwa der versenkten Tonnage gegen die 30-%-Marke).
+Dazu bekommt jeder Spieler eine eigene Bewertung (von „ausgezeichnet“ bis „mangelhaft“): das U-Boot für klassifizierte Kontakte, die beste
+TMA-Güte, die Zeit unentdeckt sowie Schüsse und Treffer, die Eskorte für klassifizierte und gehaltene Kontakte, Angriffe und Treffer und die
+geschützten Frachter; Überleben zählt bei beiden.</p>
 <figure><svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="none" stroke="#1b1f22" stroke-width="1.2">
     <g transform="translate(320 140)">
       <rect x="-72" y="-5" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="-12" y="-5" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="48" y="-5" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="-72" y="45" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="-12" y="45" width="24" height="10" fill="#8a9196" stroke="none"/><rect x="48" y="45" width="24" height="10" fill="#8a9196" stroke="none"/>
@@ -80,7 +86,12 @@ Eine Partie dauert je nach Mission 30 bis 60 Minuten.</p>
 <h2>Konto, Gast und Lobby</h2>
 <ol>
 <li><b>Anmelden</b> mit Rufzeichen und Passwort oder als Gast. Mit Konto werden Rang, Statistik und Karriere gespeichert.</li>
-<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Einsatzdauer und KI-Stärke. Der <b>Zeitraffer</b> (3×, 2× oder Echtzeit) ändert nur die echte Spieldauer: Die Lage auf See bleibt gleich, eine Einsatzdauer von 120 Minuten Seezeit dauert bei 3× 40 Minuten, in Echtzeit 120. Voreingestellt ist Echtzeit. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
+<li><b>Lobby:</b> Ganz oben steht für Neue <b>„Neu hier?“</b> mit <b>„→ U-Boot lernen“</b> und <b>„→ Fregatte lernen“</b> (die geführten Lektionen). Darunter
+<b>„Gegen KI spielen“</b> (allein, ohne Lobby, sofort los) und <b>„Mit anderen spielen“</b>: <b>„Offener Partie beitreten“</b> sucht die passendste offene Partie
+(gibt es keine, wird eine eröffnet), <b>„Eigene Partie erstellen“</b> eröffnet eine neue. Einsteiger-Klassen sind markiert. Der Gastgeber wählt Mission,
+Tageszeit und <b>Einsatzdauer</b> in echten Minuten; Seegebiet, Jahreszeit, Wetter, Seegang, Variation, Zeitraffer, KI und Übungsmodus stehen unter
+<b>„Erweitert“</b>. Der <b>Zeitraffer</b> (Echtzeit, 2× oder 3×, voreingestellt Echtzeit) ändert nur, wie viel Zeit auf See vergeht: 40 Minuten bei 3× sind
+120 Minuten auf See, der Weg des Konvois ist entsprechend länger. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
 <li><b>Team und Klasse</b> wählen. Beim Teamkameraden „Mitfahren“ macht euch zur gemeinsamen Besatzung eines Schiffs, jeder an einer Station.</li>
 <li><b>Bereit</b> melden. Leere Plätze besetzt die KI.</li>
 <li>Vor dem Auslaufen erscheint die <b>Einsatzbesprechung</b> mit Auftrag, Lagebild, Aufklärung über den gegnerischen Kommandanten und den ersten Schritten.</li>
@@ -107,11 +118,24 @@ Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Ei
 <h2>Der Bildschirm</h2>
 <table class="grid">
 <tr><th>Bereich</th><th>Inhalt</th></tr>
-<tr><td>Obere Leiste</td><td>Stationen (Tasten 1–5), Schiff, Tonnage-Balken (rot versenkt, blau entkommen, Strich bei 50 %), Uhrzeit, Seegang, Restzeit, Ton, Einstellungen, Hilfe.</td></tr>
-<tr><td>Mitte</td><td>Die gewählte Station: Sonar, Sehrohr, Feuerleitung, Tauchstand bzw. Operationszentrale, Sonar, Waffen, Radar, Brücke.</td></tr>
-<tr><td>Rechts oben</td><td>Ruderstand: Kompass (Klick setzt den Kurs), Fahrstufen, Tiefe, Sehrohr bzw. Mast. Immer sichtbar.</td></tr>
-<tr><td>Rechts unten</td><td>Reiter <b>Meldungen · Boot · Schaden · Funk</b>. Ein roter Punkt zeigt Neues in einem anderen Reiter.</td></tr>
+<tr><td>Obere Leiste</td><td>Stationen (U-Boot Tasten 1–4, Fregatte 1–5), Schiff, Tonnage-Balken (rot versenkt, blau entkommen, Strich bei 50 %), Uhrzeit, Seegang, Restzeit, <b>Zeitraffer</b>, Ton, Einstellungen, Hilfe.</td></tr>
+<tr><td>Mitte</td><td>Die gewählte Station: Horchraum, Sehrohr, Feuerleitung, Zentrale bzw. OPZ, Sonar, Waffen, Radar/ESM, Brücke. Jede Station füllt die ganze Höhe; alle zeigen dieselbe Kontaktliste (neue Kontakte oben mit gelbem NEU, der Sensor als Buchstabe, eigene und verbündete Einheiten blass unten).</td></tr>
+<tr><td>Rechts oben</td><td>Ruderstand, immer sichtbar: Kompass mit Gradskala, Sollkurs-Marke und Drehbogen (Klick setzt den Kurs), Instrumente für Kurs, Fahrt und Ruderlage, darunter der <b>Maschinentelegraf</b> als Leiste von „AK zurück“ über „Stopp“ bis „AK“ (die gemachte Stufe gefüllt, die befohlene gelb umrandet) mit −1/+1 kn, beim U-Boot Tiefe und Mast.</td></tr>
+<tr><td>Rechts unten</td><td>Reiter <b>MELD · BOOT · SCHADEN · FUNK · BEFEHLE</b> mit Zählern für Neues (rot, wenn ein Alarm neu ist). Ein Treffer holt die Schadensabwehr nach vorn.</td></tr>
 </table>
+<h2>Fahrt achteraus</h2>
+<p>Die linke Hälfte des Telegrafen fährt rückwärts: höchstens 40 % der Höchstfahrt und nie mehr als 8 kn. Das Schiff verliert erst seine Fahrt
+und nimmt dann langsam Fahrt achteraus auf; das Ruder wirkt rückwärts nur halb. Wer aufgelaufen ist, kann sich achteraus freifahren, wenn hinter ihm
+tieferes Wasser liegt. Auflaufen mit Fahrt stoppt das Schiff sofort und beschädigt es je nach Fahrt, am Felsufer mehr als auf einer Sandbank.</p>
+<h2>Zeitraffer bis Ereignis</h2>
+<p>Der Knopf <b>„⏩ Zeitraffer“</b> in der oberen Leiste lässt die Zeit sechsfach laufen, bis etwas passiert, das ein Kommandant sehen muss: ein neuer
+Kontakt, ein Alarm (Torpedo, Ping, Treffer, Sichtung, Radarwarnung, Meldung aus dem Boot) oder ein erledigter Ausbildungsschritt. Solange er läuft, steht
+dort ein gelbes <b>×6</b>, danach kurz der Grund, warum er gestoppt hat. Im Mehrspieler ist der Knopf eine Abstimmung: Es geht erst los, wenn alle
+Spieler an Bord eines schwimmenden Schiffs zugestimmt haben, und nicht, solange jemand frischen Feindkontakt (aus der letzten Minute) hat.</p>
+<h2>Versenkt – und nun?</h2>
+<p>Geht das eigene Schiff unter, bleibt man trotzdem dabei: <b>„Mitfahren bei …“</b> bringt einen als Besatzung an Bord eines Teamkameraden (die eigene
+Wertung bleibt erhalten), <b>„Zuschauen (verzögert)“</b> zeigt die wahre Lage mit einigen Minuten Verzögerung, damit niemand seinem Team helfen kann, und
+<b>„Nachbesprechung jetzt“</b> zeigt die Auswertung bis zu diesem Zeitpunkt und verlässt die Partie.</p>
 <h2>Bedienung mit der Maus</h2>
 <table class="grid">
 <tr><td>Karte</td><td>Ziehen verschiebt, Rad zoomt, Linksklick wählt einen Kontakt. <b>Rechtsklick</b> öffnet Aktionen: Kurs hierher, Torpedo hierher, Rakete, Boje, Hubschrauber, TMA.</td></tr>
@@ -167,7 +191,7 @@ Dort hört man laute Schiffe plötzlich wieder, dazwischen ist Stille.</p>
     <text x="185" y="130" text-anchor="middle" font-size="11" fill="#8a9196" stroke="none">Schattenzone: hier hört man nichts</text>
     <text x="330" y="222" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Nur in tiefem Wasser (über 2000 m): Kontakte in ca. 55 km Abstand, dazwischen Stille</text></svg><figcaption>Abb. 4 · Konvergenzzonen in der Grönland-Lücke.</figcaption></figure>
 <h2>Reichweitenvorhersage</h2>
-<p>Im Horchraum des Boots und am Sonar der Fregatte zeigt die aufklappbare <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
+<p>Im Horchraum des Boots (Reiter „Bedrohung“) und am Sonar der Fregatte (Reiter „VDS/BT“) zeigt die <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
 nach unten die Tiefe. <b>Grün</b> ist, wo man ein typisches Ziel hört (Boot: Geleitfahrzeug mit 15 kn, blass ein Frachter mit 9 kn; Fregatte: Diesel-U-Boot mit 5 kn
 auf Batterie), <b>rot schraffiert</b>, wo der Gegner einen selbst hört. Beim Boot ist die Tiefe die eigene: Man sieht, wie es unter der Schicht stiller wird.
 Bei der Fregatte ist es die Tiefe des Boots. Die Vorhersage rechnet mit eigener Fahrt, Seegang, Wassertiefe und der gemessenen Schicht. Ohne Messung steht
@@ -241,25 +265,23 @@ Ein Kontakt wird erst „feindlich“, wenn du ihn klassifiziert hast; vorher is
 <h2>Die Stationen</h2>
 <table class="grid">
 <tr><th>Taste</th><th>Station</th><th>Aufgabe</th></tr>
-<tr><td>1</td><td>Horchraum</td><td>Breitband-Wasserfall über 360°, Signalanalyse (LOFAR, DEMON), Mithören, Klassifizieren, Aktivsonar, Bedrohungsseite mit Pings, Bojeneinschlägen und Ausweichvorschlag.</td></tr>
-<tr><td>2</td><td>Sehrohr</td><td>3D-Sicht über Wasser: Peilung, Lagewinkel, Entfernung über die Masthöhe, Zähler für die Zeit mit Mast oben, Radarwarnung. Der Mast fährt in 8 s aus und 5 s ein. Am Mast sitzt auch ein kleines <b>Radar</b>: Es sendet nur mit ganz ausgefahrenem Mast (auf Sehrohrtiefe oder aufgetaucht) und findet Schiffe bis zum nahen Horizont, etwa 14 sm; ein kleiner Radarschirm erscheint dann unter dem Sehrohr. Jedes Schiff und Flugzeug mit ESM peilt das Boot dabei an und erkennt ein U-Boot-Radar, also nur für einen kurzen Rundblick einschalten. Beim Einfahren des Masts oder Tauchen schaltet es ab.</td></tr>
-<tr><td>3</td><td>Feuerleitung</td><td>TMA-Plot, Lösung erarbeiten, Torpedo programmieren (Fahrt, Suchtiefe, Aktiv/Passiv, Freigabe-Entfernung), Feuer und Drahtlenkung.</td></tr>
-<tr><td>4</td><td>Tauchstand</td><td>Tiefenprofil mit Sprungschicht und Grund, Antrieb, Batterie und Restzeit, Schnorchel, Kavitationsgrenze.</td></tr>
-<tr><td>5</td><td>Zentrale</td><td>Koppeltisch mit Wegpunkten, kleiner Wasserfall, Bootszustand, Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot, Mast, Echolot, Gefechtsstationen, Notanblasen), Funkbuch.</td></tr>
-<tr><td>6</td><td>Ortung</td><td>Bedrohung mit Ausweichvorschlag, Aktivsonar-Schirm (Pings verraten das Boot), ESM-Radarwarnung mit Mast oben, Echolot, Reichweitenvorhersage.</td></tr>
-<tr><td>7</td><td>Torpedoraum</td><td>Rohre mit Ladestand und Nachladezeit, Vorrat, Torpedos am Draht mit Feinsteuerung, Täuschkörper, Minen.</td></tr>
+<tr><td>1</td><td>Horchraum</td><td>Breitband-Wasserfall über die volle Höhe, Signalanalyse (LOFAR, DEMON), Mithören, Klassifizieren, Schleppsonar. Reiter <b>Kontakte</b>; <b>Bedrohung</b> mit Pings, Bojeneinschlägen, Ausweichvorschlag und Reichweitenvorhersage; <b>Aktiv</b> mit dem Aktivsonar-Schirm (Einzelping, verrät das Boot weit hinaus).</td></tr>
+<tr><td>2</td><td>Sehrohr</td><td>3D-Sicht über Wasser mit Sichtfeld und Stadimeter (siehe unten), Erkennungsheft und Foto. Daneben der Block <b>Mast · Radarwarner</b>: Zeit mit Mast oben (nach 20 s rät er zum Einfahren), ESM-Radarwarnung (hört nur mit Mast oben) und das kleine <b>Radar</b> am Mast. Es sendet nur mit ganz ausgefahrenem Mast und findet Schiffe bis zum nahen Horizont, etwa 14 sm; ein kleiner Radarschirm erscheint dann unter dem Sehrohr. Jedes Schiff und Flugzeug mit ESM peilt das Boot dabei an, also nur für einen kurzen Rundblick einschalten. Der Mast fährt in 8 s aus und 5 s ein.</td></tr>
+<tr><td>3</td><td>Feuerleitung</td><td>Lagebild und Kontakte, TMA (Hypothese, Ekelund, Dot-Stack, Auto-TMA), Torpedo programmieren (Fahrt, Suchtiefe, Aktiv/Passiv, Freigabe-Entfernung, Salve und Fächer), Rohrbank mit Ladestand und Nachladen, Feuer; Torpedos am Draht mit Feinsteuerung und Restlaufzeit, Täuschkörper.</td></tr>
+<tr><td>4</td><td>Zentrale</td><td>Der Platz des Kommandanten: Koppeltisch mit Wegpunkten und darunter das Tiefenprofil mit Sprungschicht und Grund (Klick = Tiefe); Kacheln für Tiefe, Trimm, Batterie (mit Reichweite bei dieser Fahrt) und Schnorchel; Tiefe befehlen (Sehrohrtiefe, 60 m, über/unter die Schicht, größte Tiefe); Befehle (Alarmtauchen, Schnorcheln, Ruhe im Boot, Gefechtsstationen, Echolot, Notanblasen); Navigation mit Echolot, Bootszustand, Tiefenalarme, Minen.</td></tr>
 </table>
 <div class="cols2 shots"><figure class="ui"><img src="img/ui-u-horchraum.jpg" alt=""><figcaption>Bild 3 · Horchraum: Wasserfall, DEMON-Analyse, Kontaktliste und Bedrohungsseite.</figcaption></figure><figure class="ui"><img src="img/ui-u-sehrohr.jpg" alt=""><figcaption>Bild 4 · Sehrohr mit Strichplatte; rechts die Messwerte.</figcaption></figure></div>
-<div class="cols2 shots"><figure class="ui"><img src="img/ui-u-feuer.jpg" alt=""><figcaption>Bild 5 · Feuerleitung: Lagebild, TMA und Torpedoprogrammierung.</figcaption></figure><figure class="ui"><img src="img/ui-u-tauch.jpg" alt=""><figcaption>Bild 6 · Tauchstand: Tiefenprofil, Maschine und Batterie.</figcaption></figure></div>
+<figure class="ui"><img src="img/ui-u-feuer.jpg" alt=""><figcaption>Bild 5 · Feuerleitung: Lagebild, TMA und Torpedoprogrammierung.</figcaption></figure>
+<p class="small">Die Bildschirmfotos stammen aus einer Version vor der Zusammenlegung der Stationen; Anordnung und Reiter weichen im Spiel davon ab, die Bedienelemente sind dieselben.</p>
 <h2>Der Ablauf eines Angriffs</h2>
 <ol>
 <li><b>Horchen:</b> langsam (3–5 kn) und tief fahren. Im Wasserfall erscheint eine Spur; Klick wählt den Kontakt.</li>
 <li><b>Klassifizieren:</b> In der Signalanalyse Linien markieren (Kapitel 7). Erst wenn klar ist, dass es ein Frachter ist, lohnt der Anlauf.</li>
 <li><b>Peilen:</b> Einen Schenkel von einigen Minuten fahren, dann 30–60° abdrehen und einen zweiten Schenkel fahren. Ohne Kurswechsel keine Entfernung.</li>
 <li><b>Lösen:</b> „Auto-TMA“ oder den gelben Kreis ziehen, bis die Peilungsreste klein sind. Hilfen: Ekelund-Entfernung aus zwei Schenkeln, Dot-Stack. Ziel: Güte über 60 %. Lösungen veralten nach 120 s.</li>
-<li><b>Bestätigen:</b> Ein kurzer Blick durchs Sehrohr misst die Entfernung, kostet aber Sichtbarkeit.</li>
-<li><b>Schießen:</b> „Lösung übernehmen“ und „Feuer“, oder Rechtsklick auf die Karte und „Torpedo hierher“. Mit 30 kn läuft der Torpedo leiser und hört weiter, mit 40 kn ist er schneller.</li>
-<li><b>Lenken:</b> Solange der Draht hält (eigene Fahrt bis 12 kn, bis 18 km), mit ◀ ▶ nachsteuern, bis „ZIEL ERFASST“ erscheint.</li>
+<li><b>Bestätigen:</b> Ein kurzer Blick durchs Sehrohr misst die Entfernung mit dem Stadimeter, kostet aber Sichtbarkeit.</li>
+<li><b>Schießen:</b> „Lösung übernehmen“, Salve wählen und „Feuer“, oder Rechtsklick auf die Karte und „Torpedo hierher“ (im Profi-Modus setzt das nur Schusskurs und Suchkopf-Entfernung, geschossen wird mit dem Feuer-Knopf). Geschossen wird nur bis 15 kn eigener Fahrt und bis 0,8 × Tauchtiefe.</li>
+<li><b>Lenken:</b> Solange der Draht hält (eigene Fahrt bis 12 kn, bis 18 km), mit ◀ ▶ nachsteuern, bis „ZIEL ERFASST“ erscheint. Jeder Draht zeigt die Restlaufzeit seines Torpedos.</li>
 <li><b>Absetzen:</b> Rohrfluten und Abschuss sind weit hörbar. Abdrehen, tief gehen, unter die Schicht.</li>
 </ol>
 <div class="box"><h4>Erkennungsheft</h4><p>„Erkennung“ am Sehrohr (und auf der Brücke der Fregatte) öffnet das Heft mit allen Klassen. Jede Seite hat drei Reiter:
@@ -279,16 +301,38 @@ taktischen Hinweis. Alle Werte kommen aus der Simulation. „Klasse zuweisen“ 
     <text x="560" y="84" text-anchor="start" font-size="11" fill="#b03a2e" stroke="none">Ziel (unbekannt)</text>
     <text x="320" y="22" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Peilungen allein sagen nichts über die Entfernung. Erst ein Kurswechsel</text>
     <text x="320" y="36" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">macht nur noch eine Lösung (Kurs, Fahrt, Entfernung) passend.</text></svg><figcaption>Abb. 8 · Zielbewegungsanalyse (TMA) mit zwei Schenkeln.</figcaption></figure>
+<h2>Sehrohr: Sichtfeld und Stadimeter</h2>
+<p>Das Sehrohr sieht nur, wohin es zeigt. Das Sichtfeld ist bei 1,5× Vergrößerung 32° breit, bei 6× 8° und bei 12× 4°; was außerhalb liegt, wird
+nicht entdeckt. Solange niemand das Sehrohr dreht, hält die Wache es mit 1,5× auf den Bug. „Himmel absuchen“ sucht den Luftraum ab, „Auf Ziel“ dreht
+auf den gewählten Kontakt. Über 10 kn darf kein Mast oben sein: Fährt das Boot schneller, holt die Besatzung Mast und Radar ein und meldet es. Ist das Boot zu tief, wird der Mast vorgemerkt („VORGEMERKT“): Es geht auf Sehrohrtiefe, und der Mast fährt bei Ankunft aus.</p>
+<p>Die Entfernung misst das <b>Stadimeter</b>: Man weist dem Ziel eine Klasse zu (Erkennungsheft, „Klasse zuweisen“), das Stadimeter rechnet mit deren
+Masthöhe aus dem Winkel zwischen Mastspitze und Wasserlinie. Das Anlegen von Hand hat einen Fehler von etwa 6 %; eine falsch zugewiesene Klasse
+verschiebt die Entfernung entsprechend.</p>
+<table class="grid">
+<tr><th>Stufe</th><th>Was das Sehrohr verrät</th></tr>
+<tr><td>Profi</td><td>Weder Klasse noch Entfernung werden geschenkt. Ohne zugewiesene Klasse steht in der Entfernungszeile „KLASSE ZUWEISEN“; die Entfernung gibt es nur über das Stadimeter.</td></tr>
+<tr><td>Einsteiger</td><td>Die gemessene Entfernung steht neben dem Stadimeterwert. Wer ein Schiff 10 s ohne Unterbrechung mit 6× oder 12× im Bild hält, bekommt seine Klasse automatisch.</td></tr>
+</table>
+<h2>Torpedos</h2>
+<table class="grid">
+<tr><td>Reichweite</td><td>Der schwere Torpedo läuft mit 30 kn bis 25 km, mit 40 kn nur bis 15 km (dazwischen gleitend). Mit 30 kn ist er leiser und der Suchkopf hört weiter, mit 40 kn ist er schneller.</td></tr>
+<tr><td>Abschuss</td><td>Nur bis 15 kn eigener Fahrt und bis 0,8 × Tauchtiefe. Ist eins davon verletzt, bleibt FEUER gesperrt und zeigt den Grund; ein Knopf daneben behebt ihn mit einem Klick.</td></tr>
+<tr><td>Salve</td><td>1 bis 4 Torpedos, im Fächer um die Lösungspeilung (höchstens 10° zwischen zwei Torpedos). Vorgeschlagen wird ein Fächer nach Länge des Ziels auf diese Entfernung und Fehler der TMA.</td></tr>
+<tr><td>Draht</td><td>Hält bis 18 km Laufstrecke und solange das Boot nicht schneller als 12 kn fährt. Jeder Draht zeigt die Restlaufzeit.</td></tr>
+<tr><td>Sicherung</td><td>Ist das Ziel ein eigenes Schiff, stehen Eigene nahe am Zielpunkt oder liegt die TMA-Güte unter 30 %, fragt der Feuer-Knopf ein zweites Mal; ohne Ziel verweigert er.</td></tr>
+<tr><td>Frachter</td><td>Ein Treffer macht einen Frachter zum Nachzügler: Er schleppt sich mit höchstens 4 kn aus dem Konvoi und sinkt etwa 15 Minuten später. Zwei Treffer versenken ihn sofort.</td></tr>
+</table>
 <h2>Antrieb, Luft und Boot</h2>
 <table class="grid">
-<tr><td>Batterie</td><td>Diesel- und AIP-Boote fahren getaucht auf Batterie. Der Verbrauch steigt mit dem Quadrat der Fahrt. Schnorcheln auf Sehrohrtiefe lädt, ist aber laut und zeigt Mast und Abgas. Das AIP-Boot verbraucht bis 5 kn nichts.</td></tr>
-<tr><td>Luft</td><td>CO₂ steigt, O₂ fällt. Ab 3 % CO₂ oder unter 18 % O₂ leistet die Besatzung weniger. Abhilfe: Schnorcheln, Auftauchen, CO₂-Absorber und Sauerstoffkerzen.</td></tr>
+<tr><td>Batterie</td><td>Diesel- und AIP-Boote fahren getaucht auf Batterie. Sie kommen von einer Feindfahrt und starten mit 40–70 % Ladung (in leichten Partien mindestens 60 %). Der Verbrauch ist 1 + v³/70 % je Stunde (v in kn): gestoppt 1 %/h, bei 6 kn etwa 4 %/h, bei 10 kn etwa 15 %/h; volle Fahrt leert eine volle Batterie in rund einer Stunde. Die Kachel in der Zentrale zeigt die Reichweite bei der gerade gefahrenen Fahrt. Schnorcheln auf Sehrohrtiefe (höchstens 8 kn) lädt, ist aber laut und zeigt Mast und Abgas. Das AIP-Boot verbraucht bis 5 kn nichts.</td></tr>
+<tr><td>Luft</td><td>CO₂ steigt geschlossen um etwa 0,12 % je Stunde, O₂ fällt. Ab 3 % CO₂ oder unter 18 % O₂ leistet die Besatzung weniger. Abhilfe: Schnorcheln, Auftauchen, CO₂-Absorber und Sauerstoffkerzen.</td></tr>
 <tr><td>Trimm</td><td>Fahrt und Tiefenwechsel bringen das Boot aus dem Trimm. Ein schlecht getrimmtes Boot steuert Tiefe träge.</td></tr>
 <tr><td>Pressluft</td><td>Drei Flaschen. „Notanblasen“ (zweimal tippen) bringt das Boot schnell nach oben, ist aber sehr laut und kostet eine Flasche.</td></tr>
 <tr><td>Testtiefe</td><td>Unter der Tauchtiefe drohen Lecks und Schäden.</td></tr>
-<tr><td>Tiefenalarme</td><td>Im Tauchstand unter „Alarme“ einstellbar und einzeln abschaltbar: Obergrenze (meldet, wenn das Boot ungewollt flacher steigt; schweigt bei befohlener Sehrohrtiefe), Untergrenze (Vorgabe 90 % der Testtiefe) und Grundabstand mit WARNUNG (50 m) und GEFAHR (25 m) Wasser unter dem Kiel. Ein Alarm ertönt einmal und erscheint auf jeder Station unter der Kopfleiste und in der Tiefenzeile des Ruderstands; erneut erst, wenn das Boot den Bereich um einige Meter verlassen hat. Die Werte gelten je Bootsklasse und bleiben gespeichert.</td></tr>
+<tr><td>Tiefenalarme</td><td>In der Zentrale unter „Tiefenalarme“ einstellbar und einzeln abschaltbar: Obergrenze (meldet, wenn das Boot ungewollt flacher steigt; schweigt bei befohlener Sehrohrtiefe), Untergrenze (Vorgabe 90 % der Testtiefe) und Grundabstand mit WARNUNG (50 m) und GEFAHR (25 m) Wasser unter dem Kiel. Ein Alarm ertönt einmal und erscheint auf jeder Station unter der Kopfleiste und in der Tiefenzeile des Ruderstands; erneut erst, wenn das Boot den Bereich um einige Meter verlassen hat. Die Werte gelten je Bootsklasse und bleiben gespeichert.</td></tr>
 <tr><td>Koppelort</td><td>Getaucht wird die eigene Position nur gekoppelt und immer ungenauer (bis 8 sm). Ein Fix am Mast setzt sie zurück.</td></tr>
-<tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
+<tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. Ein Alarm (Torpedo im Wasser, Treffer) ruft sie von selbst aus; nach 20 ruhigen Minuten werden sie wieder aufgehoben. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
+<tr><td>Eigene Geräusche</td><td>Die Besatzung macht Lärm, wenn sie arbeitet: Nachladen eines Rohrs, anlaufende Trimmpumpen bei Schleichfahrt und Alarmtauchen sind als Transienten zu hören. Wer leise bleiben will, wartet damit.</td></tr>
 </table>
 <h3>Route plotten</h3>
 <p>Auf dem Koppeltisch der Zentrale setzt <b>„⚑ Wegpunkte“</b> mit jedem Klick einen Wegpunkt; Ziehen verschiebt ihn, Rechtsklick auf einen Punkt gibt ihm Fahrt und Tiefe oder löscht ihn. Fahrt und Tiefe gelten ab Beginn des Schenkels zu diesem Punkt, danach darf man sie von Hand ändern. An jedem Schenkel stehen rechtweisender Kurs und Länge. <b>„Route fahren“</b> lässt den Rudergänger Punkt für Punkt abfahren (der Knopf zeigt den nächsten Wegpunkt); er steuert nach dem Koppelort, getaucht liegt die Route also so ungenau wie dieser. Jeder Kurs von Hand schaltet die Route ab, die Punkte bleiben stehen. <b>„Voraus N min“</b> zeigt, wo das Boot nach 3 bis 30 Minuten steht.</p>
@@ -301,11 +345,13 @@ Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann m
 <li><b>Torpedo im Wasser:</b> Torpedo auf 150° achteraus legen, volle Fahrt, Tiefe wechseln, Täuschkörper werfen. Eine harte Wende bei Fahrt hinterlässt ein Wirbelfeld (Knuckle), das Schall schluckt.</li>
 <li><b>Bojeneinschläge</b> in der Nähe heißen: Der Hubschrauber sucht hier. Leise bleiben, Ort verlassen.</li>
 <li><b>Aktive Bojen (DICASS)</b> pingen alle 45 Sekunden und verraten sich dabei selbst. Ihre Pings tauchen im Horchraum als „Boje“ auf.</li>
-<li><b>Flugzeugradar im ESM</b> (Bedrohungsseite „LUFT“): Seeaufklärer in der Nähe – Mast einfahren und tiefer gehen. Der eigene Fernaufklärer meldet den Konvoi dagegen über die Führung: Wer dann auf Empfangstiefe ist, bekommt Peilung, Entfernung, Kurs und Fahrt.</li>
+<li><b>Radar gegen Mast:</b> Jedes Radar hat je Antennenumdrehung eine Chance, einen Mast zu sehen – ein Sehrohr bis etwa 5 sm, einen Schnorchel mit Gischt und Abgas viel leichter und bis 8 sm. Seegang stört das Radar. Also kurz zeigen und wieder einfahren.</li>
+<li><b>Radarwarner:</b> ESM und Radarwarner hören ein Radar nur etwas über den Funkhorizont hinaus (zwischen U-Boot und Fregatte etwa 18 sm, nie über 40 sm), und nur mit Mast oben.</li>
+<li><b>Flugzeugradar im ESM</b> (Bedrohungsseite „LUFT“): Seeaufklärer oder Hubschrauber in der Nähe – Mast einfahren und tiefer gehen. Ihr Radar findet einen Schnorchel aus der Luft weit (Seefernaufklärer 30 km, Hubschrauber im Transit 15 km), ein Sehrohr auf 9 bzw. 6 km, und meldet der ganzen Eskorte eine Position auf etwa 1 km genau. Der eigene Fernaufklärer meldet den Konvoi dagegen über die Führung: Wer dann auf Empfangstiefe ist, bekommt Peilung, Entfernung, Kurs und Fahrt.</li>
 <li><b>Lärmdeckung:</b> Wer nahe hinter einem Frachter läuft, verschwindet für die Eskorte in dessen Lärm.</li>
 </ul>
 <h2>Minen</h2>
-<p>Kilo-, Küsten- und AIP-Boote haben vier Minen an Bord („Mine legen“ im Feuerleitstand, höchstens 8 kn, alle 30 s eine). Sie gehen nur in Wasser
+<p>Kilo-, Küsten- und AIP-Boote haben vier Minen an Bord („Mine legen“ in der Zentrale, höchstens 8 kn, alle 30 s eine). Sie gehen nur in Wasser
 von 25 bis 300 m: bis 60 m auf den Grund, tiefer verankert in 10 m. Nach drei Minuten sind sie scharf und treffen jedes Schiff, auch eigene und neutrale.
 Am wirksamsten ist eine Sperre quer zur Route, 3 bis 6 km vor dem Konvoi, mit etwa 100 m Abstand – ein Frachter löst erst im Umkreis von rund 55 m aus.
 In der Kampagne bleiben gelegte Minen verbraucht, bis die Werft aufmunitioniert.</p>
@@ -315,51 +361,55 @@ In der Kampagne bleiben gelegte Minen verbraucht, bis die Werft aufmunitioniert.
 <h2>Die Stationen</h2>
 <table class="grid">
 <tr><th>Taste</th><th>Station</th><th>Aufgabe</th></tr>
-<tr><td>1</td><td>Operationszentrale</td><td>Lagebild mit Konvoi, Eskorten, Datalink-Kontakten, Bojen, Hubschrauber und Funkpeilungen; Befehle an den Konvoi (Kurs, Zickzack, Fahrt).</td></tr>
-<tr><td>2</td><td>Sonar</td><td>Rumpfsonar (Aktivsonar jetzt auf der Station Ortung), Schleppsonar mit Länge und Seitenwahl, BT-Sonde, VDS (nur F-30).</td></tr>
-<tr><td>3</td><td>Waffen</td><td>U-Jagd-Rakete (bis 18 km, 40 s Flugzeit, setzt einen Leichttorpedo ab), Torpedorohre, Wasserbomben, Täuschkörper-Schleppe, Torpedowarnung.</td></tr>
-<tr><td>4</td><td>Radar und ESM</td><td>Radar an/aus (verrät die eigene Position), kurze Echos von Masten und Schnorcheln, Peilung gegnerischer Funksprüche.</td></tr>
-<tr><td>5</td><td>Brücke</td><td>Ausguck in 3D: Masten, Schnorchelfahnen, Torpedolaufbahnen, Treffer bei Tag; nachts nur beleuchtete Schiffe.</td></tr>
-<tr><td>6</td><td>Ortung</td><td>Aktivsonar-Schirm (Ring läuft hinaus, Nachhall, Echos mit Doppler-Farbe bei CW, Echotabelle, Countdown zum nächsten Ping, Bereiche 2–10 sm), Pulsart CW/LFM, BT messen, Tiefensonar (VDS), Minenmeiden, Reichweitenvorhersage.</td></tr>
-<tr><td>7</td><td>Flug</td><td>Nur Fregatte mit Bordhubschrauber: Status, Bojen und Torpedos an Bord, Aufträge zum gewählten Kontakt (Tauchsonar flach/tief, Boje, MAD, Torpedo), Bojensperre des Seefernaufklärers, Bojen im Wasser; auf der Karte dieselben Aufträge per Rechtsklick.</td></tr>
+<tr><td>1</td><td>OPZ</td><td>Operationszentrale: Lagebild mit Konvoi, Eskorten, Datalink-Kontakten, Bojen, Hubschrauber und Funkpeilungen, darüber eine Leiste mit dem Stand aller U-Jagd-Mittel; Wegpunkte und „Route fahren“. Reiter <b>Kontakte</b>; <b>Verband</b> mit „Konvoi umleiten“, Frachtern, Datalink-Teilnehmern, Strom und Seefernaufklärer; <b>Hubschrauber</b> mit der Auftragsliste des Bordhubschraubers (nur Fregatte mit Hubschrauber).</td></tr>
+<tr><td>2</td><td>Sonar</td><td>Rumpf- und Schleppsonar übereinander, Schleppsonar mit Länge und Seitenwahl. Reiter <b>Analyse</b> (LOFAR/DEMON), <b>Aktiv</b> (Aktivsonar-Schirm mit Einzelping, Dauerpingen, CW/LFM und Bereich 4/8/16 km), <b>VDS/BT</b> (BT-Sonde, Tiefensonar nur F-30, Minenmeiden, Reichweitenvorhersage) und <b>Kontakte</b>.</td></tr>
+<tr><td>3</td><td>Waffen</td><td>Ziel, vier Waffenkarten: U-Jagd-Rakete (1,8–18 km, 40 s Flugzeit, setzt einen Leichttorpedo ab), Torpedorohre, Wasserbombenwerfer (wirft voraus), Torpedoabwehr mit Täuschkörper-Schleppe; beim Wachschiff die Seezielflugkörper. Dazu Zielkarte (Rechtsklick = Rakete hierher) und Kontakte.</td></tr>
+<tr><td>4</td><td>Radar/ESM</td><td>Luft-/Seeraumradar mit Bereichswahl (verrät die eigene Position), kurze Echos von Masten und Schnorcheln, ESM-Peilungen als rote Striche am Rand des Radarschirms und in der Liste, Luftabwehr.</td></tr>
+<tr><td>5</td><td>Brücke</td><td>Ausguck in 3D mit Fernglas: Masten, Schnorchelfahnen, Torpedolaufbahnen, Treffer bei Tag; nachts nur beleuchtete Schiffe. Daneben die Messwerte des Ausgucks; „Erkennung“ öffnet das Erkennungsheft.</td></tr>
 </table>
-<div class="cols2 shots"><figure class="ui"><img src="img/ui-f-opz.jpg" alt=""><figcaption>Bild 7 · Operationszentrale mit Konvoi, Peillinien und Verbandsstatus.</figcaption></figure><figure class="ui"><img src="img/ui-f-sonar.jpg" alt=""><figcaption>Bild 8 · Sonarraum der F-30: Rumpfsonar am VDS in 146 m, Schleppsonar, LOFAR.</figcaption></figure></div>
-<div class="cols2 shots"><figure class="ui"><img src="img/ui-f-waffen.jpg" alt=""><figcaption>Bild 9 · Waffenleitstand mit Zielkarte.</figcaption></figure><figure class="ui"><img src="img/ui-f-radar.jpg" alt=""><figcaption>Bild 10 · Radar und Funkpeilung (ESM-Rose).</figcaption></figure></div>
-<figure class="ui"><img src="img/ui-f-bruecke.jpg" alt=""><figcaption>Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.</figcaption></figure>
+<div class="cols2 shots"><figure class="ui"><img src="img/ui-f-opz.jpg" alt=""><figcaption>Bild 6 · Operationszentrale mit Konvoi, Peillinien und Verbandsstatus.</figcaption></figure><figure class="ui"><img src="img/ui-f-sonar.jpg" alt=""><figcaption>Bild 7 · Sonarraum der F-30: Rumpfsonar am VDS in 146 m, Schleppsonar, LOFAR.</figcaption></figure></div>
+<div class="cols2 shots"><figure class="ui"><img src="img/ui-f-waffen.jpg" alt=""><figcaption>Bild 8 · Waffenleitstand mit Zielkarte.</figcaption></figure><figure class="ui"><img src="img/ui-f-radar.jpg" alt=""><figcaption>Bild 9 · Radar und Funkpeilung (ESM-Rose).</figcaption></figure></div>
+<figure class="ui"><img src="img/ui-f-bruecke.jpg" alt=""><figcaption>Bild 10 · Brücke: Ausguck in 20 m Augenhöhe.</figcaption></figure>
 <p><b>Route plotten:</b> In der OPZ werden Wegpunkte genauso gesetzt wie im U-Boot (<b>„⚑ Wegpunkte“</b>, Ziehen, Rechtsklick für Fahrt oder Löschen). <b>„Route fahren“</b> steuert die Fregatte selbst von Punkt zu Punkt, etwa für einen Suchschlag vor dem Konvoi; ein Kurs von Hand oder „Kurs hierher“ schaltet sie ab. Der Vorausvektor zeigt die Position in N Minuten.</p>
 <h2>Sensoren richtig einsetzen</h2>
 <table class="grid">
-<tr><td>Schleppsonar</td><td>Das beste passive Ohr. Lang ausgebracht hängt es unter der Schicht. Nur bis 14 kn brauchbar, nach jedem Kurswechsel 60 s Stabilisierung. Links/rechts-Mehrdeutigkeit: 20° wenden oder das Rumpfsonar entscheidet.</td></tr>
-<tr><td>Aktivsonar</td><td>Liefert Entfernung, verrät aber das Schiff auf große Entfernung. <b>CW</b> misst den Doppler (kommt er näher?), <b>LFM</b> misst genau und findet auch langsame Ziele im Nachhall.</td></tr>
+<tr><td>Schleppsonar</td><td>Das beste passive Ohr. Lang ausgebracht hängt es unter der Schicht. Nur bis 14 kn brauchbar. Nach einer Kursänderung unter 10° bleibt es ruhig, bis 45° braucht es 60 s, bei mehr 150 s auf dem neuen Kurs. Gegen laute Boote (Schnorchel, Diesel aufgetaucht, Pumpen, Kavitation, Anblasen) gewinnt es 8 dB auf deren Schmalbandlinien; ein leises Boot auf Batterie bietet ihm diesen Vorteil nicht. Links/rechts-Mehrdeutigkeit: 20° wenden oder das Rumpfsonar entscheidet.</td></tr>
+<tr><td>Aktivsonar</td><td>Liefert Entfernung, verrät aber das Schiff auf große Entfernung. Voreingestellt ist der <b>Einzelping</b> (Taste <kbd>P</kbd>); „Dauer“ pingt im Takt des Bereichs. Der Bereich legt fest, wie weit Echos kommen und wie oft gepingt wird: 4 km alle 6 s, 8 km alle 11 s, 16 km alle 22 s; Echos von jenseits des Bereichs zeigt der Schirm nicht. Der Schirm zeigt den hinauslaufenden Ring, Nachhall, den toten Winkel achtern, Echos mit Doppler-Farbe bei CW (gelb nähert, blau entfernt), eine Echotabelle und den Countdown zum nächsten Ping. <b>CW</b> misst den Doppler (kommt er näher?), <b>LFM</b> misst genau und findet auch langsame Ziele im Nachhall.</td></tr>
 <tr><td>VDS (F-30)</td><td>Der Sonarkörper wird 40 m unter die gemessene Schicht gefiert. Dort hört und pingt er ohne den Schichtverlust. Bis 18 kn.</td></tr>
 <tr><td>BT-Sonde</td><td>Misst die Sprungschicht. Ohne Messung kennt man ihre Tiefe nicht.</td></tr>
-<tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer und Flugzeuge weit darüber hinaus, verrät aber die Fregatte an jedes U-Boot mit ESM. Taucht der feindliche Fernaufklärer auf, kennen die U-Boote bald die Lage des Konvois – Kurs ändern lohnt sich.</td></tr>
+<tr><td>Radar</td><td>Hat je Antennenumdrehung eine Chance auf einen Mast (Sehrohr bis etwa 5 sm, Schnorchel deutlich leichter und bis 8 sm; Seegang stört). Sieht Masten und Schnorchel also auf einige Kilometer und Flugzeuge weit darüber hinaus, verrät aber die Fregatte an jedes U-Boot mit ESM. Taucht der feindliche Fernaufklärer auf, kennen die U-Boote bald die Lage des Konvois – Kurs ändern lohnt sich.</td></tr>
 </table>
 <h3>ESM: Wer sendet da?</h3>
 <p>Der ESM-Empfänger peilt nicht nur, er erkennt den Sender an Band, Umlaufzeit und Pulsbild. Eine Meldung lautet etwa „ESM 252° · SEEFALKE-2 · FREGATTE? (OBERFLÄCHENSUCHE) · STARK, STEIGEND“: Sender, wahrscheinlicher Träger, Art des Radars, Signalstärke und ob sie zunimmt (der Sender kommt näher). Ein Fragezeichen heißt: Mehrere Klassen tragen dasselbe Gerät – die F-12 und die F-30 klingen gleich, alle Handelsschiffe auch. Das ist ein Hinweis, keine Identifizierung. Flugzeugradare und Feuerleitradare erscheinen rot; im Sehrohr steht dann „FLUGZEUGRADAR – TAUCHEN“. Ein Feuerleitradar strahlt nur, solange das Schiff einen Flugkörper lenkt. Auf der Karte trägt die ESM-Peillinie den Sendernamen.</p>
 <table class="grid"><tr><th>Sender</th><th>Band</th><th>Umlauf</th><th>Art</th><th>Wahrscheinlich</th><th>Möglich</th></tr><tr><td><b>SEEFALKE-2</b></td><td>X</td><td>2.5 s</td><td>Oberflächensuche</td><td>FREGATTE?</td><td>Fregatte F-12 / Fregatte F-30 (VDS)</td></tr><tr><td><b>KORMORAN-1</b></td><td>X</td><td>3 s</td><td>Oberflächensuche</td><td>KORVETTE</td><td>Korvette K-7</td></tr><tr><td><b>TAIFUN-11</b></td><td>S</td><td>6 s</td><td>Luftsuche</td><td>WACHSCHIFF</td><td>Wachschiff Projekt 11</td></tr><tr><td><b>ZIELSPINNE-4</b></td><td>Ku</td><td>—</td><td>Feuerleitung</td><td>FREGATTE?</td><td>Fregatte F-12 / Fregatte F-30 (VDS)</td></tr><tr><td><b>BLITZAUGE-2</b></td><td>Ku</td><td>—</td><td>Feuerleitung</td><td>KORVETTE</td><td>Korvette K-7</td></tr><tr><td><b>SKORPION-F</b></td><td>C</td><td>—</td><td>Feuerleitung</td><td>WACHSCHIFF</td><td>Wachschiff Projekt 11</td></tr><tr><td><b>LOTSE-9</b></td><td>X</td><td>2.4 s</td><td>Navigation</td><td>HANDELSSCHIFF?</td><td>Frachter / Supertanker / Containerschiff / RoRo-Fähre</td></tr><tr><td><b>MÖWE-M</b></td><td>X</td><td>2 s</td><td>Navigation</td><td>KLEINFAHRZEUG?</td><td>Fischtrawler / Hochseeschlepper / Segelyacht</td></tr><tr><td><b>ALBATROS-7</b></td><td>X</td><td>4 s</td><td>Flugzeugradar</td><td>SEEAUFKLÄRER</td><td>Seeaufklärer</td></tr><tr><td><b>LIBELLE-5</b></td><td>X</td><td>3 s</td><td>Flugzeugradar</td><td>HUBSCHRAUBER</td><td>Bordhubschrauber</td></tr><tr><td><b>KIEBITZ-U</b></td><td>X</td><td>3 s</td><td>Oberflächensuche</td><td>U-BOOT?</td><td>Diesel-U-Boot Projekt 4 / Atom-U-Boot Projekt 9 / Küsten-U-Boot Projekt 2 / U-Boot Projekt 6 (AIP)</td></tr><tr><td><b>SEESCHWALBE-U</b></td><td>X</td><td>2.5 s</td><td>Oberflächensuche</td><td>U-BOOT</td><td>Jagd-U-Boot S-14</td></tr><tr><td><b>NORDLICHT-3</b></td><td>X</td><td>5 s</td><td>Flugzeugradar</td><td>FERNAUFKLÄRER</td><td>Fernaufklärer</td></tr></table>
 <h2>Hubschrauber und Seeaufklärer (F-12)</h2>
-<p>Rechtsklick auf die Karte öffnet die Luftmittel. Der Hubschrauber fliegt mit 120 kn bis 30 km weit und braucht nach jeder Landung 2 Minuten an Deck.</p>
+<p>Der Bordhubschrauber der F-12 fliegt mit 120 kn bis 30 km vom Schiff und arbeitet eine <b>Auftragsliste</b> ab (bis zu acht Aufträge). Befohlen wird im
+OPZ-Reiter <b>Hubschrauber</b> zum gewählten Kontakt oder zu einem Punkt, den man im Kartenmenü als „Hubschrauber-Ziel hier“ wählt, oder direkt per
+Rechtsklick auf die Karte. <b>ANHÄNGEN</b> setzt den Auftrag ans Ende der Liste, <b>SOFORT</b> verwirft alles andere. Die Liste zeigt jeden Auftrag mit
+der Zeit bis zur Ankunft; × streicht einen Auftrag, „Liste leeren“ schickt ihn heim.</p>
 <table class="grid">
-<tr><td>Sonarboje flach / tief</td><td>Passive Boje (DIFAR): peilt von ihrem Ort aus, 30 Minuten lang. „Tief“ hängt unter der Schicht. Bojen treiben mit der Strömung.</td></tr>
-<tr><td>Aktive Boje (DICASS)</td><td>Pingt 15 Minuten lang alle 45 s und liefert Peilung und Entfernung bis etwa 6 km. Jedes U-Boot in der Nähe hört sie.</td></tr>
-<tr><td>Tauchsonar</td><td>Der Hubschrauber schwebt 5 Minuten und pingt alle 20 s, flach oder unter der Schicht, bis 12 km.</td></tr>
-<tr><td>Leichttorpedo</td><td>Abwurf auf eine Position; der Torpedo sucht im Kreis (45 kn, 8 km Lauf).</td></tr>
-<tr><td>MAD</td><td>Kleeblattmuster in 50 m Höhe: Die Magnetsonde findet ein getauchtes Boot nur direkt darunter (wenige hundert Meter).</td></tr>
-<tr><td>Seeaufklärer</td><td>Legt eine Bojenkette quer zu einer Peilung. Danach 30 Minuten Bereitschaft.</td></tr>
+<tr><td>Ausdauer</td><td>Etwa 90 Minuten Treibstoff; bei knappem Treibstoff kehrt er von selbst um. An Deck dauern Tanken und Aufmunitionieren 10 Minuten. Je Flug trägt er 12 Bojen und 2 Leichttorpedos aus dem Magazin des Schiffs.</td></tr>
+<tr><td>Tauchsonar</td><td>Schwebt 3 Minuten und pingt alle 20 s (bis 12 km) über und unter der gemessenen Schicht, dann 4 km weiter in Suchrichtung zur nächsten Tauchstelle (voreingestellt drei) oder, nach einem Echo, auf den Kontakt zu.</td></tr>
+<tr><td>Bojenlinie</td><td>4, 5 oder 6 passive Bojen (DIFAR) mit 2,5 km Abstand quer zur Sichtlinie über dem Ziel, abwechselnd über und unter der Schicht. Bojen peilen 30 Minuten lang von ihrem Ort aus und treiben mit der Strömung. Als aktive Bojenlinie (DICASS) pingt jede Boje alle 45 s und liefert Peilung und Entfernung bis etwa 6 km – jedes U-Boot in der Nähe hört sie.</td></tr>
+<tr><td>MAD</td><td>Kleeblattmuster in 50 m Höhe über dem Punkt (6 Minuten): Die Magnetsonde findet ein getauchtes Boot nur direkt darunter (wenige hundert Meter).</td></tr>
+<tr><td>Angriff</td><td>Leichttorpedo auf die letzte gehaltene Position des Kontakts; aus dem Schweben dauert es etwa eine Minute bis zum Abwurf.</td></tr>
+<tr><td>Zurück</td><td>Landet an Deck, tankt und munitioniert auf.</td></tr>
+<tr><td>Radar</td><td>Im Transit sucht der Hubschrauber mit Radar: Ein Schnorchel fällt ihm bis 15 km auf, ein Sehrohr bis 6 km. Jeder Fund geht als Position mit etwa 1 km Fehler an alle Eskorten. Beim Schweben und auf dem MAD-Muster ist sein Radar aus.</td></tr>
+<tr><td>Seefernaufklärer</td><td>Auf Anforderung (Rechtsklick „Seefernaufklärer: Bojensperre hier“): legt eine Kette von 6 Bojen quer zur Peilung, danach 30 Minuten Bereitschaft. Sein Radar findet Schnorchel bis 30 km, Sehrohre bis 9 km.</td></tr>
 </table>
 <h2>Angriff</h2>
 <ol>
-<li>Kontakt mit Entfernung festmachen: Aktivsonar, Kreuzpeilung zweier Schiffe, Boje oder Tauchsonar.</li>
-<li>Rakete auf die Position (Rechtsklick „U-Jagd-Rakete hierher“). Der Leichttorpedo sucht aktiv; Täuschkörper können ihn verbrauchen, Wirbelfelder durchschaut er.</li>
-<li>Nah dran: Wasserbomben überlaufen das Ziel; sie wirken in der eingestellten Tiefe.</li>
-<li>Torpedowarnung: Täuschkörper-Schleppe ausbringen, abdrehen, Fahrt aufnehmen.</li>
+<li>Kontakt mit Entfernung festmachen: Aktivsonar, Kreuzpeilung zweier Schiffe, Boje, Tauchsonar oder Radarfix aus der Luft.</li>
+<li>Rakete auf die Position (Rechtsklick „U-Jagd-Rakete hierher“ oder „Rakete auf Ziel“, Taste <kbd>R</kbd>), von 1,8 bis 18 km. Der Leichttorpedo fällt mit einer Streuung von etwa 150 m um den Zielpunkt ins Wasser und sucht abwechselnd knapp über der gemessenen Schicht und 40 m darunter. Täuschkörper können ihn verbrauchen, Wirbelfelder durchschaut er.</li>
+<li>Torpedorohre: Fregatten haben sechs Rohre mit Leichttorpedos, alle geladen; Nachladen aus dem Magazin dauert 15 Minuten.</li>
+<li>Nah dran (unter der Mindestentfernung der Rakete): Der <b>Wasserbombenwerfer</b> wirft eine Salve von sechs Ladungen 400–800 m voraus auf den eigenen Kurs; sie sinken auf die eingestellte Tiefe (50–200 m). Tödlich im Umkreis von 20 m, Schaden bis 60 m. Die Detonationen hören alle.</li>
+<li>Torpedowarnung: Täuschkörper-Schleppe (Taste <kbd>T</kbd>) ausbringen, abdrehen, Fahrt aufnehmen. Die Schleppe kostet: 12 dB Eigenrauschen im Schleppsonar, 5 dB im Rumpfsonar, und mehr als 25 kn sind mit ihr nicht drin.</li>
 </ol>
 <h2>Minenabwehr</h2>
-<p>Das aktive Rumpfsonar findet verankerte Minen voraus bis etwa 1 km (Grundminen 0,6 km). Das <b>Minenmeidesonar</b> (Sonarstation, „Minenmeiden“)
+<p>Das aktive Rumpfsonar findet verankerte Minen voraus bis etwa 1 km (Grundminen 0,6 km). Das <b>Minenmeidesonar</b> (Sonar, Reiter „VDS/BT“, „Minenmeiden“)
 reicht 1,6 km in ±70° voraus, auch ohne Aktivsonar und kaum weit zu hören – aber nur bis 15 kn. Sein Suchsektor steht im Lagebild.
 Gefundene Minen gehen über den Datalink an alle Geleitschiffe; der Konvoi weicht ihnen mit 400 m Abstand aus.
-Liegt eine ganze Sperre vor dem Konvoi, versetzt <b>„Konvoi umleiten“</b> in der OPZ seinen Kurs um 1,5 oder 3 km zur Seite; „Route“ führt ihn zurück.</p>
+Liegt eine ganze Sperre vor dem Konvoi, versetzt <b>„Konvoi umleiten“</b> (OPZ, Reiter „Verband“) seinen Kurs um 1,5 oder 3 km zur Seite; „Route“ führt ihn zurück.</p>
 <h2>Positionslichter</h2>
 <p>Neutrale Schiffe fahren immer mit Lichtern. Der Konvoi führt sie, um die Kolonnen zu halten, und verdunkelt, sobald eine Bedrohung gemeldet wird
 (Torpedowarnung, Verlust, Sichtung), für 30 ruhige Minuten. Eskorten löschen ihre Lichter zusätzlich, solange sie pingen oder auf Gefechtsstationen sind.
@@ -411,7 +461,7 @@ am deutlichsten bei hohen Linien wie dem 400-Hz-Ton.</li>
       <h3>Fregatte F-12<span class="role">U-Jagd-Fregatte mit Bordhubschrauber</span></h3>
       <img src="img/ffg.png" alt="Fregatte F-12">
       <div class="unit-body">
-        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>4.100 t</td></tr><tr><th>Höchstfahrt</th><td>29 kn</td></tr><tr><th>Wendekreis</th><td>800 m</td></tr><tr><th>Tiefgang</th><td>6 m</td></tr><tr><th>Antrieb</th><td>Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Schleppsonar 1.200 m (bis 14 kn) · Bordhubschrauber · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 6 leichte Torpedos · 8 U-Jagd-Raketen · 12 Wasserbomben · 8 BT-Sonden</td></tr><tr><th>Signatur</th><td>5-Blatt-Schraube · Linien 60 Hz, 120 Hz, 180 Hz, 233 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>4.100 t</td></tr><tr><th>Höchstfahrt</th><td>29 kn</td></tr><tr><th>Wendekreis</th><td>800 m</td></tr><tr><th>Tiefgang</th><td>6 m</td></tr><tr><th>Antrieb</th><td>Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Schleppsonar 1.200 m (bis 14 kn) · Bordhubschrauber · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>6 Rohre · 8 leichte Torpedos · 8 U-Jagd-Raketen · 6 Werfersalven · 8 BT-Sonden</td></tr><tr><th>Signatur</th><td>5-Blatt-Schraube · Linien 60 Hz, 120 Hz, 180 Hz, 233 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
         <div><p>Das Rückgrat der Sicherung: kräftiges Rumpfsonar, langes Schleppsonar und ein Hubschrauber mit Sonarbojen, Tauchsonar, Leichttorpedo und Magnetsonde (MAD). Laut bei hoher Fahrt (Gasturbine).</p><ul><li>Mit 10–12 kn und ausgebrachtem Schleppsonar horchen, nach jedem Kurswechsel 60 s stabilisieren.</li><li>Den Hubschrauber an die Spitze der Peilung schicken; das Tauchsonar unter die Schicht senken.</li><li>Raketen erst mit Entfernung (Aktivsonar, Kreuzpeilung, Boje) einsetzen.</li></ul></div>
       </div>
     </section>
@@ -419,7 +469,7 @@ am deutlichsten bei hohen Linien wie dem 400-Hz-Ton.</li>
       <h3>Fregatte F-30 (VDS)<span class="role">U-Jagd-Fregatte mit Tiefensonar (VDS)</span></h3>
       <img src="img/ffv.png" alt="Fregatte F-30 (VDS)">
       <div class="unit-body">
-        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>2.900 t</td></tr><tr><th>Höchstfahrt</th><td>28 kn</td></tr><tr><th>Wendekreis</th><td>840 m</td></tr><tr><th>Tiefgang</th><td>6 m</td></tr><tr><th>Antrieb</th><td>Dampfturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 16 dB, aktiv) · Schleppsonar 1.200 m (bis 14 kn) · Tiefensonar bis 250 m (bis 18 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 8 leichte Torpedos · 8 U-Jagd-Raketen · 8 Wasserbomben · 8 BT-Sonden</td></tr><tr><th>Signatur</th><td>3-Blatt-Schraube · Linien 60 Hz, 190 Hz, 285 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>2.900 t</td></tr><tr><th>Höchstfahrt</th><td>28 kn</td></tr><tr><th>Wendekreis</th><td>840 m</td></tr><tr><th>Tiefgang</th><td>6 m</td></tr><tr><th>Antrieb</th><td>Dampfturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 16 dB, aktiv) · Schleppsonar 1.200 m (bis 14 kn) · Tiefensonar bis 250 m (bis 18 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>6 Rohre · 10 leichte Torpedos · 8 U-Jagd-Raketen · 6 Werfersalven · 8 BT-Sonden</td></tr><tr><th>Signatur</th><td>3-Blatt-Schraube · Linien 60 Hz, 190 Hz, 285 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
         <div><p>Dampfturbinen-Fregatte älterer Bauart mit einem Sonarkörper, der an einem Kabel unter die Sprungschicht gefiert wird. Damit hört und pingt sie dort, wo sich U-Boote verstecken. Kein Hubschrauber.</p><ul><li>Im Sonarraum „VDS absenken“: der Körper geht 40 m unter die gemessene Schicht (vorher BT werfen).</li><li>Über 18 kn wird der VDS automatisch eingeholt.</li><li>Der VDS schließt den blinden Fleck unter dem eigenen Rumpf.</li></ul></div>
       </div>
     </section>
@@ -427,8 +477,8 @@ am deutlichsten bei hohen Linien wie dem 400-Hz-Ton.</li>
       <h3>Korvette K-7<span class="role">Geleitkorvette</span></h3>
       <img src="img/kor.png" alt="Korvette K-7">
       <div class="unit-body">
-        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>1.000 t</td></tr><tr><th>Höchstfahrt</th><td>30 kn</td></tr><tr><th>Wendekreis</th><td>600 m</td></tr><tr><th>Tiefgang</th><td>4 m</td></tr><tr><th>Antrieb</th><td>Diesel, Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 14 dB, aktiv) · Schleppsonar 600 m (bis 14 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 4 leichte Torpedos · 4 U-Jagd-Raketen · 16 Wasserbomben · 6 BT-Sonden</td></tr><tr><th>Signatur</th><td>4-Blatt-Schraube · Linien 75 Hz, 150 Hz, 225 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
-        <div><p>Klein, wendig und leise, aber mit kurzem Schleppsonar, schwächerem Rumpfsonar und ohne Hubschrauber. Ideal als Flankensicherung und für die schnelle Verfolgung eines Kontakts.</p><ul><li>Flanke des Konvois sichern, Kontakte an die Fregatte melden.</li><li>Wasserbomben auf kurze Entfernung, Torpedorohre für den Gegenangriff.</li></ul></div>
+        <table class="data"><tr><th>Seite</th><td>Westbund</td></tr><tr><th>Verdrängung</th><td>1.000 t</td></tr><tr><th>Höchstfahrt</th><td>30 kn</td></tr><tr><th>Wendekreis</th><td>600 m</td></tr><tr><th>Tiefgang</th><td>4 m</td></tr><tr><th>Antrieb</th><td>Diesel, Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 14 dB, aktiv) · Schleppsonar 600 m (bis 14 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 4 leichte Torpedos · 4 U-Jagd-Raketen · 8 Werfersalven · 6 BT-Sonden</td></tr><tr><th>Signatur</th><td>4-Blatt-Schraube · Linien 75 Hz, 150 Hz, 225 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <div><p>Klein, wendig und leise, aber mit kurzem Schleppsonar, schwächerem Rumpfsonar und ohne Hubschrauber. Ideal als Flankensicherung und für die schnelle Verfolgung eines Kontakts.</p><ul><li>Flanke des Konvois sichern, Kontakte an die Fregatte melden.</li><li>Wasserbombenwerfer auf kurze Entfernung (400–800 m voraus), Torpedorohre für den Gegenangriff.</li></ul></div>
       </div>
     </section>
 <section class="unit">
@@ -443,7 +493,7 @@ am deutlichsten bei hohen Linien wie dem 400-Hz-Ton.</li>
       <h3>Wachschiff Projekt 11<span class="role">Wachschiff im Rudel (gemischter Platz)</span></h3>
       <img src="img/ffk.png" alt="Wachschiff Projekt 11">
       <div class="unit-body">
-        <table class="data"><tr><th>Seite</th><td>Ostpakt</td></tr><tr><th>Verdrängung</th><td>3.500 t</td></tr><tr><th>Höchstfahrt</th><td>32 kn</td></tr><tr><th>Wendekreis</th><td>860 m</td></tr><tr><th>Tiefgang</th><td>5 m</td></tr><tr><th>Antrieb</th><td>Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Tiefensonar bis 150 m (bis 18 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>2 Rohre · 8 leichte Torpedos · 8 U-Jagd-Raketen · 12 Wasserbomben · 6 BT-Sonden</td></tr><tr><th>Signatur</th><td>4-Blatt-Schraube · Linien 50 Hz, 100 Hz, 300 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
+        <table class="data"><tr><th>Seite</th><td>Ostpakt</td></tr><tr><th>Verdrängung</th><td>3.500 t</td></tr><tr><th>Höchstfahrt</th><td>32 kn</td></tr><tr><th>Wendekreis</th><td>860 m</td></tr><tr><th>Tiefgang</th><td>5 m</td></tr><tr><th>Antrieb</th><td>Gasturbine</td></tr><tr><th>Ausdauer</th><td>unbegrenzt</td></tr><tr><th>Sensoren</th><td>Rumpfsonar (Bündelung 15 dB, aktiv) · Tiefensonar bis 150 m (bis 18 kn) · Radar, Funkpeilung, Ausguck</td></tr><tr><th>Bewaffnung</th><td>6 Rohre · 10 leichte Torpedos · 8 U-Jagd-Raketen · 6 Werfersalven · 6 BT-Sonden</td></tr><tr><th>Signatur</th><td>4-Blatt-Schraube · Linien 50 Hz, 100 Hz, 300 Hz</td></tr><tr><th>Klasse im Sonar</th><td>Kriegsschiff</td></tr></table>
         <div><p>Schnelles U-Jagd-Schiff mit Tiefensonar und Raketen, ohne Hubschrauber, laut (Gasturbinen). Es läuft dem Rudel voraus, bindet die Eskorte und jagt deren U-Boot. Dazu trägt es acht Seezielflugkörper (6–40 km): Sie fliegen dicht über dem Wasser, der Suchkopf öffnet 9 km vor dem Zielpunkt und nimmt das größte Echo im Kegel, auch ein neutrales Schiff. Eskorten mit Radar wehren mit Flugabwehrraketen ab, aus der Nähe mit den Geschützen. Höchstens eines pro Team; um die eigenen Boote gilt das Sperrgebiet.</p><ul><li>Laut und auffällig sein lohnt sich: Jede Eskorte, die dich jagt, fehlt am Konvoi.</li><li>Das Tiefensonar unter die Schicht senken und das Jagd-U-Boot des Westbunds suchen.</li><li>Die eigenen Boote sind still und meist unbekannt: Erst schießen, wenn der Kontakt sicher feindlich ist.</li><li>Flugkörper kurz mit Radar zielen und dann abschalten: Der Start und das Radar verraten das Schiff. Mehrere Runden kurz nacheinander überlasten die Abwehr.</li></ul></div>
       </div>
     </section>
@@ -537,7 +587,7 @@ am deutlichsten bei hohen Linien wie dem 400-Hz-Ton.</li>
     </section>
 <h2>Luftfahrzeuge</h2>
 <p>Über dem Einsatzgebiet ist Betrieb: eigene Hubschrauber und Seeaufklärer, der Fernaufklärer des Ostpakts und ziviler Luftverkehr. Auf Karte und Radar tragen Flugzeuge das Luftsymbol (obere Hälfte des Rahmens) mit Höhe.</p>
-<table class="grid"><tr><th></th><th>Typ</th><th>Seite</th><th>Höhe</th><th>kn</th><th>Rolle und Erkennung</th></tr><tr><td style="width:34mm"><img src="img/air-helo.png" alt="" style="width:32mm"></td><td><b>Bordhubschrauber</b></td><td>Westbund (F-12)</td><td>25–120 m</td><td>120</td><td>Wirft Sonarbojen und Leichttorpedos, taucht sein Sonar, fliegt das MAD-Kleeblatt. Ohne eigenes Radar; dem U-Boot verrät er sich durch Rotorlärm und im Sehrohr.</td></tr><tr><td style="width:34mm"><img src="img/air-mpa.png" alt="" style="width:32mm"></td><td><b>Seeaufklärer</b></td><td>Westbund (auf Anforderung)</td><td>300 m (MAD 60 m)</td><td>300</td><td>Vier Turboprops, Magnetsonde im Heck. Legt Bojenketten; sein Suchradar ist eingeschaltet und für jedes U-Boot mit ausgefahrenem Mast auf große Entfernung im ESM zu hören.</td></tr><tr><td style="width:34mm"><img src="img/air-recon.png" alt="" style="width:32mm"></td><td><b>Fernaufklärer</b></td><td>Ostpakt</td><td>1500 m, über dem Konvoi 300 m</td><td>330</td><td>Kommt etwa alle 40–60 Minuten, sucht mit eingeschaltetem Radar, kreist fünf Minuten tief über dem Konvoi und meldet Position, Kurs und Fahrt über die Führung an die U-Boote. Die Eskorte sieht ihn im Radar und hört sein Radar im ESM – abschießen kann sie ihn nicht.</td></tr><tr><td style="width:34mm"><img src="img/air-airliner.png" alt="" style="width:32mm"></td><td><b>Verkehrsflugzeug</b></td><td>Neutral</td><td>9–11,5 km</td><td>440–480</td><td>Kreuzt auf Luftstraßen. Bei Tag am Kondensstreifen bis 45 km zu sehen, nachts an den Lichtern; im Luftraumradar weit über den Horizont hinaus.</td></tr><tr><td style="width:34mm"><img src="img/air-light.png" alt="" style="width:32mm"></td><td><b>Kleinflugzeug</b></td><td>Neutral</td><td>500–1100 m</td><td>110</td><td>Hochdecker im Küstenverkehr, vor allem über Schelf und Fjord. Klein und nur auf wenige Kilometer zu sehen.</td></tr></table>
+<table class="grid"><tr><th></th><th>Typ</th><th>Seite</th><th>Höhe</th><th>kn</th><th>Rolle und Erkennung</th></tr><tr><td style="width:34mm"><img src="img/air-helo.png" alt="" style="width:32mm"></td><td><b>Bordhubschrauber</b></td><td>Westbund (F-12)</td><td>25–120 m</td><td>120</td><td>Wirft Sonarbojen und Leichttorpedos, taucht sein Sonar, fliegt das MAD-Kleeblatt. Im Transit sucht er mit Radar (Schnorchel bis 15 km, Sehrohr bis 6 km), beim Schweben ist es aus; dem U-Boot verrät er sich durch Rotorlärm, sein Radar und im Sehrohr.</td></tr><tr><td style="width:34mm"><img src="img/air-mpa.png" alt="" style="width:32mm"></td><td><b>Seeaufklärer</b></td><td>Westbund (auf Anforderung)</td><td>300 m (MAD 60 m)</td><td>300</td><td>Vier Turboprops, Magnetsonde im Heck. Legt Bojenketten; sein Suchradar ist eingeschaltet und für jedes U-Boot mit ausgefahrenem Mast auf große Entfernung im ESM zu hören.</td></tr><tr><td style="width:34mm"><img src="img/air-recon.png" alt="" style="width:32mm"></td><td><b>Fernaufklärer</b></td><td>Ostpakt</td><td>1500 m, über dem Konvoi 300 m</td><td>330</td><td>Kommt etwa alle 40–60 Minuten, sucht mit eingeschaltetem Radar, kreist fünf Minuten tief über dem Konvoi und meldet Position, Kurs und Fahrt über die Führung an die U-Boote. Die Eskorte sieht ihn im Radar und hört sein Radar im ESM – abschießen kann sie ihn nicht.</td></tr><tr><td style="width:34mm"><img src="img/air-airliner.png" alt="" style="width:32mm"></td><td><b>Verkehrsflugzeug</b></td><td>Neutral</td><td>9–11,5 km</td><td>440–480</td><td>Kreuzt auf Luftstraßen. Bei Tag am Kondensstreifen bis 45 km zu sehen, nachts an den Lichtern; im Luftraumradar weit über den Horizont hinaus.</td></tr><tr><td style="width:34mm"><img src="img/air-light.png" alt="" style="width:32mm"></td><td><b>Kleinflugzeug</b></td><td>Neutral</td><td>500–1100 m</td><td>110</td><td>Hochdecker im Küstenverkehr, vor allem über Schelf und Fjord. Klein und nur auf wenige Kilometer zu sehen.</td></tr></table>
   <table class="grid"><tr><th>Sensor</th><th>Was er von Flugzeugen liefert</th></tr>
   <tr><td>Luft-/Seeraumradar</td><td>Position, Höhe, Kurs und Fahrt bis zum Radarhorizont, der mit der Flughöhe wächst (Verkehrsflugzeuge weit über 100 km). Bereich 48 SM im Radarraum.</td></tr>
   <tr><td>Ausguck / Sehrohr</td><td>Bei Tag nach Größe (Verkehrsflugzeug am Kondensstreifen), nachts nur an den Lichtern. Auf der Brücke schwenkt „Luft“ auf jedes sichtbare Flugzeug und folgt ihm mit dem Höhenwinkel.</td></tr>
@@ -571,13 +621,15 @@ ein Pottwal in 400 m Tiefe sieht im Wasserfall aus wie ein tief fahrendes U-Boot
 <tr><td><b>Fjordausfahrt</b></td><td>Enger Kanal zwischen Untiefen; wer ihn verlässt, läuft auf.</td><td>Der Konvoi ist berechenbar – die U-Boote auch: Die Rinne zwingt beide auf wenige Wege.</td></tr>
 <tr><td><b>Hafenangriff</b></td><td>Frachter ankern in einer Bucht, die Eskorte bewacht die Einfahrt.</td><td>Langsam an der Einfahrt horchen; Schüsse auf ankernde Ziele brauchen keine TMA.</td></tr>
 <tr><td><b>U-Boot-Duell</b></td><td>U-Boote gegen U-Boote, kein Konvoi.</td><td>Wer zuerst hört, gewinnt: sehr langsam, Schleppsonar, aktive Torpedos.</td></tr>
-<tr><td><b>Fühlung halten</b></td><td>Waffen gesperrt: 25 Minuten Kontakt zum Konvoi aus höchstens 12 km.</td><td>Die Eskorte muss das Boot abdrängen, nicht versenken.</td></tr>
+<tr><td><b>Fühlung halten</b></td><td>Waffen gesperrt: 25 Minuten Kontakt zum Konvoi aus höchstens 12 km (in einer kurzen Partie höchstens die Hälfte der Seezeit).</td><td>Die Eskorte muss das Boot abdrängen, nicht versenken.</td></tr>
 <tr><td><b>Meerengen-Durchbruch</b></td><td>Die U-Boote müssen durch eine bewachte Enge (Gibraltar: nach Osten ins Mittelmeer).</td><td>Tief und langsam durch das tiefste Wasser; die Eskorte legt Bojensperren.</td></tr>
 <tr><td><b>Aufklärung</b></td><td>Ein Geleitschiff im Sehrohr erkennen und per Funk melden.</td><td>Ein kurzer Blick auf unter 4 km, dann senden – und sofort weg.</td></tr>
 <tr><td><b>Eigene Mission</b></td><td>Konvoigröße, Fahrt, Meeresboden und Abstand frei wählbar.</td><td>Zum Üben einzelner Lagen.</td></tr>
 </table>
 <h2>Einstellungen der Partie</h2>
 <table class="grid">
+<tr><td>Einsatzdauer</td><td>20, 30, 40 oder 60 echte Minuten (voreingestellt 40). Die Aufstellung richtet sich nach der Seezeit.</td></tr>
+<tr><td>Zeitraffer</td><td>Unter „Erweitert“: Echtzeit, 2× oder 3×. Die echte Dauer bleibt, auf See vergeht mehr Zeit und der Konvoi kommt weiter.</td></tr>
 <tr><td>Tageszeit</td><td>Tag, Dämmerung oder Nacht; die Uhr läuft mit. Nachts sieht man nur beleuchtete Schiffe und Mündungsfeuer weit.</td></tr>
 <tr><td>Seegang</td><td>Mehr Seegang heißt mehr Störpegel, mehr Seegangsechos im Radar und schwerere Sicht im Sehrohr.</td></tr>
 <tr><td>Sprungschicht</td><td>Tiefe und Stärke der Schicht; im Flachwasser schwächer.</td></tr>
@@ -605,14 +657,23 @@ und werden ersetzt, wenn sie das Gebiet verlassen. Sie sind laut, verdecken leis
 <h2>Strömung</h2>
 <p>Eine Meeresströmung versetzt alle Bojen. Eine Boje, die vor 20 Minuten gesetzt wurde, liegt nicht mehr dort, wo sie abgeworfen wurde – die Karte zeigt ihre aktuelle Position.</p>
 <h2>Schäden</h2>
-<p>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Im Reiter „Schaden“ legt ein Klick die Reparatur-Priorität fest.
-Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
+<p>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch und Brände. Der Reiter <b>SCHADEN</b> (die Schadensabwehr) zeigt oben eine
+Schnittzeichnung des eigenen Schiffs aus dem 3D-Modell, über und unter der Wasserlinie, mit den Abteilungen genau im Rumpf eingefärbt: Wasser, Brand,
+Schaden und Schotten. Schlagseite, Trimm und Absinken folgen dem Wasser im Schiff. Darunter:</p>
+<table class="grid">
+<tr><td>Statuszeile</td><td>Schlagseite, Trimm, Wasser im Schiff in Prozent der Reserve (ab 100 % sinkt es) und brennende Abteilungen.</td></tr>
+<tr><td>Abteilungen</td><td>Eine Zeile je Abteilung mit Wasser, Brand, Leck und Schaden; die Kennbuchstaben sagen, was darin sitzt (A Antrieb, S Sonar, W Waffen, B Batterie, M Magazin). Ein Klick wählt die Abteilung.</td></tr>
+<tr><td>Befehle</td><td>Für die gewählte Abteilung: <b>Trupp hierher</b> (Lecks dichten, lenzen, Brand löschen, reparieren) oder <b>Abschotten</b> (hält das Wasser auf, sperrt aber auch den Trupp aus; „Schott öffnen“ lässt ihn wieder hinein).</td></tr>
+<tr><td>Systeme</td><td>Balken für Antrieb (Höchstfahrt sinkt), Sonar (Eigenlärm steigt), Waffen (Nachladen dauert länger, ab 90 % Ausfall) und Wasser; ein Klick legt fest, was zuerst repariert wird.</td></tr>
+</table>
+<p>Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
 
 <h1 id="k11">11 · Taktik</h1>
 <div class="cols2">
 <div class="box"><h4>Für U-Boote</h4><ol>
 <li>Vor den Konvoi setzen, nicht hinterherlaufen: Er kommt zu dir.</li>
-<li>Unter 6 kn bleiben, solange nicht geschossen wird. Kavitation verrät dich auf viele Kilometer.</li>
+<li>Unter 6 kn bleiben, solange nicht geschossen wird. Kavitation verrät dich auf viele Kilometer, und schnelle Fahrt leert die Batterie.</li>
+<li>Sehrohr und Schnorchel kurz halten: Jedes Radar hat bei jeder Antennenumdrehung eine neue Chance, den Mast zu sehen.</li>
 <li>Die Sprungschicht ist dein Mantel. Horchen darüber, verstecken darunter.</li>
 <li>Funken nur, wenn es sich lohnt: Jede Meldung ist eine Funkpeilung für die Eskorte.</li>
 <li>Nach dem Schuss sofort weg: Transienten haben dich verraten.</li>
@@ -621,9 +682,9 @@ Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
 </ol></div>
 <div class="box"><h4>Für die Eskorte</h4><ol>
 <li>Zuerst die Schicht messen (BT), dann das Schleppsonar auf die passende Länge.</li>
-<li>Passiv suchen, aktiv bestätigen. Wer ständig pingt, warnt jedes U-Boot.</li>
+<li>Passiv suchen, aktiv bestätigen: ein Einzelping im passenden Bereich statt Dauerpingen. Wer ständig pingt, warnt jedes U-Boot.</li>
 <li>Kreuzpeilungen mit dem zweiten Schiff liefern Entfernungen ohne Ping.</li>
-<li>Funkpeilungen sofort mit Hubschrauber oder Bojen nachgehen.</li>
+<li>Funkpeilungen und Radarfixe aus der Luft sofort mit Hubschrauber oder Bojen nachgehen.</li>
 <li>Im Flachwasser: LFM-Puls, aktive Bojen, VDS. Der Nachhall frisst CW-Echos.</li>
 <li>Unter dem eigenen Kiel bist du blind – ein Boot, das nah und tief steht, braucht Hubschrauber oder VDS.</li>
 <li>Den Konvoi bei Gefahr abdrehen und verdunkeln lassen.</li>
@@ -631,8 +692,8 @@ Verwundete senken die Leistung, Sanitäter versorgen sie.</p>
 </div>
 
 <h1 id="k12">12 · Tastatur und Glossar</h1>
-<p>Die Maus ist das Hauptwerkzeug; die Tasten sind Abkürzungen und lassen sich in der Hilfe (H) frei belegen.</p>
-<table class="grid keys"><tr><td><kbd>1 … 5</kbd></td><td>Stationen</td></tr><tr><td><kbd>← →</kbd></td><td>Kurs 5° (mit ⇧ 1°)</td></tr><tr><td><kbd>↑ ↓</kbd></td><td>Fahrt ± 1 kn</td></tr><tr><td><kbd>Bild ↑ / Bild ↓</kbd></td><td>Tiefe ∓ 10 m</td></tr><tr><td><kbd>A / D</kbd></td><td>Sehrohr drehen</td></tr><tr><td><kbd>V (halten)</kbd></td><td>Sprechfunk senden</td></tr><tr><td><kbd>H</kbd></td><td>Hilfe</td></tr><tr><td><kbd>M</kbd></td><td>Ton an/aus</td></tr><tr><td><kbd>Esc</kbd></td><td>Menüs und Fenster schließen</td></tr></table>
+<p>Die Maus ist das Hauptwerkzeug; die Tasten sind Abkürzungen und lassen sich in der Hilfe (H) frei belegen. Die Notfall-Tasten wirken auf jeder Station und stehen als Tastenkappe auf dem Knopf, den sie drücken; Feuer und Rakete gehen dabei über den Sicherheitsknopf ihrer Station.</p>
+<table class="grid keys"><tr><td><kbd>1 … 4 / 1 … 5</kbd></td><td>Stationen (U-Boot 1–4, Fregatte 1–5)</td></tr><tr><td><kbd>← →</kbd></td><td>Kurs 5° (mit ⇧ 1°)</td></tr><tr><td><kbd>↑ ↓</kbd></td><td>Fahrt ± 1 kn</td></tr><tr><td><kbd>Bild ↑ / Bild ↓</kbd></td><td>Tiefe ∓ 10 m</td></tr><tr><td><kbd>A / D · W / S</kbd></td><td>Sehrohr bzw. Fernglas drehen · heben und senken</td></tr><tr><td><kbd>E · G</kbd></td><td>Vergrößerung wechseln · Stabilisierung</td></tr><tr><td><kbd>T</kbd></td><td>Notfall: Täuschkörper (U-Boot) bzw. Täuschkörper-Schleppe (Fregatte)</td></tr><tr><td><kbd>X</kbd></td><td>Notfall U-Boot: Alarmtauchen</td></tr><tr><td><kbd>Q</kbd></td><td>Notfall U-Boot: Mast einfahren</td></tr><tr><td><kbd>F</kbd></td><td>Notfall U-Boot: Feuer (zur Feuerleitung)</td></tr><tr><td><kbd>P</kbd></td><td>Notfall Fregatte: Einzelping</td></tr><tr><td><kbd>R</kbd></td><td>Notfall Fregatte: U-Jagd-Rakete (zu den Waffen)</td></tr><tr><td><kbd>V (halten)</kbd></td><td>Sprechfunk senden</td></tr><tr><td><kbd>H</kbd></td><td>Hilfe</td></tr><tr><td><kbd>M</kbd></td><td>Ton an/aus</td></tr><tr><td><kbd>Esc</kbd></td><td>Menüs und Fenster schließen</td></tr></table>
 <h2>Glossar</h2>
 <table class="grid gloss"><tr><td><b>AIP</b></td><td>Außenluftunabhängiger Antrieb: lässt ein konventionelles U-Boot langsam ohne Batterieverbrauch fahren.</td></tr><tr><td><b>BT</b></td><td>Bathythermograph: Sonde, die das Temperaturprofil und damit die Sprungschicht misst.</td></tr><tr><td><b>CW / LFM</b></td><td>Pulsarten des Aktivsonars: Dauerton (misst Doppler) und frequenzmodulierter Puls (genau, gut im Nachhall).</td></tr><tr><td><b>DEMON</b></td><td>Analyse der Modulation des Schraubengeräuschs: ergibt Wellen- und Blattfrequenz.</td></tr><tr><td><b>DICASS</b></td><td>Aktive Sonarboje, die selbst pingt.</td></tr><tr><td><b>DIFAR</b></td><td>Passive Richtungsboje: liefert Peilungen von ihrem Ort aus.</td></tr><tr><td><b>ESM</b></td><td>Funk- und Radarpeilung: hört gegnerische Sender.</td></tr><tr><td><b>Kavitation</b></td><td>Dampfblasen an der Schraube bei hoher Fahrt: plötzlich sehr laut; setzt in der Tiefe später ein.</td></tr><tr><td><b>Knuckle</b></td><td>Wirbelfeld nach einer harten Wende bei Fahrt: schluckt Schall und lenkt Suchköpfe kurz ab.</td></tr><tr><td><b>Konvergenzzone</b></td><td>Bereich in etwa 55 km Entfernung, in dem Schall in tiefem Wasser wieder an die Oberfläche kommt.</td></tr><tr><td><b>LOFAR</b></td><td>Schmalband-Spektrum: zeigt Linien von Maschinen, Generatoren und Getrieben.</td></tr><tr><td><b>MAD</b></td><td>Magnetanomalie-Detektor: findet ein getauchtes Boot nur direkt darunter.</td></tr><tr><td><b>Schenkel</b></td><td>Ein gerades Stück eigener Kurs während der TMA.</td></tr><tr><td><b>SE</b></td><td>Signalüberschuss: über 0 dB ist ein Kontakt da.</td></tr><tr><td><b>Sprechtaste</b></td><td>Taste zum Senden im Sprechfunk; nur solange sie gedrückt ist, geht die Stimme hinaus.</td></tr><tr><td><b>TMA</b></td><td>Zielbewegungsanalyse: Kurs, Fahrt und Entfernung aus einer Folge von Peilungen.</td></tr><tr><td><b>Toter Winkel</b></td><td>Sektor achtern, in dem das Rumpfsonar die eigene Schraube hört.</td></tr><tr><td><b>VDS</b></td><td>Tiefensonar an einem Kabel: hört unter der Sprungschicht.</td></tr><tr><td><b>VLF</b></td><td>Längstwellenfunk der Führung, bis etwa 25 m Tiefe zu empfangen.</td></tr></table>
 
