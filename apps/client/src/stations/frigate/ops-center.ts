@@ -46,7 +46,7 @@ export function opsCenterStation(): Station {
       </div>
     </div>
     <div class="st-col">
-      <div class="panel grow tabbed" id="tabs">
+      <div class="panel grow tabbed" id="st-tabs">
         <div class="hd">${tabRow([['list', 'Kontakte', 'Kontakte (eigen + Datalink)'], ['group', 'Verband', 'Verband und Konvoi'], ['helo', 'Hubschrauber', 'Bordhubschrauber und Seefernaufklärer']])}<span id="tab-st" class="dim"></span></div>
         <div class="pane scroll" data-pane="list"><div id="list"></div></div>
         <div class="pane scroll" data-pane="group" id="group-slot"></div>
@@ -64,7 +64,7 @@ export function opsCenterStation(): Station {
   const helo = mountHeloPanel(q('#helo-slot'));
   // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
   let redraw = () => {};
-  const tabs = panelTabs(q('#tabs'), 'opz', () => redraw());
+  const tabs = panelTabs(q('#st-tabs'), 'opz', () => redraw());
 
   const station: Station = {
     id: 'opz',

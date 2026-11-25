@@ -50,7 +50,7 @@ export function subSonarStation(): Station {
     </div>
     <div class="st-col scroll">
       <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
-      <div class="panel grow tabbed" id="tabs">
+      <div class="panel grow tabbed" id="st-tabs">
         <div class="hd">${tabRow([['list', 'Kontakte'], ['threat', 'Bedrohung', 'Wer pingt uns, Ausweichvorschlag, Hörreichweite'], ['active', 'Aktiv', 'Einzelping: Entfernung, verrät aber das Boot']])}<span id="tab-st" class="dim"></span></div>
         <div class="pane" data-pane="list"><div id="list"></div></div>
         <div class="pane" data-pane="threat"><div id="threat-slot"></div><div id="range-slot"></div></div>
@@ -73,7 +73,7 @@ export function subSonarStation(): Station {
   q('#as-slot').replaceWith(scope.el);
   // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
   let redraw = () => {};
-  const tabs = panelTabs(q('#tabs'), 'horch', () => redraw());
+  const tabs = panelTabs(q('#st-tabs'), 'horch', () => redraw());
 
   wfCanvas.style.cursor = 'pointer';
   wfCanvas.onmousedown = (e) => {
