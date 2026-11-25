@@ -5,7 +5,6 @@ import {
   PERISCOPE_DEPTH,
   depthAt,
   distance,
-  fireTorpedo,
   interceptHeading,
   targetPosAt,
   transmit,
@@ -20,7 +19,14 @@ import {
   trueDeg3,
   KN,
   MAST_MAX_KN,
+  LAUNCH_DEPTH_FRAC,
+  defaultSpreadDeg,
+  fireSalvo,
+  launchBlock,
+  planesFor,
+  type ContactTrack,
 } from '@tk/shared';
+import { HARBOUR_ANCHORAGE } from '../scenario.js';
 import { considerMine } from './mines.js';
 import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 
@@ -35,6 +41,25 @@ export interface PackReport {
 const LEG_S = 180;
 const SHOT_COOLDOWN = 150;
 const REPORT_EVERY = 900;
+/** A periscope look: this long with the mast up (s), and at most this long to come up for it. */
+export const PEEK_LOOK_S = 10;
+const PEEK_MAX_S = 120;
+/** After a radar warning (aircraft radar, ship radar closing) no mast or snorkel for this long (s). */
+export const RADAR_DOWN_S = 600;
+/** Battery (share of capacity): snorkel below the first, until the second; no sprints below the reserve. */
+export const SNORKEL_START = 0.3;
+const SNORKEL_STOP = 0.7;
+export const SPRINT_RESERVE = 0.4;
+
+/**
+ * Radar warner on the raised mast: an aircraft radar at any strength, or a ship radar whose
+ * strength is rising (closing). Own side and neutral traffic don't count.
+ */
+export function radarWarning(w: World, s: Ship, m: BotMemory, tracks: ContactTrack[]): boolean {
+  if (!mastRaised(s)) return false;
+  if (planesFor(w, s).some((p) => p.via.includes('esm') && p.side === 'hostile')) return true;
+  return tracks.some((t) => t.sensors.includes('esm') && w.time - t.lastSeen < 15 && t.esmTrend === 1 && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m));
+}
 
 /**
  * Submarine captain: listens above the layer, hides below it when hunted, runs
@@ -68,6 +93,12 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Any ping heard (even faint) means rig for silent running for five minutes
   if (tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 30)) m.silentUntil = now + 300;
   crewOf(s).silent = now < (m.silentUntil ?? 0);
+  // Radar warner: mast and snorkel down, below the layer, and stay down for a while
+  if (radarWarning(w, s, m, tracks)) {
+    if (now >= (m.radarDownUntil ?? 0)) m.peekUntil = 0;
+    m.radarDownUntil = now + RADAR_DOWN_S;
+  }
+  const radarDown = now < (m.radarDownUntil ?? 0);
   // A merchant nearby whose noise masks ours: with escorts close, creep in under it
   const cover = !w.ships.some(isConvoyShip) ? undefined
     : fresh.filter((t) => voted(m, t) === 'merchant' && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m) && t.se > 10).sort((a, b) => b.se - a.se)[0];
@@ -105,21 +136,30 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Depth: listen above the layer, hide below it (or deep) when hunted, peek at periscope depth
   const layer = s.btLayer;
   const hide = Math.min(maxSafe, layer !== undefined ? layer + 40 : 150);
+  // A periscope look is short: ten seconds with the mast up, then down again
+  if (m.peekUp !== undefined && now - m.peekUp >= PEEK_LOOK_S) m.peekUntil = 0;
+  if (radarDown) m.peekUntil = 0;
   const peeking = now < m.peekUntil;
+  if (!peeking) m.peekUp = undefined;
   // Learned: against escorts that ping a lot, stay under the layer even when it's quiet
   const quietDepth = w.env.adapt?.east?.ping && layer !== undefined ? Math.min(layer + 30, maxSafe) : Math.min(60, maxSafe);
-  s.order.depth = peeking ? PERISCOPE_DEPTH : threatNear ? hide : quietDepth;
-  s.mastUp = peeking && s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN;
+  s.order.depth = peeking ? PERISCOPE_DEPTH : threatNear || radarDown ? hide : quietDepth;
+  // Mast and periscope only below 10 kn
+  const mastOk = s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN;
+  s.mastUp = peeking && mastOk;
+  if (s.mastUp) m.peekUp ??= now;
   s.snorkel = false;
 
-  // Diesel boats recharge when it's quiet
+  // Diesel boats recharge when it's quiet: snorkel with the mast up (the radar warner listens)
   const cap = CLASSES[s.cls].battery?.capacityKnH;
-  if (cap && s.battery !== undefined) {
-    if (s.battery < cap * 0.25 && !threatNear) m.snorkelUntil = now + 1800;
-    if (now < m.snorkelUntil && !threatNear && s.battery < cap * 0.6) {
+  const charge = cap && s.battery !== undefined ? s.battery / cap : 1;
+  if (cap && s.battery !== undefined && !CLASSES[s.cls].aipKn) {
+    if (charge < SNORKEL_START && !threatNear && !radarDown) m.snorkelUntil = now + 3600;
+    if (now < m.snorkelUntil && !threatNear && !radarDown && charge < SNORKEL_STOP) {
       s.order.depth = PERISCOPE_DEPTH;
       s.snorkel = true;
       s.order.speedKn = 6;
+      s.mastUp = mastOk;
       return;
     }
     m.snorkelUntil = 0;
@@ -146,7 +186,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
       } else s.order.heading = wrap360((s.team === 'east' ? 180 : 0) + 35 * m.legSign);
     }
     const sprinting = now < m.sprintUntil;
-    if (!sprinting && now > m.sprintUntil + 180) m.sprintUntil = now + 240;
+    // Sprints only with the battery above the reserve (kept for evading)
+    if (!sprinting && now > m.sprintUntil + 180 && charge > SPRINT_RESERVE) m.sprintUntil = now + 240;
     s.order.speedKn = sprinting && !threatNear ? (CLASSES[s.cls].submarine && cap ? 8 : 12) : 3;
     if (sprinting && !threatNear) s.order.depth = hide;
     if (threatNear && cover) {
@@ -186,30 +227,35 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
       pack.push({ t: now, x: s.pos.x, y: s.pos.y, b: target.bearing, team: s.team });
       m.lastReport = now;
       m.peekUntil = 0;
-    } else if (!peeking) m.peekUntil = now + 90;
+    } else if (!peeking && !radarDown) m.peekUntil = now + PEEK_MAX_S;
   }
   // No range yet and no good TMA: a quick periscope look (surface targets only)
-  if (range === undefined && !threatNear && target.se > 6 && now > m.peekAgain) {
-    m.peekUntil = now + 60;
+  if (range === undefined && !threatNear && !radarDown && target.se > 6 && now > m.peekAgain) {
+    m.peekUntil = now + PEEK_MAX_S;
     m.peekAgain = now + 420 * tr.peek;
   }
+  // Coming up for a look: slow enough for the mast
+  if (now < m.peekUntil) s.order.speedKn = Math.min(s.order.speedKn, MAST_MAX_KN - 4);
+  // Launch envelope: within reach of a shot, no deeper than the tubes fire (0.8 × test depth)
+  const launchDeep = Math.floor(CLASSES[s.cls].maxDepth * LAUNCH_DEPTH_FRAC) - 5;
+  if (range !== undefined && range < 10_000) s.order.depth = Math.min(s.order.depth, launchDeep);
 
   // A guarding boat holds fire while its own convoy or neutral traffic is near the target: the seeker would take them
   const rad = (target.bearing * Math.PI) / 180;
   const aimAt = range !== undefined ? { x: s.pos.x + Math.sin(rad) * range, y: s.pos.y + Math.cos(rad) * range } : undefined;
   const fouled = guard && !!aimAt && w.ships.some((x) => x.alive && x.id !== s.id && (x.team === s.team || x.team === 'neutral') && distance(x.pos, aimAt) < GUARD_CLEAR_M);
-  if (range !== undefined && range < (guard ? GUARD_FIRE_M : 8000) && !fouled && now - m.lastShot > SHOT_COOLDOWN) {
+  // Outside the launch envelope (too fast, too deep) the boat slows and comes up first: no shot yet
+  const envelope = !launchBlock(s.cls, s.speed / KN, s.depth);
+  if (range !== undefined && range < (guard ? GUARD_FIRE_M : 8000) && !fouled && envelope && now - m.lastShot > SHOT_COOLDOWN) {
     // Long passive shots run slow: quieter, and the seeker hears more without flow noise
     const runKn = !duel && range > 4000 ? 30 : 40;
     const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
-    let fired = 0;
     // A guarding boat alternates two and one torpedo (arena, both sides mixed: always two 42:18, always one 18:42, alternating 38:22)
     const salvo = guard ? ((m.guardShots = (m.guardShots ?? 0) + 1) % 2 === 1 ? 2 : 1) : k.salvo;
-    for (let i = 0; i < salvo; i++) {
-      const spread = k.salvo > 1 ? (i === 0 ? -3 : 3) : 0;
-      const r = fireTorpedo(w, s, { heading: wrap360(aim + spread), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn });
-      if (typeof r !== 'string') fired++;
-    }
+    // One salvo, fanned by the target's length at that range and the TMA's error
+    const spread = defaultSpreadDeg(range, solved ? Math.min(3, Math.max(1, (100 - solved.q) / 15)) : 2);
+    const shot = fireSalvo(w, s, { heading: wrap360(aim), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn }, salvo, spread);
+    const fired = typeof shot === 'string' ? 0 : shot.length;
     if (fired) {
       m.lastShot = now;
       // Shoot and scoot: turn away, go deep, open the range
@@ -233,11 +279,29 @@ function headingTo(s: Ship, r: { x: number; y: number; b: number }): number {
   return (Math.atan2(p.x - s.pos.x, p.y - s.pos.y) * 180) / Math.PI;
 }
 
-/** Centre of the anchored merchants (harbour attack): the anchorage is charted. */
-function anchorageOf(w: World): { x: number; y: number } | undefined {
-  const ms = w.ships.filter((x) => x.cls === 'merchant' && x.alive);
-  if (!ms.length) return undefined;
-  return { x: ms.reduce((a, x) => a + x.pos.x, 0) / ms.length, y: ms.reduce((a, x) => a + x.pos.y, 0) / ms.length };
+/**
+ * The anchorage (harbour attack): charted in the briefing; once the boat holds ships at anchor in
+ * its own contact book (periscope, radar: with range), the centre of what it plotted. Never truth.
+ */
+function anchorageOf(w: World, m: BotMemory, s: Ship): { x: number; y: number } | undefined {
+  if (!w.ships.some((x) => x.cls === 'merchant')) return undefined;
+  const held = anchored(w, m, s, 1800);
+  if (!held.length) return HARBOUR_ANCHORAGE;
+  const ps = held.map((t) => plotted(m, s, t));
+  return { x: ps.reduce((a, p) => a + p.x, 0) / ps.length, y: ps.reduce((a, p) => a + p.y, 0) / ps.length };
+}
+
+/** Merchants in the boat's own book with a range (periscope, radar), seen within maxAge s. */
+function anchored(w: World, m: BotMemory, s: Ship, maxAge: number): ContactTrack[] {
+  return (w.books.get(s.id)?.tracks() ?? []).filter((t) => w.time - t.lastSeen < maxAge && t.range !== undefined &&
+    (t.classified === 'merchant' || voted(m, t) === 'merchant') && !isNeutral(w, s, t, m));
+}
+
+/** Where a contact with a range lies, from where the boat was when it measured it. */
+function plotted(m: BotMemory, s: Ship, t: ContactTrack): { x: number; y: number } {
+  const at = [...m.track].reverse().find((f) => f.t <= (t.rangeAt ?? t.lastSeen) + 3) ?? s.pos;
+  const v = headingVec(t.bearing);
+  return { x: at.x + v.x * t.range!, y: at.y + v.y * t.range! };
 }
 
 /** Firing range into the anchorage (m): close enough for a fan of slow passive torpedoes. */
@@ -249,7 +313,7 @@ const HARBOUR_FIRE_M = 4200;
  * at the nearest ship at anchor; between salvos hold off quietly. Returns false without targets.
  */
 function harbourRun(w: World, m: BotMemory, s: Ship, threatNear: boolean, maxSafe: number, salvo: number): boolean {
-  const anch = anchorageOf(w);
+  const anch = anchorageOf(w, m, s);
   if (!anch) return false;
   const now = w.time;
   const d = distance(s.pos, anch);
@@ -266,21 +330,24 @@ function harbourRun(w: World, m: BotMemory, s: Ship, threatNear: boolean, maxSaf
     s.mastUp = false;
     return true;
   }
-  // A look through the periscope, then the fan at the nearest ship at anchor
+  // A short look through the periscope (slow, at periscope depth), then the fan at the nearest
+  // ship at anchor the look found (or into the anchorage when it found none)
   s.order = { heading: toAnch, speedKn: 3, depth: PERISCOPE_DEPTH };
-  s.mastUp = s.depth <= PERISCOPE_DEPTH + 0.5;
-  if (!s.mastUp) return true;
-  const ships = w.ships.filter((x) => x.cls === 'merchant' && x.alive).sort((a, b) => distance(s.pos, a.pos) - distance(s.pos, b.pos));
-  const tgt = ships[0];
-  if (!tgt) return true;
-  const r = distance(s.pos, tgt.pos);
-  const brg = wrap360((Math.atan2(tgt.pos.x - s.pos.x, tgt.pos.y - s.pos.y) * 180) / Math.PI);
-  let fired = 0;
-  for (let i = 0; i < Math.max(2, salvo); i++) {
-    const spread = (i - (Math.max(2, salvo) - 1) / 2) * 4;
-    const res = fireTorpedo(w, s, { heading: wrap360(brg + spread), enableAfter: Math.max(600, r * 0.7), mode: 'passive', searchDepth: 8, speedKn: 30 });
-    if (typeof res !== 'string') fired++;
+  s.mastUp = s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN;
+  if (!s.mastUp) {
+    m.peekUp = undefined;
+    return true;
   }
-  if (fired) m.lastShot = now;
+  m.peekUp ??= now;
+  const seen = anchored(w, m, s, 30).sort((a, b) => a.range! - b.range!)[0];
+  if (!seen && now - m.peekUp < PEEK_LOOK_S) return true;
+  const r = seen?.range ?? d;
+  const brg = seen?.bearing ?? toAnch;
+  const shot = fireSalvo(w, s, { heading: brg, enableAfter: Math.max(600, r * 0.7), mode: 'passive', searchDepth: 8, speedKn: 30 }, Math.max(2, salvo), 4);
+  if (typeof shot !== 'string' && shot.length) {
+    m.lastShot = now;
+    m.peekUp = undefined;
+    s.mastUp = false;
+  }
   return true;
 }
