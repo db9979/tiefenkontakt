@@ -141,7 +141,7 @@ async function themePass(cdpPort, base, theme, n) {
   // Submarine
   const goE = await startMatch(tab, 'east');
   await goE();
-  await stations(tab, theme, '30-uboot', [['/horch/i', 'horchraum'], ['/sehrohr/i', 'sehrohr'], ['/feuer/i', 'feuerleitung'], ['/tauch/i', 'tauchstand']]);
+  await stations(tab, theme, '30-uboot', [['/horch/i', 'horchraum'], ['/sehrohr/i', 'sehrohr'], ['/feuer/i', 'feuerleitung'], ['/zentrale/i', 'zentrale']]);
   if (await tab.ev(`(() => { const b = [...document.querySelectorAll('#side-tabs button')].find((x) => /schaden|lecks/i.test(x.textContent)); b?.click(); return !!b; })()`)) {
     await sleep(600);
     await scene(tab, theme, '35-uboot-schaden');

@@ -1,13 +1,17 @@
 import { bearing, distance, targetPosAt, type Vec2 } from '@tk/shared';
-import { net } from '../../net.js';
-import { store } from '../../store.js';
-import type { Station } from '../../screens/game.js';
-import { buoyAction, courseAction, mpaAction } from '../../widgets/actions.js';
-import { btnState } from '../../widgets/btn-state.js';
-import { lastFix } from '../../widgets/contact-pos.js';
-import { guardFire, targetCheck } from '../../widgets/fire-guard.js';
-import { h, km, setHtml } from '../../widgets/format.js';
-import { Plot } from '../../widgets/plot.js';
+import { net } from '../net.js';
+import { store } from '../store.js';
+import { btnState } from './btn-state.js';
+import { lastFix } from './contact-pos.js';
+import { guardFire, targetCheck } from './fire-guard.js';
+import { h, km, setHtml } from './format.js';
+
+/**
+ * Helicopter tab of the OPZ (placeholder until the task-queue panel lands; it carries what the
+ * old Flug station did): helicopter state and stock, tasks aimed at the selected contact
+ * (dipping sonar, buoy, MAD, attack), the patrol aircraft's buoy barrier and the buoys in the
+ * water. The chart keeps the same tasks on right-click / long press for any point.
+ */
 
 const KIND = { buoy: 'BOJEN LEGEN', dip: 'TAUCHSONAR', torpedo: 'TORPEDOANGRIFF', mpa: 'SEEFERNAUFKLÄRER', mad: 'MAD-SUCHE' } as const;
 
@@ -22,38 +26,23 @@ function targetPoint(): Vec2 | undefined {
   return sol ? targetPosAt(sol, s.time + 60) : undefined;
 }
 
-/**
- * Flug (frigate with helicopter): the air wing in one place — helicopter state and stock, the
- * sonobuoys in the water, and the tasks as buttons aimed at the selected contact (dipping sonar
- * shallow or deep, buoy, MAD search, torpedo, the patrol aircraft's buoy barrier). The map
- * keeps the same tasks on right-click / long press for any point.
- */
-export function flightStation(): Station {
-  const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Fluglage</span><span class="dim">RECHTSKLICK / LANGE TIPPEN = AUFTRAG HIER</span></div><canvas id="plot"></canvas></div>
-    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-      <div class="panel"><div class="hd"><span>Bordhubschrauber</span><span id="fl-st"></span></div><div id="fl-rows"></div></div>
-      <div class="panel"><div class="hd"><span>Auftrag zum gewählten Kontakt</span><span id="fl-tgt" class="amber"></span></div>
-        <div class="grid2" style="gap:4px">
-          <button data-task="dip" title="Hubschrauber schwebt dort und senkt das Tauchsonar oberhalb der Schicht ab">Tauchsonar flach</button>
-          <button data-task="dipdeep" title="Tauchsonar unter die Sprungschicht">Tauchsonar tief</button>
-          <button data-task="buoy" title="Eine passive Sonarboje dort abwerfen">Sonarboje</button>
-          <button data-task="buoydeep" title="Passive Boje unter die Schicht">Boje tief</button>
-          <button data-task="mad" title="Magnetsonde: Kleeblatt über dem Punkt, findet getauchte Boote nur sehr nah">MAD-Suche</button>
-          <button id="fl-torp" class="fire" title="Hubschrauber wirft einen Leichttorpedo über dem Ziel">Torpedo</button>
-        </div>
-      </div>
-      <div class="panel"><div class="hd"><span>Seefernaufklärer</span><span id="fl-mpa" class="dim"></span></div>
-        <button id="fl-barrier" title="Der Seefernaufklärer legt 6 Bojen quer zur Peilung über dem Ziel">Bojensperre über dem Ziel</button>
-      </div>
-      <div class="panel"><div class="hd"><span>Bojen im Wasser</span></div><div id="fl-buoys"></div></div>
+export function mountHeloPanel(host: HTMLElement): { update(): void; dispose(): void } {
+  const el = h(`<div class="helo-panel">
+    <div class="row"><span class="dim">BORDHUBSCHRAUBER</span><span id="fl-st"></span></div>
+    <div id="fl-rows"></div>
+    <div class="subhd"><span>Auftrag zum gewählten Kontakt</span><span id="fl-tgt" class="amber"></span></div>
+    <div class="grid2">
+      <button data-task="dip" title="Hubschrauber schwebt dort und senkt das Tauchsonar ab (Tiefe nach der gemessenen Schicht)">Tauchsonar</button>
+      <button data-task="buoy" title="Eine passive Sonarboje dort abwerfen (Tiefe nach der gemessenen Schicht)">Boje</button>
+      <button data-task="mad" title="Magnetsonde: Kleeblatt über dem Punkt, findet getauchte Boote nur sehr nah">MAD</button>
+      <button id="fl-torp" class="fire" title="Hubschrauber wirft einen Leichttorpedo über dem Ziel">Angriff</button>
     </div>
+    <div class="subhd"><span>Seefernaufklärer</span><span id="fl-mpa" class="dim"></span></div>
+    <button id="fl-barrier" title="Der Seefernaufklärer legt 6 Bojen quer zur Peilung über dem Ziel">Bojensperre über dem Ziel</button>
+    <div class="subhd"><span>Bojen im Wasser</span></div><div id="fl-buoys"></div>
   </div>`);
+  host.appendChild(el);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
-  const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
-    bearingLines: true, showConvoy: true, esmLines: false, actions: (p) => [...courseAction(p), ...buoyAction(p), ...mpaAction(p)],
-  });
-  plot.scale = 60;
   const at = (): { b: number; d: number } | undefined => {
     const s = store.snap;
     const p = targetPoint();
@@ -65,6 +54,8 @@ export function flightStation(): Station {
     if (a.heloReadyInS > 0) return `BEREIT IN ${Math.ceil(a.heloReadyInS / 60)} MIN`;
     return undefined;
   };
+  // Below the layer once it is measured: that is where a careful boat hides
+  const deep = () => store.snap?.env.layerDepth !== undefined;
   el.querySelectorAll<HTMLButtonElement>('[data-task]').forEach((b) => guardFire(b, () => {
     const t = at();
     return !store.selectedContact() ? { block: 'KONTAKT WÄHLEN' } : !t ? { block: 'KEINE POSITION' } : ready() ? { block: ready() } : t.d > 30_000 ? { block: 'ZU WEIT' } : {};
@@ -72,8 +63,8 @@ export function flightStation(): Station {
     const t = at();
     if (!t) return;
     const task = b.dataset.task!;
-    if (task === 'dip' || task === 'dipdeep') net.send({ t: 'dip', bearing: t.b, range: t.d, deep: task === 'dipdeep' });
-    else if (task === 'buoy' || task === 'buoydeep') net.send({ t: 'buoy', bearing: t.b, range: t.d, deep: task === 'buoydeep' });
+    if (task === 'dip') net.send({ t: 'dip', bearing: t.b, range: t.d, deep: deep() });
+    else if (task === 'buoy') net.send({ t: 'buoy', bearing: t.b, range: t.d, deep: deep() });
     else net.send({ t: 'mad', bearing: t.b, range: t.d });
   }));
   guardFire(q<HTMLButtonElement>('#fl-torp'), () => {
@@ -98,18 +89,16 @@ export function flightStation(): Station {
   });
 
   return {
-    title: 'Flug',
-    el,
-    snap() {
-      const s = store.snap!;
+    update() {
+      const s = store.snap;
+      if (!s) return;
       const a = s.air;
       const helo = a?.helos.find((x) => x.kind !== 'mpa');
       q('#fl-st').className = !a ? 'dim' : a.heloReadyInS > 0 ? 'amber' : '';
       q('#fl-st').textContent = !a ? '—' : helo ? `IN DER LUFT · ${KIND[helo.kind]}${helo.hovering ? ' · SCHWEBT' : ''}` : a.heloReadyInS > 0 ? `WARTUNG · BEREIT IN ${Math.ceil(a.heloReadyInS / 60)} MIN` : 'AN DECK · BEREIT';
       setHtml(q('#fl-rows'), a ? `
         <div class="row"><span class="dim">SONARBOJEN AN BORD</span><span>${a.stock}</span></div>
-        <div class="row"><span class="dim">LEICHTTORPEDOS</span><span>${a.heloTorps}</span></div>
-        <div class="row"><span class="dim">REICHWEITE</span><span>30 KM · TAUCHSONAR ETWA 12 KM</span></div>` : '<div class="dim">KEIN HUBSCHRAUBER AN BORD</div>');
+        <div class="row"><span class="dim">LEICHTTORPEDOS</span><span>${a.heloTorps}</span></div>` : '<div class="dim">KEIN HUBSCHRAUBER AN BORD</div>');
       const c = store.selectedContact();
       const t = at();
       q('#fl-tgt').textContent = c ? `${c.label}${t ? ` · ${km(t.d)}` : ' · KEINE POSITION'}` : 'KEINER';
@@ -117,8 +106,8 @@ export function flightStation(): Station {
       btnState(q('#fl-torp'), a ? { label: String(a.heloTorps), tone: a.heloTorps ? undefined : 'empty' } : {});
       setHtml(q('#fl-buoys'), a?.buoys.length ? a.buoys.map((b) => `<div class="row"><span>${b.id}${b.active ? ' · AKTIV' : ''}</span><span>${km(distance(s.own, b))} · ${b.depth} M</span><span class="dim">NOCH ${Math.ceil(b.leftS / 60)} MIN</span></div>`).join('') : '<div class="dim">KEINE BOJE IM WASSER</div>');
     },
-    frame() {
-      plot.draw(Math.max(360, window.innerHeight - 90));
+    dispose() {
+      el.remove();
     },
   };
 }

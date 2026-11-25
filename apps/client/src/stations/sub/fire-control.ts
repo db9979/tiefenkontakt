@@ -31,6 +31,9 @@ import { renderContactList } from '../../widgets/contact-list.js';
 import { COL, clock, fitCanvas, h, km, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
+import { decoy } from '../../widgets/emergency.js';
+import { fillBox } from '../../widgets/fill.js';
+import { keycap } from '../../widgets/keys.js';
 
 type Method = 'hyp' | 'ekelund' | 'dots';
 const DOT_FACTORS = [0.6, 1, 1.6];
@@ -70,15 +73,21 @@ function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: nu
 }
 
 export function fireControlStation(): Station {
-  const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Feuerleitstand · Lagebild</span><span class="kbd">GELBEN KREIS ZIEHEN = TMA · RECHTSKLICK = AKTIONEN</span></div>
-      <canvas id="plot"></canvas>
-      <div id="list" style="margin-top:6px"></div>
+  // Left: the plot takes the height, the contact list below it. Right: the TMA, then the torpedo
+  // with the tube bank (load state and reload of every tube), then the wires and the decoys
+  // (the old Torpedoraum): aiming, firing and the hardware in one place.
+  const el = h(`<div class="st two">
+    <div class="st-col">
+      <div class="panel grow"><div class="hd"><span>Feuerleitung · Lagebild</span><span id="tgt-st" class="dim"></span></div>
+        <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
+        <div class="hint">GELBEN KREIS ZIEHEN = TMA · RECHTSKLICK = AKTIONEN</div>
+      </div>
+      <div class="panel listpanel"><div id="list"></div></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="st-col scroll">
       <div class="panel"><div class="hd"><span>Zielbewegungsanalyse</span><span id="tgt" class="amber"></span></div>
-        <div class="steps"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></div>
-        <div style="display:flex;gap:4px;margin-bottom:6px"><button id="auto">Auto-TMA</button><button id="clear">Verwerfen</button><button id="ekel-take" style="display:none">Ekelund-Entfernung übernehmen</button></div>
+        <div class="seg wide"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></div>
+        <div class="btnrow"><button id="auto" class="primary">Auto-TMA</button><button id="clear">Verwerfen</button><button id="ekel-take" style="display:none">Ekelund-Entfernung übernehmen</button></div>
         <div class="row"><span class="dim">BEOBACHTBARKEIT</span><span id="v-obs"></span></div>
         <div class="row" id="ekel-row" style="display:none"><span class="dim">EKELUND</span><span id="v-ekel"></span></div>
         <div class="row"><span class="dim">ENTFERNUNG</span><span id="v-rng"></span></div><input id="s-rng" type="range" min="500" max="40000" step="100">
@@ -89,7 +98,8 @@ export function fireControlStation(): Station {
         <canvas id="res" style="margin-top:4px"></canvas>
         <div id="steps" style="margin-top:6px"></div>
       </div>
-      <div class="panel"><div class="hd"><span>Torpedo</span><span id="tubes"></span></div>
+      <div class="panel"><div class="hd"><span>Torpedo</span><span id="tubes" class="dim"></span></div>
+        <div id="tr-tubes" class="tubebank"></div>
         <div class="row"><span class="dim">LAUFGESCHWINDIGKEIT</span><select id="t-spd"><option>40</option><option>30</option></select></div>
         <div class="row"><span class="dim">SUCHKOPF EIN NACH</span><span><input id="t-en" type="number" value="2000" step="250" style="width:80px"> M</span></div>
         <div class="row"><span class="dim">SUCHTIEFE</span><span><input id="t-dep" type="number" value="15" step="5" style="width:80px"> M</span></div>
@@ -97,9 +107,13 @@ export function fireControlStation(): Station {
         <div class="row"><span class="dim">SCHUSSKURS</span><span><input id="t-hdg" type="number" min="0" max="359" style="width:80px">°</span></div>
         <div class="row"><span class="dim">SALVE</span><span class="steps" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span></div>
         <div class="row"><span class="dim">FÄCHER</span><span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3" style="width:80px">° <span id="t-spread-auto" class="dim"></span></span></div>
-        <div style="display:flex;gap:4px;margin-top:6px"><button id="calc">Lösung übernehmen</button><button id="fire" class="fire" style="flex:1">Feuer</button></div>
+        <div class="btnrow"><button id="calc">Lösung übernehmen</button><button id="fire" class="fire" style="flex:1">Feuer${keycap('fire')}</button></div>
         <div id="fire-why" class="row amber" style="display:none;margin-top:4px;align-items:center"><span id="fire-why-t"></span><button id="fire-fix"></button></div>
-        <div id="wires" style="margin-top:6px"></div>
+      </div>
+      <div class="panel"><div class="hd"><span>Draht · Täuschkörper</span><span class="dim">UNTER 12 KN BLEIBEN</span></div>
+        <div id="wires"></div>
+        <div class="btnrow"><button id="tr-nm" class="warn" title="Geräuschboje gegen anlaufende Torpedos">Täuschkörper ausstoßen${keycap('decoy')}</button></div>
+        <div class="hint">NACH DEM TÄUSCHKÖRPER ABDREHEN UND TIEFE WECHSELN</div>
       </div>
     </div>
   </div>`);
@@ -219,12 +233,19 @@ export function fireControlStation(): Station {
     });
   });
   el.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
+  // Wires: steer the running torpedoes in small or big steps; a click on the name selects it
   onTap(q('#wires'), '[data-steer]', (b) => {
     const t = store.snap?.torpedoes.find((x) => x.id === b.dataset.steer);
     if (t) net.send({ t: 'steer', torpId: t.id, heading: (t.heading + Number(b.dataset.d) + 360) % 360 });
   });
+  onTap(q('#wires'), '[data-pick]', (b) => (store.selected = b.dataset.pick));
+  q<HTMLButtonElement>('#tr-nm').onclick = decoy;
+  const box = fillBox(q('#plot-box'), 240);
+  // Fill of a reloading tube: share of the reload seen since it started (the reload time itself is not sent)
+  const reloadMax = new Map<number, number>();
 
   return {
+    id: 'feuerleitung',
     title: 'Feuerleitung',
     el,
     snap() {
@@ -233,6 +254,7 @@ export function fireControlStation(): Station {
       const c = store.selectedContact();
       const sol: TmaSolution | undefined = c ? store.solutions.get(c.label) : undefined;
       q('#tgt').textContent = c ? c.label : 'KONTAKT WÄHLEN';
+      q('#tgt-st').textContent = c ? `ZIEL ${c.label}` : '';
       q('#auto').style.display = store.realism === 'einsteiger' ? '' : 'none';
       // Fire: tubes ready or the next reload; take-over: only with a solution
       const lo = s.own.loadout;
@@ -313,14 +335,28 @@ export function fireControlStation(): Station {
       q('#ekel-row').style.display = method === 'ekelund' ? '' : 'none';
       q('#ekel-take').style.display = method === 'ekelund' && ek ? '' : 'none';
       setHtml(q('#v-ekel'), ek ? `${km(ek.range)} BEIM SCHLAGWECHSEL (${ek.courseChange.toFixed(0)}°)` : '<span class="amber">ZWEI SCHLÄGE JE 90 S, MIND. 30° KURSWECHSEL</span>');
-      const tubes = s.own.loadout.tubes;
-      setHtml(q('#tubes'), tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`);
-      setHtml(q('#wires'), s.torpedoes.map((t) => `
-        <div class="row ${t.id === store.selected ? 'selrow amber' : ''}"><span>${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-        <span>${tdeg1(t.heading)}° · ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">${t.leftS !== undefined ? clock(t.leftS) : '—'}</span> <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
+      // Tube bank: every tube with its load state and the reload as a fill bar
+      const tubes = lo.tubes;
+      q('#tubes').textContent = `${tubes.filter((t) => t.loaded).length}/${tubes.length} GELADEN · VORRAT ${lo.heavy}`;
+      setHtml(q('#tr-tubes'), tubes.map((t, i) => {
+        if (t.reloadLeft > (reloadMax.get(i) ?? 0)) reloadMax.set(i, t.reloadLeft);
+        if (t.loaded) reloadMax.delete(i);
+        const pct = t.loaded ? 100 : t.reloadLeft > 0 ? 100 * (1 - t.reloadLeft / Math.max(1, reloadMax.get(i) ?? t.reloadLeft)) : 0;
+        return `<div class="tube ${t.loaded ? 'ok' : t.reloadLeft > 0 ? 'busy' : 'empty'}" title="Rohr ${i + 1}"><span>R${i + 1}</span><i style="width:${pct.toFixed(0)}%"></i>
+          <b>${t.loaded ? 'BEREIT' : t.reloadLeft > 0 ? `${Math.ceil(t.reloadLeft)} S` : 'LEER'}</b></div>`;
+      }).join(''));
+      setHtml(q('#wires'), s.torpedoes.length ? s.torpedoes.map((t) => `
+        <div class="row ${t.id === store.selected ? 'selrow amber' : ''}" style="align-items:center"><span class="clickable" data-pick="${t.id}">${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
+        <span>${tdeg1(t.heading)}° · ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">${t.leftS !== undefined ? clock(t.leftS) : '—'}</span></span>
+        <span class="seg"><button data-steer="${t.id}" data-d="-10">◀◀</button><button data-steer="${t.id}" data-d="-2">◀</button><button data-steer="${t.id}" data-d="2">▶</button><button data-steer="${t.id}" data-d="10">▶▶</button></span></div>`).join('')
+        : '<div class="dim">KEIN TORPEDO AM DRAHT</div>');
+      btnState(q('#tr-nm'), { label: String(lo.noisemakers), tone: lo.noisemakers ? undefined : 'empty' });
     },
     frame() {
-      plot.draw(Math.max(320, window.innerHeight - 300));
+      plot.draw(box.h);
+    },
+    dispose() {
+      box.dispose();
     },
   };
 }

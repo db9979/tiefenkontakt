@@ -14,6 +14,7 @@ import { CLASS_LABEL, fitCanvas, h, km, setHtml, tdeg3 } from '../../widgets/for
 import { LazyGl } from '../../widgets/lazy-gl.js';
 import { onRelease } from '../../widgets/touch.js';
 import { btnState } from '../../widgets/btn-state.js';
+import { fillBox } from '../../widgets/fill.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
@@ -26,21 +27,26 @@ const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL',
 
 /** Escorts' bridge: lookout view in 3D with 7× binoculars, own formation in sight, lookout reports. */
 export function bridgeStation(): Station {
-  const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Brücke · Ausguck</span><span id="b-brg" class="dim"></span></div>
-      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
-      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-        <button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button>
-        <button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button>
-        <button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button><button id="tup" title="Blick nach oben (W)">▲</button><button id="tdn" title="Blick nach unten (S)">▼</button>
-        <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button>
-        <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button>
-        <span class="kbd" style="align-self:center">ZIEHEN SCHWENKT · W A S D · RAD ZOOMT</span>
+  // The view takes everything but a 300 px lookout column; buttons in groups: optics, look, report.
+  const el = h(`<div class="st bridge">
+    <div class="st-col">
+      <div class="panel grow"><div class="hd"><span>Brücke · Ausguck</span><span id="b-brg" class="dim"></span></div>
+        <div class="fill" id="view-box"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep"></canvas></div>
+        <div class="btnrows">
+          <div class="btngroup"><button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button></div>
+          <div class="btngroup"><span class="seg"><button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button><button id="tup" title="Blick nach oben (W)">▲</button><button id="tdn" title="Blick nach unten (S)">▼</button></span>
+            <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button></div>
+          <div class="btngroup"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button></div>
+        </div>
+        <div class="hint">ZIEHEN SCHWENKT · W A S D · RAD ZOOMT</div>
       </div>
     </div>
-    <div class="panel"><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
+    <div class="st-col scroll">
+      <div class="panel"><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
+    </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
+  const box = fillBox(el.querySelector<HTMLElement>('#view-box')!, 300, 760);
   /** The 3D scene is created on first view and freed 20 s after the player leaves the bridge. */
   const ownCls = () => (store.snap?.own.cls === 'kor' || store.snap?.own.cls === 'ffv' ? store.snap.own.cls : store.snap?.own.cls === 'ffk' ? 'ffv' : 'ffg');
   const g3 = new LazyGl<Periscope3D>(el.querySelector<HTMLCanvasElement>('#gl')!, (c) =>
@@ -207,6 +213,7 @@ export function bridgeStation(): Station {
   };
 
   return {
+    id: 'bruecke',
     title: 'Brücke',
     el,
     key(e) {
@@ -242,11 +249,12 @@ export function bridgeStation(): Station {
     },
     dispose() {
       g3.dispose();
+      box.dispose();
     },
     frame() {
       g3.ensure();
       const s = store.snap;
-      H = Math.max(320, Math.min(680, window.innerHeight - 290));
+      H = box.h;
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;
       const nowMs = performance.now();

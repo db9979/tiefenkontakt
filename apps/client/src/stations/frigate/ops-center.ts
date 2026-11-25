@@ -1,62 +1,95 @@
-import { hasHelicopter } from '@tk/shared';
-import { net } from '../../net.js';
+import { CLASSES, hasHelicopter, type Snapshot } from '@tk/shared';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { h, setHtml, tdeg3 } from '../../widgets/format.js';
+import { mountEscortOrders } from '../../widgets/escort-orders.js';
+import { fillBox } from '../../widgets/fill.js';
+import { h, setHtml, setText } from '../../widgets/format.js';
+import { mountHeloPanel } from '../../widgets/helo-panel.js';
+import { panelTabs, tabRow } from '../../widgets/panel-tabs.js';
 import { Plot } from '../../widgets/plot.js';
 import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 
-/** Detour steps (m, − = port of the convoy's leg) and their button labels. */
-const DETOURS: [number, string][] = [[-3000, '◀ 3 km'], [-1500, '◀ 1,5 km'], [0, 'Route'], [1500, '1,5 km ▶'], [3000, '3 km ▶']];
+/** The ASW strip above the chart: the state of every hunting tool at one glance. */
+function aswStrip(s: Snapshot): string {
+  const o = s.own;
+  const spec = CLASSES[o.cls];
+  const chip = (label: string, value: string, tone = '') => `<span class="aswchip ${tone}"><span class="dim">${label}</span> ${value}</span>`;
+  const tgt = o.towedOrder ?? o.towedLength;
+  const tow = !spec.towed ? '' : chip('SCHLEPP', tgt !== o.towedLength ? `${o.towedLength}/${tgt} M` : o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M` : 'STAB…', tgt !== o.towedLength || (o.towedLength > 0 && !o.towedReady) ? 'amber' : '');
+  const a = hasHelicopter(o.cls) ? s.air : undefined;
+  const helo = a?.helos.find((x) => x.kind !== 'mpa');
+  return [
+    chip('SONAR', o.activeSonar ? 'AKTIV' : 'PASSIV', o.activeSonar ? 'amber' : ''),
+    tow,
+    chip('SCHICHT', s.env.layerDepth !== undefined ? `${s.env.layerDepth} M` : '?', s.env.layerDepth === undefined ? 'amber' : ''),
+    a ? chip('HUBSCHR.', helo ? 'IN DER LUFT' : a.heloReadyInS > 0 ? `${Math.ceil(a.heloReadyInS / 60)} MIN` : 'BEREIT', a.heloReadyInS > 0 && !helo ? 'amber' : '') : '',
+    a ? chip('BOJEN', `${a.stock} · ${a.buoys.length} IM WASSER`) : '',
+    chip('RAKETEN', String(o.loadout.rockets), o.loadout.rockets ? '' : 'amber'),
+    chip('WERFER', String(o.loadout.depthCharges)),
+    chip('DATALINK', String(s.friendlies.filter((f) => f.cls !== 'merchant').length)),
+  ].join('');
+}
 
+/**
+ * OPZ: the shared picture. The chart takes two thirds of the width under the ASW strip; the
+ * side panel holds the contact list, the group and convoy orders, and the helicopter, one at
+ * a time behind tabs.
+ */
 export function opsCenterStation(): Station {
-  const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Operationszentrale · Lagebild</span><span class="kbd">KLICK WÄHLT · RECHTSKLICK = KURS / RAKETE</span></div>
-      <canvas id="plot"></canvas>
+  const el = h(`<div class="st opz">
+    <div class="st-col">
+      <div class="aswstrip" id="asw"></div>
+      <div class="panel grow"><div class="hd"><span>Operationszentrale · Lagebild</span><span id="opz-st" class="dim"></span></div>
+        <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
+        <div class="hint">KLICK WÄHLT · RECHTSKLICK = KURS / RAKETE / BOJE</div>
+      </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div class="panel"><div class="hd"><span>Kontakte (eigen + Datalink)</span></div><div id="list"></div></div>
-      <div class="panel"><div class="hd"><span>Verband</span></div><div id="group"></div></div>
-      <div class="panel" id="detour-p"><div class="hd"><span>Konvoi umleiten</span><span id="detour" class="dim"></span></div>
-        <div class="steps">${DETOURS.map(([m, l]) => `<button data-detour="${m}" title="${m ? `Kurs des Konvois ${String(Math.abs(m) / 1000).replace('.', ',')} km nach ${m < 0 ? 'Backbord' : 'Steuerbord'} versetzen (z. B. um eine Minensperre)` : 'Zurück auf die befohlene Route'}">${l}</button>`).join('')}</div>
+    <div class="st-col">
+      <div class="panel grow tabbed" id="tabs">
+        <div class="hd">${tabRow([['list', 'Kontakte', 'Kontakte (eigen + Datalink)'], ['group', 'Verband', 'Verband und Konvoi'], ['helo', 'Hubschrauber', 'Bordhubschrauber und Seefernaufklärer']])}<span id="tab-st" class="dim"></span></div>
+        <div class="pane scroll" data-pane="list"><div id="list"></div></div>
+        <div class="pane scroll" data-pane="group" id="group-slot"></div>
+        <div class="pane scroll" data-pane="helo" id="helo-slot"></div>
       </div>
     </div>
   </div>`);
-  const plot = new Plot(el.querySelector<HTMLCanvasElement>('#plot')!, {
+  const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
+  const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
     bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...(store.snap && hasHelicopter(store.snap.own.cls) ? buoyAction(p) : []), ...mpaAction(p)],
   });
   plot.scale = 80;
-  el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => net.send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));
+  const box = fillBox(q('#plot-box'), 300);
+  const escort = mountEscortOrders(q('#group-slot'));
+  const helo = mountHeloPanel(q('#helo-slot'));
+  const tabs = panelTabs(q('#tabs'), 'opz');
+
   return {
+    id: 'opz',
     title: 'OPZ',
     el,
     snap() {
       const s = store.snap!;
-      renderContactList(el.querySelector('#list')!);
-      const off = s.own.convoyOffset ?? 0;
-      (el.querySelector('#detour-p') as HTMLElement).style.display = s.friendlies.some((f) => f.cls === 'merchant') ? '' : 'none';
-      el.querySelector('#detour')!.textContent = off ? `${(Math.abs(off) / 1000).toFixed(1).replace('.', ',')} KM ${off < 0 ? 'BB' : 'STB'}` : 'AUF ROUTE';
-      el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => b.classList.toggle('on', Number(b.dataset.detour) === off));
-      const merchants = s.friendlies.filter((f) => f.cls === 'merchant');
-      const escorts = s.friendlies.filter((f) => f.cls !== 'merchant');
-      // Only what this ship and side actually have: convoy lines with a convoy, flight lines with a helicopter
-      const helo = hasHelicopter(s.own.cls) && s.air;
-      setHtml(el.querySelector('#group')!, `
-        ${merchants.length ? `<div class="row"><span class="dim">FRACHTER SCHWIMMEND</span><span>${merchants.filter((m) => m.alive).length} / ${merchants.length}</span></div>` : ''}
-        <div class="row"><span class="dim">DATALINK-TEILNEHMER</span><span>${escorts.length}</span></div>
-        <div class="row"><span class="dim">WASSERTIEFE</span><span class="${(s.env.bottom ?? 999) < 30 ? 'red' : ''}">${s.env.bottom !== undefined ? s.env.bottom + ' M' : '—'}</span></div>
-        ${s.env.current ? `<div class="row"><span class="dim">STROM</span><span>${s.env.current.kn >= 0.1 ? `${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1).replace('.', ',')} KN` : '—'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'}, KENTERT IN ${Math.round(s.env.tide.turnsInS / 60)} MIN` : ''}</span></div>` : ''}
-        <div class="row"><span class="dim">TAGESZEIT</span><span>${(s.env.light ?? 1) > 0.8 ? 'TAG' : (s.env.light ?? 1) > 0.3 ? 'DÄMMERUNG' : 'NACHT · SICHT STARK EINGESCHRÄNKT'}</span></div>
-        ${helo ? `<div class="row"><span class="dim">HUBSCHRAUBER</span><span>${helo.heloReadyInS > 0 ? `<span class="amber">UNTERWEGS · BEREIT IN ${Math.ceil(helo.heloReadyInS / 60)} MIN</span>` : 'AN DECK · BEREIT'}</span></div>
-        <div class="row"><span class="dim">SONARBOJEN</span><span>${helo.stock} AN BORD · ${helo.buoys.length} IM WASSER</span></div>
-        <div class="row"><span class="dim">HUBSCHRAUBER-TORPEDOS</span><span>${helo.heloTorps ?? 0}</span></div>
-        <div class="dim" style="margin-top:4px">KARTE: RECHTSKLICK BZW. LANGE TIPPEN FÜR BOJEN UND HUBSCHRAUBER</div>` : ''}
-        ${s.air && s.own.team === 'west' ? `<div class="row"><span class="dim">SEEFERNAUFKLÄRER</span><span>${s.air.mpaReadyInS > 0 ? `BEREIT IN ${Math.ceil(s.air.mpaReadyInS / 60)} MIN` : `BEREIT · ${s.air.mpaBuoys} BOJEN`}</span></div>` : ''}
-        ${escorts.map((e) => `<div class="row"><span>${e.name}</span><span class="${e.alive ? '' : 'red'}">${e.alive ? `${e.speedKn.toFixed(0)} KN` : 'GESUNKEN'}</span></div>`).join('')}`);
+      setHtml(q('#asw'), aswStrip(s));
+      // No helicopter aboard: no tab for it
+      const hasHelo = hasHelicopter(s.own.cls);
+      q('[data-ptab="helo"]').hidden = !hasHelo;
+      if (!hasHelo && tabs.current === 'helo') tabs.show('list');
+      if (tabs.current === 'list') renderContactList(q('#list'));
+      else if (tabs.current === 'group') escort.update();
+      else helo.update();
+      const hostile = s.contacts.filter((c) => c.assigned === 'submarine' || c.assigned === 'torpedo').length;
+      setText(q('#opz-st'), hostile ? `${hostile} FEINDKONTAKT${hostile > 1 ? 'E' : ''}` : '');
+      q('#opz-st').className = hostile ? 'amber' : 'dim';
+      setText(q('#tab-st'), tabs.current === 'list' ? `${s.contacts.length}` : '');
     },
     frame() {
-      plot.draw(Math.max(360, window.innerHeight - 90));
+      plot.draw(box.h);
+    },
+    dispose() {
+      box.dispose();
+      escort.dispose();
+      helo.dispose();
     },
   };
 }

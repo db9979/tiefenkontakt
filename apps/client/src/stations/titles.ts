@@ -1,17 +1,29 @@
+import { FRIGATE_STATION_IDS, SUB_STATION_IDS, type FrigateStationId, type StationId, type SubStationId } from '@tk/shared';
+
 /**
- * Station order per side, by title, as the game screen builds them (number key = index + 1).
- * Hints, tutorials and the help screen refer to stations through this list, so a moved or
- * merged station shows up as a type error or a failing test instead of a wrong button.
+ * Station ids and their tab titles per side, in tab order (number key = index + 1). Hints,
+ * tutorials, the event log and the help screen refer to stations by id, so a moved or merged
+ * station shows up as a type error or a failing test instead of a wrong button.
  * Keep it in step with build() in screens/game.ts (which warns in the console on a mismatch).
  */
-export const SUB_STATIONS = ['Horchraum', 'Sehrohr', 'Feuerleitung', 'Tauchstand', 'Zentrale', 'Ortung', 'Torpedoraum'] as const;
-/** The flight deck exists only on ships that carry a helicopter: it is always last. */
-export const FRIGATE_STATIONS = ['OPZ', 'Sonar', 'Waffen', 'Radar/ESM', 'Brücke', 'Ortung', 'Flug'] as const;
+export const STATION_TITLE: Record<StationId, string> = {
+  horch: 'Horchraum', sehrohr: 'Sehrohr', feuerleitung: 'Feuerleitung', zentrale: 'Zentrale',
+  opz: 'OPZ', sonar: 'Sonar', waffen: 'Waffen', radar: 'Radar/ESM', bruecke: 'Brücke',
+};
 
-export type SubStation = (typeof SUB_STATIONS)[number];
-export type FrigateStation = (typeof FRIGATE_STATIONS)[number];
+export const SUB_STATIONS: readonly string[] = SUB_STATION_IDS.map((id) => STATION_TITLE[id]);
+export const FRIGATE_STATIONS: readonly string[] = FRIGATE_STATION_IDS.map((id) => STATION_TITLE[id]);
 
-/** Index of a submarine station (for "go there" links). */
-export const subStation = (title: SubStation): number => SUB_STATIONS.indexOf(title);
-/** Index of a frigate station (for "go there" links). */
-export const frigateStation = (title: FrigateStation): number => FRIGATE_STATIONS.indexOf(title);
+export type { FrigateStationId, StationId, SubStationId };
+
+/** The station ids of one side, in tab order. */
+export const stationIds = (submarine: boolean): readonly StationId[] => (submarine ? SUB_STATION_IDS : FRIGATE_STATION_IDS);
+
+/** Number key of a station (1-based), for "1 · Horchraum" labels. */
+export function stationNumber(id: StationId): number {
+  const sub = (SUB_STATION_IDS as readonly string[]).indexOf(id);
+  return (sub >= 0 ? sub : (FRIGATE_STATION_IDS as readonly string[]).indexOf(id)) + 1;
+}
+
+/** "3 · Feuerleitung": the label tutorials and help show for a station. */
+export const stationLabel = (id: StationId): string => `${stationNumber(id)} · ${STATION_TITLE[id]}`;

@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Snapshot } from '@tk/shared';
+import { FRIGATE_STATION_IDS, SUB_STATION_IDS, type Snapshot, type StationId } from '@tk/shared';
 
 /**
- * Hints, tutorials and the help screen send the player to stations by number and name.
- * When stations move or merge, every reference must follow: a "where" like "6 · Ortung"
- * must name the station that really has key 6 on that side.
+ * Hints, tutorials, the event log and the help screen send the player to stations by id.
+ * When stations move or merge, every reference must follow: a tutorial step on the frigate
+ * must name a frigate station, the torpedo hint must go where the decoys are, and the label
+ * "3 · Feuerleitung" must be the station that really has key 3.
  */
 
 let titles: typeof import('../src/stations/titles.js');
@@ -26,33 +27,44 @@ beforeAll(async () => {
 const LESSON_SIDE: Record<string, 'sub' | 'frigate'> = {
   feindfahrt: 'sub', klassifizieren: 'sub', tma: 'sub', angriff: 'sub', geleitfahrt: 'frigate', ujagd: 'frigate',
 };
+const sideIds = (side: 'sub' | 'frigate'): readonly StationId[] => (side === 'sub' ? SUB_STATION_IDS : FRIGATE_STATION_IDS);
 
 describe('station references', () => {
-  it('every numbered tutorial step names the station with that number on its side', () => {
+  it('four submarine and five frigate stations, titled in tab order', () => {
+    expect(titles.SUB_STATIONS).toEqual(['Horchraum', 'Sehrohr', 'Feuerleitung', 'Zentrale']);
+    expect(titles.FRIGATE_STATIONS).toEqual(['OPZ', 'Sonar', 'Waffen', 'Radar/ESM', 'Brücke']);
+    expect(titles.stationLabel('feuerleitung')).toBe('3 · Feuerleitung');
+    expect(titles.stationLabel('bruecke')).toBe('5 · Brücke');
+  });
+
+  it('every tutorial step names a station of its own side, one line to do and a target', () => {
     for (const [key, lesson] of Object.entries(tutorial.LESSON_STEPS)) {
       const side = LESSON_SIDE[key];
       expect(side, `lesson ${key} has no side in the test`).toBeDefined();
-      const list: readonly string[] = side === 'sub' ? titles.SUB_STATIONS : titles.FRIGATE_STATIONS;
       for (const step of lesson.steps) {
-        const m = /^(\d+) · ([^·]+?)(?: · |$)/.exec(step.where);
-        if (!m) continue;
-        expect(list[Number(m[1]) - 1], `${key}: "${step.where}"`).toBe(m[2]);
+        if (step.station) expect(sideIds(side!), `${key}: ${step.where}`).toContain(step.station);
+        // One imperative line: the explanation belongs under "Warum?"
+        expect(step.do.length, `${key}: "${step.do}" is too long for one line`).toBeLessThanOrEqual(120);
+        if (step.station) expect(step.target, `${key}: ${step.where} points at nothing`).toBeTruthy();
       }
     }
   });
 
-  it('frigate steps about the active ping send the player to the Ortung station', () => {
+  it('the step label carries the station number', () => {
+    const step = tutorial.LESSON_STEPS.feindfahrt!.steps.find((s) => s.station === 'feuerleitung')!;
+    expect(tutorial.stepLabel(step)).toMatch(/^3 · Feuerleitung · /);
+  });
+
+  it('frigate steps about the active ping go to the sonar station and the single-ping button', () => {
     for (const [key, lesson] of Object.entries(tutorial.LESSON_STEPS)) {
       if (LESSON_SIDE[key] !== 'frigate') continue;
       for (const step of lesson.steps) {
-        if (/LFM|Aktivsonar/.test(step.text)) expect(step.where, `${key}: ${step.text}`).toMatch(/^\d+ · Ortung\b/);
+        if (/LFM|Einzelping/.test(step.do)) {
+          expect(step.station, `${key}: ${step.do}`).toBe('sonar');
+          expect(step.target).toBe('#as-one');
+        }
       }
     }
-  });
-
-  it('every station title has an index', () => {
-    for (const t of titles.SUB_STATIONS) expect(titles.subStation(t)).toBeGreaterThanOrEqual(0);
-    for (const t of titles.FRIGATE_STATIONS) expect(titles.frigateStation(t)).toBeGreaterThanOrEqual(0);
   });
 
   const snap = (cls: string, extra: Partial<Snapshot> = {}) => ({
@@ -67,18 +79,15 @@ describe('station references', () => {
 
   it('the torpedo hint goes where the decoys are', () => {
     const torp = [{ kind: 'torpedo', time: 90, bearing: 10 }];
-    const sub = assistant.subHint(snap('ssk', { alerts: torp } as Partial<Snapshot>));
-    expect(titles.SUB_STATIONS[sub.station!]).toBe('Torpedoraum');
-    const fr = assistant.frigateHint(snap('ffg', { alerts: torp } as Partial<Snapshot>));
-    expect(titles.FRIGATE_STATIONS[fr.station!]).toBe('Waffen');
+    expect(assistant.subHint(snap('ssk', { alerts: torp } as Partial<Snapshot>)).station).toBe('feuerleitung');
+    expect(assistant.frigateHint(snap('ffg', { alerts: torp } as Partial<Snapshot>)).station).toBe('waffen');
   });
 
-  it('the active ping hint goes to the Ortung station', () => {
+  it('the active ping hint goes to the sonar station', () => {
     const c = { label: 'S1', lastSeen: 95, via: 'own', assigned: 'submarine', sensors: ['towed'], history: [], bearing: 30 };
     const s = snap('ffg', { contacts: [c] } as unknown as Partial<Snapshot>);
     store.snap = s;
     store.selected = 'S1';
-    const h = assistant.frigateHint(s);
-    expect(titles.FRIGATE_STATIONS[h.station!]).toBe('Ortung');
+    expect(assistant.frigateHint(s).station).toBe('sonar');
   });
 });
