@@ -19,6 +19,8 @@ export const EN_PACING: [string, string][] = [
   ['DIENSTBUCH UND KAMPAGNE · NUR MIT KONTO: ERGEBNISSE, PUNKTE UND KAMPAGNE WERDEN GESPEICHERT', 'SERVICE RECORD AND CAMPAIGN · ACCOUNTS ONLY: RESULTS, POINTS AND CAMPAIGN ARE SAVED'],
   // Fast-forward
   ['⏩ Zeitraffer', '⏩ Fast-forward'], ['■ Zeitraffer aus', '■ Fast-forward off'],
+  ['Wetter (Nebel, Eis, Schauer): AN · Klick schaltet um', 'Weather (fog, ice, showers): ON · click to switch'], ['Wetter (Nebel, Eis, Schauer): AUS · Klick schaltet um', 'Weather (fog, ice, showers): OFF · click to switch'],
+  ['Zeitraffer', 'Fast-forward'], ['Zeitraffer aus', 'Fast-forward off'], ['Zeitraffer?', 'Fast-forward?'], ['Stimme zurück', 'Withdraw vote'],
   ['Zeitraffer ×6 bis zum nächsten Ereignis: neuer Kontakt, Alarm, Ausbildungsschritt', 'Fast-forward ×6 until the next event: new contact, alarm, training step'],
   ['Abstimmen: ×6 bis zum nächsten Ereignis, sobald alle an Bord eines Schiffes zugestimmt haben und niemand frischen Feindkontakt hat', 'Vote: ×6 until the next event, once everyone aboard a ship has agreed and nobody has a fresh hostile contact'],
   ['Zeitraffer nur mit eigenem Schiff', 'Fast-forward only with a ship of your own'],
@@ -44,6 +46,10 @@ export const EN_PACING: [string, string][] = [
 export const EN_PACING_PHRASES: [RegExp, string][] = [
   [/ECHTZEIT · (\d+) MIN AUF SEE/, 'REAL TIME · $1 MIN AT SEA'], [/(\d)× · (\d+) MIN AUF SEE/, '$1× · $2 MIN AT SEA'],
   [/(\d+) MIN · ECHTZEIT/, '$1 MIN · REAL TIME'], [/(\d+) MIN AUF SEE · ZEITRAFFER (\d)×, (\d+) MIN ECHT/, '$1 MIN AT SEA · COMPRESSION $2×, $3 MIN REAL'],
+  // Top bar clock: "18:38 · SG 4 · REST 37:38", tooltip "Uhrzeit … · Seegang … · Restzeit …"
+  [/(^|· )SG (\d)\b/, '$1SS $2'], [/^Uhrzeit /, 'Time '], [/· Seegang (\d)/, '· Sea state $1'], [/· Restzeit /, '· Time left '],
+  // Message list: a burst of new contacts in one line
+  [/^(\d+) neue Kontakte \(/, '$1 new contacts ('],
   [/^Stimme zurück \((\d+)\/(\d+)\)$/, 'Withdraw vote ($1/$2)'], [/^⏩ Zeitraffer\? \((\d+)\/(\d+)\)$/, '⏩ Fast-forward? ($1/$2)'],
   [/^FRISCHER FEINDKONTAKT \((.+)\)$/, 'FRESH HOSTILE CONTACT ($1)'], [/^Kein Zeitraffer: (.+) hat frischen Feindkontakt$/, 'No fast-forward: $1 has a fresh hostile contact'],
   // Why the fast-forward stopped (top bar)

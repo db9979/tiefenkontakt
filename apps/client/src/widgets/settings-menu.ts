@@ -59,7 +59,7 @@ export function mountThemeButton(): void {
 type Toggle = { id: string; label: string; get(): boolean; set(on: boolean): void };
 
 /** Gear menu in the top bar: every option in one place instead of a row of buttons. */
-export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKeys(): void }): { button: HTMLButtonElement; sync(): void } {
+export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKeys(): void; onQuit?(): void }): { button: HTMLButtonElement; sync(): void } {
   const button = h<HTMLButtonElement>(`<button class="gear" title="Einstellungen">⚙</button>`);
   const panel = h(`<div class="menu-panel panel" style="display:none"></div>`);
   const flag = (key: string, def: boolean) => ({ get: () => (localStorage.getItem(key) ?? (def ? '1' : '0')) === '1', set: (on: boolean) => localStorage.setItem(key, on ? '1' : '0') });
@@ -84,7 +84,7 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
       <div class="menu-row" title="Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)"><span>Grafik</span><button id="m-q">${QUALITY_LABEL[qualitySetting()]}${qualitySetting() === 'auto' ? ` · ${QUALITY_LABEL[quality()]}` : ''}</button></div>
       <div class="menu-row"><span>Sprache</span><button id="m-lang">${lang === 'de' ? 'English' : 'Deutsch'}</button></div>
       <div class="steps" style="margin-top:8px"><button id="m-brief">Lagebesprechung</button><button id="m-keys">Tasten</button></div>
-      <div class="steps"><button id="m-logout" class="warn" title="Abmelden. In einer laufenden Partie wartet dein Schiff, bis du dich wieder anmeldest.">Abmelden</button></div>`;
+      <div class="steps"><button id="m-logout" class="warn" title="Abmelden. In einer laufenden Partie wartet dein Schiff, bis du dich wieder anmeldest.">Abmelden</button>${opts.onQuit ? '<button id="m-quit" class="warn m-quit" title="Partie verlassen">Verlassen</button>' : ''}</div>`;
   };
   panel.addEventListener('change', (e) => {
     const t = toggles.find((x) => x.id === (e.target as HTMLInputElement).dataset.t);
@@ -114,7 +114,15 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
     } else if (b.id === 'm-lang') setLang(lang === 'de' ? 'en' : 'de');
     else if (b.id === 'm-brief') { close(); opts.onBriefing(); }
     else if (b.id === 'm-keys') { close(); opts.onKeys(); }
-    else if (b.id === 'm-logout') {
+    else if (b.id === 'm-quit') {
+      // Two taps, like the top-bar button
+      if (b.dataset.armed) { close(); opts.onQuit?.(); }
+      else {
+        b.dataset.armed = '1';
+        b.textContent = 'Wirklich verlassen?';
+        setTimeout(() => { delete b.dataset.armed; b.textContent = 'Verlassen'; }, 3000);
+      }
+    } else if (b.id === 'm-logout') {
       // Two taps: signing out mid-match is easy to hit by accident
       if (b.dataset.armed) void logout();
       else {

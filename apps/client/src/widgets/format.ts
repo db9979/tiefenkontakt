@@ -18,6 +18,12 @@ export function clock(t: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** Like clock(), without the leading "00:" in the first hour: "37:38", "1:02:05" → "01:02:05". */
+export function shortClock(t: number): string {
+  const c = clock(t);
+  return c.startsWith('00:') ? c.slice(3) : c;
+}
+
 export const CLASS_LABEL: Record<ClassId, string> = {
   ssn: 'ATOM-U-BOOT', ssk: 'DIESEL-U-BOOT', ssc: 'KÜSTEN-U-BOOT', ffg: 'FREGATTE', kor: 'KORVETTE', merchant: 'HANDELSSCHIFF',
   ssa: 'AIP-U-BOOT', ffv: 'VDS-FREGATTE', ssw: 'JAGD-U-BOOT', ffk: 'WACHSCHIFF', fischer: 'FISCHTRAWLER',
