@@ -20,6 +20,7 @@ import { periscopeEsmRows } from '../../widgets/esm-text.js';
 import { LazyGl } from '../../widgets/lazy-gl.js';
 import { drawEsmRose } from '../../widgets/esm-rose.js';
 import { onRelease } from '../../widgets/touch.js';
+import { canvasText, lang } from '../../i18n/index.js';
 
 /**
  * Where the optic looks, reported to the server: the periscope sees only its field of view
@@ -42,9 +43,6 @@ net.on((m) => {
   if (m.t === 'welcome') scopeSent = { key: '', at: -1e9 };
   else if (m.t === 'snap') reportScope();
 });
-
-/** Height of the radar warner's strobe rose (U2). */
-const ROSE_H = 180;
 
 interface Wave {
   x: number;
@@ -96,10 +94,11 @@ export function periscopeStation(): Station {
     </div>
     <div class="st-col scroll">
       <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
-      <div class="panel" id="mast-panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
+      <div class="panel grow" id="mast-panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
         <div id="mast-rows"></div>
-        <div class="peri-esm"><canvas id="esm-rose" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas><div id="esm"></div></div>
-        <div class="btnrow"><button id="radar" class="warn" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button></div>
+        <div class="fill" id="rose-box"><canvas id="esm-rose" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas></div>
+        <div id="esm"></div>
+        <div class="btnrow"><button id="radar" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button></div>
       </div>
     </div>
   </div>`);
@@ -168,6 +167,8 @@ export function periscopeStation(): Station {
   const radarScope = subRadarPanel();
   el.querySelector('#mast-panel')!.after(radarScope.el);
   const rose = el.querySelector<HTMLCanvasElement>('#esm-rose')!;
+  // The radar warner's rose takes what the column leaves under the readings (U2)
+  const roseBox = fillBox(el.querySelector<HTMLElement>('#rose-box')!, 150);
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
     sky.level();
     const c = store.selectedContact();
@@ -265,6 +266,8 @@ export function periscopeStation(): Station {
       // Radar: on the air only with the mast fully up; how long it has been sending
       if (o.radarOn && !radarSince) radarSince = s.time;
       if (!o.radarOn) radarSince = 0;
+      // Mast down the radar is just unavailable (grey), not a warning: amber once it can send
+      el.querySelector('#radar')!.classList.toggle('warn', o.mastUp || !!o.radarOn);
       btnState(el.querySelector<HTMLElement>('#radar'), !o.radarOn ? { on: false, label: o.mastUp ? 'AUS' : 'MAST', tone: o.mastUp ? undefined : 'empty' }
         : ms.raised ? { on: true, label: `SENDET ${Math.round(s.time - radarSince)} S`, tone: 'warn' } : { on: true, label: 'WARTET', tone: 'busy' });
       depthBtn(el.querySelector<HTMLElement>('#peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);
@@ -291,7 +294,7 @@ export function periscopeStation(): Station {
         <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
         <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>
-        <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${skyNow.text}</span></div>
+        <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>`);
       // Mast block: how long it has been up and what the radar warner hears (only with the mast up)
@@ -300,7 +303,7 @@ export function periscopeStation(): Station {
         ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`);
       el.querySelector('#esm-st')!.textContent = ms.raised ? 'HÖRT RADARE' : 'NUR MIT MAST OBEN';
       const esmRows = ms.raised ? periscopeEsmRows(s) : '';
-      setHtml(el.querySelector('#esm')!, esmRows || `<div class="dim">${ms.raised ? 'KEIN RADAR ZU HÖREN' : 'MAST UNTEN – AUF SEHROHRTIEFE GEHEN UND MAST AUSFAHREN'}</div>`);
+      setHtml(el.querySelector('#esm')!, esmRows || (ms.raised ? '<div class="hint">KEIN RADAR ZU HÖREN</div>' : ''));
     },
     hide() {
       g3.freeLater();
@@ -308,10 +311,11 @@ export function periscopeStation(): Station {
     dispose() {
       g3.dispose();
       box.dispose();
+      roseBox.dispose();
     },
     frame() {
       radarScope.frame();
-      if (store.snap) drawEsmRose(rose, ROSE_H, store.snap, mastState(store.snap.own).raised);
+      if (store.snap) drawEsmRose(rose, roseBox.h, store.snap, mastState(store.snap.own).raised);
       // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
       if (store.snap && mastState(store.snap.own).ext > 0) g3.ensure();
       const s = store.snap;
@@ -457,13 +461,13 @@ export function periscopeStation(): Station {
       ctx.fillStyle = COL.g2;
       ctx.textAlign = 'center';
       ctx.fillText(tdeg3(periBearing), cx, cy + R + 16 > H ? H - 4 : cy + R + 16);
+      // Status texts sit on a plate, so the reticle never runs through them, wrapped inside the optic
       if (s && mst.ext > 0 && mst.ext < 1) {
-        ctx.fillText(`MAST FÄHRT ${mst.moving === 'ein' ? 'EIN' : 'AUS'} · ${Math.round(mst.ext * 100)} %`, cx, cy + 34);
+        plateText(ctx, [[`MAST FÄHRT ${mst.moving === 'ein' ? 'EIN' : 'AUS'} · ${Math.round(mst.ext * 100)} %`, COL.g2]], cx, cy + 34, R * 1.7);
       } else if (!s || !mst.raised) {
-        ctx.fillText('MAST EINGEFAHREN', cx, cy - 20);
-        ctx.fillStyle = COL.dim;
-        ctx.fillText(s && s.own.depth > 19 ? 'AUF SEHROHRTIEFE GEHEN, DANN MAST AUSFAHREN' : 'MAST AUSFAHREN ZUM BEOBACHTEN', cx, cy + 34);
+        plateText(ctx, [['MAST EINGEFAHREN', COL.g2], [s && s.own.depth > 19 ? 'AUF SEHROHRTIEFE GEHEN, DANN MAST AUSFAHREN' : 'MAST AUSFAHREN ZUM BEOBACHTEN', COL.dim]], cx, cy - 30, R * 1.7);
       }
+      ctx.fillStyle = COL.g2;
       ctx.textAlign = 'left';
       ctx.fillText('BB', 10, cy + 4);
       ctx.textAlign = 'right';
@@ -480,6 +484,52 @@ export function periscopeStation(): Station {
       shutterFlash(ctx, cx - R, cy - R, 2 * R, 2 * R, nowMs - flashAt);
     },
   };
+}
+
+/** The LUFT row's value without the label repeated in it. */
+const SKY_SHORT: Record<string, string> = { 'LUFT · MAST UNTEN': 'MAST UNTEN', 'LUFT FREI': 'FREI', 'LUFT UNGEPRÜFT': 'UNGEPRÜFT' };
+
+/**
+ * Centred lines of text on a dark plate, wrapped by words to maxW: a status drawn over the
+ * optic stays readable where the reticle crosses it. y is the first baseline. Each item is
+ * translated whole before it is wrapped (the canvas dictionary knows whole labels only), and
+ * wrapped lines are balanced, so no single word is left on a line of its own.
+ */
+function plateText(ctx: CanvasRenderingContext2D, items: [string, string][], cx: number, y: number, maxW: number): void {
+  const wrap = (words: string[], width: number) => {
+    const out: string[] = [];
+    let cur = '';
+    for (const word of words) {
+      const next = cur ? `${cur} ${word}` : word;
+      if (cur && ctx.measureText(next).width > width) {
+        out.push(cur);
+        cur = word;
+      } else cur = next;
+    }
+    if (cur) out.push(cur);
+    return out;
+  };
+  const lines: [string, string][] = [];
+  for (const [text, col] of items) {
+    const words = (lang === 'de' ? text : canvasText(text)).split(' ');
+    let best = wrap(words, maxW);
+    // The narrowest width that still needs no more lines
+    for (let wd = maxW - 8; best.length > 1 && wd > 40; wd -= 8) {
+      const tryLines = wrap(words, wd);
+      if (tryLines.length > best.length) break;
+      best = tryLines;
+    }
+    for (const l of best) lines.push([l, col]);
+  }
+  const lh = 16;
+  const w = Math.max(...lines.map(([l]) => ctx.measureText(l).width));
+  ctx.fillStyle = 'rgba(3,5,4,0.82)';
+  ctx.fillRect(cx - w / 2 - 6, y - 14, w + 12, lines.length * lh + 6);
+  ctx.textAlign = 'center';
+  lines.forEach(([l, col], i) => {
+    ctx.fillStyle = col;
+    ctx.fillText(l, cx, y + i * lh);
+  });
 }
 
 /** Raindrops on the top lens: fixed beads that refract the light, slowly running down. */

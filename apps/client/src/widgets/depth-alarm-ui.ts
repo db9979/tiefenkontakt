@@ -97,10 +97,10 @@ class DepthAlarms {
   panel(): HTMLElement {
     const el = h(`<div class="depth-alarms">
       <div id="da-now" class="da-now"></div>
-      ${row('upperOn', 'upper', 'Obergrenze', 'Warnt, wenn das Boot flacher steigt (außer bei befohlener Sehrohrtiefe)')}
-      ${row('lowerOn', 'lower', 'Untergrenze', 'Warnt, wenn das Boot tiefer sinkt')}
-      ${row('groundOn', 'groundWarn', 'Grund · Warnung', 'Warnt bei weniger Wasser unter dem Kiel')}
-      ${row(undefined, 'groundDanger', 'Grund · Gefahr', 'Alarm bei weniger Wasser unter dem Kiel')}
+      ${row('upperOn', 'upper', 'OBERGRENZE', 'Warnt, wenn das Boot flacher steigt (außer bei befohlener Sehrohrtiefe)')}
+      ${row('lowerOn', 'lower', 'UNTERGRENZE', 'Warnt, wenn das Boot tiefer sinkt')}
+      ${row('groundOn', 'groundWarn', 'GRUND · WARNUNG', 'Warnt bei weniger Wasser unter dem Kiel')}
+      ${row(undefined, 'groundDanger', 'GRUND · GEFAHR', 'Alarm bei weniger Wasser unter dem Kiel')}
     </div>`);
     el.querySelectorAll<HTMLButtonElement>('[data-on]').forEach((b) => {
       b.onclick = () => {
@@ -137,7 +137,8 @@ class DepthAlarms {
       const now = el.querySelector<HTMLElement>('#da-now')!;
       const html = act.length
         ? act.map((a) => `<div class="${a.level === 2 ? 'red blink' : 'amber'}"><span>${alarmLabel(a.kind, a.level)}</span> <span>${this.figure(a.kind)}</span></div>`).join('')
-        : `<div class="dim"><span>KEIN ALARM</span>${this.clearance !== undefined ? ` · <span>UNTER KIEL</span> <span>${Math.round(this.clearance)} M</span>` : ''}</div>`;
+        // The water under the keel is in the tab header already
+        : '<div class="dim"><span>KEIN ALARM</span></div>';
       if (now.innerHTML !== html) now.innerHTML = html;
     };
     this.panels.add(draw);

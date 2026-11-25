@@ -8,6 +8,10 @@
 /* ---- Horchraum (U1): waterfall 58 %, signal analysis and the contact tabs 42 % ---- */
 @media (min-width: 1151px) { .st.sub-horch { grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); } }
 .sub-horch .foot { row-gap: var(--sp2); }
+/* The how-to always on its own line under the controls (never cut in the toolbar row) */
+.sub-horch .foot > .hint { flex: 1 0 100%; }
+/* Threat tab: the evasion proposal breaks into balanced lines (no lone word on line two) */
+.sub-horch #th-plan { text-wrap: balance; }
 .sub-horch .ana-foot { display: inline-flex; gap: var(--sp2); align-items: center; }
 .sub-horch .lm-seg > button { padding: 0 6px; min-height: 22px; font-size: var(--fs-cap); }
 /* The analysis filters as a popover above the footer (they used to fold open in the panel) */
@@ -45,12 +49,16 @@
 .sub-fc .fc-wire > .tl { font-size: var(--fs-cap); color: var(--g); letter-spacing: 0.08em; }
 .sub-fc .fc-wire > #wires { flex: 1; min-width: 0; }
 .sub-fc .fc-wire > #wires .row { border-bottom: 0; padding: 1px 0; }
-.sub-fc .fc-wire > button { flex: none; white-space: nowrap; }
+.sub-fc .fc-wire > button { flex: none; white-space: nowrap; min-height: 32px; }
+/* Same height and 32 px buttons as the action bar beside it (LÖSUNG / FEUER) */
+.sub-fc .fc-wire { min-height: 41px; padding-top: 3px; padding-bottom: 3px; }
+.sub-fc .fc-wire > #wires > .dim { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* TMA: one bar of methods and actions, the three sliders side by side with their values */
 .sub-fc .fc-tmabar { display: flex; flex-wrap: wrap; gap: var(--sp2); margin: var(--sp2) 0; }
 .sub-fc .fc-tmabar > .seg { flex: 1 1 auto; }
 .sub-fc .fc-tmabar > .seg > button { flex: 1; padding-left: 4px; padding-right: 4px; }
-.sub-fc .fc-tmabar > button { min-height: 0; }
+.sub-fc .fc-tmabar > .fc-acts { display: flex; gap: var(--sp2); margin-left: auto; }
+.sub-fc .fc-tmabar button { min-height: 26px; }
 .sub-fc .fc-tma .row { padding: 2px 0; }
 .sub-fc #ekel-row button { padding: 0 6px; min-height: 0; }
 .sub-fc .tma-sl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp3); margin: var(--sp2) 0; }
@@ -62,18 +70,20 @@
 /* Torpedo: the tube bank in one row of six */
 .sub-fc .fc-tubes .tubebank { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); margin: var(--sp2) 0 0; }
 .sub-fc .fc-tubes .tube { padding: 2px 4px; }
-.sub-fc .fc-tubes .tube > b { font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub-fc .fc-tubes .tube > b { overflow: hidden; text-overflow: ellipsis; }
 /* Settings: a 2-column grid, label left, control right */
 .sub-fc .fc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp2) var(--sp4); }
 /* Every field the same: label | control of one fixed width | unit, so the columns line up */
 .sub-fc .fc-grid > label { display: grid; grid-template-columns: minmax(0, 1fr) 84px 18px; align-items: center; gap: var(--sp2);
   min-height: 30px; border-bottom: 1px solid var(--line); }
-.sub-fc .fc-grid > label > input, .sub-fc .fc-grid > label > select { width: 100%; min-width: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; text-align: right; }
+.sub-fc .fc-grid > label > input, .sub-fc .fc-grid > label > select { width: 100%; min-width: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; text-align: right; text-align-last: right; }
 .sub-fc .fc-grid .u { color: var(--dim); font-size: var(--fs-cap); }
 .sub-fc .fc-grid > .lbl { display: flex; align-items: center; gap: var(--sp3); min-height: 30px; border-bottom: 1px solid var(--line); }
 .sub-fc .fc-grid > .lbl > .dim:first-child { min-width: 0; flex: 0 0 auto; }
 .sub-fc .fc-grid > .span2 { grid-column: span 2; }
-.sub-fc .fc-grid .seg > button { padding: 1px 10px; min-height: 24px; }
+.sub-fc .fc-grid .seg > button { padding: 1px 10px; min-height: 26px; }
+/* SALVE: the segments end where the fields above end (their unit column is 18 px) */
+.sub-fc .fc-grid > .lbl > .seg { margin-left: auto; margin-right: calc(18px + var(--sp2)); }
 /* The action bar at the foot of the right column */
 .sub-fc .actionbar { margin-top: 0; }
 .sub-fc .actionbar > button { min-width: 0; padding-left: 4px; padding-right: 4px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -87,9 +97,13 @@
 .sub-central .zc-prof { flex: 0 1 28%; display: flex; flex-direction: column; min-height: 0; max-height: 226px; }
 .sub-central .zc-prof > .fill { min-height: 90px; max-height: 170px; }
 .sub-central .zc-prof > .hint { margin-top: 2px; }
-/* Orders: three per row; the longest label (GEFECHTSSTATIONEN) fits with its tag below */
-.sub-central .cmdgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.sub-central .cmdgrid > button { min-width: 0; padding-left: 2px; padding-right: 2px; letter-spacing: 0.01em; }
+/* Depth orders: three over two, every button one line (its tag inline) */
+.sub-central .depthgrid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp2); }
+.sub-central .depthgrid > button { grid-column: span 2; }
+.sub-central .depthgrid > button[data-depth^='layer'] { grid-column: span 3; }
+/* Orders: two per row (the two emergencies first), every button one line with its tag inline */
+.sub-central .cmdgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sub-central .depthgrid > button, .sub-central .cmdgrid > button { min-width: 0; height: 30px; min-height: 30px; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Navigation | Tiefenalarme | Minen: the rest of the column */
 .sub-central .panel.grow.tabbed { min-height: 170px; }
 .sub-central .pane .row { padding: 2px 0; }
@@ -104,19 +118,25 @@
 
 /* ---- Sehrohr (U2): buttons in two grouped rows; readings, then mast and radar warner ---- */
 .sub-peri .btnrows + .btnrows { margin-top: var(--sp2); }
-.sub-peri .peri-esm { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: var(--sp3); align-items: start; margin-top: var(--sp2); }
-.sub-peri #esm-rose { display: block; width: 180px; }
+/* The mast block is the column's growing part: the radar warner's rose takes the height left
+   under the readings (150–300 px, drawn square in the middle), its intercepts under it */
+.sub-peri #rose-box { min-height: 150px; margin-top: var(--sp2); }
 .sub-peri #esm { min-width: 0; font-size: var(--fs-cap); }
+.sub-peri #esm .hint { margin-top: 0; text-align: center; }
 .sub-peri #mast-panel .btnrow { margin-bottom: 0; }
 
 @media (max-width: 1150px) {
   .sub-peri .fill { height: 50vh; }
+  .sub-peri #rose-box { flex: none; height: 220px; }
   /* Stacked: readings and the mast block side by side under the optic, the mast radar below them */
   .sub-peri > .st-col:last-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .sub-peri > .st-col:last-child > .panel:nth-child(n + 3) { grid-column: span 2; }
 }
 @media (max-width: 640px) {
-  .sub-peri .peri-esm { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  /* The two actions one above the other: both labels in full */
+  .sub-fc .actionbar { flex-direction: column; }
+  .sub-fc .fc-tubes .tubebank { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sub-central .depthgrid > button, .sub-central .cmdgrid > button { padding: 0 4px; font-size: var(--fs-cap); letter-spacing: 0.02em; }
   .sub-peri > .st-col:last-child { grid-template-columns: minmax(0, 1fr); }
   .sub-peri > .st-col:last-child > .panel:nth-child(n + 3) { grid-column: auto; }
   .sub-central .tiles { grid-template-columns: 1fr 1fr; }

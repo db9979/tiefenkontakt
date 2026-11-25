@@ -19,6 +19,8 @@
 .st .listpanel { max-height: 34%; overflow: auto; }
 .st .panel.grow.listpanel { max-height: none; }
 .st .panel.grow.listpanel > .scroll { flex: 1; min-height: 0; }
+/* Label left, value right: a value that wraps stays right-aligned under itself */
+.st .row > span:last-child:not(:first-child) { text-align: right; }
 
 /* Sticky action bar (G2): the primary action at the foot of its column, never below the fold */
 .actionbar { position: sticky; bottom: 0; display: flex; gap: var(--sp2); padding: var(--sp2) 0; background: var(--panel); border-top: 1px solid var(--line); z-index: 2; }
@@ -30,6 +32,15 @@
 .btnrows { display: flex; flex-wrap: wrap; gap: var(--sp2) var(--sp4); margin-top: var(--sp2); }
 .btngroup { display: flex; flex-wrap: wrap; gap: var(--sp2); align-items: center; padding-right: var(--sp4); border-right: 1px solid var(--line); }
 .btngroup:last-child { border-right: 0; padding-right: 0; }
+/* Every button of a view toolbar (periscope, bridge) one height, whatever its tag or key cap */
+.btnrows button { height: 30px; min-height: 30px; padding-top: 0; padding-bottom: 0; white-space: nowrap; }
+/* Light theme: the periscope and bridge views stay dark (it is the sea), framed as an instrument bezel */
+html[data-theme='light'] .sub-peri #view-box, html[data-theme='light'] .st.bridge #view-box {
+  border: 4px solid #33423d; border-radius: 6px; box-shadow: 0 0 0 1px #b9c7c2, inset 0 0 0 1px #0a100e; background: #030504; }
+/* Light theme: a status tag on a primary (green) button in white, a warning tag as an amber chip */
+html[data-theme='light'] button.primary[data-bst]::after { color: #fff; border-color: rgba(255, 255, 255, 0.7); opacity: 1; }
+html[data-theme='light'] button.primary.st-warn[data-bst]::after,
+html[data-theme='light'] button.primary.st-busy[data-bst]::after { background: #ffd98a; border-color: #ffd98a; color: #4a2c00; }
 .btnrow { display: flex; flex-wrap: wrap; gap: var(--sp2); margin: var(--sp2) 0; }
 .seg.wide { display: flex; margin: var(--sp2) 0; }
 .seg.wide > button { flex: 1; padding-left: 4px; padding-right: 4px; }
@@ -64,7 +75,7 @@
 
 /* Fire control: the tube bank, one cell per tube with its reload as a fill */
 .tubebank { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--sp2); margin-bottom: var(--sp3); }
-.tube { position: relative; display: flex; justify-content: space-between; gap: 4px; padding: 3px 6px; border: 1px solid var(--line2); border-radius: 3px; overflow: hidden; font-size: var(--fs-cap); }
+.tube { position: relative; display: flex; justify-content: center; align-items: baseline; gap: 6px; padding: 3px 6px; white-space: nowrap; border: 1px solid var(--line2); border-radius: 3px; overflow: hidden; font-size: var(--fs-cap); }
 .tube > i { position: absolute; left: 0; top: 0; bottom: 0; opacity: 0.25; pointer-events: none; }
 .tube > span, .tube > b { position: relative; }
 .tube > b { font-weight: 600; }

@@ -34,7 +34,7 @@ export function drawEsmRose(canvas: HTMLCanvasElement, H: number, s: Snapshot | 
   ctx.clearRect(0, 0, w, H);
   const cx = w / 2;
   const cy = H / 2;
-  const R = H / 2 - 14;
+  const R = Math.min(w, H) / 2 - 14;
   ctx.fillStyle = COL.bg;
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -73,8 +73,15 @@ export function drawEsmRose(canvas: HTMLCanvasElement, H: number, s: Snapshot | 
   ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(hx, hy); ctx.stroke();
   ctx.setLineDash([]);
   if (!listening) {
+    // On a plate of the scope's own background: the dashed heading line must not cross the text
+    const label = t('MAST UNTEN');
+    const tw = ctx.measureText(label).width;
+    const ty = cy + R * 0.45;
+    ctx.fillStyle = COL.bg;
+    ctx.fillRect(cx - tw / 2 - 4, ty - 8, tw + 8, 16);
     ctx.fillStyle = COL.dim;
-    ctx.fillText(t('MAST UNTEN'), cx, cy + R * 0.45);
+    ctx.fillText(label, cx, ty);
+    ctx.textBaseline = 'alphabetic';
     return;
   }
   ctx.lineWidth = 3;
