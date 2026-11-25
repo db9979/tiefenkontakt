@@ -1,4 +1,4 @@
-import { REGIONS, SEA_TIME_FACTOR, TIME_SCALES, areasFor, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
+import { REGIONS, TIME_SCALES, seaMinutesFor, areasFor, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
 import { net } from '../net.js';
 import { t } from '../i18n/index.js';
 import { accountPanel } from './account.js';
@@ -137,8 +137,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <div class="row"><span class="dim">SEEGANG</span><select id="s-sea">${[1, 2, 3, 4, 5, 6].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie">VARIATION</span><select id="s-var"><option value="aus">AUS</option><option value="leicht">GERING</option><option value="stark">STARK</option></select></div>
           ${match.settings.lage !== undefined ? `<div class="row"><span class="dim">LAGE</span><span>#${match.settings.lage} · WIE IN DER LETZTEN PARTIE</span></div>` : ''}
-          <div class="row"><span class="dim" title="So lange dauert der Einsatz auf See; die echte Dauer hängt vom Zeitraffer ab">EINSATZDAUER</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v * SEA_TIME_FACTOR} MIN SEEZEIT</option>`).join('')}</select></div>
-          <div class="row"><span class="dim" title="Wie schnell die Zeit auf See läuft. Die Lage bleibt gleich, nur die echte Spieldauer ändert sich">ZEITRAFFER</span><select id="s-scale">${TIME_SCALES.map((n) => `<option value="${n}">${n === 1 ? 'ECHTZEIT' : `${n}×`} · ${Math.round((match!.settings.timeLimitMin * SEA_TIME_FACTOR) / n)} MIN ECHT</option>`).join('')}</select></div>
+          <div class="row"><span class="dim" title="So lange dauert die Partie in echten Minuten; mit Zeitraffer vergeht auf See entsprechend mehr Zeit">EINSATZDAUER</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
+          <div class="row"><span class="dim" title="Wie schnell die Zeit auf See läuft. Die echte Spieldauer bleibt gleich; mit Zeitraffer ist der Weg des Konvois länger und die Lage weiter auseinander">ZEITRAFFER</span><select id="s-scale">${TIME_SCALES.map((n) => `<option value="${n}">${n === 1 ? 'ECHTZEIT' : `${n}×`} · ${seaMinutesFor(match!.settings.timeLimitMin, n)} MIN AUF SEE</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>
           <div class="row"><span class="dim">KI-STÄRKE</span><select id="s-skill"><option value="leicht">LEICHT</option><option value="normal">NORMAL</option><option value="schwer">SCHWER</option></select></div>
           <div class="row"><span class="dim" title="Wahrheitsansicht, Zeitraffer und Ziele setzen; ohne Wertung">ÜBUNGSMODUS (SANDKASTEN)</span><select id="s-sandbox"><option value="0">NEIN</option><option value="1">JA</option></select></div>
