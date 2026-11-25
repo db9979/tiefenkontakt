@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { AlertState, Debounce, alertRecipient, diskLow, duration, fmtBytes, parseDiskThreshold, type AlertAction, type DiskThreshold } from './alerts.js';
 import type { BackupResult, Backups } from './backup.js';
+import { adminContent, type MailContent } from './admin-mail.js';
+import { watchdogAlert, watchdogDaily, watchdogRecovered } from './admin-mails.js';
 import type { Mailer } from './mailer.js';
 import { log } from './log.js';
 import { metrics } from './metrics.js';
@@ -86,7 +88,8 @@ const LABEL: Record<string, string> = {
   tick: 'Spieltakt zu langsam',
 };
 
-export type SendFn = (subject: string, text: string) => Promise<void>;
+/** Sends one rendered operator mail (recipient added by the caller). */
+export type SendFn = (mail: MailContent) => Promise<void>;
 
 export class Watchdog {
   readonly alerts: AlertState;
@@ -101,7 +104,7 @@ export class Watchdog {
   /** Mails in flight (tests await them). */
   pending: Promise<void>[] = [];
 
-  constructor(private probes: WatchdogProbes, private send: SendFn, readonly cfg: WatchdogConfig, private site = 'Tiefenkontakt') {
+  constructor(private probes: WatchdogProbes, private send: SendFn, readonly cfg: WatchdogConfig, private site = 'Tiefenkontakt', private url?: string) {
     this.alerts = new AlertState(cfg.gapMs);
     this.mem = new Debounce(cfg.persist);
     this.lag = new Debounce(cfg.persist);
@@ -116,17 +119,12 @@ export class Watchdog {
     const label = LABEL[kind] ?? kind;
     if (a.send === 'alert') {
       log('warn', `Alarm: ${label}`, { kind, detail });
-      this.mail(`${this.site} ALARM: ${label}`, [
-        `${label}.`, '', detail, '',
-        `Seit: ${new Date(a.since).toISOString()}`,
-        `Weitere Mails zu diesem Punkt frühestens in ${Math.round(this.cfg.gapMs / 3_600_000)} h; eine Entwarnung kommt, sobald es wieder passt.`,
-      ].join('\n'));
+      this.mail(adminContent(watchdogAlert({ site: this.site, label, detail, since: a.since, gapH: Math.round(this.cfg.gapMs / 3_600_000), url: this.url })));
     } else {
       log('info', `Entwarnung: ${label}`, { kind, detail });
-      this.mail(`${this.site} wieder OK: ${label}`, [
-        `Entwarnung: ${label} ist behoben.`, '', `Jetzt: ${detail}`,
-        `Vorher: ${this.detail.get(kind) ?? '?'}`, `Dauer: ${duration(now - a.since)}`,
-      ].join('\n'));
+      this.mail(adminContent(watchdogRecovered({
+        site: this.site, label, now: detail, before: this.detail.get(kind) ?? '?', duration: duration(now - a.since), url: this.url,
+      })));
     }
     return a;
   }
@@ -177,16 +175,17 @@ export class Watchdog {
     this.lastDaily = day;
     const active = this.alerts.activeKinds();
     const status = this.probes.status();
-    this.mail(`${this.site} Tagesbericht: ${active.length ? `${active.length} offene Warnung(en)` : 'alles OK'}`, [
-      active.length ? `Offene Warnungen: ${active.map((k) => LABEL[k] ?? k).join(', ')}` : 'Keine offenen Warnungen.', '',
-      ...Object.entries(status).map(([k, v]) => `${k}: ${v}`),
-      `Speicherplatz: ${this.last.disk ?? '?'}`, `Speicher: ${this.last.memory ?? '?'}`,
-      `Event-Loop: ${this.last.lag ?? '?'}`, `Spieltakt: ${this.last.tick ?? 'keine Partie'}`, `Backup: ${this.last.backup ?? 'aus'}`,
-    ].join('\n'));
+    this.mail(adminContent(watchdogDaily({
+      site: this.site, active: active.map((k) => LABEL[k] ?? k), status, url: this.url,
+      readings: [
+        ['Speicherplatz', this.last.disk ?? '?'], ['Speicher', this.last.memory ?? '?'], ['Event-Loop', this.last.lag ?? '?'],
+        ['Spieltakt', this.last.tick ?? 'keine Partie'], ['Backup', this.last.backup ?? 'aus'],
+      ],
+    })));
   }
 
-  private mail(subject: string, text: string): void {
-    const p = this.send(subject, text).catch((e) => log('error', 'Alarm-Mail fehlgeschlagen', { subject, error: (e as Error).message }));
+  private mail(m: MailContent): void {
+    const p = this.send(m).catch((e) => log('error', 'Alarm-Mail fehlgeschlagen', { subject: m.subject, error: (e as Error).message }));
     this.pending.push(p);
     if (this.pending.length > 20) this.pending.splice(0, this.pending.length - 20);
   }
@@ -251,10 +250,10 @@ export function startWatchdog(mailer: Mailer, backups: Backups, status: () => Re
   try {
     if (env.PUBLIC_URL) site = `Tiefenkontakt (${new URL(env.PUBLIC_URL).host})`;
   } catch { /* keep the plain name */ }
-  const send: SendFn = async (subject, text) => {
-    if (to) await mailer.send({ to, subject, text });
+  const send: SendFn = async (m) => {
+    if (to) await mailer.send({ to, ...m });
   };
-  const w = new Watchdog(processProbes(cfg, backups, status), send, cfg, site);
+  const w = new Watchdog(processProbes(cfg, backups, status), send, cfg, site, env.PUBLIC_URL);
   backups.onResult = (r) => w.backupResult(r);
   w.start();
   log('info', 'Watchdog aktiv', {

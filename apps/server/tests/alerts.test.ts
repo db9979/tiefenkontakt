@@ -113,7 +113,7 @@ describe('watchdog', () => {
       backupAgeH: () => r.age, status: () => ({ Partien: 2 }),
     };
     const sent: string[] = [];
-    const w = new Watchdog(probes, async (s) => void sent.push(s), watchdogConfig({ ALERT_RSS_MB: '500', ALERT_PERSIST: '3', ...env }));
+    const w = new Watchdog(probes, async (m) => void sent.push(m.subject), watchdogConfig({ ALERT_RSS_MB: '500', ALERT_PERSIST: '3', ...env }));
     return { r, w, sent };
   }
 
