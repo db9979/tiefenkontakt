@@ -5,6 +5,14 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 
 ## [Unreleased]
 
+### Neu
+- **Reichweitenvorhersage:** Horchraum und Fregatten-Sonar zeigen einen Schnitt Entfernung gegen Tiefe: wo man den
+  Gegner hört (grün) und wo man selbst gehört wird (rot), mit Schicht, Grund und Konvergenzzone, berechnet aus dem
+  Schallmodell des Spiels. Ohne gemessene Schicht nur als grobe Schätzung gekennzeichnet.
+- **Tiefen- und Grundalarme:** Im Tauchstand lassen sich Ober- und Untergrenze sowie zwei Grundabstände (Warnung,
+  Gefahr) setzen. Ein Alarm piept, wird vorgelesen und steht auf jeder Station und am Ruderstand.
+- **Zeitraffer voreingestellt auf Echtzeit:** 2× und 3× bleiben in der Lobby wählbar.
+
 ### Moderation
 - **Beendete Partien verwalten:** Das Moderationspanel listet die aufgezeichneten Partien (Zeit, Mission, Sieger, Dauer,
   Spieler und Endgrund, der jetzt mitgespeichert wird). Einzelne Partien lassen sich aus Balance, Rangliste und Dienstbuch

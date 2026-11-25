@@ -44,7 +44,7 @@ kbd { font: 9pt Menlo, Consolas, monospace; border: 0.5pt solid #888; border-rad
 <section class="cover">
   <div><div class="t">TIEFENKONTAKT</div><div class="s">Spielerhandbuch · U-Boot-Jagd im Kalten Krieg</div></div>
   <div><img src="img/ssk.png" alt=""><img src="img/ffg.png" alt=""></div>
-  <div class="f">Alle Staaten, Schiffsklassen und Namen sind erfunden. Werte entsprechen dem Spielstand vom 24.11.2026.<br>
+  <div class="f">Alle Staaten, Schiffsklassen und Namen sind erfunden. Werte entsprechen dem Spielstand vom 25.11.2026.<br>
   Druckfreundlich: weißer Hintergrund, Graustufen-tauglich, A4.</div>
 </section>
 <nav class="toc"><h1>Inhalt</h1><a href="#k1"><span>1</span>Das Spiel</a><a href="#k2"><span>2</span>Erste Schritte</a><a href="#k3"><span>3</span>Das Meer und der Schall</a><a href="#k4"><span>4</span>Lagebild und Symbole</a><a href="#k5"><span>5</span>Als U-Boot-Kommandant</a><a href="#k6"><span>6</span>Als Kommandant der Eskorte</a><a href="#k7"><span>7</span>Klassifizieren</a><a href="#k8"><span>8</span>Einheitenreferenz</a><a href="#k9"><span>9</span>Missionen</a><a href="#k10"><span>10</span>Umwelt und Zwischenfälle</a><a href="#k11"><span>11</span>Taktik</a><a href="#k12"><span>12</span>Tastatur und Glossar</a></nav>
@@ -80,7 +80,7 @@ Eine Partie dauert je nach Mission 30 bis 60 Minuten.</p>
 <h2>Konto, Gast und Lobby</h2>
 <ol>
 <li><b>Anmelden</b> mit Rufzeichen und Passwort oder als Gast. Mit Konto werden Rang, Statistik und Karriere gespeichert.</li>
-<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Einsatzdauer und KI-Stärke. Der <b>Zeitraffer</b> (3×, 2× oder Echtzeit) ändert nur die echte Spieldauer: Die Lage auf See bleibt gleich, eine Einsatzdauer von 120 Minuten Seezeit dauert bei 3× 40 Minuten, in Echtzeit 120. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
+<li><b>Lobby:</b> eine Partie eröffnen oder beitreten. Der Gastgeber wählt Mission, Tageszeit, Seegang, Sprungschicht, Einsatzdauer und KI-Stärke. Der <b>Zeitraffer</b> (3×, 2× oder Echtzeit) ändert nur die echte Spieldauer: Die Lage auf See bleibt gleich, eine Einsatzdauer von 120 Minuten Seezeit dauert bei 3× 40 Minuten, in Echtzeit 120. Voreingestellt ist Echtzeit. Die Uhr zeigt die Seezeit und dahinter die echte Restzeit.</li>
 <li><b>Team und Klasse</b> wählen. Beim Teamkameraden „Mitfahren“ macht euch zur gemeinsamen Besatzung eines Schiffs, jeder an einer Station.</li>
 <li><b>Bereit</b> melden. Leere Plätze besetzt die KI.</li>
 <li>Vor dem Auslaufen erscheint die <b>Einsatzbesprechung</b> mit Auftrag, Lagebild, Aufklärung über den gegnerischen Kommandanten und den ersten Schritten.</li>
@@ -166,6 +166,12 @@ Dort hört man laute Schiffe plötzlich wieder, dazwischen ist Stille.</p>
     <ellipse cx="620" cy="46" rx="26" ry="10" fill="#d9dee1" stroke="#8a9196"/><text x="620" y="74" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">2. Zone</text>
     <text x="185" y="130" text-anchor="middle" font-size="11" fill="#8a9196" stroke="none">Schattenzone: hier hört man nichts</text>
     <text x="330" y="222" text-anchor="middle" font-size="11" fill="#1b1f22" stroke="none">Nur in tiefem Wasser (über 2000 m): Kontakte in ca. 55 km Abstand, dazwischen Stille</text></svg><figcaption>Abb. 4 · Konvergenzzonen in der Grönland-Lücke.</figcaption></figure>
+<h2>Reichweitenvorhersage</h2>
+<p>Im Horchraum des Boots und am Sonar der Fregatte zeigt die aufklappbare <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
+nach unten die Tiefe. <b>Grün</b> ist, wo man ein typisches Ziel hört (Boot: Geleitfahrzeug mit 15 kn, blass ein Frachter mit 9 kn; Fregatte: Diesel-U-Boot mit 5 kn
+auf Batterie), <b>rot schraffiert</b>, wo der Gegner einen selbst hört. Beim Boot ist die Tiefe die eigene: Man sieht, wie es unter der Schicht stiller wird.
+Bei der Fregatte ist es die Tiefe des Boots. Die Vorhersage rechnet mit eigener Fahrt, Seegang, Wassertiefe und der gemessenen Schicht. Ohne Messung steht
+dort <b>SCHICHT UNBEKANNT · NUR GROBE SCHÄTZUNG</b>. Schwund, Maskierung und Gelände rechnet sie nicht mit.</p>
 <h2>Flachwasser</h2>
 <p>Im Schelfmeer und im Fjord ist das Wasser 100–300 m tief. Der Boden schluckt Schall mit jeder Reflexion, die Schicht ist schwach und
 <b>Nachhall</b> (Echos von Boden und Oberfläche) überdeckt das Aktivsonar. Ein CW-Puls findet dort langsame Ziele kaum, ein <b>LFM-Puls</b>
@@ -270,6 +276,7 @@ Ein Kontakt wird erst „feindlich“, wenn du ihn klassifiziert hast; vorher is
 <tr><td>Trimm</td><td>Fahrt und Tiefenwechsel bringen das Boot aus dem Trimm. Ein schlecht getrimmtes Boot steuert Tiefe träge.</td></tr>
 <tr><td>Pressluft</td><td>Drei Flaschen. „Notanblasen“ (zweimal tippen) bringt das Boot schnell nach oben, ist aber sehr laut und kostet eine Flasche.</td></tr>
 <tr><td>Testtiefe</td><td>Unter der Tauchtiefe drohen Lecks und Schäden.</td></tr>
+<tr><td>Tiefenalarme</td><td>Im Tauchstand unter „Alarme“ einstellbar und einzeln abschaltbar: Obergrenze (meldet, wenn das Boot ungewollt flacher steigt; schweigt bei befohlener Sehrohrtiefe), Untergrenze (Vorgabe 90 % der Testtiefe) und Grundabstand mit WARNUNG (50 m) und GEFAHR (25 m) Wasser unter dem Kiel. Ein Alarm ertönt einmal und erscheint auf jeder Station unter der Kopfleiste und in der Tiefenzeile des Ruderstands; erneut erst, wenn das Boot den Bereich um einige Meter verlassen hat. Die Werte gelten je Bootsklasse und bleiben gespeichert.</td></tr>
 <tr><td>Koppelort</td><td>Getaucht wird die eigene Position nur gekoppelt und immer ungenauer (bis 8 sm). Ein Fix am Mast setzt sie zurück.</td></tr>
 <tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
 </table>
