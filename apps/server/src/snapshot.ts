@@ -317,7 +317,7 @@ export function buildSnapshot(
       return d.items;
     })(),
     env: {
-      layerDepth: own.btLayer, seaState: w.env.seaState, light: w.env.light, rain: w.env.rain || inSquall(w.env.met, own.pos), clock: w.env.weather?.clock, met: metView(w.env.met),
+      ...layerView(w, own), seaState: w.env.seaState, light: w.env.light, rain: w.env.rain || inSquall(w.env.met, own.pos), clock: w.env.weather?.clock, met: metView(w.env.met),
       bottom: w.env.seabed ? Math.round(depthAt(w.env.seabed, own.pos.x, own.pos.y)) : undefined, seabed: w.env.seabed,
       ...currentView(w, own),
       ...sunView(w),
@@ -353,4 +353,12 @@ export function briefingRng(seed: number, shipId: string): () => number {
   for (const ch of shipId) h = Math.imul(h ^ ch.charCodeAt(0), 0x9e3779b1) >>> 0;
   const r = new Rng(h);
   return () => r.next();
+}
+
+/** The measured layer as the crew sees it here: none where the water is shallower than the layer (mixed to the bottom). */
+function layerView(w: World, own: Ship): { layerDepth?: number; noLayer?: boolean } {
+  const l = own.btLayer;
+  if (l === undefined) return {};
+  const bottom = w.env.seabed ? depthAt(w.env.seabed, own.pos.x, own.pos.y) : Infinity;
+  return l > 0 && bottom > l + 2 ? { layerDepth: l } : { noLayer: true };
 }

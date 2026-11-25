@@ -84,7 +84,7 @@ export function centralStation(): Station {
     const v = b.dataset.depth!;
     const layer = s.env.layerDepth;
     if ((v === 'layer-' || v === 'layer+') && layer === undefined) {
-      store.lastError = 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
+      store.lastError = s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt' : 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
       return;
     }
     const depth = depthOf(v, layer, CLASSES[s.own.cls].maxDepth);
@@ -122,7 +122,7 @@ export function centralStation(): Station {
       if (!hasMines && tabs.current === 'mines') tabs.show('nav');
       q('#c-alarm').textContent = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 60) ? 'TORPEDO!' : '';
       q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
-      setHtml(q('#c-layer'), layer !== undefined ? `SCHICHT ${layer} M · ${o.depth > layer ? 'DARUNTER' : 'DARÜBER'}` : '<span class="amber">SCHICHT UNBEKANNT</span>');
+      setHtml(q('#c-layer'), layer !== undefined ? `SCHICHT ${layer} M · ${o.depth > layer ? 'DARUNTER' : 'DARÜBER'}` : s.env.noLayer ? 'KEINE SCHICHT · DURCHMISCHT BIS GRUND' : '<span class="amber">SCHICHT UNBEKANNT</span>');
       // Tiles: the four figures a diving officer watches
       const moving = Math.abs(o.order.depth - o.depth) > 2;
       q('#t-depth').textContent = `${o.depth.toFixed(0)} M`;

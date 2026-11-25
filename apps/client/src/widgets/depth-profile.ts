@@ -80,7 +80,7 @@ export class DepthProfile {
       ctx.fillText(`SPRUNGSCHICHT ${layer} M`, w - 170, Y(layer) - 8);
     } else {
       ctx.fillStyle = COL.dim;
-      ctx.fillText('SPRUNGSCHICHT UNBEKANNT', 46, H - 6);
+      ctx.fillText(s.env.noLayer ? 'KEINE SPRUNGSCHICHT · DURCHMISCHT BIS GRUND' : 'SPRUNGSCHICHT UNBEKANNT', 46, H - 6);
     }
     const bottom = s.env.bottom;
     if (bottom !== undefined && bottom < maxD) {

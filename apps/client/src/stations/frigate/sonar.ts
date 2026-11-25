@@ -145,7 +145,7 @@ export function frigateSonarStation(): Station {
       const vd = o.vdsDepth ?? 0, vo = o.vdsOrder ?? 0;
       btnState(vb, Math.abs(vd - vo) > 2 ? { on: vo > 0, label: `${vd} M`, pct: (100 * vd) / Math.max(vd, vo, 1), tone: 'busy' } : { on: vo > 0, label: vo > 0 ? `${vd} M` : undefined });
       setHtml(q('#o-rows'), `
-        <div class="row"><span class="dim">SPRUNGSCHICHT</span><span class="${s.env.layerDepth === undefined ? 'amber' : ''}">${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN)` : 'UNBEKANNT · BT WERFEN'}</span></div>
+        <div class="row"><span class="dim">SPRUNGSCHICHT</span><span class="${s.env.layerDepth === undefined && !s.env.noLayer ? 'amber' : ''}">${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN)` : s.env.noLayer ? 'KEINE · DURCHMISCHT BIS GRUND' : 'UNBEKANNT · BT WERFEN'}</span></div>
         <div class="row"><span class="dim">WASSERTIEFE</span><span>${s.env.bottom !== undefined ? `${s.env.bottom} M` : '—'}</span></div>
         ${hasVds ? `<div class="row"><span class="dim">TIEFENSONAR</span><span>${vo > 0 || vd > 5 ? `${vd} M${vo !== vd ? ` → ${vo} M` : ''}` : 'EINGEHOLT'}</span></div>` : ''}
         <div class="row"><span class="dim">MINENMEIDEN</span><span>${o.mineAvoid ? (o.mineAvoidRange ? `AN · ${o.mineAvoidRange} M VORAUS` : '<span class="amber">ZU SCHNELL (ÜBER 15 KN)</span>') : 'AUS'}</span></div>`);

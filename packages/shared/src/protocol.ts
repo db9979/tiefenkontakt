@@ -454,6 +454,8 @@ export interface Snapshot {
   /** layerDepth is only known after a bathythermograph measurement. */
   env: {
     layerDepth?: number;
+    /** The water here is shallower than the measured layer (or the probe found none): mixed to the bottom, no layer. */
+    noLayer?: boolean;
     seaState: number;
     /** 1 = day, 0 = dark night */
     light?: number;

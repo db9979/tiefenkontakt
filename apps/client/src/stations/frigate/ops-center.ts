@@ -33,7 +33,7 @@ function aswStrip(s: Snapshot): string {
   return [
     o.activeSonar ? chip('SONAR', 'AKTIV', 'amber') : '',
     tow,
-    s.env.layerDepth !== undefined ? chip('SCHICHT', `${s.env.layerDepth} M`) : chip('SCHICHT', '?', 'amber'),
+    s.env.layerDepth !== undefined ? chip('SCHICHT', `${s.env.layerDepth} M`) : s.env.noLayer ? chip('SCHICHT', 'KEINE') : chip('SCHICHT', '?', 'amber'),
     a ? chip('HUBSCHR.', helo ? 'IN DER LUFT' : a.heloReadyInS > 0 ? `${Math.ceil(a.heloReadyInS / 60)} MIN` : 'BEREIT', a.heloReadyInS > 0 && !helo ? 'amber' : '') : '',
     a ? chip('BOJEN', buoys ? `${a.stock} · ${buoys} IM WASSER` : String(a.stock), a.stock ? '' : 'amber') : '',
     chip('RAKETEN', String(o.loadout.rockets), o.loadout.rockets ? '' : 'amber'),

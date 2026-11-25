@@ -406,7 +406,7 @@ export function mountHelm(el: HTMLElement) {
       if (spec.submarine) {
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
         const ground = s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
-        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>${ground} ${depthAlarms.helmTag()}`);
+        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? (s.env.noLayer ? 'KEINE' : '?')}</span>${ground} ${depthAlarms.helmTag()}`);
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const lay = s.env.layerDepth;
         depthBtn(q('#h-peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);

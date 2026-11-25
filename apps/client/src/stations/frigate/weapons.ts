@@ -126,7 +126,7 @@ export function weaponsStation(): Station {
       bank.update(l.tubes);
       q('#dcn').textContent = `NOCH ${l.depthCharges} SALVEN`;
       const [above, below] = lightSearchDepths(s.env.layerDepth);
-      q('#tdep').textContent = s.env.layerDepth ? `${above} / ${below} M (SCHICHT ${s.env.layerDepth} M)` : `${above} / ${below} M · SCHICHT NICHT GEMESSEN (BT)`;
+      q('#tdep').textContent = s.env.layerDepth ? `${above} / ${below} M (SCHICHT ${s.env.layerDepth} M)` : s.env.noLayer ? `${above} / ${below} M · KEINE SCHICHT HIER` : `${above} / ${below} M · SCHICHT NICHT GEMESSEN (BT)`;
       // Mortar: is the target in the field the salvo covers (400–800 m, within a few degrees of the bow)?
       const rel = a ? Math.abs(angleDiff(s.own.heading, a.bearing)) : undefined;
       const inField = a && rel !== undefined && rel < 8 && a.range >= MORTAR_MIN - 40 && a.range <= MORTAR_MAX + 40;
