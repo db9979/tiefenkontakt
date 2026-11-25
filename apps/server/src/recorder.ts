@@ -82,7 +82,8 @@ export class Recorder {
     }
     const orders = orderResults(w);
     const stats: PlayerStats[] = slots.map((p) => {
-      const shipId = `p_${p.crewOf ?? p.playerId}`;
+      // A player who went aboard a teammate after sinking keeps the own ship's figures
+      const shipId = `p_${p.transferred ? p.playerId : p.crewOf ?? p.playerId}`;
       const ship = w.ships.find((x) => x.id === shipId);
       const mine = (what: string) => events.filter((e) => e.kind === 'shot' && e.shipId === shipId && e.what === what).length;
       const kills = events.filter((e) => e.kind === 'sunk' && e.byId === shipId);
