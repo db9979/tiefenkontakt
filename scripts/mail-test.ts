@@ -1,7 +1,7 @@
-import { createMailer, smtpConfigFrom } from './mailer.js';
-import { testMail } from './mail-templates.js';
+import { createMailer, smtpConfigFrom } from '../apps/server/src/mailer.js';
+import { testMail } from '../apps/server/src/mail-templates.js';
 
-/** Sends one test mail with the current settings: node --import tsx src/mail-test.ts you@example.com */
+/** Sends one test mail with the current settings: node --import tsx scripts/mail-test.ts you@example.com */
 const to = process.argv[2];
 if (!to) {
   console.error('Aufruf: mail-test <empfänger@adresse>');

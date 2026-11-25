@@ -7,6 +7,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { lkHttp, lkUpgrade } from './lk-proxy.js';
 import { AuthStore, GUEST_TOKEN, RateLimiter, guestPlayerId, parseCookies, type User } from './auth.js';
 import { parseClientMsg } from './input.js';
+import { MsgGate } from './msg-gate.js';
 import { Lobby } from './lobby.js';
 import { MatchStore } from './match-store.js';
 import { createMailer, SmtpMailer } from './mailer.js';
@@ -43,6 +44,8 @@ import { realBalance } from './real-balance.js';
 const PORT = Number(process.env.PORT ?? 8787);
 const MAX_MSG_BYTES = 4096;
 const MAX_MSGS_PER_SEC = 30;
+/** A player whose link can't keep up gets no new snapshot until the backlog drains. */
+const SEND_BACKLOG_BYTES = 256 * 1024;
 const COOKIE = 'tk_session';
 
 const auth = new AuthStore();
@@ -116,7 +119,7 @@ const SAVE_S = Math.max(2, Number(process.env.MATCH_SAVE_S ?? 5));
 setInterval(() => lobby.prune(), 5000).unref();
 lobby.voice.start();
 lobby.sandbox.start();
-setInterval(() => store.saveAll(lobby), SAVE_S * 1000).unref();
+setInterval(() => void store.saveAllAsync(lobby), SAVE_S * 1000).unref();
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
     store.saveAll(lobby);
@@ -449,6 +452,7 @@ wss.on('connection', (ws: WebSocket, req) => {
       ws.send(text);
       phones.mirror(conn.playerId, msg, text);
     },
+    congested: () => ws.bufferedAmount > SEND_BACKLOG_BYTES,
     close: (reason: string, code = 4000) => {
       if (ws.readyState === ws.OPEN) ws.close(code, reason);
     },
@@ -466,23 +470,53 @@ wss.on('connection', (ws: WebSocket, req) => {
   conn.send({ t: 'welcome', playerId: conn.playerId, callsign: conn.callsign, resume: resumed });
   lobby.resume(conn);
 
-  let windowStart = Date.now();
-  let count = 0;
-  ws.on('message', (data) => {
-    const now = Date.now();
-    if (now - windowStart > 1000) {
-      windowStart = now;
-      count = 0;
-    }
-    if (++count > MAX_MSGS_PER_SEC) return;
+  const gate = new MsgGate(MAX_MSGS_PER_SEC, (msg) => {
     metrics.msgsReceived++;
-    const msg = parseClientMsg(data.toString());
-    if (!msg) return conn.send({ t: 'error', msg: 'Ungültige Nachricht' });
     if (msg.t === 'phone_link') return conn.send({ t: 'phone_link', code: phones.link(conn) });
     lobby.handle(conn, msg);
+  }, () => conn.send({ t: 'error', msg: 'Zu viele Befehle, kurz warten' }));
+  alive.add(ws);
+  ws.on('pong', () => alive.add(ws));
+  ws.on('message', (data) => {
+    if (gate.flooding()) return;
+    // One bad message (or a bug in its handler) must not take the server down
+    try {
+      const msg = parseClientMsg(data.toString());
+      if (!msg) {
+        if (gate.invalid()) conn.send({ t: 'error', msg: 'Ungültige Nachricht' });
+        return;
+      }
+      gate.offer(msg);
+    } catch (e) {
+      log('error', 'Nachricht nicht verarbeitet', { player: conn.playerId, error: (e as Error).message, stack: (e as Error).stack });
+    }
   });
-  ws.on('close', () => lobby.disconnect(conn));
+  ws.on('close', () => {
+    gate.close();
+    lobby.disconnect(conn);
+  });
 });
+
+/**
+ * Heartbeat: a link that died without a close (phone in a tunnel, NAT timeout) would keep its
+ * seat "online" and its socket buffering forever. Every 15 s each socket must answer a ping.
+ */
+const HEARTBEAT_MS = 15_000;
+const alive = new WeakSet<WebSocket>();
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!alive.has(ws)) {
+      ws.terminate();
+      continue;
+    }
+    alive.delete(ws);
+    try {
+      ws.ping();
+    } catch {
+      ws.terminate();
+    }
+  }
+}, HEARTBEAT_MS).unref();
 
 // A restarting dev server may find the old process still holding the port for a moment
 let listenTries = 0;

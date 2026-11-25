@@ -20,7 +20,6 @@ import {
   type ContactTrack,
   type ClassChoice,
   type ClassId,
-  type World as W,
   type FriendlyView,
   type RadioMsg,
   type Ship,
@@ -41,6 +40,7 @@ import {
   sunPosition,
   nextSatPassIn,
   REGIONS,
+  Rng,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
 
@@ -94,6 +94,37 @@ function wreckOf(w: World, id: string): ReturnType<typeof wreckView> {
   return t ? wreckView(t) : undefined;
 }
 
+/** How long an optical look keeps showing a target's damage (s). */
+export const WRECK_VIEW_S = 5;
+
+/**
+ * Seen by eye (periscope or bridge lookout) within the last few seconds. `sensors` only ever
+ * grows, so it can't tell: a target once in the periscope would report its damage forever after.
+ */
+function seenOptically(tr: ContactTrack, now: number): boolean {
+  for (let i = tr.history.length - 1; i >= 0; i--) {
+    const h = tr.history[i]!;
+    if (now - h.t > WRECK_VIEW_S) return false;
+    if (h.sensor === 'periscope' || h.sensor === 'visual') return true;
+  }
+  return false;
+}
+
+/**
+ * Forget delta bookkeeping for labels not in this snapshot: the client drops a vanished
+ * contact's history, so when the label comes back it must get the whole history again.
+ */
+function forgetVanished(x: PlayerExtras, sent: ReadonlySet<string>): void {
+  const keep = (rec: Record<string, number> | undefined) => {
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(rec ?? {})) if (sent.has(k)) out[k] = v;
+    return out;
+  };
+  // Always defined afterwards: an undefined histSent marks the next snapshot as full
+  x.histSent = keep(x.histSent);
+  x.evSent = keep(x.evSent);
+}
+
 export interface ScoreInfo {
   sunkTons: number;
   arrivedTons: number;
@@ -118,7 +149,7 @@ export function hasDatalink(s: Ship): boolean {
  * state flows to a client. Enemy ships appear exclusively as sensor tracks.
  */
 /** Datalink mates of a surface ship, in a stable order (their index forms the L<n>- label prefix). */
-export function datalinkMates(w: W, own: Ship): Ship[] {
+export function datalinkMates(w: World, own: Ship): Ship[] {
   return w.ships.filter((s) => s.team === own.team && s.id !== own.id && hasDatalink(s));
 }
 
@@ -136,14 +167,17 @@ export function buildSnapshot(
   const seen = new Set<string>();
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
     seen.add(tid);
-    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: tr.sensors.includes('periscope') ? wreckOf(w, tid) : undefined });
+    contacts.push({ ...tr, evidence: newEvidence(x, tr.label, tr), history: newSamples(x, tr.label, tr.history, 120), via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: seenOptically(tr, w.time) ? wreckOf(w, tid) : undefined });
   }
 
   const friendlies: FriendlyView[] = [];
   if (hasDatalink(own)) {
-    const mates = w.ships.filter((s) => s.team === own.team && s.id !== own.id);
+    // FOG OF WAR: the datalink carries surface ships only; a submarine is where it last radioed
+    const mates = datalinkMates(w, own);
     for (const m of mates) friendlies.push(friendlyOf(m, w.time));
-    datalinkMates(w, own).forEach((m, i) => {
+    const linked = new Set(mates.map((m) => m.id));
+    for (const r of x.reports.values()) if (!linked.has(r.id)) friendlies.push(r);
+    mates.forEach((m, i) => {
       for (const [tid, tr] of w.books.get(m.id)?.entries() ?? []) {
         if (seen.has(tid)) continue;
         seen.add(tid);
@@ -155,10 +189,13 @@ export function buildSnapshot(
   } else {
     friendlies.push(...x.reports.values());
   }
+  forgetVanished(x, new Set(contacts.map((c) => c.label)));
 
   // The wire reports where the torpedo is relative to the boat: on the chart it sits beside the
-  // dead-reckoned own position, so it carries the same reckoning error
+  // dead-reckoned own position, so it carries the same reckoning error. Own mines and aircraft
+  // too: a boat plots them from its own believed position, not from the truth.
   const dr = own.drErr ?? { x: 0, y: 0 };
+  const shifted = CLASSES[own.cls].submarine && (dr.x !== 0 || dr.y !== 0);
   const torpedoes = (w.weapons?.torpedoes ?? [])
     .filter((t) => t.ownerId === own.id && t.wire)
     .map((t) => ({ id: t.id, x: t.pos.x + dr.x, y: t.pos.y + dr.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run }));
@@ -185,12 +222,12 @@ export function buildSnapshot(
     };
   }
   return {
-    planes: planesFor(w, own),
+    planes: shifted ? planesFor(w, own).map((p) => (p.x !== undefined && p.y !== undefined ? { ...p, x: Math.round(p.x + dr.x), y: Math.round(p.y + dr.y) } : p)) : planesFor(w, own),
     orders: ordersFor(w, own),
     hunt: huntFor(w, own),
     airdef: airDefFor(w, own),
     ssm: ssmFor(w, own),
-    mines: minesFor(w, own),
+    mines: shifted ? minesFor(w, own).map((m) => ({ ...m, x: Math.round(m.x + dr.x), y: Math.round(m.y + dr.y) })) : minesFor(w, own),
     air,
     time: w.time,
     timeScale: x.timeScale ?? 1,
@@ -267,4 +304,12 @@ function sunView(w: World): { sun?: { el: number; az: number }; month?: number }
   const p = sunPosition(lat, month, weather.clock);
   const turn = seabed?.region ? REGIONS[seabed.region].bearing : 0;
   return { sun: { el: Math.round(p.el * 10) / 10, az: Math.round(wrap360(p.az - turn)) }, month };
+}
+
+/** The briefing's own random stream: the same text after a reconnect, the sim's stream untouched. */
+export function briefingRng(seed: number, shipId: string): () => number {
+  let h = seed >>> 0;
+  for (const ch of shipId) h = Math.imul(h ^ ch.charCodeAt(0), 0x9e3779b1) >>> 0;
+  const r = new Rng(h);
+  return () => r.next();
 }

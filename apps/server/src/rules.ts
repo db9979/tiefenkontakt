@@ -26,13 +26,38 @@ export interface MatchResult {
   reason: string;
 }
 
+/**
+ * Who sank what, read incrementally: computeScore runs every tick, and rescanning the whole
+ * event log each time grew with the match. A cache only (rebuilt from the saved events after
+ * a restart), so a WeakMap is fine here.
+ */
+const sinkers = new WeakMap<World, { n: number; by: Map<string, string | undefined> }>();
+
+function sinkerMap(w: World): Map<string, string | undefined> {
+  let c = sinkers.get(w);
+  if (!c || c.n > w.events.length) sinkers.set(w, (c = { n: 0, by: new Map() }));
+  for (; c.n < w.events.length; c.n++) {
+    const e = w.events[c.n]!;
+    if (e.kind === 'sunk') c.by.set(e.shipId, e.byId);
+  }
+  return c.by;
+}
+
+/** Events of the last `windowS` seconds, newest first (the log is in time order; a little slack for stragglers). */
+function* recentEvents(w: World, windowS: number): Generator<World['events'][number]> {
+  for (let i = w.events.length - 1; i >= 0; i--) {
+    const e = w.events[i]!;
+    if (w.time - e.time > windowS + 60) return;
+    yield e;
+  }
+}
+
 export function computeScore(w: World): Score {
   const merchants = w.ships.filter(isConvoyShip);
   const tons = (ids: string[]) => ids.length * CLASSES.merchant.tonnage;
   const sunk = merchants.filter((m) => !m.alive).map((m) => m.id);
   // Who sank it: the ship of the last hit, as recorded on the sinking
-  const sinker = new Map<string, string | undefined>();
-  for (const e of w.events) if (e.kind === 'sunk') sinker.set(e.shipId, e.byId);
+  const sinker = sinkerMap(w);
   const bySurface = sunk.filter((id) => {
     const by = w.ships.find((s) => s.id === sinker.get(id));
     return !!by && by.team === 'east' && !CLASSES[by.cls].submarine;
@@ -68,20 +93,20 @@ export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): M
   return undefined;
 }
 
-const lastEval = new WeakMap<World, number>();
-
 /** Shadowing, strait breakthrough and reconnaissance: goals beyond sinking ships. */
 function special(w: World, timeLimitS: number, mission: string): MatchResult | undefined {
   const subs = w.ships.filter((s) => s.team === 'east' && s.alive && CLASSES[s.cls].submarine);
   if (!subs.length) return { winner: 'west', reason: 'Alle U-Boote versenkt' };
-  const prev = lastEval.get(w) ?? w.time;
-  lastEval.set(w, w.time);
+  // On the world (saved with it), so a restarted match doesn't count the gap twice or lose it
+  const prev = w.env.evalAt ?? w.time;
+  w.env.evalAt = w.time;
   if (mission === 'fuehlung') {
     // Contact counts while a boat holds a fresh track on a convoy ship
     const convoy = w.ships.filter((s) => isConvoyShip(s) && s.alive);
     const ids = new Set(convoy.map((s) => s.id));
     // A shadower only counts while it keeps reporting: a radio report within the last 15 minutes (which the escorts can DF)
-    const reported = new Set(w.events.filter((e) => e.kind === 'transmission' && w.time - e.time < 900).map((e) => (e as { senderId: string }).senderId));
+    const reported = new Set<string>();
+    for (const e of recentEvents(w, 900)) if (e.kind === 'transmission' && w.time - e.time < 900) reported.add(e.senderId);
     const holding = subs.some((s) => reported.has(s.id) && convoy.some((c) => distance(s.pos, c.pos) < SHADOW_RANGE_M) &&
       w.books.get(s.id)?.entries().some(([id, tr]) => ids.has(id) && w.time - tr.lastSeen < 30));
     if (holding) w.env.shadowS = (w.env.shadowS ?? 0) + (w.time - prev);
@@ -95,7 +120,8 @@ function special(w: World, timeLimitS: number, mission: string): MatchResult | u
     return undefined;
   }
   // Reconnaissance: a radio report from a boat that has an escort in its periscope (classified by sight)
-  for (const e of w.events) {
+  // Oldest first: the first qualifying report counts
+  for (const e of [...recentEvents(w, w.time - prev)].reverse()) {
     if (e.kind !== 'transmission' || e.time <= prev - 1e-6 || e.time > w.time) continue;
     const sender = subs.find((s) => s.id === e.senderId);
     // Close enough to make out the type and its weapons: 4 km at most

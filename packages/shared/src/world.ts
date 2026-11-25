@@ -116,8 +116,6 @@ export function voiceIntercept(w: World, sender: Ship): void {
   ingest(w, dets);
 }
 
-const groundedAt = new WeakMap<Ship, number>();
-
 /** Seabed and shoals: a boat can't dive into the ground; ships run aground in shallows. */
 function checkGround(w: World, s: Ship): void {
   if (!s.alive || !w.env.seabed) return;
@@ -146,10 +144,10 @@ function checkGround(w: World, s: Ship): void {
       s.speed = Math.min(s.speed, 0.3);
     }
   }
-  const last = groundedAt.get(s) ?? -1e9;
+  const last = s.groundedAt ?? -1e9;
   // Damage and the report come with the strike, not every minute while she sits on the ground
   if (w.time - last > 60 && struckKn > (sub ? 2 : 1)) {
-    groundedAt.set(s, w.time);
+    s.groundedAt = w.time;
     // A touch at dead slow scrapes the paint; at speed she tears her bottom open, worst on a rocky shore
     const hard = Math.max(0, struckKn - 3) * (bottom <= 0 ? 4.5 : 3);
     s.hp -= 8 + hard;
