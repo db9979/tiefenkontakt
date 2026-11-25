@@ -18,8 +18,9 @@ import { stepLights } from './lights.js';
 /**
  * Boat and crew systems, run every tick: watches and fatigue, morale and wounded, air in
  * diesel boats, dead reckoning while submerged, trim after shots, high-pressure air and
- * emergency blows, the test depth, the crew's noise mishaps, and the knuckles (bubble
- * fields) that hard turns at speed leave behind.
+ * emergency blows, the test depth, battle stations on an alarm, the noise the crew's own
+ * work makes (reloading or pumping trim under silent running, a crash dive), and the
+ * knuckles (bubble fields) that hard turns at speed leave behind.
  */
 
 const H = 3600;
@@ -30,10 +31,23 @@ const KNUCKLE_LIFE_S = 240;
 const KNUCKLE_COOLDOWN_S = 25;
 const HP_AIR_BOTTLES = 3;
 const BLOW_S = 40;
+/** Air in a closed-up diesel boat (% per hour): about 0.12 % CO2 more, a little more O2 used. */
+const CO2_RISE_H = 0.12;
+const O2_USE_H = 0.14;
+/** Battle stations called on an alarm stand down this long after the last one (s). */
+const BATTLE_HOLD_S = 1200;
+/** Crash dive: from near the surface, ordered this much deeper at this share of top speed or more. */
+const CRASH_FROM_M = 30;
+const CRASH_DEEPER_M = 30;
+const CRASH_SPEED_SHARE = 0.6;
 
 const cursor = new WeakMap<World, number>();
 const lastHp = new WeakMap<Ship, number>();
 const lastKnuckle = new WeakMap<Ship, number>();
+/** Last alarm that called battle stations (only when the crew called them itself). */
+const autoBattle = new WeakMap<Ship, number>();
+/** Noise from the crew's work: tubes being reloaded, trim pumps running, crash dive under way. */
+const work = new WeakMap<Ship, { reloading: number; pumping: boolean; crashing: boolean }>();
 
 function say(w: World, s: Ship, what: string, text: string): void {
   w.events.push({ kind: 'boat', time: w.time, shipId: s.id, what, text });
@@ -50,6 +64,19 @@ function reactToEvents(w: World): void {
       if (shooter && CLASSES[shooter.cls].submarine) shooter.trim = (shooter.trim ?? 0) + 1.5;
       continue;
     }
+    // An alarm (torpedo in the water, a hit) sends the crew to battle stations on its own
+    if ((e.kind === 'torpedo_alert' || e.kind === 'hit') && e.shipId) {
+      const s = w.ships.find((x) => x.id === e.shipId);
+      if (s?.alive && s.cls !== 'merchant' && s.team !== 'neutral') {
+        const c = crewOf(s);
+        if (!c.battle) {
+          c.battle = true;
+          say(w, s, 'battle', 'GEFECHTSSTATIONEN · ALARM');
+          autoBattle.set(s, w.time);
+        } else if (autoBattle.has(s)) autoBattle.set(s, w.time);
+      }
+      continue;
+    }
     if (e.kind !== 'sunk') continue;
     const victim = w.ships.find((x) => x.id === e.shipId);
     for (const s of w.ships) {
@@ -64,6 +91,15 @@ function reactToEvents(w: World): void {
 
 function stepCrew(w: World, s: Ship, dt: number): void {
   const c = crewOf(s);
+  // Battle stations the crew called on an alarm end when it has been quiet for a while
+  const since = autoBattle.get(s);
+  if (since !== undefined && (!c.battle || w.time - since > BATTLE_HOLD_S)) {
+    autoBattle.delete(s);
+    if (c.battle) {
+      c.battle = false;
+      say(w, s, 'battle', 'GEFECHTSSTATIONEN AUFGEHOBEN');
+    }
+  }
   // Three watches keep a ship at a steady low fatigue; battle stations wear everyone out in ~90 min
   if (c.battle) c.fatigue = Math.min(1, c.fatigue + (0.6 / H) * dt);
   else c.fatigue += ((c.fatigue > 0.25 ? -0.12 : 0.05) / H) * dt;
@@ -88,8 +124,8 @@ function stepAir(w: World, s: Ship, dt: number): void {
     a.co2 = Math.max(0.1, a.co2 - (6 / H) * dt);
     a.o2 = Math.min(20.9, a.o2 + (6 / H) * dt);
   } else {
-    a.co2 += (0.9 / H) * dt;
-    a.o2 -= (0.7 / H) * dt;
+    a.co2 += (CO2_RISE_H / H) * dt;
+    a.o2 -= (O2_USE_H / H) * dt;
     // The crew spreads absorbent and lights oxygen candles on their own while stores last
     if (a.co2 > 2.2 && a.scrubbers > 0) {
       a.co2 -= 1.5;
@@ -179,15 +215,29 @@ export function emergencyBlow(w: World, s: Ship): true | string {
   return true;
 }
 
-/** Crew mishaps: a dropped tool, a slammed hatch: rarer under silent running, likelier when tired or low. */
-function stepMishaps(w: World, s: Ship, dt: number): void {
-  if (!CLASSES[s.cls].submarine || s.depth <= 0.5) return;
-  const c = crewOf(s);
-  const perHour = 1.5 * (1 + 2 * c.fatigue) * (c.morale < 0.4 ? 1.5 : 1) * (c.silent ? 0.3 : 1) * (c.battle ? 0.7 : 1);
-  if (w.rng.next() < (perHour / H) * dt) {
-    w.events.push({ kind: 'transient', time: w.time, sourceId: s.id, x: s.pos.x, y: s.pos.y, what: 'mishap' });
-    say(w, s, 'mishap', 'LÄRM IM BOOT · METALLISCHER SCHLAG');
-  }
+function transient(w: World, s: Ship, text: string): void {
+  w.events.push({ kind: 'transient', time: w.time, sourceId: s.id, x: s.pos.x, y: s.pos.y, what: 'mishap' });
+  say(w, s, 'mishap', text);
+}
+
+/**
+ * The crew's own work makes the noise, not chance: under silent running a reload starting in
+ * the torpedo room and the trim pumps starting up are heard outside; a crash dive (flooding
+ * vents, planes hard down at speed) always is.
+ */
+function stepWorkNoise(w: World, s: Ship): void {
+  const spec = CLASSES[s.cls];
+  if (!spec.submarine) return;
+  const silent = !!s.crew?.silent;
+  const st = work.get(s) ?? { reloading: 0, pumping: false, crashing: false };
+  const reloading = w.weapons?.loadouts.get(s.id)?.tubes.filter((t) => !t.loaded && t.reloadDoneAt > 0).length ?? 0;
+  if (silent && s.depth > 0.5 && reloading > st.reloading) transient(w, s, 'NACHLADEN IST LAUT · RUHE IM BOOT GESTÖRT');
+  const pumping = Math.abs(s.trim ?? 0) > 0.2;
+  if (silent && s.depth > 0.5 && pumping && !st.pumping) transient(w, s, 'TRIMMPUMPEN LAUFEN · HÖRBAR');
+  const crashing = s.depth < CRASH_FROM_M && s.order.depth >= s.depth + CRASH_DEEPER_M && s.order.speedKn >= spec.maxSpeedKn * CRASH_SPEED_SHARE;
+  if (crashing && !st.crashing) transient(w, s, 'SCHNELLTAUCHEN · FLUTEN UND KLAPPERN IM BOOT');
+  // A crash dive counts once until the boat is back near the surface
+  work.set(s, { reloading, pumping, crashing: crashing || (st.crashing && s.depth < CRASH_FROM_M + CRASH_DEEPER_M) });
 }
 
 /** Knuckle: a hard turn at speed leaves a bubble field that blocks sound and fools active seekers. */
@@ -221,7 +271,7 @@ export function boatSystem(w: World, dt: number): void {
     stepNav(w, s, dt);
     stepBoat(w, s, dt);
     stepMastSpeed(w, s);
-    stepMishaps(w, s, dt);
+    stepWorkNoise(w, s);
     stepKnuckles(w, s);
   }
 }

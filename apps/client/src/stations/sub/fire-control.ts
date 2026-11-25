@@ -111,6 +111,12 @@ export function fireControlStation(): Station {
       ...torpedoAction(p, {
         speedKn: Number(q<HTMLSelectElement>('#t-spd').value), searchDepth: Number(q<HTMLInputElement>('#t-dep').value) || 15,
         mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active',
+        // Expert: the map only sets course and seeker distance; the guarded FEUER button fires
+        aim: store.realism === 'profi' ? (hdg, enableAfter) => {
+          q<HTMLInputElement>('#t-hdg').value = String(Math.round(trueDeg(hdg)) % 360);
+          q<HTMLInputElement>('#t-en').value = String(Math.round(enableAfter / 250) * 250);
+          q<HTMLButtonElement>('#fire').focus();
+        } : undefined,
       }),
     ],
   });

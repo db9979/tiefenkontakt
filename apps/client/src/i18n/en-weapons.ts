@@ -15,6 +15,8 @@ export const EN_WEAPONS: [string, string][] = [
   ['TRIMMPUMPEN LAUFEN · HÖRBAR', 'TRIM PUMPS RUNNING · AUDIBLE'],
   ['SCHNELLTAUCHEN · FLUTEN UND KLAPPERN IM BOOT', 'CRASH DIVE · FLOODING AND RATTLING IN THE BOAT'],
   ['SCHIFF SCHWER GETROFFEN · FÄLLT ZURÜCK', 'SHIP BADLY HIT · FALLING BEHIND'],
+  ['+10 % Leistung, ermüdet die Crew in etwa 90 Minuten; bei Alarm von selbst', '+10 % performance, tires the crew in about 90 minutes; called on its own on an alarm'],
+  ['−3 dB; Reparaturen und Nachladen halb so schnell, Nachladen und Trimmen bleiben hörbar', '−3 dB; repairs and reloads at half speed, reloading and trimming can still be heard'],
   ['IM WURFFELD', 'IN THE PATTERN'], ['ZU NAH · UNTER 1,8 KM', 'TOO CLOSE · UNDER 1.8 KM'], ['Werfer leer', 'Mortar empty'],
   ['Salve 400–800 m voraus geworfen', 'salvo thrown 400–800 m ahead'],
   ['TRÄGT EINEN LEICHTGEWICHTSTORPEDO 1,8–18 KM WEIT, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. DER TORPEDO SUCHT AKTIV IM KREIS, ÜBER UND UNTER DER GEMESSENEN SCHICHT.',
@@ -31,4 +33,6 @@ export const EN_WEAPONS_PHRASES: [RegExp, string][] = [
   [/^Werfer: noch (\d+) Salven$/, 'Mortar: $1 salvos left'],
   [/^(\d+) \/ (\d+) M \(SCHICHT (\d+) M\)$/, '$1 / $2 M (LAYER $3 M)'], [/^(\d+) \/ (\d+) M · SCHICHT NICHT GEMESSEN \(BT\)$/, '$1 / $2 M · LAYER NOT MEASURED (BT)'],
   [/ · BUG AUF DAS ZIEL, 400–800 M$/, ' · BOW ON THE TARGET, 400–800 M'],
+  [/^Schusskurs hierher \((\d+)°, Suchkopf ab (.+)\)$/, 'Firing course here ($1°, seeker from $2)'],
+  [/^⚠ EIGENE IN DER NÄHE · /, '⚠ OWN SHIPS NEAR · '], [/Torpedo hierher \((\d+)°, Suchkopf ab (.+)\)$/, 'Torpedo here ($1°, seeker from $2)'],
 ];
