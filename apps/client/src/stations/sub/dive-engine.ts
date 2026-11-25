@@ -1,4 +1,4 @@
-import { CLASSES, PERISCOPE_DEPTH } from '@tk/shared';
+import { CLASSES, PERISCOPE_DEPTH, batteryChargePctH, type Snapshot } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, depthBtn } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
@@ -6,6 +6,22 @@ import type { Station } from '../../screens/game.js';
 import { COL, clock, fitCanvas, h, setHtml } from '../../widgets/format.js';
 import { depthAlarms } from '../../widgets/depth-alarm-ui.js';
 
+/**
+ * Battery rows (charge and "Reichweite bei dieser Fahrt": time and distance until the battery
+ * is flat at the present speed; charging rate on the snorkel; the AIP plant at a creep).
+ */
+export function batteryRows(o: Snapshot['own']): string {
+  const spec = CLASSES[o.cls];
+  if (!spec.battery || o.battery === undefined) return '<div class="row"><span class="dim">ANTRIEB</span><span>REAKTOR</span></div>';
+  const pct = (100 * o.battery) / spec.battery.capacityKnH;
+  const charging = o.depth <= 0.5 || (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 && (o.snorkelExt ?? 1) >= 1);
+  const range = charging
+    ? `LÄDT ${Math.round(batteryChargePctH(o.speedKn))} %/H`
+    : o.batteryEnduranceS === undefined ? 'AIP · UNBEGRENZT'
+    : `${clock(o.batteryEnduranceS)} · ${((o.batteryEnduranceS / 3600) * o.speedKn).toFixed(0)} SM`;
+  return `<div class="row"><span class="dim">BATTERIE</span><span class="${pct < 25 ? 'red' : pct < 50 ? 'amber' : ''}">${pct.toFixed(0)} %</span></div>
+        <div class="row"><span class="dim">REICHWEITE BEI DIESER FAHRT</span><span class="${!charging && (o.batteryEnduranceS ?? Infinity) < 3600 ? 'amber' : ''}">${range}</span></div>`;
+}
 
 export function diveEngineStation(): Station {
   const el = h(`<div class="cols">
@@ -78,14 +94,12 @@ export function diveEngineStation(): Station {
         : !o.snorkel && sx > 0 ? { on: false, label: 'EIN…', pct: sx * 100, tone: 'busy' } : { on: o.snorkel });
       el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, s.env.layerDepth, spec.maxDepth)));
 
-      const pct = spec.battery && o.battery !== undefined ? (100 * o.battery) / spec.battery.capacityKnH : undefined;
       const cav = o.speedKn > o.cavitationKn;
       setHtml(q('#stat'), `
         <div class="row"><span class="dim">ANTRIEB</span><span>${spec.battery ? (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 ? ((o.snorkelExt ?? 1) >= 1 ? 'DIESEL / SCHNORCHEL' : `SCHNORCHEL FÄHRT AUS ${Math.round((o.snorkelExt ?? 0) * 100)} %`) : (o.snorkelExt ?? 0) > 0 ? `E-MASCHINE · SCHNORCHEL FÄHRT EIN` : 'E-MASCHINE') : 'REAKTOR'}</span></div>
         <div class="row"><span class="dim">EIGENGERÄUSCH</span><span class="${o.noiseDb > 135 ? 'red' : o.noiseDb > 122 ? 'amber' : ''}">${o.noiseDb.toFixed(0)} DB</span></div>
         <div class="row"><span class="dim">KAVITATION AB</span><span class="${cav ? 'red' : ''}">${o.cavitationKn.toFixed(1)} KN${cav ? ' · KAVITIERT' : ''}</span></div>
-        ${pct !== undefined ? `<div class="row"><span class="dim">BATTERIE</span><span class="${pct < 25 ? 'red' : pct < 50 ? 'amber' : ''}">${pct.toFixed(0)} %</span></div>
-        <div class="row"><span class="dim">RESTZEIT BEI FAHRT</span><span>${o.batteryEnduranceS !== undefined ? clock(o.batteryEnduranceS) : '—'}</span></div>` : ''}
+        ${spec.battery ? batteryRows(o) : ''}
         <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M (GEMESSEN) · ${o.depth > s.env.layerDepth ? 'DARUNTER' : 'DARÜBER'}` : '<span class="amber">UNBEKANNT · DURCHTAUCHEN MISST SIE</span>'}</span></div>
         <div class="row"><span class="dim">TÄUSCHKÖRPER</span><span>${o.loadout.noisemakers}</span></div>
         <div class="row"><span class="dim">ZUSTAND</span><span class="${o.hp < spec.hp / 2 ? 'red' : ''}">${Math.max(0, (100 * o.hp) / spec.hp).toFixed(0)} %</span></div>`);

@@ -31,7 +31,8 @@ describe('balance guard rails', () => {
     let t = 0;
     while (s.battery! > 0 && t < 7200) stepShip(s, 1, t++);
     expect(t).toBeGreaterThan(1800);
-    expect(t).toBeLessThan(4000);
+    // 1 + v³/70 %/h: about 85 %/h at 18 kn, so a full battery lasts some 70 minutes
+    expect(t).toBeLessThan(4500);
     expect(s.speed / KN).toBeGreaterThan(0);
   });
 });

@@ -16,6 +16,7 @@ import {
   lightNote,
   trueDeg3,
   compassStem,
+  batteryDrainPctH,
 } from '@tk/shared';
 import { MISSIONS, type ScenarioSettings } from './scenario.js';
 
@@ -78,6 +79,12 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   if (ai && rnd() < 0.6) intel.push(`Feindlagebild: Der gegnerische Kommandant ${ai.name} gilt als ${TRAITS[commanderTrait(ai.id, w.env.seed ?? 0)].de}`);
   if (sub && !duel) intel.push('Funksprüche der Führung alle 20 Minuten: Empfang auf höchstens 25 m oder mit Schleppantenne (bis 60 m, höchstens 6 kn)');
   if ((settings.mission === 'hafen' || settings.mission === 'meerenge') && (!sub || w.weapons?.loadouts.get(ship.id)?.mines)) intel.push(sub ? 'Minen: Wo die Eskorte patrouilliert, sperren ein paar Minen ihr Fahrwasser (Feuerleitung, bis 300 m Wassertiefe)' : 'Minengefahr: Aktivsonar findet Minen voraus auf etwa 1 km');
+  // Diesel boats: how much the patrol left in the battery and how long that lasts at a creep
+  const cap = CLASSES[ship.cls].battery?.capacityKnH;
+  if (cap && ship.battery !== undefined) {
+    const pct = Math.round((100 * ship.battery) / cap);
+    intel.push(`Batterie bei ${pct} %: bei 4 kn etwa ${Math.round(pct / batteryDrainPctH(4))} h getaucht, bei 10 kn etwa ${(pct / batteryDrainPctH(10)).toFixed(1).replace('.', ',')} h; Schnorcheln lädt`);
+  }
   const steps = sub
     ? ['Langsam (unter 5 kn) und unter 100 m fahren und horchen', 'Kontakt wählen, klassifizieren, dann Kurswechsel für die Entfernung', 'Mit guter TMA-Lösung schießen, danach tief und schnell ablaufen']
     : hasHelicopter(ship.cls)
