@@ -181,7 +181,7 @@ export const GROENLAND_BANK_FRAC = 0.4;
  */
 export function startGeometry(mission: MissionId, k: number): { subFrac: number; spread: number; harbourSubY: number; straitStartY: number; straitExitY: number } {
   // 0 at the designed long battle, 1 at 40 minutes in real time; tuned values in between
-  const t = Math.max(0, Math.min(1, (1 - k) / (2 / 3)));
+  const t = Math.sqrt(Math.max(0, Math.min(1, (1 - k) / (2 / 3))));
   const short = SHORT_GEOMETRY[mission] ?? {};
   const lerp = (a: number, b: number) => a + (b - a) * t;
   return {
