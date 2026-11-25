@@ -6,6 +6,17 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Gründliche Oberflächenprüfung:** ein strenger Prüfer hat jede Station, jeden Reiter und jedes Menü in Hell und
+  Dunkel bei 1440, 1140 und 390 px durchgesehen; 64 Befunde behoben, u. a.: FLASH- und Torpedo-Banner verdecken nichts
+  mehr, NIEDERLAGE in Rot, Kontaktlisten mit getrennten Spalten SENS / KLASSE / PEGEL, überall Dezimalkomma,
+  Beschriftungen in Karten, Wasserfällen und Spektren auf Hinterlegung statt übereinander, Meldungen mit Spielzeit
+  „T+“, Funk bei eingefahrenem Mast gesperrt, Torpedo-Einstellungen als bündiges Raster, Handy-Leiste mit allen
+  Stationen, Lobby und Briefing im Hellmodus und auf dem Handy lesbar.
+- **Aus dem Spielen:** Kontakte im toten Winkel erscheinen nicht mehr im Sonar (nur was das Sonar gerade selbst hört),
+  ein eingeholter Schleppsonar bleibt dunkel, keine Schicht in Wasser, das flacher ist als sie, Schiffe tauchen in
+  3D aus dem Dunst auf statt aufzuploppen, kein weißer Strich mehr in der 3D-Ansicht, Flugzeuge hinterlassen ein
+  Radarecho, eigener Hubschrauber, Seeaufklärer und Torpedos als NATO-Symbole, „Klasse zuweisen“ als Knopf,
+  Reichweitenvorhersage mit Klartext-Legende und Tauchgrenze, schwächere Schatten neben lauten Wasserfall-Spuren.
 - **Expertenpanel-Überarbeitung:** U-Boot- und Fregattenkapitän, Entwickler, Grafikdesigner und Spieletester haben
   das ganze Spiel geprüft und diskutiert; die folgenden Punkte sind ihr gemeinsamer Beschluss.
 - **Stationen zusammengelegt:** U-Boot 4 Stationen (Horchraum, Sehrohr mit Radarwarner, Feuerleitung mit Rohrbank,
