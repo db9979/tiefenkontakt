@@ -68,6 +68,8 @@ export interface Ship {
   rudderJamUntil?: number;
   /** Towed array torn off and not usable until this time (driftnet). */
   towedLostUntil?: number;
+  /** Route plotted on the player's chart and "Route fahren" (route.ts). */
+  route?: import('./route.js').ShipRoute;
   /** Navigation lights burning (lights.ts). */
   lights?: boolean;
   /** Fouled in a driftnet until this time: crawling and noisy. */

@@ -31,6 +31,9 @@ import {
   layMine,
   isRegion,
   sounding,
+  setRoute,
+  disengageRoute,
+  ROUTE_MAX_WPS,
 } from '@tk/shared';
 import { z } from 'zod';
 
@@ -69,6 +72,16 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ssw', 'ffg', 'kor', 'ffv', 'ffk']) }),
   z.object({ t: z.literal('ready'), ready: z.boolean() }),
   z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
+  // Plotted route: waypoints in the game frame (m), each with an optional leg speed and depth
+  z.object({
+    t: z.literal('route'),
+    wps: z.array(z.object({
+      x: z.number().finite().min(-1e6).max(1e6), y: z.number().finite().min(-1e6).max(1e6),
+      speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional(),
+    })).max(ROUTE_MAX_WPS).optional(),
+    idx: z.number().int().min(0).max(ROUTE_MAX_WPS).optional(),
+    active: z.boolean().optional(),
+  }),
   z.object({ t: z.literal('blow') }),
   z.object({ t: z.literal('mad'), bearing: deg, range: z.number().finite().min(200).max(30_000) }),
   z.object({ t: z.literal('toggle'), what: z.enum(['mast', 'snorkel', 'radar', 'active', 'decoy', 'silent', 'battle', 'buoyant', 'vds', 'mineavoid', 'sounding']), on: z.boolean() }),
@@ -146,7 +159,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -155,10 +168,15 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
   const spec = CLASSES[s.cls];
   switch (m.t) {
     case 'order':
-      if (m.heading !== undefined) s.order.heading = m.heading % 360;
+      if (m.heading !== undefined) {
+        s.order.heading = m.heading % 360;
+        disengageRoute(s);
+      }
       if (m.speedKn !== undefined) s.order.speedKn = Math.min(m.speedKn, spec.maxSpeedKn);
       if (m.depth !== undefined && spec.submarine) s.order.depth = Math.min(m.depth, spec.maxDepth);
       return;
+    case 'route':
+      return setRoute(s, m);
     case 'toggle':
       if (m.what === 'mast') {
         if (!spec.submarine) return 'Nur für U-Boote';

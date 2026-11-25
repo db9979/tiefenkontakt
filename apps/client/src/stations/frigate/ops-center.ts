@@ -23,7 +23,7 @@ export function opsCenterStation(): Station {
     </div>
   </div>`);
   const plot = new Plot(el.querySelector<HTMLCanvasElement>('#plot')!, {
-    bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p)],
+    bearingLines: true, showConvoy: true, esmLines: true, route: true, actions: (p) => [...courseAction(p), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p)],
   });
   plot.scale = 80;
   el.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => net.send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));

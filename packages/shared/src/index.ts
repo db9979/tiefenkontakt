@@ -37,6 +37,7 @@ export * from './filters.js';
 export * from './persist.js';
 export * from './seabed.js';
 export * from './navigation.js';
+export * from './route.js';
 export * from './regions.js';
 export * from './bathymetry.js';
 export * from './weather.js';

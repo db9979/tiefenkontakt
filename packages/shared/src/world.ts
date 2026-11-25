@@ -6,6 +6,7 @@ import { CLASSES } from './classes.js';
 import { KN, headingVec } from './math.js';
 import { depthAt } from './seabed.js';
 import { keepOffShoals, shoalWarning } from './navigation.js';
+import { followRoute } from './route.js';
 import { stepWeather } from './weather.js';
 import { stepMet } from './met-step.js';
 import { stepConvoy, type ConvoyState } from './convoy-ai.js';
@@ -187,6 +188,7 @@ export function stepWorld(w: World, dt = SIM_DT): void {
   for (const s of w.ships) {
     if (s.autoNav) keepOffShoals(w, s);
     else if (s.playerId) shoalWarning(w, s);
+    if (s.route?.active) followRoute(s);
   }
   for (const s of w.ships) {
     stepShip(s, dt, w.time);

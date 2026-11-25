@@ -43,7 +43,7 @@ export function centralStation(): Station {
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
-  const plot = new Plot(q<HTMLCanvasElement>('#plot'), { bearingLines: true, showConvoy: false, esmLines: true, actions: (p) => courseAction(p) });
+  const plot = new Plot(q<HTMLCanvasElement>('#plot'), { bearingLines: true, showConvoy: false, esmLines: true, route: true, actions: (p) => courseAction(p) });
   plot.scale = 60;
   const wf = new Waterfall(['hull', 'towed']);
   const wfCanvas = q<HTMLCanvasElement>('#wf');

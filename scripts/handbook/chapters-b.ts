@@ -50,6 +50,8 @@ ${fig(figTma(), 'Abb. 8 · Zielbewegungsanalyse (TMA) mit zwei Schenkeln.')}
 <tr><td>Koppelort</td><td>Getaucht wird die eigene Position nur gekoppelt und immer ungenauer (bis 8 sm). Ein Fix am Mast setzt sie zurück.</td></tr>
 <tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
 </table>
+<h3>Route plotten</h3>
+<p>Auf dem Koppeltisch der Zentrale setzt <b>„⚑ Wegpunkte“</b> mit jedem Klick einen Wegpunkt; Ziehen verschiebt ihn, Rechtsklick auf einen Punkt gibt ihm Fahrt und Tiefe oder löscht ihn. Fahrt und Tiefe gelten ab Beginn des Schenkels zu diesem Punkt, danach darf man sie von Hand ändern. An jedem Schenkel stehen rechtweisender Kurs und Länge. <b>„Route fahren“</b> lässt den Rudergänger Punkt für Punkt abfahren (der Knopf zeigt den nächsten Wegpunkt); er steuert nach dem Koppelort, getaucht liegt die Route also so ungenau wie dieser. Jeder Kurs von Hand schaltet die Route ab, die Punkte bleiben stehen. <b>„Voraus N min“</b> zeigt, wo das Boot nach 3 bis 30 Minuten steht.</p>
 <h2>Funk und Führung</h2>
 <p>Funken geht nur mit ausgefahrenem Mast auf Sehrohrtiefe, und jede Sendung erzeugt beim Gegner eine Funkpeilung.
 Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann man über VLF bis 25 m Tiefe oder mit der Schleppantenne bis 60 m bei höchstens 6 kn.</p>
@@ -84,6 +86,7 @@ export const chapterEscort = `
 ${pair(shot('ui-f-opz.jpg', 'Bild 7 · Operationszentrale mit Konvoi, Peillinien und Verbandsstatus.'), shot('ui-f-sonar.jpg', 'Bild 8 · Sonarraum der F-30: Rumpfsonar am VDS in 146 m, Schleppsonar, LOFAR.'))}
 ${pair(shot('ui-f-waffen.jpg', 'Bild 9 · Waffenleitstand mit Zielkarte.'), shot('ui-f-radar.jpg', 'Bild 10 · Radar und Funkpeilung (ESM-Rose).'))}
 ${shot('ui-f-bruecke.jpg', 'Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.')}
+<p><b>Route plotten:</b> In der OPZ werden Wegpunkte genauso gesetzt wie im U-Boot (<b>„⚑ Wegpunkte“</b>, Ziehen, Rechtsklick für Fahrt oder Löschen). <b>„Route fahren“</b> steuert die Fregatte selbst von Punkt zu Punkt, etwa für einen Suchschlag vor dem Konvoi; ein Kurs von Hand oder „Kurs hierher“ schaltet sie ab. Der Vorausvektor zeigt die Position in N Minuten.</p>
 <h2>Sensoren richtig einsetzen</h2>
 <table class="grid">
 <tr><td>Schleppsonar</td><td>Das beste passive Ohr. Lang ausgebracht hängt es unter der Schicht. Nur bis 14 kn brauchbar, nach jedem Kurswechsel 60 s Stabilisierung. Links/rechts-Mehrdeutigkeit: 20° wenden oder das Rumpfsonar entscheidet.</td></tr>
