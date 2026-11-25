@@ -23,7 +23,7 @@ export function gunMount(k: Kit, y: number, z: number, w: number, twin: boolean)
   const g = k.group(0, y, z);
   g.scale.setScalar(s);
   k.mark('grime', 0, z, 2.3 * s);
-  k.mark('ring', 0, z, 3.4 * s);
+  k.mark('arc', 0, z, 3.4 * s);
   // Deck ring with its bolts, then the training base
   k.cyl(2.35, 0.08, 0, 0, 0, C.hazeD, P.paint, 28, 2.35, g);
   for (let i = 0; i < 24; i++) {
@@ -31,13 +31,14 @@ export function gunMount(k: Kit, y: number, z: number, w: number, twin: boolean)
     k.cyl(0.045, 0.07, Math.cos(a) * 2.22, 0.08, Math.sin(a) * 2.22, C.hazeD, P.paint, 5, 0.045, g);
   }
   k.cyl(2.05, 0.36, 0, 0.08, 0, C.hazeD, P.paint, 28, 2.0, g);
+  // Plan at the foot, at the knuckle and at the roof: sloped front, chamfered and sloped rear
   const pts: [number, number][][] = twin
-    ? [[[-2.3, -3.2], [2.3, -3.2], [2.3, 1.2], [1.9, 2.9], [-1.9, 2.9], [-2.3, 1.2]],
-      [[-2.3, -3.2], [2.3, -3.2], [2.3, 1.1], [1.9, 2.7], [-1.9, 2.7], [-2.3, 1.1]],
-      [[-2.0, -3.0], [2.0, -3.0], [2.05, 0.4], [1.6, 1.4], [-1.6, 1.4], [-2.05, 0.4]]]
-    : [[[-2.0, -3.1], [2.0, -3.1], [2.1, 0.9], [1.25, 2.7], [-1.25, 2.7], [-2.1, 0.9]],
-      [[-2.0, -3.1], [2.0, -3.1], [2.1, 0.7], [1.25, 2.45], [-1.25, 2.45], [-2.1, 0.7]],
-      [[-1.65, -2.95], [1.65, -2.95], [1.75, 0.1], [0.95, 1.25], [-0.95, 1.25], [-1.75, 0.1]]];
+    ? [[[-1.9, -3.2], [1.9, -3.2], [2.3, -2.7], [2.3, 1.2], [1.9, 2.9], [-1.9, 2.9], [-2.3, 1.2], [-2.3, -2.7]],
+      [[-1.9, -3.2], [1.9, -3.2], [2.3, -2.7], [2.3, 1.1], [1.9, 2.7], [-1.9, 2.7], [-2.3, 1.1], [-2.3, -2.7]],
+      [[-1.6, -2.6], [1.6, -2.6], [2.0, -2.2], [2.05, 0.4], [1.6, 1.4], [-1.6, 1.4], [-2.05, 0.4], [-2.0, -2.2]]]
+    : [[[-1.6, -3.1], [1.6, -3.1], [2.1, -2.6], [2.1, 0.9], [1.25, 2.7], [-1.25, 2.7], [-2.1, 0.9], [-2.1, -2.6]],
+      [[-1.6, -3.1], [1.6, -3.1], [2.1, -2.6], [2.1, 0.7], [1.25, 2.45], [-1.25, 2.45], [-2.1, 0.7], [-2.1, -2.6]],
+      [[-1.3, -2.5], [1.3, -2.5], [1.75, -2.05], [1.75, 0.1], [0.95, 1.25], [-0.95, 1.25], [-1.75, 0.1], [-1.75, -2.05]]];
   const hy = 0.44;
   const roof = twin ? 2.5 : 2.45;
   const house = k.mesh(facet([{ y: 0, pts: pts[0]! }, { y: twin ? 0.9 : 1.0, pts: pts[1]! }, { y: roof, pts: pts[2]! }]), C.gun, P.paint, g);
@@ -50,25 +51,29 @@ export function gunMount(k: Kit, y: number, z: number, w: number, twin: boolean)
   for (const x of twin ? [-0.72, 0.72] : [0]) {
     const port = k.box(0.62, 0.95, 0.05, x, ay + 0.1, zPort + 0.01, C.dark, P.matte, g);
     port.rotation.x = -slope;
-    const b = k.group(x, ay, zPort - 0.25, 0, -0.06, g);
+    const b = k.group(x, ay, zPort - 0.25, 0, -0.1, g);
     const bag = k.lathe([[0.56, 0], [0.54, 0.16], [0.43, 0.25], [0.48, 0.36], [0.36, 0.47], [0.4, 0.58], [0.27, 0.69], [0.19, 0.86]], 0, 0, 0, C.canvas, P.matte, 12, b);
     bag.rotation.x = Math.PI / 2;
-    const len = twin ? 5.4 : 6.4;
-    const br = k.mesh(new THREE.CylinderGeometry(0.115, 0.17, len, 12, 1, true), C.gun, P.paint, b);
+    const len = twin ? 5.8 : 7;
+    const br = k.mesh(new THREE.CylinderGeometry(0.21, 0.29, len, 12, 1, true), C.hazeL, P.paint, b);
     br.rotation.x = Math.PI / 2;
     br.position.z = 0.7 + len / 2;
-    const mz = k.mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.5, 12), C.gun, P.paint, b);
+    // Barrel collar just ahead of the blast bag
+    const collar = k.mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.4, 12), C.gun, P.paint, b);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.z = 0.95;
+    const mz = k.mesh(new THREE.CylinderGeometry(0.27, 0.22, 0.6, 12), C.hazeL, P.paint, b);
     mz.rotation.x = Math.PI / 2;
     mz.position.z = 0.7 + len - 0.25;
-    const bore = k.mesh(new THREE.CircleGeometry(0.075, 10), C.dark, P.matte, b);
+    const bore = k.mesh(new THREE.CircleGeometry(0.11, 10), C.dark, P.matte, b);
     bore.position.z = 0.7 + len + 0.003;
   }
   // Side doors (outlines proud of the plating) and a grab rail along each roof edge
   const side = twin ? 2.3 : 2.05;
   for (const sx of [-1, 1]) {
     k.box(0.04, 1.4, 0.75, sx * (side + 0.02), hy + 0.85, -1.6, C.hazeD, P.paint, g);
-    k.tube(V(sx * (side - 0.45), hy + roof + 0.12, -2.6), V(sx * (side - 0.45), hy + roof + 0.12, -0.6), 0.025, C.hazeL, P.paint, 4, g);
-    for (const zz of [-2.5, -1.6, -0.7]) k.tube(V(sx * (side - 0.45), hy + roof, zz), V(sx * (side - 0.45), hy + roof + 0.13, zz), 0.02, C.hazeL, P.paint, 4, g);
+    k.tube(V(sx * (side - 0.45), hy + roof + 0.12, -2.2), V(sx * (side - 0.45), hy + roof + 0.12, -0.6), 0.025, C.hazeL, P.paint, 4, g);
+    for (const zz of [-2.1, -1.4, -0.7]) k.tube(V(sx * (side - 0.45), hy + roof, zz), V(sx * (side - 0.45), hy + roof + 0.13, zz), 0.02, C.hazeL, P.paint, 4, g);
   }
   // Roof: sight hoods with dark slits, hatch, vent; rear door and ladder rungs
   const ry = hy + roof;
@@ -76,57 +81,90 @@ export function gunMount(k: Kit, y: number, z: number, w: number, twin: boolean)
     k.box(0.5, 0.36, 0.75, sx * (twin ? 1.35 : 1.05), ry + 0.18, -0.2, C.gun, P.paint, g);
     k.box(0.36, 0.08, 0.02, sx * (twin ? 1.35 : 1.05), ry + 0.24, 0.17, C.dark, P.matte, g);
   }
-  k.box(0.85, 0.07, 0.85, 0, ry + 0.035, -1.7, C.hazeL, P.paint, g);
+  k.box(0.85, 0.07, 0.85, 0, ry + 0.035, -1.2, C.hazeL, P.paint, g);
   // Roof plate seams, the mount captain's cupola with vision slits, lifting eyes at the corners
-  for (const zz of [-1.0, -2.3]) k.box(twin ? 3.9 : 3.2, 0.02, 0.05, 0, ry + 0.01, zz, C.hazeD, P.paint, g);
+  for (const zz of [-0.5, -2.0]) k.box(twin ? 3.9 : 3.2, 0.02, 0.05, 0, ry + 0.01, zz, C.hazeD, P.paint, g);
   const cx = twin ? 1.2 : 0.95;
-  k.lathe([[0.42, 0], [0.42, 0.22], [0.36, 0.3], [0.01, 0.32]], cx, ry, -1.9, C.gun, P.paint, 12, g);
-  k.box(0.5, 0.05, 0.1, cx, ry + 0.18, -1.5, C.dark, P.matte, g);
-  for (const sx of [-1, 1]) for (const zz of [-2.6, 0]) {
+  k.lathe([[0.42, 0], [0.42, 0.22], [0.36, 0.3], [0.01, 0.32]], cx, ry, -1.5, C.gun, P.paint, 12, g);
+  k.box(0.5, 0.05, 0.1, cx, ry + 0.18, -1.1, C.dark, P.matte, g);
+  for (const sx of [-1, 1]) for (const zz of [-2.0, 0]) {
     const eye = k.torus(0.08, 0.02, C.hazeD, P.paint, 4, 8, Math.PI * 2, g);
     eye.position.set(sx * (twin ? 1.75 : 1.45), ry + 0.08, zz);
     eye.rotation.y = Math.PI / 2;
   }
-  k.cyl(0.13, 0.35, twin ? -1.2 : -0.9, ry, -2.4, C.gun, P.paint, 8, 0.13, g);
-  k.lathe([[0.3, 0], [0.28, 0.08], [0.14, 0.17], [0.01, 0.19]], twin ? -1.2 : -0.9, ry + 0.35, -2.4, C.gun, P.paint, 10, g);
+  k.cyl(0.13, 0.35, twin ? -1.2 : -0.9, ry, -2.0, C.gun, P.paint, 8, 0.13, g);
+  k.lathe([[0.3, 0], [0.28, 0.08], [0.14, 0.17], [0.01, 0.19]], twin ? -1.2 : -0.9, ry + 0.35, -2.0, C.gun, P.paint, 10, g);
+  // Rear: low door in the upright skirt, step bars, shell-ejection flap on the sloped back
   const rz = twin ? -3.22 : -3.12;
-  k.box(0.8, 1.55, 0.05, -0.5, hy + 0.95, rz, C.hazeD, P.paint, g);
-  for (let i = 0; i < 5; i++) k.tube(V(0.75, hy + 0.35 + i * 0.42, rz - 0.12), V(1.15, hy + 0.35 + i * 0.42, rz - 0.12), 0.02, C.hazeL, P.paint, 4, g);
-  for (const x of [0.75, 1.15]) k.tube(V(x, hy + 0.2, rz - 0.04), V(x, ry + 0.2, rz - 0.04), 0.022, C.hazeL, P.paint, 4, g);
+  k.box(0.8, 0.85, 0.05, -0.6, hy + 0.48, rz, C.hazeD, P.paint, g);
+  for (let i = 0; i < 2; i++) k.tube(V(0.6, hy + 0.3 + i * 0.4, rz - 0.1), V(1.0, hy + 0.3 + i * 0.4, rz - 0.1), 0.02, C.hazeL, P.paint, 4, g);
+  const flap = k.box(1.0, 0.7, 0.04, 0.3, hy + 1.65, (rz + (twin ? -2.6 : -2.5)) / 2 - 0.02, C.hazeD, P.paint, g);
+  flap.rotation.x = Math.atan2(twin ? 0.6 : 0.6, twin ? 1.6 : 1.45);
 }
 
-/** Eight-cell ASW box launcher at (0, y, z) on its training base, raised toward the bow. */
-export function boxLauncher(k: Kit, y: number, z: number): void {
+/**
+ * Eight-cell ASW box launcher at (0, y, z) on a raised training base, cells cocked up toward the
+ * bow: front covers, rear doors with hinges and cell numbers, stencils; a blast deflector abaft it.
+ */
+export function boxLauncher(k: Kit, d: Deck, y: number, z: number): void {
   k.mark('grime', 0, z, 1.8);
-  k.mark('ring', 0, z, 3.0);
   const g = k.group(0, y, z);
-  k.cyl(1.55, 0.1, 0, 0, 0, C.hazeD, P.paint, 24, 1.55, g);
-  k.lathe([[1.3, 0.1], [1.3, 0.25], [1.08, 0.36], [1.0, 1.0], [1.18, 1.1], [1.18, 1.3], [0.01, 1.3]], 0, 0, 0, C.haze, P.paint, 20, g);
+  k.cyl(1.6, 0.1, 0, 0, 0, C.hazeD, P.paint, 24, 1.6, g);
+  k.lathe([[1.35, 0.1], [1.35, 0.3], [1.12, 0.42], [1.05, 1.9], [1.22, 2.0], [1.22, 2.25], [0.01, 2.25]], 0, 0, 0, C.haze, P.paint, 20, g);
+  for (let i = 0; i < 4; i++) k.box(0.05, 1.3, 0.3, Math.cos((i * Math.PI) / 2) * 1.08, 1.1, Math.sin((i * Math.PI) / 2) * 1.08, C.hazeD, P.paint, g).rotation.y = (-i * Math.PI) / 2;
+  const py = 3.35;
   for (const sx of [-1, 1]) {
-    k.box(0.3, 1.5, 1.6, sx * 1.95, 1.95, 0, C.haze, P.paint, g);
-    k.box(1.1, 0.3, 1.6, sx * 1.5, 1.35, 0, C.haze, P.paint, g);
-    k.cyl(0.32, 0.2, sx * 2.05, 2.45, 0, C.hazeD, P.paint, 10, 0.32, g).rotation.z = Math.PI / 2;
+    k.box(0.3, 1.4, 1.7, sx * 1.95, py - 0.4, 0, C.haze, P.paint, g);
+    k.box(1.1, 0.3, 1.7, sx * 1.5, 2.4, 0, C.haze, P.paint, g);
+    k.cyl(0.34, 0.2, sx * 2.05, py, 0, C.hazeD, P.paint, 10, 0.34, g).rotation.z = Math.PI / 2;
   }
-  const ln = k.group(0, 2.45, 0.1, 0, -0.28, g);
+  const ln = k.group(0, py, 0.1, 0, -0.38, g);
   for (const sx of [-1, 1]) {
     const cx = sx * 0.88;
     k.box(1.55, 1.9, 4.6, cx, 0, 0, C.haze, P.paint, ln).userData.ao = 0.12;
-    // Front: dark frame with four cell covers
+    // Front: dark frame with four frangible cell covers
     k.box(1.45, 1.8, 0.04, cx, 0, 2.31, C.dark, P.matte, ln);
-    for (const dx of [-0.36, 0.36]) for (const dy of [-0.44, 0.44]) k.box(0.62, 0.78, 0.05, cx + dx, dy, 2.33, C.hazeL, P.paint, ln);
-    // Stiffeners along the outer side and over the top
+    for (const dx of [-0.36, 0.36]) for (const dy of [-0.44, 0.44]) k.box(0.62, 0.78, 0.05, cx + dx, dy, 2.33, C.white, P.paint, ln);
+    // Rear: four doors with hinge pins along their tops, dogs, cell numbers
+    k.box(1.45, 1.8, 0.04, cx, 0, -2.31, C.dark, P.matte, ln);
+    let n = sx < 0 ? 1 : 5;
+    for (const dy of [0.44, -0.44]) for (const dx of [-0.36, 0.36]) {
+      k.box(0.64, 0.8, 0.06, cx + dx, dy, -2.34, C.hazeL, P.paint, ln);
+      const hinge = k.mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 6), C.steel, P.metal, ln);
+      hinge.rotation.z = Math.PI / 2;
+      hinge.position.set(cx + dx, dy + 0.42, -2.39);
+      k.box(0.06, 0.1, 0.05, cx + dx + 0.28, dy - 0.25, -2.39, C.steel, P.metal, ln);
+      const num = k.decal(`n${n++}`, 0.3, 0.3, ln);
+      num.position.set(cx + dx - 0.1, dy - 0.05, -2.375);
+      num.rotation.y = Math.PI;
+    }
+    // Stiffeners along the outer side and over the top, a stencil on top
     for (const zz of [-1.6, -0.5, 0.6, 1.7]) {
       k.box(0.07, 1.95, 0.14, cx + sx * 0.8, 0, zz, C.hazeD, P.paint, ln);
       k.box(1.6, 0.07, 0.14, cx, 0.98, zz, C.hazeD, P.paint, ln);
     }
-    k.box(1.2, 1.4, 0.4, cx, 0, -2.5, C.hazeD, P.paint, ln);
+    const st = k.decal('noStep', 1.3, 0.16, ln);
+    st.rotation.set(-Math.PI / 2, 0, Math.PI);
+    st.position.set(cx, 0.955, -1.05);
   }
+  // Blast deflector abaft the launcher: inclined plate on stays, warning stencil
+  const zb = z - 3.3;
+  const yb = d.y(0, zb) - 0.05;
+  const bd = k.group(0, yb, zb, 0, -0.15);
+  k.box(4.6, 1.6, 0.06, 0, 0.8, 0, C.haze, P.paint, bd);
+  k.box(4.7, 0.08, 0.14, 0, 1.6, 0, C.hazeL, P.paint, bd);
+  const w = k.decal('blast', 2.6, 0.26, bd);
+  w.position.set(0, 1.2, 0.035);
+  for (const x of [-1.9, -0.6, 0.6, 1.9]) {
+    k.tube(V(x, 1.5, -0.03), V(x, 0, -0.55), 0.05, C.hazeD, P.paint, 5, bd);
+    k.box(0.25, 0.04, 0.25, x, 0.02, -0.55, C.hazeD, P.paint, bd);
+  }
+  k.mark('grime', 0, zb - 0.4, 1.2);
 }
 
 /** Round pop-up missile launcher bin let into the deck at (0, y, z): flange with bolts, split lid. */
 export function missileBin(k: Kit, y: number, z: number, r: number): void {
   k.mark('grime', 0, z, r + 0.4);
-  k.mark('ring', 0, z, r + 1.2);
   const g = k.group(0, y, z);
   k.lathe([[r + 0.18, 0], [r + 0.18, 0.12], [r + 0.05, 0.15], [r + 0.05, 0.72], [r + 0.1, 0.78], [r - 0.05, 0.86], [0.01, 0.9]], 0, 0, 0, C.haze, P.paint, 32, g);
   for (let i = 0; i < 28; i++) {
@@ -293,6 +331,8 @@ export function jackstaff(k: Kit, d: Deck, z: number): void {
   k.cyl(0.09, 0.35, 0, y - 0.05, z, C.hazeD, P.paint, 8);
   k.cyl(0.05, 3.3, 0, y + 0.25, z, C.hazeL, P.paint, 6, 0.025);
   k.mesh(new THREE.SphereGeometry(0.06, 6, 4), C.hazeL).position.set(0, y + 3.58, z);
+  // The jack, furled round the staff
+  k.cyl(0.07, 0.9, 0.06, y + 2.5, z, 0x1f3a6b, P.matte, 8, 0.05);
 }
 
 /**

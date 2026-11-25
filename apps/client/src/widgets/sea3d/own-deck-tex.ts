@@ -4,7 +4,7 @@ import type { DeckMark } from './own-kit.js';
 /**
  * Procedural non-skid deck for the own ship's foredeck (own-detail.ts): grey non-skid with
  * grain and aggregate speckle, worn walkways, plate seams, grime in the waterways and around
- * every fitting, rust below the hawse pipes, a painted centreline and safety circles. One
+ * every fitting, rust below the hawse pipes, a painted centreline, scuppers and yellow training-limit arcs. One
  * canvas covers the deck from z0 to the bow (u across the full width W, v along); a small
  * tiling version of the grain serves the rest of the deck.
  */
@@ -31,7 +31,7 @@ function grain(x: CanvasRenderingContext2D, w: number, h: number, r: () => numbe
   x.putImageData(img, 0, 0);
 }
 
-export function foredeckTexture(o: { W: number; z0: number; z1: number; half: (z: number) => number; marks: DeckMark[]; seed: number }): THREE.CanvasTexture {
+export function foredeckTexture(o: { W: number; z0: number; z1: number; half: (z: number) => number; marks: DeckMark[]; seed: number; gap?: [number, number] }): THREE.CanvasTexture {
   const cw = 512;
   const ppm = cw / o.W;
   const ch = Math.min(2048, Math.round((o.z1 - o.z0) * ppm));
@@ -100,27 +100,38 @@ export function foredeckTexture(o: { W: number; z0: number; z1: number; half: (z
       x.stroke();
     }
   }
+  // Scuppers in the waterways every 3 m: dark slots with a short wet streak below them
+  for (let z = Math.ceil(o.z0 / 3) * 3; z < o.z1 - 3; z += 3) for (const m of [-1, 1]) {
+    const ex = X(m * (o.half(z) - 0.08));
+    x.fillStyle = 'rgba(8,10,10,0.8)';
+    x.fillRect(ex - 0.08 * ppm, Y(z) - 0.2 * ppm, 0.16 * ppm, 0.4 * ppm);
+    x.fillStyle = 'rgba(20,22,22,0.18)';
+    x.fillRect(ex - m * 0.5 * ppm - 0.25 * ppm, Y(z) - 0.15 * ppm, 0.5 * ppm, 0.3 * ppm);
+  }
   // Painted centreline (white, worn)
   x.strokeStyle = 'rgba(214,218,216,0.62)';
   x.lineWidth = 0.1 * ppm;
   x.setLineDash([]);
-  x.beginPath();
-  x.moveTo(X(0), Y(o.z0));
-  x.lineTo(X(0), Y(o.z1 - 1.5));
-  x.stroke();
+  // (not under a gun barrel, where it would read as one)
+  const [g0, g1] = o.gap ?? [o.z1, o.z1];
+  for (const [a, b] of [[o.z0, g0], [g1, o.z1 - 1.5]] as const) {
+    if (b <= a) continue;
+    x.beginPath();
+    x.moveTo(X(0), Y(a));
+    x.lineTo(X(0), Y(b));
+    x.stroke();
+  }
   for (const mk of o.marks) {
     const px = X(mk.x);
     const py = Y(mk.z);
     const rr = mk.r * ppm;
-    if (mk.kind === 'ring') {
-      // Safety circle round a mount, painted white and dashed
-      x.strokeStyle = 'rgba(214,218,216,0.55)';
-      x.lineWidth = 0.08 * ppm;
-      x.setLineDash([0.6 * ppm, 0.35 * ppm]);
+    if (mk.kind === 'arc') {
+      // Training limit of a mount: a thin yellow arc, open astern (toward the bridge)
+      x.strokeStyle = 'rgba(201,160,44,0.6)';
+      x.lineWidth = 0.06 * ppm;
       x.beginPath();
-      x.arc(px, py, rr, 0, Math.PI * 2);
+      x.arc(px, py, rr, Math.PI / 2 + 0.75, Math.PI / 2 - 0.75 + Math.PI * 2);
       x.stroke();
-      x.setLineDash([]);
       continue;
     }
     if (mk.kind === 'line') {

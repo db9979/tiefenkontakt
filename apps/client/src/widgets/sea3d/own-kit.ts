@@ -17,19 +17,70 @@ export const P = {
   metal: std({ roughness: 0.55, metalness: 0.3 }),
   /** Canvas, rubber, openings. */
   matte: std({ roughness: 0.96, metalness: 0 }),
+  /** Window glass. */
+  glass: std({ roughness: 0.12, metalness: 0.55 }),
 };
 
 /** Shades. */
 export const C = {
   haze: 0x7d868b, hazeL: 0x8d969a, hazeD: 0x626b70, deck: 0x5c6164, rail: 0x9aa2a6, chain: 0x3d3b39, steel: 0x7f8587, gun: 0x6f787d,
-  dark: 0x101314, canvas: 0x2f3538, orange: 0xd0602a, white: 0xd6dada, rust: 0x6a3d27, boot: 0x1b1e20, bottom: 0x5a2a24,
+  dark: 0x101314, canvas: 0x2f3538, orange: 0xd0602a, white: 0xd6dada, rust: 0x6a3d27, boot: 0x1b1e20, bottom: 0x5a2a24, wood: 0x4a3c2e, glass: 0x10181c, yellow: 0xc9a02c, red: 0x8a1c16, green: 0x1d6b2e,
 };
 
-export type MarkKind = 'grime' | 'rust' | 'ring' | 'line' | 'wear';
+export type MarkKind = 'grime' | 'rust' | 'arc' | 'line' | 'wear';
 /** Something to paint on the deck texture at (x, z) in ship metres. */
 export interface DeckMark { kind: MarkKind; x: number; z: number; r: number; x1?: number; z1?: number }
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** Stencils, cell numbers and flags on one canvas (x, y, w, h in pixels of a 1024 × 512 atlas). */
+const ATLAS: Record<string, [number, number, number, number]> = {
+  noStep: [512, 0, 512, 64], blast: [0, 64, 640, 64], ensign: [0, 128, 384, 256], jack: [384, 128, 192, 128],
+};
+for (let i = 1; i <= 8; i++) ATLAS[`n${i}`] = [(i - 1) * 64, 0, 64, 64];
+let decalMat: THREE.MeshStandardMaterial | undefined;
+/** Painted stencils and the (fictional) ensign and jack: white letters on transparent, flags in colour. */
+function decals(): THREE.MeshStandardMaterial {
+  if (decalMat) return decalMat;
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 512;
+  const x = c.getContext('2d')!;
+  x.fillStyle = 'rgba(226,228,224,0.85)';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.font = 'bold 50px Helvetica, Arial, sans-serif';
+  for (let i = 1; i <= 8; i++) x.fillText(String(i), (i - 0.5) * 64, 34);
+  x.font = 'bold 40px Helvetica, Arial, sans-serif';
+  x.fillText('NICHT BETRETEN', 768, 34);
+  x.fillStyle = 'rgba(214,170,48,0.9)';
+  x.fillText('ABGASSTRAHL · GEFAHR', 320, 98);
+  // Ensign (fictional Westbund naval flag): white field, blue canton with a four-point star, blue foot band
+  const star = (cx: number, cy: number, r: number) => {
+    x.beginPath();
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 - Math.PI / 2;
+      const rr = k % 2 ? r * 0.3 : r;
+      x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+    }
+    x.closePath();
+    x.fill();
+  };
+  x.fillStyle = '#e8eae6';
+  x.fillRect(0, 128, 384, 256);
+  x.fillStyle = '#1f3a6b';
+  x.fillRect(0, 128, 170, 120);
+  x.fillRect(0, 340, 384, 44);
+  x.fillStyle = '#e8eae6';
+  star(85, 188, 44);
+  x.fillStyle = '#1f3a6b';
+  x.fillRect(384, 128, 192, 128);
+  x.fillStyle = '#e8eae6';
+  star(480, 192, 46);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return (decalMat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, roughness: 0.85, side: THREE.DoubleSide }));
+}
 
 export class Kit {
   readonly root = new THREE.Group();
@@ -85,12 +136,23 @@ export class Kit {
     return m;
   }
 
+  /** Painted stencil or flag from the atlas, a w × h plane facing +z in its parent. */
+  decal(name: string, w: number, h: number, parent: THREE.Object3D = this.root, segs = 1): THREE.Mesh {
+    const [ax, ay, aw, ah] = ATLAS[name]!;
+    const geo = new THREE.PlaneGeometry(w, h, segs, 1);
+    const uv = geo.attributes.uv!;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (ax + uv.getX(i) * aw) / 1024, 1 - (ay + ah) / 512 + (uv.getY(i) * ah) / 512);
+    const m = this.mesh(geo, 0xffffff, decals(), parent);
+    m.userData.ao = 0;
+    return m;
+  }
+
   torus(r: number, tube: number, c: number, mat: THREE.Material, rs = 4, ts = 10, arc = Math.PI * 2, parent?: THREE.Object3D): THREE.Mesh {
     return this.mesh(new THREE.TorusGeometry(r, tube, rs, ts, arc), c, mat, parent);
   }
 
   /** Bake every part into one mesh per material (named, so mergeStatic leaves them alone). */
-  bake(target: THREE.Group): number {
+  bake(target: THREE.Group, layer = 0): number {
     this.root.updateMatrixWorld(true);
     const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
     const col = new THREE.Color();
@@ -99,7 +161,8 @@ export class Kit {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       const geo = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()) as THREE.BufferGeometry;
-      for (const k of Object.keys(geo.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color') geo.deleteAttribute(k);
+      const textured = !!(m.material as THREE.MeshStandardMaterial).map;
+      for (const k of Object.keys(geo.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color' && !(textured && k === 'uv')) geo.deleteAttribute(k);
       if (!geo.attributes.normal) geo.computeVertexNormals();
       geo.applyMatrix4(m.matrixWorld);
       const pos = geo.attributes.position!;
@@ -132,7 +195,8 @@ export class Kit {
       for (const g of geos) g.dispose();
       if (!merged) continue;
       const mesh = new THREE.Mesh(merged, mat);
-      mesh.name = `own-detail-${i++}`;
+      mesh.name = `own-detail-${layer}-${i++}`;
+      mesh.layers.set(layer);
       target.add(mesh);
     }
     return tris;

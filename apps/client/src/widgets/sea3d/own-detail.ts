@@ -3,7 +3,9 @@ import { K, loftHull, type HullSpec } from './hullkit.js';
 import { WALL } from './warkit.js';
 import { F12_HULL } from './escorts.js';
 import { F30_HULL, K7_FORECASTLE, K7_HULL } from './warships.js';
-import { C, Kit, P, facet } from './own-kit.js';
+import { C, Kit, P } from './own-kit.js';
+import { openBridge } from './own-bridge.js';
+import { aftDetail, aftLayout, stripAft } from './own-aft.js';
 import { deckTile, foredeckTexture } from './own-deck-tex.js';
 import * as F from './own-fittings.js';
 
@@ -33,14 +35,15 @@ interface Layout {
   hawse: number;
   rails: [number, number][];
   bitts: number[];
-  /** Front edge of the lookout platform, metres ahead of the eye (clear of the sight line to the weapons). */
-  edge: number;
+  /** Half widths of the wheelhouse and of the bridge wings. */
+  hw: number;
+  wing: number;
 }
 
 const LAYOUT: Record<OwnDetailCls, Layout> = {
-  ffg: { spec: F12_HULL, house: 27, houseHalf: 5.6, gun: { z: 43, w: 4.2, twin: false }, asw: 31, breakwater: { z: 52, h: 1.05 }, windlass: 57.5, hawse: 61, rails: [[-66, 66.6]], bitts: [48, 37, 21], edge: 1 },
-  ffv: { spec: F30_HULL, house: 26, houseHalf: 4.8, gun: { z: 33, w: 4.6, twin: true }, breakwater: { z: 39.6, h: 1.1 }, windlass: 45.5, hawse: 49, rails: [[-56, -47.5], [-28, 55.2]], bitts: [43, 29.5, 18], edge: 1 },
-  kor: { spec: K7_HULL, fc: K7_FORECASTLE, house: 17.5, houseHalf: 3.7, bin: { z: 22, r: 1.9 }, windlass: 28.4, hawse: 31, rails: [[-35.5, -12.5], [-12, 34.8]], bitts: [26, 13], edge: 1 },
+  ffg: { spec: F12_HULL, house: 27, houseHalf: 5.6, gun: { z: 43, w: 4.2, twin: false }, asw: 31, breakwater: { z: 52, h: 1.05 }, windlass: 57.5, hawse: 61, rails: [[-44, 66.6]], bitts: [48, 37, 21], hw: 4.6, wing: 7.0 },
+  ffv: { spec: F30_HULL, house: 26, houseHalf: 4.8, gun: { z: 33, w: 4.6, twin: true }, breakwater: { z: 39.6, h: 1.1 }, windlass: 45.5, hawse: 49, rails: [[-56, -47.5], [-28, 55.2]], bitts: [43, 29.5, 18], hw: 4.7, wing: 6.25 },
+  kor: { spec: K7_HULL, fc: K7_FORECASTLE, house: 17.5, houseHalf: 3.7, bin: { z: 22, r: 1.9 }, windlass: 28.4, hawse: 31, rails: [[-35.5, -12.5], [-12, 34.8]], bitts: [26, 13], hw: 3.3, wing: 5.0 },
 };
 
 const smooth = (a: number, b: number, x: number) => {
@@ -106,7 +109,7 @@ export function ownDetail(g: THREE.Group, cls: OwnDetailCls, eye: number, eyeZ: 
   const zA = lay.house - 4;
   // Weapons forward
   if (lay.gun) F.gunMount(k, deckY(0, lay.gun.z) - 0.04, lay.gun.z, lay.gun.w, lay.gun.twin);
-  if (lay.asw !== undefined) F.boxLauncher(k, deckY(0, lay.asw) - 0.04, lay.asw);
+  if (lay.asw !== undefined) F.boxLauncher(k, d, deckY(0, lay.asw) - 0.04, lay.asw);
   if (lay.bin) F.missileBin(k, deckY(0, lay.bin.z) - 0.45, lay.bin.z, lay.bin.r);
   if (lay.breakwater) F.breakwater(k, d, lay.breakwater.z, Math.min(inner(lay.breakwater.z) - 1.1, 3.8), lay.breakwater.h);
   // Anchor gear: hawse pipes, stoppers, gypsies, chain down the navel pipes
@@ -154,9 +157,16 @@ export function ownDetail(g: THREE.Group, cls: OwnDetailCls, eye: number, eyeZ: 
       F.rails(k, d, zr, e, lay.hawse - 1.8, 1.6);
     } else F.rails(k, d, z0, e, lay.hawse - 1.8, e < zr ? 2.6 : 1.6);
   }
-  const dk = deck(g, k, s, inner, deckY, zA, fc?.z0);
-  lookout(k, g, dk.tile, eye, eyeZ, lay.edge);
-  return k.bake(g) + dk.tris + 4;
+  const dk = deck(g, k, s, inner, deckY, zA, fc?.z0, lay.gun ? [lay.gun.z + 2, lay.gun.z + 2 + (lay.gun.twin ? 6.5 : 7.7)] : undefined);
+  // The bridge the eye stands on (its near parts in a second pass), then aft and amidships
+  const kn = new Kit();
+  const ends = openBridge(k, kn, dk.tile, g, { eye, ze: eyeZ, hw: lay.hw, wing: lay.wing, roof: roofBelow(g, eye, eyeZ) });
+  const aft = aftLayout(cls, h, top);
+  stripAft(g, aft);
+  g.add(aftDetail(k, g, d, aft, L, ends));
+  // Funnel smoke seen from close by: rounder puffs
+  for (const p of (g.userData.smoke as { puffs?: THREE.Mesh[] } | undefined)?.puffs ?? []) p.geometry = new THREE.SphereGeometry(1, 16, 12);
+  return k.bake(g, 0) + kn.bake(g, 1) + dk.tris;
 }
 
 /** Hull rings (keel to toe rail, both sides) from the stern to the stem; boot-top and knuckle as creases. */
@@ -261,7 +271,7 @@ function anchor(k: Kit, sx: number, width: (z: number, y: number) => number, z: 
 }
 
 /** Non-skid deck: textured foredeck from zA to the stem, tiled grain aft of it. */
-function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number, deckY: (x: number, z: number) => number, zA: number, fcZ0?: number): { tris: number; tile: THREE.Material } {
+function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number, deckY: (x: number, z: number) => number, zA: number, fcZ0?: number, gap?: [number, number]): { tris: number; tile: THREE.Material } {
   const L = s.len / 2;
   const zs = stations(L, zA - 6, fcZ0);
   const W = s.beam * 1.3;
@@ -293,7 +303,7 @@ function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number,
     g.add(m);
     tris += idx.length / 3;
   };
-  const fore = foredeckTexture({ W, z0: zA, z1: L, half: inner, marks: k.marks, seed: Math.round(s.len * 7) });
+  const fore = foredeckTexture({ W, z0: zA, z1: L, half: inner, marks: k.marks, seed: Math.round(s.len * 7), gap });
   const tile = deckTile(Math.round(s.len * 3));
   part(zs.filter((z) => z >= zA), (x, z) => [x / W + 0.5, (z - zA) / (L - zA)], new THREE.MeshStandardMaterial({ map: fore, roughness: 0.93, metalness: 0.04 }), 'own-foredeck');
   const tileMat = new THREE.MeshStandardMaterial({ map: tile, roughness: 0.93, metalness: 0.04 });
@@ -301,42 +311,10 @@ function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number,
   return { tris, tile: tileMat };
 }
 
-/**
- * Lookout platform on the bridge top the eye stands on: deck plate with a rounded rim whose
- * front stays just under the sight line to the forward weapons, rails behind the eye,
- * a pelorus either side, a pillar down into the bridge.
- */
-function lookout(k: Kit, g: THREE.Group, floor: THREE.Material, eye: number, ze: number, edge: number): void {
-  const yF = eye - 1.62;
-  const pts: [number, number][] = [[-1.55, ze - 2.7], [1.55, ze - 2.7], [1.55, ze + edge - 0.45], [1.1, ze + edge], [-1.1, ze + edge], [-1.55, ze + edge - 0.45]];
-  k.mesh(facet([{ y: yF - 0.2, pts }, { y: yF - 0.01, pts }]), C.hazeD).userData.ao = 0;
-  // Non-skid top (the shape's own x/y in metres become the tiling uv)
-  const shape = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z)));
-  const top = new THREE.ShapeGeometry(shape);
-  top.rotateX(-Math.PI / 2);
-  const uv = top.attributes.uv!;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 3, uv.getY(i) / 3);
-  const m = new THREE.Mesh(top, floor);
-  m.position.y = yF;
-  m.name = 'own-lookout';
-  g.add(m);
-  const rim = [...pts.slice(2), pts[0]!, pts[1]!, pts[2]!];
-  for (let i = 0; i < rim.length - 1; i++) {
-    const [x0, z0] = rim[i]!;
-    const [x1, z1] = rim[i + 1]!;
-    k.tube(new THREE.Vector3(x0, yF + 0.05, z0), new THREE.Vector3(x1, yF + 0.05, z1), 0.05, C.hazeL, P.paint, 6);
-  }
-  k.cyl(0.55, 8, 0, yF - 8.1, ze - 1.2, C.haze, P.paint, 14);
-  // Rails either side behind the eye, a pelorus at the after end (out of the way of the view)
-  for (const sx of [-1, 1]) {
-    const x = sx * 1.47;
-    const zz = [ze - 2.6, ze - 1.9, ze - 1.2];
-    for (const z of zz) k.tube(new THREE.Vector3(x, yF, z), new THREE.Vector3(x, yF + 1.02, z), 0.025, C.rail, P.paint, 6);
-    for (const hgt of [0.5, 1.0]) k.tube(new THREE.Vector3(x, yF + hgt, zz[0]!), new THREE.Vector3(x, yF + hgt, zz[2]!), 0.022, C.rail, P.paint, 6);
-  }
-  const pz = ze - 2.15;
-  k.cyl(0.18, 0.04, 0, yF, pz, C.hazeD, P.paint, 10);
-  k.cyl(0.06, 0.95, 0, yF, pz, C.haze, P.paint, 8, 0.05);
-  k.lathe([[0.03, 0], [0.16, 0.02], [0.19, 0.1], [0.18, 0.14]], 0, yF + 0.95, pz, C.chain, P.metal, 12);
-  k.box(0.42, 0.12, 0.03, 0, yF + 1.14, pz, C.chain, P.metal);
+/** Height of the generic bridge roof under the eye (the new bridge structure stands on it). */
+function roofBelow(g: THREE.Group, eye: number, ze: number): number {
+  g.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, eye - 2.4, ze - 1), new THREE.Vector3(0, -1, 0));
+  const hit = ray.intersectObjects(g.children.filter((o) => (o as THREE.Mesh).isMesh && !o.name), false)[0];
+  return hit ? hit.point.y : eye - 7;
 }

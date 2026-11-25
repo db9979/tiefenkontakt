@@ -134,6 +134,8 @@ export class Periscope3D {
   private waves!: Waves;
   /** Own ship around the camera (bridge view): model and how far forward of midships the bridge is. */
   private own?: { g: THREE.Group; bridgeZ: number };
+  /** Camera for the own bridge's near parts (second pass, near plane a few centimetres). */
+  private nearCam?: THREE.PerspectiveCamera;
   private wx: WeatherFx;
   /** Surface-to-air missiles: smoke trails, flames, bursts. */
   private missiles = new MissileTrails(this.scene);
@@ -172,7 +174,13 @@ export class Periscope3D {
       const bridgeZ = bridgeFront(g) - 1.5;
       cullNear(g, new THREE.Vector3(0, this.eye, bridgeZ), 6);
       // Close-range detail (hull, foredeck, fittings, lookout platform): only the own ship gets it
-      if (opts.own === 'ffg' || opts.own === 'kor' || opts.own === 'ffv') ownDetail(g, opts.own, this.eye, bridgeZ);
+      if (opts.own === 'ffg' || opts.own === 'kor' || opts.own === 'ffv') {
+        ownDetail(g, opts.own, this.eye, bridgeZ);
+        // The open bridge around the eye is on layer 1, drawn after the rest with a short near plane
+        for (const l of [this.hemi, this.sun, this.fire]) l.layers.enable(1);
+        this.nearCam = new THREE.PerspectiveCamera();
+        this.nearCam.layers.set(1);
+      }
       this.own = { g: mergeStatic(g), bridgeZ };
       this.scene.add(g);
     }
@@ -398,6 +406,21 @@ export class Periscope3D {
       g.getObjectByName('wake')?.scale.set(1, 1, Math.max(0.05, (o.ownKn ?? 12) / 10));
     }
     this.renderer.render(this.scene, this.camera);
+    if (this.nearCam) {
+      // Nothing of the ship is closer than her own open bridge: draw it over the rest with a fresh depth buffer
+      const nc = this.nearCam;
+      nc.position.copy(this.camera.position);
+      nc.quaternion.copy(this.camera.quaternion);
+      nc.fov = this.camera.fov;
+      nc.aspect = this.camera.aspect;
+      nc.near = 0.05;
+      nc.far = 40;
+      nc.updateProjectionMatrix();
+      this.renderer.autoClear = false;
+      this.renderer.clearDepth();
+      this.renderer.render(this.scene, nc);
+      this.renderer.autoClear = true;
+    }
   }
 
   /** Set the own ship's pose: bridge point over the origin, heading, motion and list. */
