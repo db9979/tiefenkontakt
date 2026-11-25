@@ -57,6 +57,8 @@ export interface Ship {
   drErr?: { x: number; y: number };
   /** Time of the last navigation fix (mast raised or surfaced). */
   lastFixAt?: number;
+  /** When she last struck ground with damage (saved, so a restart doesn't strike again). */
+  groundedAt?: number;
   /** Navigator's estimate of the position error (1 σ, m) and how the last fix was taken. */
   navSigma?: number;
   lastFix?: import('./navfix.js').FixMethod;

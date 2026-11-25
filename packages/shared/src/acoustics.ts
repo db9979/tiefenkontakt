@@ -43,6 +43,8 @@ export interface Environment {
   /** Mission id and its running state (shadowing time, exit line, weapons tight). */
   mission?: string;
   shadowS?: number;
+  /** Sim time the mission goals were last evaluated (shadowing time accrues from there). */
+  evalAt?: number;
   weaponsTight?: 'west' | 'east';
   exitY?: number;
   /** Reconnaissance: when and by whom the enemy report went out. */

@@ -68,14 +68,13 @@ export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): M
   return undefined;
 }
 
-const lastEval = new WeakMap<World, number>();
-
 /** Shadowing, strait breakthrough and reconnaissance: goals beyond sinking ships. */
 function special(w: World, timeLimitS: number, mission: string): MatchResult | undefined {
   const subs = w.ships.filter((s) => s.team === 'east' && s.alive && CLASSES[s.cls].submarine);
   if (!subs.length) return { winner: 'west', reason: 'Alle U-Boote versenkt' };
-  const prev = lastEval.get(w) ?? w.time;
-  lastEval.set(w, w.time);
+  // On the world (saved with it), so a restarted match doesn't count the gap twice or lose it
+  const prev = w.env.evalAt ?? w.time;
+  w.env.evalAt = w.time;
   if (mission === 'fuehlung') {
     // Contact counts while a boat holds a fresh track on a convoy ship
     const convoy = w.ships.filter((s) => isConvoyShip(s) && s.alive);
