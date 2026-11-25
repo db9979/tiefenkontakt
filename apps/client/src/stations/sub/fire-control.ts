@@ -34,6 +34,7 @@ import { courseAction, torpedoAction } from '../../widgets/actions.js';
 import { decoy } from '../../widgets/emergency.js';
 import { fillBox } from '../../widgets/fill.js';
 import { keycap } from '../../widgets/keys.js';
+import { tubeBank } from '../../widgets/tube-bank.js';
 
 type Method = 'hyp' | 'ekelund' | 'dots';
 const DOT_FACTORS = [0.6, 1, 1.6];
@@ -50,8 +51,12 @@ function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: nu
   ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, H); ctx.stroke();
   ctx.fillStyle = COL.dim;
   ctx.font = '10px ui-monospace, monospace';
-  ctx.fillText('−5°', 2, 10);
-  ctx.fillText('+5°', w - 22, 10);
+  // Scale marks inset from the frame
+  ctx.textAlign = 'left';
+  ctx.fillText('−5°', 6, 13);
+  ctx.textAlign = 'right';
+  ctx.fillText('+5°', w - 6, 13);
+  ctx.textAlign = 'left';
   const band = (H - 12) / Math.max(1, rows.length);
   rows.forEach((row, ri) => {
     // Fixed time axis (newest at the top, 5 min span): dots scroll smoothly instead of reshuffling
@@ -92,7 +97,7 @@ export function fireControlStation(): Station {
     <div class="st-col">
       <div class="panel fc-tma" style="--stack:5"><div class="hd"><span>Zielbewegungsanalyse</span><span id="tgt" class="amber"></span></div>
         <div class="fc-tmabar"><span class="seg"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></span>
-          <button id="auto" class="primary">Auto-TMA</button><button id="clear">Verwerfen</button></div>
+          <span class="fc-acts"><button id="auto" title="Einmal die beste Lösung aus allen Peilungen rechnen (danach von Hand nachführen)">Auto-TMA</button><button id="clear" title="Lösung des gewählten Kontakts verwerfen">Verwerfen</button></span></div>
         <div class="row"><span class="dim">BEOBACHTBARKEIT</span><span id="v-obs"></span></div>
         <div class="row" id="ekel-row" style="display:none"><span class="dim">EKELUND</span><span id="v-ekel"></span><button id="ekel-take" style="display:none" title="Ekelund-Entfernung übernehmen">Übernehmen</button></div>
         <div class="tma-sl">
@@ -105,7 +110,7 @@ export function fireControlStation(): Station {
         <div id="steps" class="tma-step"></div>
       </div>
       <div class="panel fc-tubes" style="--stack:4"><div class="hd"><span>Torpedo</span><span id="tubes" class="dim"></span></div>
-        <div id="tr-tubes" class="tubebank"></div>
+        <div id="tr-tubes"></div>
       </div>
       <div class="panel fc-set" style="--stack:6">
         <div class="fc-grid">
@@ -115,7 +120,8 @@ export function fireControlStation(): Station {
           <label title="Suchmodus"><span class="dim">MODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select><span class="u"></span></label>
           <label><span class="dim">SCHUSSKURS</span><input id="t-hdg" type="number" min="0" max="359" placeholder="—"><span class="u">°</span></label>
           <label title="Fächerwinkel zwischen zwei Torpedos"><span class="dim">FÄCHER</span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3"><span class="u">°</span></label>
-          <div class="lbl span2"><span class="dim">SALVE</span><span class="seg" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span><span id="t-spread-auto" class="dim"></span></div>
+          <div class="lbl"><span class="dim">SALVE</span><span class="seg" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span></div>
+          <div class="lbl"><span id="t-spread-auto" class="dim"></span></div>
         </div>
         <div id="fire-why" class="row amber" style="display:none;margin-top:4px;align-items:center"><span id="fire-why-t"></span><button id="fire-fix"></button></div>
       </div>
@@ -247,8 +253,9 @@ export function fireControlStation(): Station {
   onTap(q('#wires'), '[data-pick]', (b) => (store.selected = b.dataset.pick));
   q<HTMLButtonElement>('#tr-nm').onclick = decoy;
   const box = fillBox(q('#plot-box'), 240);
-  // Fill of a reloading tube: share of the reload seen since it started (the reload time itself is not sent)
-  const reloadMax = new Map<number, number>();
+  // The tube bank: one cell per tube with its reload as a fill (the frigate's look)
+  const bank = tubeBank();
+  q('#tr-tubes').replaceWith(bank.el);
 
   return {
     id: 'feuerleitung',
@@ -341,7 +348,7 @@ export function fireControlStation(): Station {
       }
       el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => b.classList.toggle('on', b.dataset.method === method));
       const leg = c ? ownLegChange(c.history, store.ownTrack) : 0;
-      setHtml(q('#v-obs'), !c ? '—' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="red">NEIN · EIGENEN KURS ÄNDERN</span>');
+      setHtml(q('#v-obs'), !c ? '—' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="amber">NEIN · EIGENEN KURS ÄNDERN</span>');
       const ek = method === 'ekelund' && c ? ekelundRange(c.history, store.ownTrack) : undefined;
       q('#ekel-row').style.display = method === 'ekelund' ? '' : 'none';
       q('#ekel-take').style.display = method === 'ekelund' && ek ? '' : 'none';
@@ -349,18 +356,12 @@ export function fireControlStation(): Station {
       // Tube bank: every tube with its load state and the reload as a fill bar
       const tubes = lo.tubes;
       q('#tubes').textContent = `${tubes.filter((t) => t.loaded).length}/${tubes.length} GELADEN · VORRAT ${lo.heavy}`;
-      setHtml(q('#tr-tubes'), tubes.map((t, i) => {
-        if (t.reloadLeft > (reloadMax.get(i) ?? 0)) reloadMax.set(i, t.reloadLeft);
-        if (t.loaded) reloadMax.delete(i);
-        const pct = t.loaded ? 100 : t.reloadLeft > 0 ? 100 * (1 - t.reloadLeft / Math.max(1, reloadMax.get(i) ?? t.reloadLeft)) : 0;
-        return `<div class="tube ${t.loaded ? 'ok' : t.reloadLeft > 0 ? 'busy' : 'empty'}" title="Rohr ${i + 1}"><span>R${i + 1}</span><i style="width:${pct.toFixed(0)}%"></i>
-          <b>${t.loaded ? 'BEREIT' : t.reloadLeft > 0 ? `${Math.ceil(t.reloadLeft)} S` : 'LEER'}</b></div>`;
-      }).join(''));
+      bank.update(tubes);
       setHtml(q('#wires'), s.torpedoes.length ? s.torpedoes.map((t) => `
         <div class="row ${t.id === store.selected ? 'selrow amber' : ''}" style="align-items:center"><span class="clickable" data-pick="${t.id}">${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
         <span>${tdeg1(t.heading)}° · ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">${t.leftS !== undefined ? clock(t.leftS) : '—'}</span></span>
         <span class="seg"><button data-steer="${t.id}" data-d="-10">◀◀</button><button data-steer="${t.id}" data-d="-2">◀</button><button data-steer="${t.id}" data-d="2">▶</button><button data-steer="${t.id}" data-d="10">▶▶</button></span></div>`).join('')
-        : '<div class="dim">KEIN TORPEDO AM DRAHT</div>');
+        : '<div class="dim" title="Kein eigener Torpedo am Draht">KEIN TORPEDO</div>');
       btnState(q('#tr-nm'), { label: String(lo.noisemakers), tone: lo.noisemakers ? undefined : 'empty' });
     },
     frame() {

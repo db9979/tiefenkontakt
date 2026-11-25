@@ -28,12 +28,13 @@ export function frigateSonarStation(): Station {
         <div class="fill" id="hull-box" title="Klick auf eine Spur wählt den Kontakt"><canvas id="hull"></canvas></div>
       </div>
       <div class="panel grow"><div class="hd"><span title="Schleppsonar: Peilung links/rechts mehrdeutig">Schleppsonar</span>
-          <span class="hd-r"><span id="ts" class="dim"></span><span class="seg hdseg" title="Kabellänge (lang = unter der Sprungschicht)">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? l : 'Einholen'}</button>`).join('')}</span><span class="dim">M</span></span></div>
+          <span class="hd-r"><span id="ts" class="dim"></span><span class="seg hdseg" title="Kabellänge in Metern (lang = unter der Sprungschicht)">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? `${l} m` : 'Einholen'}</button>`).join('')}</span></span></div>
         <div class="fill" id="tow-box"><canvas id="tow"></canvas></div>
         <div class="foot">
           <details class="wfpop"><summary title="Anzeige beider Wasserfälle: Normalisierer, Mittelung, Helligkeit, Kontrast">Anzeige ▾</summary><div id="wf-ctl"></div></details>
           <span class="seg" title="Welche Seite des Schleppsonars für den gewählten Kontakt gilt"><button data-side="stb">Stb</button><button data-side="port">Bb</button><button data-side="both">Beide</button></span>
-          <span id="tas-hint" class="hint"></span>
+          <span id="tas-hint" class="tas-st"></span>
+          <span class="hint">KLICK AUF EINE SPUR WÄHLT DEN KONTAKT</span>
         </div>
       </div>
     </div>
@@ -123,7 +124,8 @@ export function frigateSonarStation(): Station {
         const len = Number(b.dataset.len);
         // Only the lengths this ship's cable has
         b.style.display = len <= maxTow ? '' : 'none';
-        if (len !== tgt) return btnState(b, { on: false, label: '' });
+        // Recovered: nothing lit (the header says EINGEHOLT), the lengths are the choices to stream it
+        if (len !== tgt || (!len && !winch)) return btnState(b, { on: false, label: '' });
         btnState(b, winch ? { on: true, label: `${o.towedLength} M`, pct: (100 * o.towedLength) / Math.max(1, len, o.towedLength), tone: 'busy' }
           : { on: true, label: len && !o.towedReady ? 'STAB…' : '✓', tone: len && !o.towedReady ? 'busy' : undefined });
       });
@@ -131,8 +133,11 @@ export function frigateSonarStation(): Station {
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));
-      setHtml(q('#tas-hint'), !c ? 'KLICK AUF EINE SPUR WÄHLT' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
-        : c.tas?.resolved ? 'DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">MEHRDEUTIG · 20° WENDEN</span>' : 'EINDEUTIG');
+      // The side state of the selected contact's towed-array bearing, beside the side choice
+      const tasEl = q('#tas-hint');
+      setHtml(tasEl, !c ? '' : c.tas?.ghost ? '<span class="red">RUMPF UND SCHLEPP WEICHEN AB · MÖGLICHER GEIST</span>'
+        : c.tas?.resolved ? 'SEITE DURCH RUMPFSONAR AUFGELÖST' : c.bearingAlt !== undefined ? '<span class="amber">SEITE MEHRDEUTIG · 20° WENDEN</span>' : 'SEITE EINDEUTIG');
+      tasEl.title = c ? 'Schleppsonar: Peilung links/rechts mehrdeutig, bis ein Kurswechsel oder das Rumpfsonar die Seite klärt' : '';
       // The active tab says when the sonar is sending, from any tab
       setText(q('[data-ptab="active"] .cnt'), o.activeSonar ? '●' : '');
       // VDS / BT / mine avoidance

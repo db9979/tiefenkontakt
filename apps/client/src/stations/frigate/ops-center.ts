@@ -33,7 +33,7 @@ function aswStrip(s: Snapshot): string {
   return [
     o.activeSonar ? chip('SONAR', 'AKTIV', 'amber') : '',
     tow,
-    s.env.layerDepth !== undefined ? chip('SCHICHT', `${s.env.layerDepth} M`) : s.env.noLayer ? chip('SCHICHT', 'KEINE') : chip('SCHICHT', '?', 'amber'),
+    s.env.layerDepth !== undefined ? chip('SCHICHT', `${s.env.layerDepth} M`) : s.env.noLayer ? chip('SCHICHT', 'KEINE') : chip('SCHICHT', 'UNBEKANNT', 'amber'),
     a ? chip('HUBSCHR.', helo ? 'IN DER LUFT' : a.heloReadyInS > 0 ? `${Math.ceil(a.heloReadyInS / 60)} MIN` : 'BEREIT', a.heloReadyInS > 0 && !helo ? 'amber' : '') : '',
     a ? chip('BOJEN', buoys ? `${a.stock} · ${buoys} IM WASSER` : String(a.stock), a.stock ? '' : 'amber') : '',
     chip('RAKETEN', String(o.loadout.rockets), o.loadout.rockets ? '' : 'amber'),
@@ -147,8 +147,10 @@ export function opsCenterStation(): Station {
       const range = p ? distance(s.own, p) : undefined;
       const cls = !c ? '' : isFriendlyContact(c, s) ? 'EIGEN' : c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : 'UNKLASSIFIZIERT';
       setHtml(q('#oc-rows'), c
-        ? `<div class="row"><span class="dim">PEILUNG · ENTFERNUNG</span><span>${tdeg1(p ? bearing(s.own, p) : c.bearing)}° · ${range !== undefined ? km(range) : '—'}</span></div>
-           <div class="row"><span class="dim">KLASSE · ALTER</span><span>${cls} · ${Math.round(s.time - c.lastSeen)} S</span></div>`
+        ? `<div class="row"><span class="dim">PEILUNG</span><span>${tdeg1(p ? bearing(s.own, p) : c.bearing)}°</span></div>
+           <div class="row"><span class="dim">ENTFERNUNG</span><span>${range !== undefined ? km(range) : '<span class="dim">UNBEKANNT · PINGEN</span>'}</span></div>
+           <div class="row"><span class="dim">KLASSE</span><span>${cls}</span></div>
+           <div class="row"><span class="dim">ALTER</span><span>${Math.round(s.time - c.lastSeen)} S</span></div>`
         : '<div class="dim">KONTAKT IN KARTE ODER LISTE WÄHLEN</div>');
       btnState(q('#oc-rocket'), s.own.loadout.rockets ? { label: String(s.own.loadout.rockets) } : { label: 'LEER', tone: 'empty' });
       q('#oc-helo').hidden = !hasHelo;

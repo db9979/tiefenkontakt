@@ -38,7 +38,7 @@ export function weaponsStation(): Station {
       <div class="panel"><div class="hd"><span>Waffenleitstand · Ziel</span><span id="src" class="dim"></span></div><div id="target"></div></div>
       <div class="wgrid">
         <div class="panel wcard"><div class="hd"><span>ASW-Rakete</span></div>
-          <div class="wbody"><div id="rk" class="wstat"></div><div class="dim">LEICHTGEWICHTSTORPEDO 1,8–18 KM, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div></div>
+          <div class="wbody"><div id="rk" class="wstat"></div><div class="dim">LEICHTGEWICHTSTORPEDO 1,8–18 KM, FLUGZEIT CA. 40 S, STREUUNG ETWA 150&nbsp;M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div></div>
           <button id="rocket" class="fire">Rakete auf Ziel${keycap('rocket')}</button>
         </div>
         <div class="panel wcard"><div class="hd"><span>Torpedorohre</span></div>
@@ -51,7 +51,7 @@ export function weaponsStation(): Station {
         </div>
         <div class="panel wcard"><div class="hd"><span>Torpedoabwehr</span></div>
           <div class="wbody"><div id="dec-st" class="wstat"></div><div class="dim">NIXIE-SCHLEPPE: LOCKT ANLAUFENDE TORPEDOS, RAUSCHT ABER IM EIGENEN SONAR. HÖCHSTENS 25 KN.</div></div>
-          <button id="decoy" class="warn">Täuschkörper-Schleppe${keycap('decoy')}</button>
+          <button id="decoy" class="warn" title="Nixie-Schleppe ausbringen oder einholen (Taste T)">Täuschkörper${keycap('decoy')}</button>
         </div>
         <div id="ssmp" class="panel wcard span2" style="display:none"><div class="hd"><span>Seezielflugkörper</span></div>
           <div class="wbody"><div id="ssmn" class="wstat"></div><div class="dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div></div>
@@ -126,7 +126,11 @@ export function weaponsStation(): Station {
       bank.update(l.tubes);
       q('#dcn').textContent = `NOCH ${l.depthCharges} SALVEN`;
       const [above, below] = lightSearchDepths(s.env.layerDepth);
-      q('#tdep').textContent = s.env.layerDepth ? `${above} / ${below} M (SCHICHT ${s.env.layerDepth} M)` : s.env.noLayer ? `${above} / ${below} M · KEINE SCHICHT HIER` : `${above} / ${below} M · SCHICHT NICHT GEMESSEN (BT)`;
+      // One short line: the depths, and whether the layer behind them is measured (the reason in the tooltip)
+      const tdep = q('#tdep');
+      setHtml(tdep, s.env.layerDepth ? `${above} / ${below} M` : s.env.noLayer ? `${above} / ${below} M · KEINE SCHICHT` : `${above} / ${below} M · <span class="amber">OHNE BT</span>`);
+      tdep.title = s.env.layerDepth ? `Über und unter der gemessenen Schicht (${s.env.layerDepth} m)` : s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt'
+        : 'Schicht nicht gemessen: Bathythermograph werfen (Sonar · VDS/BT)';
       // Mortar: is the target in the field the salvo covers (400–800 m, within a few degrees of the bow)?
       const rel = a ? Math.abs(angleDiff(s.own.heading, a.bearing)) : undefined;
       const inField = a && rel !== undefined && rel < 8 && a.range >= MORTAR_MIN - 40 && a.range <= MORTAR_MAX + 40;

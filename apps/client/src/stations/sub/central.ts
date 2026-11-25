@@ -44,19 +44,19 @@ export function centralStation(): Station {
         <div class="tile" data-tile="snort"><span class="tl">SCHNORCHEL</span><b id="t-sn"></b><span id="t-sn2" class="dim"></span></div>
       </div>
       <div class="panel"><div class="hd"><span>Tiefe befehlen</span><span id="c-layer" class="dim"></span></div>
-        <div class="seg wide">
-          <button data-depth="${PERISCOPE_DEPTH}" title="Auf Sehrohrtiefe (${PERISCOPE_DEPTH} m)">Sehrohrtiefe</button><button data-depth="60">60 m</button>
-          <button data-depth="layer-" title="40 m über die gemessene Sprungschicht">Über Schicht</button><button data-depth="layer+" title="30 m unter die gemessene Sprungschicht">Unter Schicht</button><button data-depth="max">Max. Tiefe</button>
+        <div class="depthgrid">
+          <button data-depth="${PERISCOPE_DEPTH}" title="Auf Sehrohrtiefe (${PERISCOPE_DEPTH} m)">Sehrohr</button><button data-depth="60" title="Auf 60 m">60 m</button><button data-depth="max" title="Auf die größte Tauchtiefe">Max. Tiefe</button>
+          <button data-depth="layer-" title="40 m über die gemessene Sprungschicht">Über Schicht</button><button data-depth="layer+" title="30 m unter die gemessene Sprungschicht">Unter Schicht</button>
         </div>
       </div>
       <div class="panel"><div class="hd"><span>Befehle</span><span id="c-cmd-st" class="dim"></span></div>
         <div class="cmdgrid">
           <button data-cmd="alarm" class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">Alarmtauchen${keycap('crashDive')}</button>
+          <button data-cmd="blow" class="fire" title="Alle Tauchzellen anblasen: schnell nach oben, sehr laut, kostet eine Pressluftflasche (zweimal drücken)">Notanblasen</button>
           <button id="snort" title="Schnorcheln lädt die Batterie: nur auf Sehrohrtiefe, laut und mit Mast über Wasser">Schnorcheln</button>
           <button data-cmd="silent" title="Ruhe im Boot: Hilfsmaschinen aus, keine lauten Arbeiten (leiser, die Besatzung ermüdet schneller)">Ruhe im Boot</button>
           <button data-cmd="battle" title="Gefechtsstationen: +10 % Leistung, ermüdet die Besatzung in etwa 90 Minuten">Gefechtsstationen</button>
           <button data-cmd="sound" title="Echolot: ein Lotimpuls nach unten, mit der Seekarte verglichen. Hilft nur, wo der Grund geneigt ist; ein Geleitschiff in wenigen Kilometern kann ihn hören">Echolot</button>
-          <button data-cmd="blow" class="fire" title="Alle Tauchzellen anblasen: schnell nach oben, sehr laut, kostet eine Pressluftflasche (zweimal drücken)">Notanblasen</button>
         </div>
       </div>
       <div class="panel grow tabbed" id="zc-tabs">
@@ -147,7 +147,14 @@ export function centralStation(): Station {
         : !o.snorkel && sx > 0 ? { on: false, label: 'EIN…', pct: sx * 100, tone: 'busy' } : { on: o.snorkel });
       btnState(q('[data-cmd="silent"]'), { on: !!o.crew?.silent });
       btnState(q('[data-cmd="battle"]'), { on: !!o.crew?.battle });
-      el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, layer, spec.maxDepth)));
+      el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => {
+        depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, layer, spec.maxDepth));
+        // Over/under the layer only once it is measured; the tooltip says why not
+        if (!b.dataset.depth!.startsWith('layer')) return;
+        b.disabled = layer === undefined;
+        b.title = layer !== undefined ? (b.dataset.depth === 'layer-' ? '40 m über die gemessene Sprungschicht' : '30 m unter die gemessene Sprungschicht')
+          : s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt' : 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
+      });
       q('#c-cmd-st').textContent = o.crew?.silent ? 'RUHE IM BOOT' : '';
       // Navigation and echo sounder
       q('#snd-st').textContent = s.env.bottom !== undefined ? `UNTER KIEL ${Math.round(s.env.bottom - o.depth)} M` : '';
@@ -176,9 +183,14 @@ function navRows(s: Snapshot): string {
   const last = n?.lastFix ? `${FIX[n.lastFix]} VOR ${clock(n.lastFixAgo ?? 0)}` : 'NUR KOPPELORT';
   const busy = n?.sat ? `SATELLIT EMPFANG ${Math.min(100, Math.round((n.sat / 120) * 100))} %` : n?.stars ? `STERNE ${Math.min(100, Math.round((n.stars / 180) * 100))} %` : '';
   const sat = n ? (n.satIn === 0 ? '<span class="amber">SATELLIT ÜBER DEM HORIZONT · MAST HOCH</span>' : `NÄCHSTER SATELLIT IN ${clock(n.satIn)}`) : '';
+  // One short value per row, right-aligned; the explanations are in the tooltips and the hint line
+  const cur = s.env.current;
+  const tide = s.env.tide;
   return `<div class="row"><span class="dim">KOPPELORT</span><span class="${(o.navUncertainty ?? 0) > 2 * NM ? 'amber' : ''}">${pos} ${err}</span></div>
-        <div class="row"><span class="dim">LETZTER STANDORT</span><span>${last}${busy ? ` · ${busy}` : ''}</span></div>
-        ${sat ? `<div class="row"><span class="dim">NAVIGATION</span><span>${sat}</span></div>` : ''}
-        <div class="row"><span class="dim">ECHOLOT</span><span>${o.nav?.lastFix === 'sounding' ? 'LETZTER FIX: ECHOLOT' : 'GIBT EINEN FIX, WO DER GRUND GENEIGT IST · IN DER NÄHE HÖRBAR'}</span></div>
-        ${s.env.current ? `<div class="row"><span class="dim">STROM (ATLAS)</span><span>${s.env.current.kn >= 0.1 ? `SETZT ${tdeg3(s.env.current.set)}° · ${s.env.current.kn.toFixed(1)} KN` : 'KEIN NENNENSWERTER'}${s.env.tide ? ` · ${s.env.tide.flood ? 'FLUT' : 'EBBE'} KENTERT IN ${clock(s.env.tide.turnsInS)}` : ''}</span></div>` : ''}`;
+        <div class="row"><span class="dim">LETZTER STANDORT</span><span>${last}</span></div>
+        ${busy || sat ? `<div class="row"><span class="dim">NAVIGATION</span><span>${busy || sat}</span></div>` : ''}
+        <div class="row" title="Echolot: ein Lotimpuls nach unten, mit der Seekarte verglichen. Gibt einen Fix nur, wo der Grund geneigt ist; in der Nähe hörbar"><span class="dim">ECHOLOT</span><span>${o.nav?.lastFix === 'sounding' ? 'LETZTER FIX' : 'BEREIT'}</span></div>
+        ${cur ? `<div class="row" title="Strom laut Atlas: wohin er setzt und wie schnell"><span class="dim">STROM</span><span>${cur.kn >= 0.1 ? `SETZT ${tdeg3(cur.set)}° · ${cur.kn.toFixed(1).replace('.', ',')} KN` : 'KEIN NENNENSWERTER'}</span></div>` : ''}
+        ${cur && tide ? `<div class="row"><span class="dim">GEZEIT</span><span>${tide.flood ? 'FLUT' : 'EBBE'} · KENTERT IN ${clock(tide.turnsInS)}</span></div>` : ''}
+        <div class="hint" title="Echolot: gibt einen Fix nur, wo der Grund geneigt ist; ein Geleitschiff in der Nähe hört ihn">ECHOLOT: FIX NUR AN GENEIGTEM GRUND · HÖRBAR</div>`;
 }

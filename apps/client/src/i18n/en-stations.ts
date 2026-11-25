@@ -168,6 +168,24 @@ export const EN_STATIONS: [string, string][] = [
   ['Reiter „Aktiv“: LFM und 16 KM wählen, dann Einzelpings, bis eine Entfernung steht.', 'Tab “Active”: choose LFM and 16 KM, then single pings until a range shows.'],
   ['Der Ping gibt die Entfernung (LFM ist genauer), verrät aber die Fregatte.', 'The ping gives the range (LFM is more accurate) but gives the frigate away.'],
   ['U-Jagd-Rakete auf das U-Boot (Knopf oder Rechtsklick auf die Karte).', 'ASW rocket at the submarine (button or right-click the map).'],
+  // Station layout fixes (QA round): short values, the explanations in tooltips
+  ['FREI', 'CLEAR'], ['UNGEPRÜFT', 'NOT CHECKED'], ['OBERGRENZE', 'UPPER LIMIT'], ['UNTERGRENZE', 'LOWER LIMIT'],
+  ['LETZTER FIX', 'LAST FIX'], ['STROM', 'CURRENT'], ['GEZEIT', 'TIDE'], ['FLUT', 'FLOOD'], ['EBBE', 'EBB'], ['KEIN TORPEDO', 'NO TORPEDO'],
+  ['Kein eigener Torpedo am Draht', 'No own torpedo on the wire'], ['Auf 60 m', 'To 60 m'], ['Auf die größte Tauchtiefe', 'To the greatest diving depth'],
+  ['ECHOLOT: FIX NUR AN GENEIGTEM GRUND · HÖRBAR', 'ECHO SOUNDER: FIX ONLY OVER A SLOPING BOTTOM · AUDIBLE'],
+  ['Echolot: gibt einen Fix nur, wo der Grund geneigt ist; ein Geleitschiff in der Nähe hört ihn', 'Echo sounder: gives a fix only where the bottom slopes; an escort nearby hears it'],
+  ['Echolot: ein Lotimpuls nach unten, mit der Seekarte verglichen. Gibt einen Fix nur, wo der Grund geneigt ist; in der Nähe hörbar', 'Echo sounder: one ping straight down, compared with the chart. Gives a fix only where the bottom slopes; audible nearby'],
+  ['Strom laut Atlas: wohin er setzt und wie schnell', 'Current from the atlas: where it sets and how fast'],
+  ['Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen', 'Layer unknown: dive deep once to measure it'],
+  ['Einmal die beste Lösung aus allen Peilungen rechnen (danach von Hand nachführen)', 'Compute the best solution from all bearings once (then refine by hand)'],
+  ['Lösung des gewählten Kontakts verwerfen', 'Discard the selected contact’s solution'],
+  ['ZIEHEN SCHWENKT · WASD · RAD ZOOMT', 'DRAG TURNS · WASD · WHEEL ZOOMS'],
+  ['BOJEN JE LINIE', 'BUOYS PER LINE'], ['UNBEKANNT · PINGEN', 'UNKNOWN · PING'], ['FLUGZEUGE', 'AIRCRAFT'], ['OHNE BT', 'NO BT'], ['KEINE SCHICHT', 'NO LAYER'],
+  ['SEITE EINDEUTIG', 'SIDE RESOLVED'], ['SEITE MEHRDEUTIG · 20° WENDEN', 'SIDE AMBIGUOUS · TURN 20°'], ['SEITE DURCH RUMPFSONAR AUFGELÖST', 'SIDE RESOLVED BY THE HULL SONAR'],
+  ['Schleppsonar: Peilung links/rechts mehrdeutig, bis ein Kurswechsel oder das Rumpfsonar die Seite klärt', 'Towed array: bearing ambiguous left/right until a course change or the hull sonar settles the side'],
+  ['Kabellänge in Metern (lang = unter der Sprungschicht)', 'Cable length in metres (long = below the layer)'],
+  ['Nixie-Schleppe ausbringen oder einholen (Taste T)', 'Stream or recover the Nixie decoy (key T)'],
+  ['Schicht nicht gemessen: Bathythermograph werfen (Sonar · VDS/BT)', 'Layer not measured: drop a bathythermograph (Sonar · VDS/BT)'],
 ];
 
 /** Texts with figures in them. */
@@ -178,4 +196,6 @@ export const EN_STATIONS_PHRASES: [RegExp, string][] = [
   [/^(\d+) KONTAKTE$/, '$1 CONTACTS'], [/^(\d+) PEILUNGEN$/, '$1 BEARINGS'], [/^ZUSTAND (\d+) %$/, 'CONDITION $1 %'],
   [/^(\d+) · (\d+) IM WASSER$/, '$1 · $2 IN THE WATER'], [/^SCHICHT (\d+) M · DARUNTER$/, 'LAYER $1 M · BELOW'], [/^SCHICHT (\d+) M · DARÜBER$/, 'LAYER $1 M · ABOVE'],
   [/^OBEN (\d+) S · SICHTBAR UND PEILBAR$/, 'UP $1 S · VISIBLE AND DF-ABLE'], [/^→ (\d+) M · GRUND (.+)$/, '→ $1 M · BOTTOM $2'], [/^GRUND (.+)$/, 'BOTTOM $1'],
+  [/^SETZT (\d+)° · ([\d,]+) KN$/, 'SETS $1° · $2 KN'], [/KENTERT IN (\S+)$/, 'TURNS IN $1'],
+  [/^Über und unter der gemessenen Schicht \((\d+) m\)$/, 'Above and below the measured layer ($1 m)'],
 ];
