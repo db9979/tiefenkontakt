@@ -50,3 +50,4 @@ export * from './navfix.js';
 export * from './bottom-echo.js';
 export * from './lanes.js';
 export * from './haven.js';
+export * from './range-predict.js';

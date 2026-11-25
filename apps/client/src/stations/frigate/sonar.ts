@@ -8,6 +8,7 @@ import { h, setHtml, setText } from '../../widgets/format.js';
 import { CLASSES } from '@tk/shared';
 import { Waterfall } from '../../widgets/waterfall.js';
 import { pickByBearing } from '../sub/sonar.js';
+import { rangePanel } from '../../widgets/range-panel.js';
 
 export function frigateSonarStation(): Station {
   const el = h(`<div class="cols">
@@ -29,8 +30,13 @@ export function frigateSonarStation(): Station {
       </div>
       <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
     </div>
-    <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
+      <div id="range-slot"></div>
+    </div>
   </div>`);
+  const range = rangePanel();
+  el.querySelector('#range-slot')!.replaceWith(range.el);
   const hull = new Waterfall(['hull', 'active', 'intercept']);
   const tow = new Waterfall(['towed']);
   const hullCv = el.querySelector<HTMLCanvasElement>('#hull')!;
@@ -66,6 +72,7 @@ export function frigateSonarStation(): Station {
       const s = store.snap!;
       hull.push(s);
       tow.push(s, 15);
+      range.update(s);
       const o = s.own;
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       btnState(el.querySelector<HTMLElement>('#ping'), { on: o.activeSonar, tone: o.activeSonar ? 'warn' : undefined });

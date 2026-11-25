@@ -5,6 +5,7 @@ import { EN_UX, EN_UX_PHRASES } from './en-ux.js';
 import { EN_DAMAGE_PHRASES } from './en-damage.js';
 import { EN_TUTORIAL } from './en-tutorial.js';
 import { EN_RANKS, EN_RANKS_PHRASES } from './en-ranks.js';
+import { EN_RANGE, EN_RANGE_PHRASES } from './en-range.js';
 
 /**
  * Language switch. The UI is written in German; for English, rendered text nodes and
@@ -16,9 +17,9 @@ import { EN_RANKS, EN_RANKS_PHRASES } from './en-ranks.js';
 export type Lang = 'de' | 'en';
 export const lang: Lang = (localStorage.getItem('tk_lang') as Lang | null) ?? (navigator.language.startsWith('de') ? 'de' : 'en');
 
-const dict = new Map<string, string>([...EN_UI, ...EN_HELP, ...EN_MORE, ...EN_UX, ...EN_TUTORIAL, ...EN_RANKS]);
+const dict = new Map<string, string>([...EN_UI, ...EN_HELP, ...EN_MORE, ...EN_UX, ...EN_TUTORIAL, ...EN_RANKS, ...EN_RANGE]);
 const canvasDict = new Map<string, string>(EN_CANVAS);
-const PHRASES = [...EN_RANKS_PHRASES, ...EN_DAMAGE_PHRASES, ...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
+const PHRASES = [...EN_RANGE_PHRASES, ...EN_RANKS_PHRASES, ...EN_DAMAGE_PHRASES, ...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
 const memo = new Map<string, string>();
 
 /** Translate one string for the current language (German passes through). */
