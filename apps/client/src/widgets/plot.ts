@@ -336,7 +336,7 @@ export class Plot {
         ctx.setLineDash([]);
       }
       ctx.fillStyle = COL.blue;
-      ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.kind === 'mad' ? 'MAD-SUCHE' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y - 4);
+      ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.kind === 'mad' ? 'MAD-SUCHE' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y + 14); // below: the contact it works carries its label above
     }
     this.drawContacts(ctx, s, P, w, height);
     if (this.opts.showConvoy) drawConvoyDangerRing(ctx, s, P, this.scale);
@@ -344,7 +344,10 @@ export class Plot {
     drawOrderMarks(ctx, s, P, this.scale);
     // Aircraft with a position (datalink, radar, eye) and ESM strobes on aircraft radars
     const meA = P(ownNow());
-    drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120);
+    // The own side's helicopter and patrol aircraft are drawn above with their task: not a second time as air contacts
+    const ownAir = s.air?.helos ?? [];
+    drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120, (pl) => !(pl.side === 'friend' && (pl.kind === 'helo' || pl.kind === 'mpa') && pl.x !== undefined
+      && ownAir.some((hp) => Math.hypot(hp.x - pl.x!, hp.y - pl.y!) < 600)));
     drawMineSector(ctx, s, meA, this.scale);
 
     for (const t of s.torpedoes) {
