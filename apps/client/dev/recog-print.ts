@@ -26,7 +26,7 @@ html, body { background: #fff !important; }
 body { font-size: 10.5px; color: #10231d; width: 186mm; margin: 0 auto; }
 select, label:has(select) { display: none !important; }
 .clickable { cursor: default !important; }
-.sheet { break-after: page; }
+.sheet { break-after: page; break-inside: avoid; overflow: hidden; }
 .sheet:last-child { break-after: auto; }
 .cover h1 { font-size: 26px; letter-spacing: 0.08em; margin: 0 0 4px; }
 .cover .sub { font-size: 12px; margin-bottom: 14px; }
@@ -71,6 +71,13 @@ const page = (c: ClassId) => {
 };
 
 document.body.innerHTML = cover() + order.map(page).join('');
+// One A4 page per sheet: a sheet taller than the printable area (297 mm − 26 mm margins) is
+// zoomed down to fit instead of spilling onto a second page
+const PAGE_PX = ((297 - 26) * 96) / 25.4 - 6;
+for (const sec of document.querySelectorAll<HTMLElement>('.sheet')) {
+  const hgt = sec.getBoundingClientRect().height;
+  if (hgt > PAGE_PX) sec.style.zoom = (PAGE_PX / hgt).toFixed(3);
+}
 // The PDF script waits for this marker
 document.title = 'ERKENNUNGSHEFT FERTIG';
 (window as unknown as { __recogReady?: boolean }).__recogReady = true;
