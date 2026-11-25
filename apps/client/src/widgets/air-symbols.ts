@@ -33,6 +33,21 @@ export function airSymbol(ctx: CanvasRenderingContext2D, x: number, y: number, s
   ctx.stroke();
 }
 
+/** APP-6 icon inside the air frame: a bow tie for rotary wing, a small wing for fixed wing. */
+export function airIcon(ctx: CanvasRenderingContext2D, x: number, y: number, rotary: boolean, r = 7): void {
+  const cy = y - r * 0.15;
+  ctx.beginPath();
+  if (rotary) {
+    const w = r * 0.55, h = r * 0.32;
+    ctx.moveTo(x - w, cy - h); ctx.lineTo(x + w, cy + h); ctx.lineTo(x + w, cy - h); ctx.lineTo(x - w, cy + h); ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.moveTo(x - r * 0.6, cy); ctx.lineTo(x + r * 0.6, cy);
+    ctx.moveTo(x, cy - r * 0.35); ctx.lineTo(x, cy + r * 0.3);
+    ctx.stroke();
+  }
+}
+
 /**
  * Draw the aircraft of a snapshot. toScreen maps world metres to canvas pixels (undefined =
  * off screen) on a north-up canvas (headings and bearings are turned by northOff()); origin is the own position on the canvas for ESM strobes of length len.
@@ -72,6 +87,7 @@ export function drawAir(
       ctx.beginPath(); ctx.moveTo(origin.x, origin.y); ctx.lineTo(q.x, q.y); ctx.stroke();
       ctx.setLineDash([]);
       airSymbol(ctx, q.x, q.y, p.side);
+      airIcon(ctx, q.x, q.y, p.kind === 'helo');
       const km = Math.hypot(ex - s.own.x, ey - s.own.y) / 1000;
       ctx.fillText(`${NAME[p.kind]} SICHT ~${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} KM ${(p.alt ?? 0) > 1500 ? 'HOCH' : 'TIEF'}`, q.x + 9, q.y - 6);
       continue;
@@ -79,6 +95,7 @@ export function drawAir(
     const q = toScreen(p.x, p.y);
     if (!q) continue;
     airSymbol(ctx, q.x, q.y, p.side);
+    airIcon(ctx, q.x, q.y, p.kind === 'helo');
     if (p.heading !== undefined && (p.speedKn ?? 0) > 5) {
       const a = ((p.heading + northOff() - 90) * Math.PI) / 180;
       const l = Math.min(26, 6 + (p.speedKn ?? 0) / 25);

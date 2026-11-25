@@ -1,9 +1,9 @@
 import { CLASSES, KN, NM, bearing, distance, evaluateSolution, headingVec, ownPosAt, targetPosAt, wrap360, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
-import { drawAir } from './air-symbols.js';
+import { airIcon, airSymbol, drawAir } from './air-symbols.js';
 import { drawMineSector } from './airdef-symbols.js';
 import { drawMet } from './met-overlay.js';
-import { COL, deg3, fitCanvas, km } from './format.js';
+import { COL, FONT, deg3, fitCanvas, km } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { lastFix } from './contact-pos.js';
 import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
@@ -328,8 +328,11 @@ export class Plot {
     }
     for (const hp of s.air?.helos ?? []) {
       const p = P(hp);
+      // APP-6 friendly air frame with the rotary-wing (helicopter) or fixed-wing (patrol aircraft) icon
       ctx.strokeStyle = COL.blue;
-      ctx.beginPath(); ctx.moveTo(p.x - 6, p.y); ctx.lineTo(p.x + 6, p.y); ctx.moveTo(p.x, p.y - 6); ctx.lineTo(p.x, p.y + 6); ctx.stroke();
+      ctx.fillStyle = COL.blue;
+      airSymbol(ctx, p.x, p.y, 'friend', 8);
+      airIcon(ctx, p.x, p.y, hp.kind !== 'mpa', 8);
       if (hp.hovering && hp.kind !== 'mad') {
         ctx.setLineDash([2, 4]);
         ctx.beginPath(); ctx.arc(p.x, p.y, 12_000 / this.scale, 0, 7); ctx.stroke();
@@ -353,8 +356,14 @@ export class Plot {
     for (const t of s.torpedoes) {
       const p = P(t);
       const v = screenDir(t.heading);
-      ctx.fillStyle = ctx.strokeStyle = t.id === store.selected ? COL.amber : COL.red;
-      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      // Own torpedo: APP-6 friendly subsurface frame with a T, blue (red is for threats), amber when selected
+      ctx.fillStyle = ctx.strokeStyle = t.id === store.selected ? COL.amber : COL.blue;
+      drawSymbol(ctx, p.x, p.y, 'friend', 'subsurface', 5);
+      ctx.save();
+      ctx.font = FONT.tick;
+      ctx.textAlign = 'center';
+      ctx.fillText('T', p.x, p.y + 2);
+      ctx.restore();
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + v.x * 14, p.y + v.y * 14); ctx.stroke();
       ctx.fillText(`${t.id}${t.homing ? ' ZIEL' : ''}`, p.x + 6, p.y - 6);
     }
