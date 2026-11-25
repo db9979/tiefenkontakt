@@ -102,3 +102,4 @@ html[data-theme='light'] .panel canvas { box-shadow: 0 0 0 1px #b9c8c3; }
 }
 html[data-theme='light'] button.prog { background: linear-gradient(90deg, rgba(27, 116, 88, 0.22) var(--pct, 0%), transparent var(--pct, 0%)), linear-gradient(180deg, #ffffff, #e8eeeb); }
 html[data-theme='light'] button.prog.st-busy { background: linear-gradient(90deg, rgba(180, 110, 20, 0.25) var(--pct, 0%), transparent var(--pct, 0%)), linear-gradient(180deg, #ffffff, #e8eeeb); }
+html[data-theme='light'] .side-tabs .cnt { color: #fff; }

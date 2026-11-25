@@ -347,7 +347,9 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 .badgechip { white-space: nowrap; cursor: help; }
 .badgechip .badge { color: var(--amber, #e0b050); }
 .badgechip.dim .badge { color: inherit; }
-.topbar .status .st-ship { flex-shrink: 0; }
+.topbar .status .st-ship { flex: 0 1 auto; min-width: 0; max-width: 34ch; white-space: nowrap; }
+.pbar { flex: 0 0 130px; }
+@media (max-width: 1500px) { .pb-lbl { display: none; } .pbar { flex-basis: 80px; width: 80px; } }
 .st-prog { min-width: 0; }
 #pb-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Lookout hit inset */
@@ -366,8 +368,17 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 /* Right column tabs: helm on top, one of messages / boat / damage / radio below, no scrolling of the whole column */
 .side { overflow: hidden; }
 .side-tabs { margin: 0; flex: none; }
-.side-tabs button { position: relative; }
-.side-tabs button.news::after { content: ''; position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+.side-tabs { flex-wrap: nowrap; gap: 2px; }
+.side-tabs button { position: relative; flex: 1 1 auto; min-width: 0; padding: 3px 4px; font-size: var(--fs-cap); letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Count of what is new behind a tab: amber, red when an alarm is among it */
+.side-tabs .cnt { display: inline-block; min-width: 14px; margin-left: 3px; padding: 0 3px; border-radius: 7px; line-height: 14px;
+  font-weight: 600; letter-spacing: 0; background: var(--c-attn); color: #1a1205; text-align: center; }
+.side-tabs .cnt:empty { display: none; }
+.side-tabs .cnt.alarm { background: var(--c-threat); color: #1a0505; }
+.side-tabs #st-dmg { margin-left: 3px; }
+/* A panel in a tab: the tab is its title, no second header */
+.side-body .dp-hd { display: none; }
 .side-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .side-body > [data-sp] { display: none; flex: 1; min-height: 0; overflow: auto; }
 .side-body > [data-sp].on { display: block; }
