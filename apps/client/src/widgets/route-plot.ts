@@ -223,7 +223,17 @@ export class RoutePlot {
     const end = sp[sp.length - 1]!;
     ctx.beginPath(); ctx.moveTo(end.x - 5, end.y - 5); ctx.lineTo(end.x + 5, end.y + 5); ctx.moveTo(end.x + 5, end.y - 5); ctx.lineTo(end.x - 5, end.y + 5); ctx.stroke();
     ctx.font = '11px ui-monospace, monospace';
-    ctx.fillText(`+${min} MIN`, end.x + 8, end.y - 6);
+    // Close to the own ship (slow, or a short lead) the label goes beside the symbol, on the side
+    // away from the heading, so it is not hidden under the ship
+    const own = sp[0]!;
+    const near = Math.hypot(end.x - own.x, end.y - own.y) < 24;
+    const hv = this.P({ x: me.x + headingVec(me.heading).x * 100, y: me.y + headingVec(me.heading).y * 100 });
+    const back = { x: own.x - (hv.x - own.x), y: own.y - (hv.y - own.y) };
+    const bl = Math.hypot(back.x - own.x, back.y - own.y) || 1;
+    const lx = near ? own.x + ((back.x - own.x) / bl) * 22 : end.x + 8;
+    const ly = near ? own.y + ((back.y - own.y) / bl) * 22 + 4 : end.y - 6;
+    ctx.textAlign = near && back.x < own.x ? 'right' : 'left';
+    ctx.fillText(`+${min} MIN`, lx, ly);
     ctx.restore();
   }
 }

@@ -70,7 +70,7 @@ export function airDefPanel(): { el: HTMLElement; update(): void } {
   const el = h(`<div class="panel"><div class="hd"><span>Flugabwehr</span><span id="ad-mag"></span></div>
     <div id="ad-list"></div>
     <div class="row"><span class="dim">ZIEL</span><span id="ad-sel" class="amber">—</span></div>
-    <div style="display:flex;gap:4px;margin-top:6px"><button id="ad-fire" class="fire" style="flex:1">Feuer</button><button id="ad-ftr" style="flex:1">Abfangjäger anfordern</button></div>
+    <div style="display:flex;gap:4px;margin-top:6px"><button id="ad-fire" class="fire" style="flex:1;white-space:nowrap">Feuer</button><button id="ad-ftr" style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="Abfangjäger von Land anfordern">Jäger anfordern</button></div>
     <div id="ad-fk" style="margin-top:4px"></div>
   </div>`);
   const q = <T extends HTMLElement>(sel: string) => el.querySelector<T>(sel)!;
@@ -87,7 +87,10 @@ export function airDefPanel(): { el: HTMLElement; update(): void } {
       const a = s?.airdef;
       el.style.display = a?.sam || a?.fighter ? '' : 'none';
       if (!s || !a) return;
-      q('#ad-mag').textContent = a.sam ? `${a.sam.left} FK · ${Math.round(a.sam.maxRange / 1000)} KM / ${(a.sam.maxAlt / 1000).toFixed(0)} KM HÖHE` : '';
+      // Header: what is left; the envelope in words in the tooltip
+      const mag = q('#ad-mag');
+      mag.textContent = a.sam ? `${a.sam.left} FK AN BORD` : '';
+      mag.title = a.sam ? `Flugkörper an Bord: ${a.sam.left} · Reichweite ${Math.round(a.sam.maxRange / 1000)} km · bis ${(a.sam.maxAlt / 1000).toFixed(0)} km Höhe` : '';
       const air = (s.planes ?? []).filter((p) => p.side !== 'friend' && p.side !== 'neutral');
       if (airSel.id && !air.some((p) => p.id === airSel.id)) airSel.id = undefined;
       if (!airSel.id && air.length === 1) airSel.id = air[0]!.id;
@@ -104,16 +107,18 @@ export function airDefPanel(): { el: HTMLElement; update(): void } {
       const fire = q<HTMLButtonElement>('#ad-fire');
       fire.disabled = !st?.ok || !a.sam || a.sam.left <= 0 || a.sam.readyInS > 0;
       fire.classList.toggle('armed', !fire.disabled);
+      // Red only when it can fire: disabled in the neutral grey
+      fire.classList.toggle('fire', !fire.disabled);
       fire.textContent = a.sam && a.sam.readyInS > 0 ? `Starter lädt ${Math.ceil(a.sam.readyInS)} s` : 'Feuer';
       fire.style.display = a.sam ? '' : 'none';
       const f = a.fighter;
       const ftr = q<HTMLButtonElement>('#ad-ftr');
       ftr.disabled = !f || f.left <= 0 || f.readyInS > 0 || f.arriveInS !== undefined || f.onStation || !air.some((p) => p.side === 'hostile');
-      ftr.textContent = !f ? 'Abfangjäger anfordern'
+      ftr.textContent = !f ? 'Jäger anfordern'
         : f.onStation ? 'Jäger im Einsatzraum'
           : f.arriveInS !== undefined ? `Jäger in ${Math.ceil(f.arriveInS / 60)} min`
             : f.left <= 0 ? 'Keine Jäger mehr'
-              : f.readyInS > 0 ? `Jäger bereit in ${Math.ceil(f.readyInS / 60)} min` : `Abfangjäger anfordern (${f.left})`;
+              : f.readyInS > 0 ? `Jäger bereit in ${Math.ceil(f.readyInS / 60)} min` : `Jäger anfordern · ${f.left}`;
       const mine = a.missiles.filter((m) => m.own);
       setHtml(q('#ad-fk'), mine.map((m) => {
         const tgt = (s.planes ?? []).find((p) => p.id === m.targetId);

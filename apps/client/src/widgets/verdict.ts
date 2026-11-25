@@ -28,7 +28,7 @@ export function renderVerdict(el: HTMLElement): void {
     ${bc ? `<div class="row"><span class="dim">BLATTZAHL / DREHZAHL</span><span>${bc.blades} BLATT (${bc.deviation >= 0 ? '+' : ''}${bc.deviation.toFixed(2)}) · ${Math.round(bc.rpm)} U/MIN</span></div>` : ''}
     <div class="dim" style="margin:4px 0">KLASSENBIBLIOTHEK${sure ? '' : ' · NUR HINWEIS (WENIGER ALS 2 MARKEN)'}</div>
     ${libRows}
-    <div class="steps" style="margin-top:6px">${CHOICES.map((ch) => `<button data-cls="${ch}" class="${c.assigned === ch || (!c.assigned && ch === 'unknown') ? 'on' : ''}">${CHOICE_LABEL[ch]}</button>`).join('')}</div>`;
+    <div class="steps cls-grid" style="margin-top:6px">${CHOICES.map((ch) => `<button data-cls="${ch}" class="${c.assigned === ch || (!c.assigned && ch === 'unknown') ? 'on' : ''}">${CHOICE_LABEL[ch]}</button>`).join('')}</div>`;
   if (!el.dataset.bound) {
     el.dataset.bound = '1';
     onTap(el, '[data-cls]', (b) => {

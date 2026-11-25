@@ -96,6 +96,10 @@ const HELM_CSS = `<style>
 .hm-ord button{padding:2px 8px}
 .hm-ord>span{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #depth-box{margin-top:4px}
+#depth-box .hm-drow{white-space:nowrap}
+#depth-box .hm-drow>span{overflow:hidden;text-overflow:ellipsis}
+#depth-box .hm-dcap{margin-top:4px;font-size:var(--fs-cap)}
+#depth-box input[type=range]{margin-top:0}
 @media (min-width:601px) and (max-width:1279px){
 .hm-top{grid-template-columns:minmax(0,1fr);justify-items:center}
 .hm-tiles{flex-direction:row;width:100%}
@@ -109,7 +113,7 @@ html[data-theme='light'] .hm-tel button.made.stop{background:#e2ebe7}
 /** Helm: compass rose for the course, instrument tiles, engine telegraph strip (ahead and astern), depth. Visible on every station. */
 export function mountHelm(el: HTMLElement) {
   el.innerHTML = `${HELM_CSS}
-    <div class="hd"><span>Ruderstand<span id="h-ship" class="h-ship"></span></span><span id="h-rot" class="dim"></span></div>
+    <div class="hd"><span>Ruderstand<span id="h-ship" class="h-ship"></span></span><span id="h-rot" class="dim" title="Drehrate"></span></div>
     <div class="hm-top">
       <canvas id="h-compass" style="cursor:pointer" title="Klicken oder ziehen, um den Kurs zu setzen"></canvas>
       <div class="hm-tiles">
@@ -126,14 +130,15 @@ export function mountHelm(el: HTMLElement) {
       <button id="h-fast" title="Fahrt 1 kn mehr">+1</button>
     </div>
     <div id="depth-box">
-      <div class="row"><span class="dim">TIEFE</span><span id="h-dep"></span></div>
-      <div class="hm-depinfo" id="h-dep2"></div>
+      <div class="row hm-drow"><span class="dim">TIEFE</span><span id="h-dep"></span></div>
+      <div class="row hm-drow"><span id="h-env"></span><span id="h-lay"></span></div>
       <div class="steps">
         <button id="h-peri" title="Sehrohrtiefe ${PERISCOPE_DEPTH} m">Sehrohr</button>
         <button id="h-above" title="Knapp über der Sprungschicht">Über Schicht</button>
         <button id="h-below" title="Unter der Sprungschicht: schwerer zu orten">Unter Schicht</button>
       </div>
-      <input id="h-depth" type="range" min="0" max="400" step="5" title="Tiefe in Metern">
+      <div class="row hm-drow hm-dcap"><span class="dim">BEFOHLENE TIEFE</span><span id="h-dval"></span></div>
+      <input id="h-depth" type="range" min="0" max="400" step="5" title="Befohlene Tiefe in Metern" aria-label="Befohlene Tiefe">
     </div>`;
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const order = (o: { heading?: number; speedKn?: number; depth?: number }) => net.send({ t: 'order', ...o });
@@ -196,7 +201,11 @@ export function mountHelm(el: HTMLElement) {
   q<HTMLButtonElement>('#h-fast').onclick = () => nudge({ speedKn: 1 });
   const depthOrder = throttle<number>((depth) => order({ depth }));
   const dp = q<HTMLInputElement>('#h-depth');
-  dp.oninput = () => depthOrder.push(Number(dp.value));
+  const showDepthValue = () => setText(q('#h-dval'), `${dp.value} M`);
+  dp.oninput = () => {
+    showDepthValue();
+    depthOrder.push(Number(dp.value));
+  };
   dp.onchange = () => {
     depthOrder.push(Number(dp.value));
     depthOrder.flush();
@@ -310,18 +319,20 @@ export function mountHelm(el: HTMLElement) {
       ctx.fillStyle = 'rgba(250,199,117,0.8)';
       ctx.beginPath(); ctx.arc(ax, ay, 2.5, 0, 7); ctx.fill();
     }
-    // Ordered course: dashed line and a marker on the bezel
+    // Ordered course: dashed line and a marker just inside the card, its tip on the rim (the
+    // bezel numbers outside stay readable)
     ctx.strokeStyle = COL.amber;
     ctx.lineWidth = LW.bearing;
     ctx.setLineDash([3, 3]);
-    const [ox, oy] = P(ord, R - 4);
+    const [ox, oy] = P(ord, R - 9);
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ox, oy); ctx.stroke();
     ctx.setLineDash([]);
     ctx.save();
-    ctx.translate(...P(ord, R + 2));
+    ctx.translate(...P(ord, R - 1));
     ctx.rotate((ord * Math.PI) / 180);
     ctx.fillStyle = COL.amber;
-    ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(-5, -7); ctx.lineTo(5, -7); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#070d0c';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-5, 9); ctx.lineTo(5, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
     // Heading line to the rim and the own ship in the middle (stern first when going astern)
     const [hx, hy] = P(hdg, R - 2);
@@ -389,7 +400,8 @@ export function mountHelm(el: HTMLElement) {
       setHtml(q('#h-rud'), rAbs < 1.5 ? '0°<small> MITTE</small>' : `${rAbs.toFixed(0)}°<small> ${rudder > 0 ? 'STB' : 'BB'}</small>`);
       q('#h-rud-i').style.left = `${50 + (rudder / 35) * 50}%`;
       setText(q('#h-ship'), ` · ${o.name}`);
-      setHtml(q('#h-rot'), Math.abs(rot) > 0.05 ? `DREHT ${Math.abs(rot).toFixed(1).replace('.', ',')}°/S` : '');
+      // Rate of turn kept short (↻ starboard, ↺ port), so the ship's name beside it is not cut
+      setHtml(q('#h-rot'), Math.abs(rot) > 0.05 ? `${rot > 0 ? '↻' : '↺'} ${Math.abs(rot).toFixed(1).replace('.', ',')}°/S` : '');
       // Telegraph strip: the step she is making filled, the ordered step outlined amber
       const ordered = o.order.speedKn;
       const ordI = telNearest(ordered, o.cls);
@@ -406,12 +418,13 @@ export function mountHelm(el: HTMLElement) {
       q('#depth-box').style.display = spec.submarine ? '' : 'none';
       depthAlarms.update(s);
       if (spec.submarine) {
+        // Two short rows that never wrap: depth and order (with the alarm tag), then the water under her
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
-        // Depth on one line; layer, bottom and an alarm as one row of small facts under it (no wrapping)
-        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span>`);
-        const ground = s.env.bottom !== undefined ? `<span class="${under! < 40 ? 'red blink' : ''}">GRUND ${s.env.bottom} M</span>` : '';
-        const layer = `<span>SCHICHT ${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M` : s.env.noLayer ? 'KEINE' : '?'}</span>`;
-        setHtml(q('#h-dep2'), [layer, ground, depthAlarms.helmTag()].filter(Boolean).join(''));
+        setHtml(q('#h-dep'), `${depthAlarms.helmTag()} ${o.depth.toFixed(0)} <span class="amber">→ ${o.order.depth.toFixed(0)} M</span>`);
+        setHtml(q('#h-env'), s.env.bottom !== undefined ? `<span class="dim">GRUND</span> <span class="${under! < 40 ? 'red blink' : ''}">${s.env.bottom} M</span>` : '<span class="dim">GRUND</span> —');
+        const layEl = q('#h-lay');
+        setHtml(layEl, `<span class="dim">SCHICHT</span> ${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M` : s.env.noLayer ? 'KEINE' : '—'}`);
+        layEl.title = s.env.layerDepth !== undefined ? 'Gemessene Sprungschicht' : s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt' : 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const lay = s.env.layerDepth;
         depthBtn(q('#h-peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);
@@ -419,6 +432,7 @@ export function mountHelm(el: HTMLElement) {
         depthBtn(q('#h-below'), o.depth, o.order.depth, lay === undefined ? undefined : lay + 30);
         dp.max = String(spec.maxDepth);
         if (document.activeElement !== dp) dp.value = String(o.order.depth);
+        showDepthValue();
       }
     },
     frame: drawCompass,

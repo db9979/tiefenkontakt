@@ -4,6 +4,10 @@ import { store } from '../store.js';
 import { COL, fitCanvas, FONT, h } from './format.js';
 import { renderVerdict } from './verdict.js';
 import { Fader, dbToAmp, showChance } from './signal-display.js';
+import { boxesHit, clampTextX, plateText, textBox, type Box } from './canvas-text.js';
+
+/** Hz with one decimal and a decimal comma. */
+const hz1 = (v: number) => v.toFixed(1).replace('.', ',');
 
 type Page = 'lofar' | 'demon';
 const BINS = 1000;
@@ -318,7 +322,7 @@ export class AcousticAnalysis {
     q('#a-cur').textContent = `CURSOR ${this.cursor[this.page].toFixed(1).replace('.', ',')} HZ · PEGEL ${lvl.toFixed(2).replace('.', ',')}`;
     const m = store.selected ? store.marks.get(store.selected) : undefined;
     q('#a-markinfo').textContent = [
-      m?.tonalHz ? `GRUNDTON ${m.tonalHz} HZ` : '', m?.shaftHz ? `WELLE ${m.shaftHz} HZ` : '', m?.bladeHz ? `BLATT ${m.bladeHz} HZ` : '',
+      m?.tonalHz ? `GRUNDTON ${hz1(m.tonalHz)} HZ` : '', m?.shaftHz ? `WELLE ${hz1(m.shaftHz)} HZ` : '', m?.bladeHz ? `BLATT ${hz1(m.bladeHz)} HZ` : '',
     ].filter(Boolean).join(' · ');
     renderVerdict(q('#a-verdict'));
   }
@@ -366,6 +370,10 @@ export class AcousticAnalysis {
     ictx.putImageData(data, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(this.img, 0, 0, BINS, Math.max(1, rows), 4, strip + 4, w - 8, ((H - strip - 22) * Math.max(1, rows)) / ROWS);
+    // The history area framed: it fills downwards over two minutes after a contact is chosen,
+    // so the part not yet filled reads as "still to come", not as a broken black strip
+    ctx.strokeStyle = 'rgba(93,202,165,0.18)';
+    ctx.strokeRect(3.5, strip + 3.5, w - 7, H - strip - 21);
 
     // Spectrum strip (current or peak-held)
     let spec = this.integrated(page);
@@ -390,8 +398,19 @@ export class AcousticAnalysis {
     ctx.font = FONT.tick;
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'center';
+    // Frequency axis: labels kept inside the canvas, the unit on the last one, none on top of another
     const tick = hi - lo > 100 ? 50 : hi - lo > 40 ? 10 : 5;
-    for (let f = Math.ceil(lo / tick) * tick; f <= hi; f += tick) ctx.fillText(String(f), X(f), H - 6);
+    const ticks: number[] = [];
+    for (let f = Math.ceil(lo / tick) * tick; f <= hi; f += tick) ticks.push(f);
+    let lastRight = -Infinity;
+    ticks.forEach((f, i) => {
+      const text = i === ticks.length - 1 ? `${f} HZ` : String(f);
+      const x = clampTextX(ctx, text, X(f), 2, w - 2);
+      const half = ctx.measureText(text).width / 2;
+      if (x - half < lastRight + 6) return;
+      ctx.fillText(text, x, H - 6);
+      lastRight = x + half;
+    });
 
     const m = store.marks.get(store.selected) ?? {};
     const vline = (hz: number, color: string, text?: string, dash = false) => {
@@ -409,18 +428,27 @@ export class AcousticAnalysis {
     if (page === 'lofar' && m.tonalHz) vline(m.tonalHz, COL.amber, 'GT');
     if (page === 'demon' && m.shaftHz) vline(m.shaftHz, COL.amber, 'W');
     if (page === 'demon' && m.bladeHz) vline(m.bladeHz, COL.blue, 'B');
+    vline(this.cursor[page], '#ffffff');
     if (store.realism === 'einsteiger') {
+      // Line values for beginners: on a plate (the cursor and the lines run through them), in two
+      // staggered rows; a value that still has no room is left out (the line itself stays)
       const ev = store.selectedContact()?.evidence;
+      const peaks = page === 'lofar'
+        ? (ev?.tonals ?? []).map((t) => t.hz)
+        : ev?.shaftHz ? [ev.shaftHz, ...(ev.bladeHz ? [ev.bladeHz] : [])] : [];
       ctx.fillStyle = COL.g2;
-      if (page === 'lofar') for (const t of ev?.tonals ?? []) if (t.hz >= lo && t.hz <= hi) ctx.fillText(t.hz.toFixed(1), X(t.hz), strip + 16);
-      if (page === 'demon' && ev?.shaftHz) {
-        ctx.fillText(ev.shaftHz.toFixed(1), X(ev.shaftHz), strip + 16);
-        if (ev.bladeHz) ctx.fillText(ev.bladeHz.toFixed(1), X(ev.bladeHz), strip + 16);
+      ctx.textAlign = 'center';
+      const taken: Box[] = [];
+      for (const hz of peaks.filter((f) => f >= lo && f <= hi).sort((a, b) => a - b)) {
+        const text = hz1(hz);
+        const x = clampTextX(ctx, text, X(hz), 6, w - 6);
+        for (const y of [strip + 16, strip + 31]) {
+          const box = textBox(ctx, text, x, y);
+          if (taken.some((b) => boxesHit(b, box, 2))) continue;
+          taken.push(plateText(ctx, text, x, y));
+          break;
+        }
       }
     }
-    vline(this.cursor[page], '#ffffff');
-    ctx.textAlign = 'right';
-    ctx.fillStyle = COL.dim;
-    ctx.fillText(page === 'lofar' ? 'LOFAR · HZ' : 'DEMON · HZ', w - 6, strip - 4);
   }
 }

@@ -196,6 +196,9 @@ function drawLabels(ctx: CanvasRenderingContext2D, r: Render, sx: number, sy: nu
     const x = w / 2 + gx * cos - gy * sin, y = hgt / 2 + gx * sin + gy * cos;
     if (x < 0 || x > w || y < 0 || y > hgt) continue;
     const tw = ctx.measureText(l.t).width + 4;
+    // Not under the chart's tool buttons (the row along the top, the column on the right):
+    // a label there would peek out beside a button as a stray glyph
+    if (y < 40 || x + tw / 2 > w - 46) continue;
     ctx.fillStyle = 'rgba(6,14,16,0.75)';
     ctx.fillRect(x - tw / 2, y - 6, tw, 12);
     ctx.fillStyle = 'rgba(150,210,190,0.85)';
@@ -271,6 +274,10 @@ function legend(ctx: CanvasRenderingContext2D, _w: number, hgt: number): void {
   const x = 62;
   const y = hgt - 52;
   ctx.save();
+  // One semi-opaque plate under the scale and the grid note below it (plot.ts writes that):
+  // contours and lanes do not run through the words
+  ctx.fillStyle = 'rgba(6,14,16,0.72)';
+  ctx.fillRect(2, y - 9, x + bw + 12, hgt - y + 7);
   for (let i = 0; i < bw; i++) {
     // Same square-root scale as the tint, from 0 to 4000 m
     const d = ((i / bw) * Math.sqrt(4000)) ** 2;

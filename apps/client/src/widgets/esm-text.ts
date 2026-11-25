@@ -20,12 +20,19 @@ export function esmTitle(id: string | undefined): string {
   return [e.id, `BAND ${e.band}`, e.rotationS ? `UMLAUF ${e.rotationS} S` : 'KEINE ROTATION', e.pulse, 'MÖGLICH', ...candidateNames(e.id).split(' / ')].join(' · ');
 }
 
-/** Two-line list entry: label, bearing, age; then emitter and strength. */
+const LEVEL_SHORT = ['SCHWACH', 'MITTEL', 'STARK'];
+const TREND_ARROW: Record<string, string> = { '1': '↑', '0': '→', '-1': '↓' };
+
+/**
+ * One grid row per intercept (widgets.css .esm-row): label, bearing, emitter (cut with an
+ * ellipsis, in full in the tooltip), strength with a trend arrow, age.
+ */
 export function esmRow(label: string, bearing: number, age: string, id: string | undefined, lvl: number | undefined, trend: number | undefined, tone: string): string {
   const what = id ? emitterText(id) : 'FUNK';
   const str = esmStrengthText(lvl, trend);
-  return `<div title="${esc(esmTitle(id))}"><div class="row ${tone}"><span>${esc(label)}</span><span>${tdeg3(bearing)}°</span><span class="dim">${age}</span></div>
-    <div class="row ${tone}" style="font-size:11px;padding-left:10px"><span>${esc(what)}</span><span>${str}</span></div></div>`;
+  const strShort = lvl === undefined ? '' : `<span>${LEVEL_SHORT[lvl] ?? ''}</span>${trend !== undefined ? ` ${TREND_ARROW[String(trend)] ?? ''}` : ''}`;
+  const title = [what, str, esmTitle(id)].filter(Boolean).join(' · ');
+  return `<div class="row esm-row ${tone}" title="${esc(title)}"><span>${esc(label)}</span><span>${tdeg3(bearing)}°</span><span class="esm-what">${esc(what)}</span><span class="esm-lvl">${strShort}</span><span class="dim">${age}</span></div>`;
 }
 
 /**

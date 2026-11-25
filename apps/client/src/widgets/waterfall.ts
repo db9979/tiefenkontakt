@@ -3,9 +3,12 @@ import { COL, deg3, fitCanvas } from './format.js';
 import { gameDeg, trueDeg } from '../north.js';
 import { Fader, beamWidth, dbToAmp, showChance } from './signal-display.js';
 import { isInkLight } from './ink.js';
+import { clampTextX, plateText } from './canvas-text.js';
 
 const BINS = 360;
 const ROWS = 240;
+/** Left margin of the picture: room for the time axis ("−4 MIN") inside the canvas. */
+const PL = 50;
 
 interface Line {
   b: number;
@@ -145,7 +148,7 @@ export class Waterfall {
   draw(canvas: HTMLCanvasElement, height: number, s: Snapshot | undefined, selected?: string): void {
     const ctx = fitCanvas(canvas, height);
     const w = canvas.clientWidth;
-    const pl = 36;
+    const pl = PL;
     const pt = 18;
     const pw = w - pl - 8;
     const ph = height - pt - 54;
@@ -162,15 +165,18 @@ export class Waterfall {
     ctx.font = '11px ui-monospace, monospace';
     ctx.fillStyle = COL.g;
     ctx.textAlign = 'center';
-    for (let a = 0; a <= 360; a += 30) {
+    // Bearing scale every 30°, every 60° when the picture is too narrow for the labels to stand apart
+    const step = pw / 12 < ctx.measureText('000').width + 8 ? 60 : 30;
+    for (let a = 0; a <= 360; a += step) {
       const x = pl + (a / 360) * pw;
-      ctx.fillText(deg3(a), x, 12);
+      ctx.fillText(deg3(a), clampTextX(ctx, deg3(a), x, 1, w - 1), 12);
       ctx.fillRect(x, pt - 3, 1, 3);
     }
+    // Time axis: newest on top, the picture holds four minutes
     ctx.textAlign = 'right';
     ctx.fillText('0', pl - 4, pt + 10);
-    ctx.fillText('−2 MIN', pl - 4, pt + ph / 2);
-    ctx.fillText('−4', pl - 4, pt + ph);
+    ctx.fillText('−2 MIN', pl - 4, pt + ph / 2 + 4);
+    ctx.fillText('−4 MIN', pl - 4, pt + ph);
     if (!s) return;
     const stern = trueDeg(s.own.heading + 180);
     // The deaf sector's name inside the picture at its foot, kept clear of the edges and of the contact labels below
@@ -190,33 +196,50 @@ export class Waterfall {
         .map((c) => ({ label: c.label, bearing: c.bearing, torp: false })),
       ...s.torpedoes.map((t) => ({ label: t.id, bearing: bearing(s.own, t), torp: true })),
     ].sort((a, b) => trueDeg(a.bearing) - trueDeg(b.bearing));
-    if (!shown.length) {
+    // A towed-array waterfall while the array is in: say so (nothing can show up until it is out)
+    const towedOnly = this.sensors.length === 1 && this.sensors[0] === 'towed';
+    const towedIn = towedOnly && (s.own.towedLength ?? 0) <= 0;
+    const towedSettling = towedOnly && !towedIn && !s.own.towedReady;
+    if (!shown.length || towedIn) {
       // Empty state: say what to do instead of a black screen
-      ctx.fillStyle = COL.dim;
+      const [l1, l2] = towedIn
+        ? ((s.own.towedOrder ?? 0) > 0 ? ['SCHLEPPSONAR WIRD AUSGEBRACHT', 'ES HÖRT ERST, WENN ES DRAUSSEN UND STABIL IST'] : ['SCHLEPPSONAR EINGEHOLT', 'LÄNGE WÄHLEN ZUM AUSBRINGEN'])
+        : towedSettling ? ['SCHLEPPSONAR STABILISIERT SICH', 'GERADEAUS FAHREN, DANN HÖRT ES']
+          : ['NOCH KEIN KONTAKT – LANGSAM FAHREN UND HORCHEN', 'SCHIFFE ERSCHEINEN ALS HELLE SENKRECHTE SPUREN'];
+      ctx.fillStyle = towedIn ? COL.amber : COL.dim;
       ctx.textAlign = 'center';
-      ctx.fillText('NOCH KEIN KONTAKT – LANGSAM FAHREN UND HORCHEN', pl + pw / 2, pt + ph / 2 - 8);
-      ctx.fillText('SCHIFFE ERSCHEINEN ALS HELLE SENKRECHTE SPUREN', pl + pw / 2, pt + ph / 2 + 8);
+      // Long lines on a narrow picture: the font shrinks to fit (never below 9 px)
+      const fit = (t: string) => Math.min(1, (pw - 12) / Math.max(1, ctx.measureText(t).width));
+      const k = Math.min(fit(l1), fit(l2));
+      if (k < 1) ctx.font = `${Math.max(9, Math.floor(11 * k))}px ui-monospace, monospace`;
+      plateText(ctx, l1, pl + pw / 2, pt + ph / 2 - 8);
+      ctx.fillStyle = COL.dim;
+      plateText(ctx, l2, pl + pw / 2, pt + ph / 2 + 8);
+      ctx.font = '11px ui-monospace, monospace';
     }
-    // Labels in up to three rows; what does not fit is summed up as "+N" in a fourth row
-    const rowEnd = [-1e9, -1e9, -1e9];
+    // Labels in up to three rows; a label goes into the first row where it touches no other
+    // (by its real width); what does not fit is summed up as "+N" in a fourth row
+    const rows: [number, number][][] = [[], [], []];
     const overflow: { x: number; n: number }[] = [];
     // The selected contact is placed first so it always gets a label
     const ordered = [...shown].sort((a, b) => (b.label === selected ? 1 : 0) - (a.label === selected ? 1 : 0));
     const placed: { c: typeof shown[number]; x: number; row: number }[] = [];
     for (const c of ordered) {
-      const x = pl + (trueDeg(c.bearing) / 360) * pw;
-      const row = rowEnd.findIndex((end) => Math.abs(x - end) > 26);
+      const x0 = pl + (trueDeg(c.bearing) / 360) * pw;
+      const x = clampTextX(ctx, c.label, x0, 1, w - 1);
+      const half = ctx.measureText(c.label).width / 2 + 3;
+      const row = rows.findIndex((r) => r.every(([a, b]) => x + half < a || x - half > b));
       if (row < 0) {
         const near = overflow.find((o) => Math.abs(o.x - x) < 30);
         if (near) near.n++;
         else overflow.push({ x, n: 1 });
       } else {
-        rowEnd[row] = x;
+        rows[row]!.push([x - half, x + half]);
         placed.push({ c, x, row });
       }
     }
     ctx.fillStyle = COL.dim;
-    for (const o of overflow) ctx.fillText(`+${o.n}`, o.x, pt + ph + 13 + 3 * 12);
+    for (const o of overflow) ctx.fillText(`+${o.n}`, clampTextX(ctx, `+${o.n}`, o.x, 1, w - 1), pt + ph + 13 + 3 * 12);
     for (const { c, x, row } of placed) {
       const sel = c.label === selected;
       ctx.fillStyle = sel ? COL.amber : c.torp ? COL.red : COL.g2;
@@ -225,8 +248,9 @@ export class Waterfall {
         ctx.strokeStyle = COL.amber;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
-        ctx.moveTo(x, pt);
-        ctx.lineTo(x, pt + ph);
+        const bx = pl + (trueDeg(c.bearing) / 360) * pw;
+        ctx.moveTo(bx, pt);
+        ctx.lineTo(bx, pt + ph);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -235,30 +259,33 @@ export class Waterfall {
 
   /** A small control strip (normaliser, averaging, gain, contrast) for the panel header. */
   controls(): HTMLElement {
+    // Same height as the other footer controls (widgets.css); brightness − / + as one pair
     const el = document.createElement('span');
     el.className = 'wf-ctl';
-    el.style.cssText = 'display:inline-flex;gap:3px;align-items:center';
-    const btn = (label: string, title: string, run: () => void) => {
+    const btn = (label: string, title: string, run: () => void, parent: HTMLElement = el) => {
       const b = document.createElement('button');
       b.textContent = label;
       b.title = title;
-      b.style.cssText = 'padding:0 6px;min-height:0;font-size:0.8333rem';
       b.onclick = () => {
         run();
         localStorage.setItem(OPTS_KEY, JSON.stringify(this.opts));
         paint();
       };
-      el.appendChild(b);
+      parent.appendChild(b);
       return b;
     };
     const norm = btn('NORM', 'Normalisierer: hebt einzelne Spuren aus lautem Hintergrund (Nachbarpeilungen als Bezug)', () => (this.opts.norm = !this.opts.norm));
-    const integ = btn('', 'Mittelung über mehrere Sekunden: ruhigere Spuren, aber träger', () => (this.opts.integ = INTEG[(INTEG.indexOf(this.opts.integ) + 1) % INTEG.length]!));
-    btn('−', 'Helligkeit verringern', () => (this.opts.gain = Math.max(0.5, +(this.opts.gain - 0.15).toFixed(2))));
-    btn('+', 'Helligkeit erhöhen', () => (this.opts.gain = Math.min(2, +(this.opts.gain + 0.15).toFixed(2))));
+    // "Int" like the LOFAR integration in the analysis filters
+    const integ = btn('', 'Integration: Mittelung über mehrere Sekunden, ruhigere Spuren, aber träger', () => (this.opts.integ = INTEG[(INTEG.indexOf(this.opts.integ) + 1) % INTEG.length]!));
+    const gain = document.createElement('span');
+    gain.className = 'seg';
+    el.appendChild(gain);
+    btn('−', 'Helligkeit verringern', () => (this.opts.gain = Math.max(0.5, +(this.opts.gain - 0.15).toFixed(2))), gain);
+    btn('+', 'Helligkeit erhöhen', () => (this.opts.gain = Math.min(2, +(this.opts.gain + 0.15).toFixed(2))), gain);
     const con = btn('', 'Kontrast: niedrig / normal / hoch', () => (this.opts.contrast = this.opts.contrast < 0.9 ? 1 : this.opts.contrast < 1.2 ? 1.4 : 0.7));
     const paint = () => {
       norm.classList.toggle('on', this.opts.norm);
-      integ.textContent = `MITTEL ${this.opts.integ} S`;
+      integ.textContent = `INT ${this.opts.integ} S`;
       con.textContent = this.opts.contrast < 0.9 ? 'KONTR −' : this.opts.contrast > 1.2 ? 'KONTR +' : 'KONTR';
     };
     paint();
@@ -268,7 +295,7 @@ export class Waterfall {
   /** Bearing under a canvas x coordinate (for click-to-select), in the game frame like contact bearings. */
   bearingAt(canvas: HTMLCanvasElement, clientX: number): number {
     const r = canvas.getBoundingClientRect();
-    const pw = r.width - 36 - 8;
-    return gameDeg((((clientX - r.left - 36) / pw) * 360 + 360) % 360);
+    const pw = r.width - PL - 8;
+    return gameDeg((((clientX - r.left - PL) / pw) * 360 + 360) % 360);
   }
 }

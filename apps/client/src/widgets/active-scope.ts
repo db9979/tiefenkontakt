@@ -27,13 +27,10 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
   const compact = !!opts.compact;
   const el = h(`<div class="panel">
     <div class="hd"><span>Aktivsonar</span><span id="as-st" class="dim"></span></div>
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
-      <button id="as-one" class="warn" title="Ein einzelner Ping: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Einzelping${opts.pingKey ? keycap('ping') : ''}</button>
-      <button id="as-ping" title="Dauerpingen im Takt des Messbereichs: jeder hört dich weit hinaus">Dauer</button>
-      <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
-      <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
-      <span style="flex:1"></span>
-      ${RANGES_M.map((r) => `<button data-asr="${r}" title="Messbereich ${r / 1000} km: Echos von weiter draußen kommen zu spät · ein Ping alle ${pingInterval({ pingRange: r })} s">${r / 1000} KM</button>`).join('')}
+    <div class="as-bar">
+      <span class="seg"><button id="as-one" class="warn" title="Ein einzelner Ping: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Einzelping${opts.pingKey ? keycap('ping') : ''}</button><button id="as-ping" title="Dauerpingen im Takt des Messbereichs: jeder hört dich weit hinaus">Dauer</button></span>
+      <span class="seg"><button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button><button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button></span>
+      <span class="seg as-range" title="Messbereich">${RANGES_M.map((r) => `<button data-asr="${r}" title="Messbereich ${r / 1000} km: Echos von weiter draußen kommen zu spät · ein Ping alle ${pingInterval({ pingRange: r })} s">${r / 1000} KM</button>`).join('')}</span>
     </div>
     <canvas id="as-ppi"></canvas>
     ${compact ? '' : '<div id="as-echoes" style="margin-top:6px"></div>'}
@@ -159,6 +156,7 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
       }
       ctx.restore();
       // Bezel: degree marks, north up, own heading line, ring labels
+      ctx.font = FONT.tick;
       ctx.strokeStyle = 'rgba(93,202,165,0.55)';
       ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = COL.g;
@@ -170,11 +168,15 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
         ctx.moveTo(cx + Math.sin(a) * R, cy - Math.cos(a) * R);
         ctx.lineTo(cx + Math.sin(a) * (R + len), cy - Math.cos(a) * (R + len));
         ctx.stroke();
-        if (d % 30 === 0) ctx.fillText(d === 0 ? 'N' : deg3(d), cx + Math.sin(a) * (R + 12), cy - Math.cos(a) * (R + 12) + 3);
+        // Labels beside the scale stand further out (they are wider than tall), clear of the 30° ticks
+        const off = R + 11 + Math.abs(Math.sin(a)) * 6;
+        if (d % 30 === 0) ctx.fillText(d === 0 ? 'N' : deg3(d), cx + Math.sin(a) * off, cy - Math.cos(a) * off + 3);
       }
       const hd = (trueDeg(o.heading) * Math.PI) / 180;
       ctx.strokeStyle = COL.blue;
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(hd) * R * 0.25, cy - Math.cos(hd) * R * 0.25); ctx.stroke();
+      // Captions in the console's monospace (after restore() the font was the canvas default)
+      ctx.font = FONT.tick;
       ctx.textAlign = 'left';
       ctx.fillStyle = COL.dim;
       ctx.fillText(`RING ${(rM / 4000).toLocaleString('de-DE')} KM`, 6, H - 6);

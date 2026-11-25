@@ -80,10 +80,14 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
   const groups = Object.keys(GROUPS).filter((g) => f.has(`g:${g}`));
   const all = s.contacts.filter((c) => filter(c.via));
   noteContacts(s);
+  // Two columns: what it is (class or "?"), and how loud it is or, once it has gone quiet, how old
   const whatOf = (c: (typeof all)[number], own: boolean) => {
-    const age = s.time - c.lastSeen;
     const name = c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : '';
-    return own ? `EIGEN${name ? ' · ' + name : ''}` : name || (age > 30 ? `ALT ${Math.round(age)} S` : `? ${c.se.toFixed(0)} DB`);
+    return own ? `EIGEN${name ? ' · ' + name : ''}` : name || '?';
+  };
+  const levelOf = (c: (typeof all)[number]) => {
+    const age = s.time - c.lastSeen;
+    return age > 30 ? `ALT ${Math.round(age)} S` : `${c.se.toFixed(0)} DB`;
   };
   const shown = all
     .map((c) => ({ c, own: isFriendlyContact(c, s) }))
@@ -97,6 +101,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
     range: (r) => fixRange(r.c, s),
     sensor: (r) => sensorGlyphs(r.c.sensors),
     cls: (r) => whatOf(r.c, r.own),
+    lvl: (r) => (s.time - r.c.lastSeen > 30 ? -1000 - (s.time - r.c.lastSeen) : r.c.se),
   }).sort((a, b) => Number(b.fresh) - Number(a.fresh) || Number(a.own) - Number(b.own));
   // The range column only when there is something to show in it
   const ranged = rows.some(({ c }) => fixRange(c, s) !== undefined || store.solutions.has(c.label)) || s.torpedoes.length > 0;
@@ -104,13 +109,14 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
   const sub = CLASSES[s.own.cls].submarine;
   const chips = filterChips(ID, [
     { key: 'fresh', label: 'AKTUELL', title: 'Nur Kontakte der letzten 30 s' },
-    { key: 'hostile', label: 'OHNE EIGENE', title: 'Eigene und verbündete Einheiten ausblenden' },
+    // Short, so all chips fit on one row in the narrow OPZ column (the tooltip says what it does)
+    { key: 'hostile', label: 'FREMDE', title: 'Nur fremde Kontakte: eigene und verbündete Einheiten ausblenden' },
     { key: 'g:sonar', label: 'SONAR' },
     ...(sub ? [] : [{ key: 'g:radar', label: 'RADAR' }]),
     { key: 'g:esm', label: 'ESM' },
     { key: 'g:visual', label: sub ? 'OPTIK' : 'SICHT' },
   ]).replace('</div>', `<span class="dim chipcount">${rows.length}/${all.length}</span></div>`);
-  const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? sortHead(ID, 'range', 'ENTF.', DEF) : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'S', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}</div>`;
+  const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? sortHead(ID, 'range', 'ENTF.', DEF) : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'SENS', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}<span title="Signalpegel in dB · ALT: Sekunden seit der letzten Peilung">${sortHead(ID, 'lvl', 'PEGEL', DEF)}</span></div>`;
   setHtml(el, chips + (rows.length
     ? head + rows.map(({ c, own, fresh }) => {
       const age = s.time - c.lastSeen;
@@ -132,6 +138,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
         ${ranged ? `<span>${range}</span>` : ''}
         <span class="glyphs" title="${esc(sensors)}">${sensorGlyphs(c.sensors)}</span>
         <span class="${color}">${what}</span>
+        <span class="lvl${age > 30 ? ' dim' : ''}">${levelOf(c)}</span>
       </div>`;
     }).join('') + torpRows(s, ranged)
     : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>` + torpRows(s, ranged)));
@@ -153,7 +160,8 @@ function torpRows(s: NonNullable<typeof store.snap>, ranged: boolean): string {
       <span>${tdeg1(bearing(s.own, t))}°</span>
       ${ranged ? `<span>${km(distance(s.own, t))}</span>` : ''}
       <span class="glyphs" title="Draht">D</span>
-      <span class="${sel ? '' : 'red'}">EIGENER TORPEDO · ${t.homing ? 'ZIEL ERFASST' : 'LÄUFT'}</span>
+      <span class="${sel ? '' : 'red'}">EIGENER TORPEDO</span>
+      <span class="lvl">${t.homing ? 'ERFASST' : 'LÄUFT'}</span>
     </div>`;
   }).join('');
 }
