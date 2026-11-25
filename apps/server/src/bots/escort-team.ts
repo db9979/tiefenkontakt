@@ -245,8 +245,13 @@ function obeyEscortOrders(w: World, team: string, ai: Ship[], tasks: Map<string,
 /** Team helicopter discipline: is another ship's helicopter already working near this point? */
 export function heloCovered(w: World, s: Ship, p: Vec2): boolean {
   const plan = w.env.hunt?.[s.team as 'west' | 'east'];
-  if (!plan) return false;
-  return Object.entries(plan.helo).some(([id, h]) => id !== s.id && h.until > w.time && distance(h, p) < 4000);
+  if (plan && Object.entries(plan.helo).some(([id, h]) => id !== s.id && h.until > w.time && distance(h, p) < 4000)) return true;
+  // Or another ship's helicopter (AI or human crew) is airborne with its current task there
+  return Object.values(w.air?.helos ?? {}).some((h) => {
+    const t = h.queue[0];
+    const mate = w.ships.find((x) => x.id === h.shipId);
+    return h.shipId !== s.id && mate?.team === s.team && h.state === 'air' && !!t && t.kind !== 'return' && distance(t, p) < 4000;
+  });
 }
 
 export function commitHelo(w: World, s: Ship, p: Vec2, forS: number): void {
