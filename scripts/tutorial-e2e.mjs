@@ -8,15 +8,24 @@
  * Asserts for each: every step ticks itself off (✓, never skipped with „Weiter“), the lesson
  * ends with success, and no uncaught page errors.
  * Usage: npm run e2e:tutorials     (CHROME_PATH=/path/to/chrome, ONLY=feindfahrt|geleitfahrt, E2E_KEEP=1 keeps logs)
- * Takes about five minutes: both lessons run side by side at the normal 3× time scale (a missed
- * torpedo or rocket is fired again, as the lesson tells the player; each repeat adds a few minutes).
+ * Both lessons run side by side at the lesson's time scale: about five minutes at 3×, about a
+ * quarter of an hour at the default 1× (a missed torpedo or rocket is fired again, as the lesson
+ * tells the player; each repeat adds a few minutes).
  */
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HOOK, chromePath, freePort, log, openTab, prewarmVite, sleep, stalls, waitFor } from './cdp-tab.mjs';
+import { HOOK, chromePath, freePort, log, openTab, prewarmVite, sleep, stalls, waitFor as waitForRaw } from './cdp-tab.mjs';
+
+/**
+ * The long waits below were sized for a 3× time scale. Lessons run at the match's scale (1× by
+ * default now), so every wait for something in the simulation (over 15 s) stretches by 3 / scale;
+ * short waits for the page itself stay as they are.
+ */
+let pace = 1;
+const waitFor = (what, fn, ms, every) => waitForRaw(what, fn, ms > 15_000 ? ms * pace : ms, every);
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TMP = mkdtempSync(join(tmpdir(), 'tk-tut-'));
@@ -114,13 +123,16 @@ async function untilDone(tab, lesson, n, timeoutMs, what) {
 
 const station = (tab, re) => tab.click('#tabs button', re);
 /** Open a tab of a tabbed station panel (Horchraum, Sonar, OPZ): contacts, analysis, active, group … */
-const paneTab = (tab, id) => tab.click(`#station [data-ptab="${id}"]`);
+const paneTab = async (tab, id) => {
+  await tab.click(`#station [data-ptab="${id}"]`);
+  await sleep(300);
+};
 const simTime = (tab) => tab.ev(`__tk.store.snap?.time ?? 0`);
-/** Click the helm compass at a course (the compass is a circle around its upper part). */
+/** Click the helm compass at a course (a round, north-up dial: the course is the angle around its centre). */
 async function compass(tab, heading) {
-  const c = await tab.ev(`(() => { const r = document.querySelector('#h-compass').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 85, w: r.width }; })()`);
+  const c = await tab.ev(`(() => { const r = document.querySelector('#h-compass').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: Math.min(r.width, r.height) / 2 }; })()`);
   const a = (heading * Math.PI) / 180;
-  await tab.mouse(c.x + Math.sin(a) * 50, c.y - Math.cos(a) * 50);
+  await tab.mouse(c.x + Math.sin(a) * c.r * 0.6, c.y - Math.cos(a) * c.r * 0.6);
 }
 const slider = (tab, sel, v) => tab.ev(`(() => { const el = document.querySelector('${sel}'); el.value = '${v}'; el.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
 
@@ -128,6 +140,9 @@ async function startLesson(tab, lesson) {
   await tab.click(`[data-lesson="${lesson}"]`);
   await waitFor('game screen', () => tab.ev(`document.querySelectorAll('#tabs button').length >= 4 && !!document.querySelector('.tutorial')`), 30_000);
   assert(await tab.ev(`__tk.store.snap?.lesson === '${lesson}'`), `${lesson}: lesson running, step panel shown`);
+  const scale = Number(await tab.ev(`__tk.store.snap?.timeScale ?? 3`)) || 3;
+  pace = Math.max(pace, 3 / scale);
+  log(lesson, `time scale ${scale}×, sim waits ×${pace.toFixed(1)}`);
   // Fold the panel: its text grows and shrinks as steps change, and the helm below it would
   // move under the mouse (a click could land on „Weiter“). The rows stay in the page.
   await tab.click('#tut-min');
@@ -168,7 +183,7 @@ async function feindfahrt(tab) {
   await startLesson(tab, L);
   await slider(tab, '#h-depth', 60);
   await untilDone(tab, L, 1, 60_000, 'depth 60 m');
-  await tab.click('#h-steps button[data-s="1"]');
+  await tab.click('#h-tel [data-tel="4"]');
   await untilDone(tab, L, 2, 20_000, 'creep speed');
   await station(tab, /Horchraum|Sonar/);
   await paneTab(tab, 'list');
@@ -177,14 +192,14 @@ async function feindfahrt(tab) {
   await untilDone(tab, L, 3, 20_000, `contact ${label} selected`);
   await untilDone(tab, L, 4, 150_000, 'bearing watched 3 min');
   // Second leg away from the target, across the line of sight
-  await tab.click('#h-steps button[data-s="2"]');
+  await tab.click('#h-tel [data-tel="5"]');
   await compass(tab, 210);
   await waitFor('course 210 ordered', () => tab.ev(`Math.abs(__tk.store.snap.own.order.heading - 210) < 15`), 10_000);
   await untilDone(tab, L, 5, 200_000, 'leg change');
   await station(tab, /Feuerleitung/);
   // Auto-TMA, again after more bearings on the new leg until the quality is good
   for (let i = 0; (await progress(tab, L)).done.length < 7; i++) {
-    if (i > 30) throw new Error('TMA quality never above 60 %');
+    if (i > 30 * pace) throw new Error('TMA quality never above 60 %');
     await tab.click('#auto');
     await sleep(6000);
   }
@@ -219,17 +234,32 @@ async function feindfahrt(tab) {
   }
   log(L, '✓ 10 hit');
   // Evade: half speed, then deep
-  await tab.click('#h-steps button[data-s="3"]');
+  await tab.click('#h-tel [data-tel="6"]');
   await slider(tab, '#h-depth', 80);
   await untilDone(tab, L, 11, 200_000, 'evading deep');
   await finish(tab, L, 11);
+}
+
+/**
+ * Single pings on the 16 km scale until `ok` holds: one ping need not bring an echo (the boat
+ * deep, beyond the scale or in the stern's dead angle), so ping again once the last one is back
+ * (22 s of sim time on that scale), as a player would.
+ */
+async function pingUntil(tab, ok, what) {
+  await tab.click('[data-asr="16000"]');
+  for (let i = 0; !(await ok()); i++) {
+    if (i >= 15) throw new Error(`${what}: no echo after ${i} single pings`);
+    await tab.click('#as-one');
+    const t0 = await simTime(tab);
+    await waitFor(`${what}: echo or the next ping`, async () => (await ok()) || (await simTime(tab)) - t0 > 25, 60_000, 500);
+  }
 }
 
 /** "Erste Geleitfahrt": the frigate screening a small convoy against one diesel boat. */
 async function geleitfahrt(tab) {
   const L = 'geleitfahrt';
   await startLesson(tab, L);
-  await tab.click('#h-steps button[data-s="3"]');
+  await tab.click('#h-tel [data-tel="6"]');
   await untilDone(tab, L, 1, 20_000, 'half speed');
   await station(tab, /Sonar/);
   await tab.click('[data-len="900"]');
@@ -272,8 +302,8 @@ async function geleitfahrt(tab) {
   await station(tab, /Sonar/);
   await paneTab(tab, 'active');
   await tab.click('[data-pulse="lfm"]');
-  await tab.click('#as-one');
-  await untilDone(tab, L, 8, 120_000, 'range from the LFM ping');
+  await pingUntil(tab, async () => (await progress(tab, L)).done.length >= 8, 'range from the LFM ping');
+  await untilDone(tab, L, 8, 20_000, 'range from the LFM ping');
   await station(tab, /Waffen/);
   await waitFor('sub selected', () => tab.ev(`__tk.store.selectedContact()?.assigned === 'submarine' || (__tk.store.selected = __tk.store.snap.contacts.find((c) => c.assigned === 'submarine')?.label, false)`), 10_000);
   await tab.click('#rocket');
@@ -291,8 +321,7 @@ async function geleitfahrt(tab) {
     const rockets = await tab.ev(`__tk.store.snap.own.loadout.rockets`);
     await station(tab, /Sonar/);
     await paneTab(tab, 'active');
-    await tab.click('#as-one');
-    await waitFor('fresh ping fix', () => tab.ev(`(() => { const s = __tk.store.snap; const c = s.contacts.find((x) => x.assigned === 'submarine'); return !!c && c.sensors.includes('active') && c.range !== undefined && s.time - c.lastSeen < 10; })()`), 120_000, 500);
+    await pingUntil(tab, () => tab.ev(`(() => { const s = __tk.store.snap; const c = s.contacts.find((x) => x.assigned === 'submarine'); return !!c && c.sensors.includes('active') && c.range !== undefined && s.time - c.lastSeen < 10; })()`), 'fresh ping fix');
     await station(tab, /Waffen/);
     await waitFor('sub selected', () => tab.ev(`__tk.store.selectedContact()?.assigned === 'submarine' || (__tk.store.selected = __tk.store.snap.contacts.find((c) => c.assigned === 'submarine')?.label, false)`), 10_000);
     await tab.click('#rocket');
@@ -356,7 +385,7 @@ const guard = setTimeout(() => {
   console.error('[tut] overall timeout');
   cleanup();
   process.exit(1);
-}, Number(process.env.E2E_TIMEOUT_MS ?? 900_000));
+}, Number(process.env.E2E_TIMEOUT_MS ?? 2_700_000));
 
 try {
   await main();
