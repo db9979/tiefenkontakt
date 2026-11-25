@@ -2,12 +2,14 @@ import type { OrderView, Snapshot } from '@tk/shared';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { net } from '../net.js';
+import { store } from '../store.js';
 import { esc, h, setHtml, tdeg3 } from './format.js';
 import { onTap } from './touch.js';
 
 /**
  * FLASH orders from fleet command: a side panel with every order read aboard (countdown,
- * status, how late it was read), a banner with the most urgent open order, and the
+ * status, how late it was read), a strip above the station with the most urgent open order
+ * (in the page flow, so it never covers a panel's tabs; gone once the match is over), and the
  * teletype alarm when a new order comes in. Surface ships also see the team hunt
  * (datum and hunter-killer roles of the AI escorts) here.
  */
@@ -31,7 +33,7 @@ function announce(o: OrderView): void {
   speechSynthesis.speak(u);
 }
 
-export function ordersPanel(openTab: () => void): { el: HTMLElement; key: string; update(s: Snapshot): void; dispose(): void } {
+export function ordersPanel(openTab: () => void, host: HTMLElement): { el: HTMLElement; key: string; update(s: Snapshot): void; dispose(): void } {
   const el = h(`<div class="panel orders-panel">
     <div class="hd"><span>Befehle der Führung</span><span id="op-sum" class="dim"></span></div>
     <div id="op-list"></div>
@@ -76,11 +78,12 @@ export function ordersPanel(openTab: () => void): { el: HTMLElement; key: string
       (hu.attacker ? `<div>ANGRIFF <b>${esc(hu.attacker)}</b> (LAUTLOS)</div>` : '') : '');
     // Banner: the open order with the least time left
     const urgent = list.filter((o) => o.status === 'active').sort((a, b) => a.deadline - b.deadline)[0];
-    if (urgent && s.own.alive) {
+    if (urgent && s.own.alive && !store.ended) {
       const t = `FLASH · ${urgent.text} · NOCH ${mmss(urgent.deadline - s.time)}`;
       if (banner.textContent !== t) banner.textContent = t;
       banner.classList.toggle('blink', performance.now() < flashUntil);
-      if (!banner.isConnected) document.body.appendChild(banner);
+      // Above the station, below the hint bar
+      if (!banner.isConnected) host.insertBefore(banner, host.querySelector('.station'));
     } else banner.remove();
   }
   return api;

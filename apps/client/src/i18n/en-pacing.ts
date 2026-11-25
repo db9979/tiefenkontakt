@@ -41,9 +41,16 @@ export const EN_PACING: [string, string][] = [
   ['KONTAKTE KLASSIFIZIERT', 'CONTACTS CLASSIFIED'], ['BESTE TMA-GÜTE', 'BEST TMA QUALITY'], ['UNENTDECKT', 'UNDETECTED'],
   ['SCHÜSSE / TREFFER', 'SHOTS / HITS'], ['KONTAKTE GEHALTEN', 'CONTACTS HELD'], ['ANGRIFFE / TREFFER', 'ATTACKS / HITS'],
   ['FRACHTER GESCHÜTZT', 'MERCHANTS PROTECTED'], ['ÜBERLEBT', 'SURVIVED'],
+  // Lobby (guest note), side column (air stores, radio without the mast), ⚙ language
+  ['Dienstbuch und Kampagne nur mit Konto: dann werden Ergebnisse, Punkte und der Kampagnenstand gespeichert.', 'Service record and campaign need an account: then results, points and campaign progress are saved.'],
+  ['ATEMKALK · O₂-KERZEN', 'CO₂ ABSORBENT · O₂ CANDLES'],
+  ['Vorrat an Atemkalk (bindet CO₂) und Sauerstoffkerzen: die Besatzung setzt sie selbst ein, wenn die Luft schlecht wird', 'CO₂ absorbent and oxygen candles left: the crew uses them on its own when the air turns bad'],
+  ['Kein Funk: erst den Mast ausfahren (Sehrohr)', 'No radio: raise the mast first (periscope)'], ['Kein Funk', 'No radio'],
+  ['Klick: English', 'Click: English'],
 ];
 
 export const EN_PACING_PHRASES: [RegExp, string][] = [
+  [/^NOCH (\d+) T (\d+) H$/, '$1 D $2 H LEFT'], [/^NOCH (\d+) H$/, '$1 H LEFT'], [/^Schnellmeldung senden: (.+)$/, 'Send quick report: $1'],
   [/ECHTZEIT · (\d+) MIN AUF SEE/, 'REAL TIME · $1 MIN AT SEA'], [/(\d)× · (\d+) MIN AUF SEE/, '$1× · $2 MIN AT SEA'],
   [/(\d+) MIN · ECHTZEIT/, '$1 MIN · REAL TIME'], [/(\d+) MIN AUF SEE · ZEITRAFFER (\d)×, (\d+) MIN ECHT/, '$1 MIN AT SEA · COMPRESSION $2×, $3 MIN REAL'],
   // Top bar clock: "18:38 · SG 4 · REST 37:38", tooltip "Uhrzeit … · Seegang … · Restzeit …"

@@ -82,7 +82,7 @@ export function settingsMenu(opts: { onRealism(): void; onBriefing(): void; onKe
       <div class="menu-row"><span>Darstellung</span><button id="m-theme">${THEME_LABEL[themePref()]}</button></div>
       <div class="menu-row"><span>Schriftgröße</span><span><button data-font="-1">A−</button> ${Math.round(font * 100)} % <button data-font="1">A+</button></span></div>
       <div class="menu-row" title="Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)"><span>Grafik</span><button id="m-q">${QUALITY_LABEL[qualitySetting()]}${qualitySetting() === 'auto' ? ` · ${QUALITY_LABEL[quality()]}` : ''}</button></div>
-      <div class="menu-row"><span>Sprache</span><button id="m-lang">${lang === 'de' ? 'English' : 'Deutsch'}</button></div>
+      <div class="menu-row"><span>Sprache</span><button id="m-lang" title="${lang === 'de' ? 'Klick: English' : 'Click: Deutsch'}">${lang === 'de' ? 'Deutsch' : 'English'}</button></div>
       <div class="steps" style="margin-top:8px"><button id="m-brief">Lagebesprechung</button><button id="m-keys">Tasten</button></div>
       <div class="steps"><button id="m-logout" class="warn" title="Abmelden. In einer laufenden Partie wartet dein Schiff, bis du dich wieder anmeldest.">Abmelden</button>${opts.onQuit ? '<button id="m-quit" class="warn m-quit" title="Partie verlassen">Verlassen</button>' : ''}</div>`;
   };

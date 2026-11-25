@@ -11,6 +11,12 @@ export const STATION_TITLE: Record<StationId, string> = {
   opz: 'OPZ', sonar: 'Sonar', waffen: 'Waffen', radar: 'Radar/ESM', bruecke: 'Brücke',
 };
 
+/** Short names for the phone's bottom bar (number above the name, five fit side by side): German, English. */
+export const STATION_SHORT: Record<StationId, readonly [string, string]> = {
+  horch: ['Horch', 'Sonar'], sehrohr: ['Sehrohr', 'Scope'], feuerleitung: ['Feuer', 'Fire'], zentrale: ['Zentrale', 'Control'],
+  opz: ['OPZ', 'CIC'], sonar: ['Sonar', 'Sonar'], waffen: ['Waffen', 'Weapons'], radar: ['Radar', 'Radar'], bruecke: ['Brücke', 'Bridge'],
+};
+
 export const SUB_STATIONS: readonly string[] = SUB_STATION_IDS.map((id) => STATION_TITLE[id]);
 export const FRIGATE_STATIONS: readonly string[] = FRIGATE_STATION_IDS.map((id) => STATION_TITLE[id]);
 

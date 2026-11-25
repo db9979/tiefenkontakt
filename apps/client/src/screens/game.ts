@@ -43,7 +43,7 @@ import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { ordersPanel } from '../widgets/orders-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
 import { resetPhotoCounter } from '../widgets/photo.js';
-import { STATION_TITLE, stationIds } from '../stations/titles.js';
+import { STATION_SHORT, STATION_TITLE, stationIds } from '../stations/titles.js';
 
 export interface Station {
   /** Stable id (crew seats, hints, the event log and tutorials refer to it). */
@@ -119,7 +119,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const vp = voicePanel();
   q('#voice-slot').replaceWith(vp.el);
   crew.el.dataset.sp = 'crew';
-  const orders = ordersPanel(() => showSide('orders'));
+  const orders = ordersPanel(() => showSide('orders'), q('.station-wrap'));
   q('#orders-slot').replaceWith(orders.el);
   orders.el.dataset.sp = 'orders';
   // Right column: helm always visible, the rest as tabs (one panel at a time). A tab in the back
@@ -129,8 +129,11 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const sideSeenAt: Record<string, number> = {};
   const sideSeen: Record<string, string> = {};
   const sideKey: Record<string, string> = {};
+  /** Wide screens: the message log stays visible under every other side tab (it fills the room they leave). */
+  const logAlways = window.matchMedia('(min-width: 901px)');
   function showSide(t: string): void {
     sideTab = t;
+    q('.side-body').dataset.tab = t;
     sideSeen[t] = sideKey[t] ?? '';
     sideSeenAt[t] = store.snap?.time ?? 0;
     el.querySelectorAll<HTMLElement>('[data-sp]').forEach((p) => p.classList.toggle('on', p.dataset.sp === t));
@@ -151,9 +154,10 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   showSide(sideTab);
   /** Items newer than the tab's last look (0 while it is open). */
   function countSide(t: string, times: number[], alarm = false): void {
-    if (t === sideTab) sideSeenAt[t] = store.snap?.time ?? 0;
+    const open = t === sideTab || (t === 'alerts' && logAlways.matches);
+    if (open) sideSeenAt[t] = store.snap?.time ?? 0;
     const since = sideSeenAt[t] ?? -Infinity;
-    badge(t, t === sideTab ? 0 : times.filter((x) => x > since).length, alarm);
+    badge(t, open ? 0 : times.filter((x) => x > since).length, alarm);
   }
   /** A tab without countable items: '!' when its content changed since the last look. */
   function markSide(t: string, key: string): void {
@@ -163,6 +167,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     badge(t, sideSeen[t] !== key ? '!' : 0);
   }
   let sideHp: number | undefined;
+  /** Radio controls disabled (mast down or ship lost). */
+  let radioOff: boolean | undefined;
   // Alert log with level filter chips (none on = everything)
   const LOG_ID = 'alerts';
   const logChips = () => (q('#alert-chips').innerHTML = filterChips(LOG_ID, [
@@ -176,8 +182,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         const fresh = s.time - e.time < 30;
         const color = e.level === 'alarm' ? 'red' : e.level === 'warn' ? 'amber' : '';
         const go = e.label !== undefined || e.station !== undefined;
-        const line = `${shortClock(e.time)} ${e.text}`;
-        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}" title="${esc(line)}">${esc(line)}</div>`;
+        // T+: time since the start of the match (the top bar shows the time of day)
+        const at = `T+${shortClock(e.time)}`;
+        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}" title="${esc(`${at} ${e.text}`)}"><span class="lt">${at}</span><span>${esc(e.text)}</span></div>`;
       }).join('');
     if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
   };
@@ -197,8 +204,10 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const helm = mountHelm(q('#helm'));
   const sandbox = mountSandbox(el);
   const assistant = mountAssistant(q('.station-wrap'), (id) => go(id));
+  // In the station column above the station, in place of the hint bar (never on top of it)
   const banner = document.createElement('div');
   banner.className = 'banner blink';
+  const stationWrap = q('.station-wrap');
   // A torpedo warning is a way to the countermeasure: click jumps to the decoys
   // (submarine: fire control; frigate: towed decoy on the weapons station)
   let bannerGo: StationId | undefined;
@@ -286,10 +295,14 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     if (stations.length !== expect.length || stations.some((st, i) => st.id !== expect[i] || st.title !== STATION_TITLE[st.id])) {
       console.warn('Stationsliste weicht von stations/titles.ts ab', stations.map((st) => st.id));
     }
-    tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" data-station="${s.id}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
+    tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" data-station="${s.id}" title="Taste ${i + 1}">${tabHtml(i)}</button>`).join('');
     tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.onclick = () => show(Number(b.dataset.i))));
-    q('#quick').innerHTML = (sub ? ['Konvoi gesichtet', 'Greife an', 'Werde gejagt', 'Position'] : ['Kontakt', 'Torpedo im Wasser', 'Suche Sektor', 'Position'])
-      .map((t) => `<button data-r="${t}" title="Schnellmeldung senden">${t}</button>`).join('');
+    // Quick messages: a short label on the button (two even columns), the full message goes out
+    const QUICK: [string, string][] = sub
+      ? [['Konvoi gesichtet', 'Konvoi gesichtet'], ['Greife an', 'Greife an'], ['Werde gejagt', 'Werde gejagt'], ['Position', 'Position']]
+      : [['Kontakt', 'Kontakt'], ['Torpedo im Wasser', 'Torpedo!'], ['Suche Sektor', 'Suche Sektor'], ['Position', 'Position']];
+    q('#quick').innerHTML = QUICK.map(([msg, lbl]) => `<button data-r="${msg}" title="Schnellmeldung senden: ${msg}">${lbl}</button>`).join('');
+    radioOff = undefined;
     el.querySelectorAll<HTMLButtonElement>('[data-r]').forEach((b) => (b.onclick = () => {
       const s = store.snap;
       const c = store.selectedContact();
@@ -299,6 +312,16 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       net.send({ t: 'radio', text });
     }));
     show(0);
+  }
+
+  /**
+   * Station tab: "1 · Horchraum" (who mans it in brackets); on phones the number above a short
+   * name, so every station fits the bottom bar without scrolling (the style sheet picks).
+   */
+  function tabHtml(i: number, who: string[] = []): string {
+    const st = stations[i]!;
+    const short = STATION_SHORT[st.id]?.[lang === 'en' ? 1 : 0] ?? st.title;
+    return `<span class="tn">${i + 1}</span><span class="tsep"> · </span><span class="tl">${esc(st.title)}</span><span class="ts">${esc(short)}</span>${who.length ? `<span class="tw"> (${esc(who.join(', '))})</span>` : ''}`;
   }
 
   function show(i: number): void {
@@ -412,14 +435,26 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     sideHp = s.own.hp;
     const sub = CLASSES[s.own.cls].submarine;
     q('#radio-state').innerHTML = sub ? (mastState(s.own).raised ? '<span class="amber">MAST OBEN · PEILBAR</span>' : mastState(s.own).moving ? `<span class="amber">MAST FÄHRT ${mastState(s.own).moving === 'aus' ? 'AUS' : 'EIN'}</span>` : 'MAST UNTEN · KEIN FUNK') : 'DATALINK';
+    // No transmitter without the mast (the server refuses anyway): the controls say so instead of looking ready
+    const noRadio = !s.own.alive || (sub && !mastState(s.own).raised);
+    if (radioOff !== noRadio) {
+      radioOff = noRadio;
+      el.querySelectorAll<HTMLInputElement | HTMLButtonElement>('#rtext, #rsend, #quick button').forEach((c) => {
+        c.disabled = noRadio;
+        if (noRadio) c.dataset.tip ??= c.title;
+        c.title = noRadio ? (s.own.alive ? 'Kein Funk: erst den Mast ausfahren (Sehrohr)' : 'Kein Funk') : c.dataset.tip ?? c.title;
+      });
+    }
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();
-    if (torp && s.own.alive) {
+    if (torp && s.own.alive && !store.ended) {
       banner.textContent = store.realism === 'profi'
         ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${tdeg3(torp.bearing ?? 0)}`
         : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
       setBannerGo(sub ? 'feuerleitung' : 'waffen');
-      if (!banner.isConnected) document.body.appendChild(banner);
+      // First in the column after the (hidden) hint bar: above a FLASH order strip
+      if (!banner.isConnected) stationWrap.insertBefore(banner, stationWrap.querySelector('.assist')?.nextSibling ?? stationWrap.firstChild);
     } else banner.remove();
+    stationWrap.classList.toggle('torp', banner.isConnected);
     fastFwd.update(s);
     sunkPanel.update(s, store.matchId);
   }
@@ -443,9 +478,12 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     // Crew: show who mans which station
     if (s.crew.length > 1) {
       tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
+        if (!stations[j]) return;
         const who = (s.stations ?? []).filter((x) => x.station === stations[j]?.id).map((x) => x.callsign);
-        const t = `${j + 1} · ${stations[j]?.title ?? ''}${who.length ? ` (${who.join(', ')})` : ''}`;
-        if (b.textContent !== t) b.textContent = t;
+        const key = who.join(',');
+        if (b.dataset.who === key) return;
+        b.dataset.who = key;
+        b.innerHTML = tabHtml(j, who);
       });
     }
     renderDamage(q('#damage'));
@@ -488,6 +526,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       endBand = m.band;
       perfReport.end();
       showEnd();
+      // Over: no countdown of an open order and no torpedo alarm behind the result
+      if (store.snap) orders.update(store.snap);
+      banner.remove();
     } else if (m.t === 'debrief') {
       store.debrief = m.d;
     }
