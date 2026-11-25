@@ -3,13 +3,11 @@ import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { buoyAction, courseAction, mpaAction } from '../../widgets/actions.js';
-import { btnState } from '../../widgets/btn-state.js';
 import { lastFix } from '../../widgets/contact-pos.js';
-import { guardFire, targetCheck } from '../../widgets/fire-guard.js';
+import { guardFire } from '../../widgets/fire-guard.js';
 import { h, km, setHtml } from '../../widgets/format.js';
+import { mountHeloPanel } from '../../widgets/helo-panel.js';
 import { Plot } from '../../widgets/plot.js';
-
-const KIND = { buoy: 'BOJEN LEGEN', dip: 'TAUCHSONAR', torpedo: 'TORPEDOANGRIFF', mpa: 'SEEFERNAUFKLÄRER', mad: 'MAD-SUCHE' } as const;
 
 /** Where the selected contact probably is: a fresh fix, else the TMA solution. */
 function targetPoint(): Vec2 | undefined {
@@ -23,26 +21,15 @@ function targetPoint(): Vec2 | undefined {
 }
 
 /**
- * Flug (frigate with helicopter): the air wing in one place — helicopter state and stock, the
- * sonobuoys in the water, and the tasks as buttons aimed at the selected contact (dipping sonar
- * shallow or deep, buoy, MAD search, torpedo, the patrol aircraft's buoy barrier). The map
- * keeps the same tasks on right-click / long press for any point.
+ * Flug (frigate with helicopter): the air wing in one place — the helicopter panel (state, load,
+ * task queue), the sonobuoys in the water and the patrol aircraft's buoy barrier. The map keeps
+ * the helicopter tasks on right-click / long press for any point.
  */
 export function flightStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Fluglage</span><span class="dim">RECHTSKLICK / LANGE TIPPEN = AUFTRAG HIER</span></div><canvas id="plot"></canvas></div>
     <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-      <div class="panel"><div class="hd"><span>Bordhubschrauber</span><span id="fl-st"></span></div><div id="fl-rows"></div></div>
-      <div class="panel"><div class="hd"><span>Auftrag zum gewählten Kontakt</span><span id="fl-tgt" class="amber"></span></div>
-        <div class="grid2" style="gap:4px">
-          <button data-task="dip" title="Hubschrauber schwebt dort und senkt das Tauchsonar oberhalb der Schicht ab">Tauchsonar flach</button>
-          <button data-task="dipdeep" title="Tauchsonar unter die Sprungschicht">Tauchsonar tief</button>
-          <button data-task="buoy" title="Eine passive Sonarboje dort abwerfen">Sonarboje</button>
-          <button data-task="buoydeep" title="Passive Boje unter die Schicht">Boje tief</button>
-          <button data-task="mad" title="Magnetsonde: Kleeblatt über dem Punkt, findet getauchte Boote nur sehr nah">MAD-Suche</button>
-          <button id="fl-torp" class="fire" title="Hubschrauber wirft einen Leichttorpedo über dem Ziel">Torpedo</button>
-        </div>
-      </div>
+      <div id="fl-helo"></div>
       <div class="panel"><div class="hd"><span>Seefernaufklärer</span><span id="fl-mpa" class="dim"></span></div>
         <button id="fl-barrier" title="Der Seefernaufklärer legt 6 Bojen quer zur Peilung über dem Ziel">Bojensperre über dem Ziel</button>
       </div>
@@ -59,33 +46,7 @@ export function flightStation(): Station {
     const p = targetPoint();
     return s && p ? { b: bearing(s.own, p), d: distance(s.own, p) } : undefined;
   };
-  const ready = () => {
-    const a = store.snap?.air;
-    if (!a) return 'KEIN HUBSCHRAUBER';
-    if (a.heloReadyInS > 0) return `BEREIT IN ${Math.ceil(a.heloReadyInS / 60)} MIN`;
-    return undefined;
-  };
-  el.querySelectorAll<HTMLButtonElement>('[data-task]').forEach((b) => guardFire(b, () => {
-    const t = at();
-    return !store.selectedContact() ? { block: 'KONTAKT WÄHLEN' } : !t ? { block: 'KEINE POSITION' } : ready() ? { block: ready() } : t.d > 30_000 ? { block: 'ZU WEIT' } : {};
-  }, () => {
-    const t = at();
-    if (!t) return;
-    const task = b.dataset.task!;
-    if (task === 'dip' || task === 'dipdeep') net.send({ t: 'dip', bearing: t.b, range: t.d, deep: task === 'dipdeep' });
-    else if (task === 'buoy' || task === 'buoydeep') net.send({ t: 'buoy', bearing: t.b, range: t.d, deep: task === 'buoydeep' });
-    else net.send({ t: 'mad', bearing: t.b, range: t.d });
-  }));
-  guardFire(q<HTMLButtonElement>('#fl-torp'), () => {
-    const t = at();
-    if (!t) return { block: store.selectedContact() ? 'KEINE POSITION' : 'KONTAKT WÄHLEN' };
-    if (ready()) return { block: ready() };
-    if (!store.snap?.air?.heloTorps) return { block: 'KEIN TORPEDO' };
-    return targetCheck(targetPoint());
-  }, () => {
-    const t = at();
-    if (t) net.send({ t: 'helotorp', bearing: t.b, range: t.d });
-  });
+  const helo = mountHeloPanel(q('#fl-helo'));
   guardFire(q<HTMLButtonElement>('#fl-barrier'), () => {
     const a = store.snap?.air;
     if (!at()) return { block: store.selectedContact() ? 'KEINE POSITION' : 'KONTAKT WÄHLEN' };
@@ -103,18 +64,8 @@ export function flightStation(): Station {
     snap() {
       const s = store.snap!;
       const a = s.air;
-      const helo = a?.helos.find((x) => x.kind !== 'mpa');
-      q('#fl-st').className = !a ? 'dim' : a.heloReadyInS > 0 ? 'amber' : '';
-      q('#fl-st').textContent = !a ? '—' : helo ? `IN DER LUFT · ${KIND[helo.kind]}${helo.hovering ? ' · SCHWEBT' : ''}` : a.heloReadyInS > 0 ? `WARTUNG · BEREIT IN ${Math.ceil(a.heloReadyInS / 60)} MIN` : 'AN DECK · BEREIT';
-      setHtml(q('#fl-rows'), a ? `
-        <div class="row"><span class="dim">SONARBOJEN AN BORD</span><span>${a.stock}</span></div>
-        <div class="row"><span class="dim">LEICHTTORPEDOS</span><span>${a.heloTorps}</span></div>
-        <div class="row"><span class="dim">REICHWEITE</span><span>30 KM · TAUCHSONAR ETWA 12 KM</span></div>` : '<div class="dim">KEIN HUBSCHRAUBER AN BORD</div>');
-      const c = store.selectedContact();
-      const t = at();
-      q('#fl-tgt').textContent = c ? `${c.label}${t ? ` · ${km(t.d)}` : ' · KEINE POSITION'}` : 'KEINER';
+      helo.update(s);
       q('#fl-mpa').textContent = !a ? '—' : a.mpaReadyInS > 0 ? `BEREIT IN ${Math.ceil(a.mpaReadyInS / 60)} MIN` : `BEREIT · ${a.mpaBuoys} BOJEN`;
-      btnState(q('#fl-torp'), a ? { label: String(a.heloTorps), tone: a.heloTorps ? undefined : 'empty' } : {});
       setHtml(q('#fl-buoys'), a?.buoys.length ? a.buoys.map((b) => `<div class="row"><span>${b.id}${b.active ? ' · AKTIV' : ''}</span><span>${km(distance(s.own, b))} · ${b.depth} M</span><span class="dim">NOCH ${Math.ceil(b.leftS / 60)} MIN</span></div>`).join('') : '<div class="dim">KEINE BOJE IM WASSER</div>');
     },
     frame() {

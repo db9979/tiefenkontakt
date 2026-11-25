@@ -7,9 +7,6 @@ import {
   dropXbt,
   headingVec,
   launchAswRocket,
-  sendBuoy,
-  sendDip,
-  sendHeloTorpedo,
   callMpa,
   setTowedDecoy,
   targetPosAt,
@@ -33,7 +30,8 @@ import {
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
 import { thinkStrike } from './strike.js';
-import { commitHelo, directorCourse, heloCovered, type EscortTask } from './escort-team.js';
+import { directorCourse, type EscortTask } from './escort-team.js';
+import { heloAttack, heloIdle, heloOnDipContact, heloProsecute, heloSearch } from './helo.js';
 import { wantMineAvoid } from './mine-cm.js';
 
 const ROCKET_COOLDOWN = 90;
@@ -131,17 +129,9 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     const v = headingVec(leadB ?? bearing(s.pos, datum!));
     // The team's best datum first; otherwise down the own bearing
     const drop = datum && task ? { x: datum.x, y: datum.y } : { x: s.pos.x + v.x * Math.min(est, 20_000), y: s.pos.y + v.y * Math.min(est, 20_000) };
-    // Helicopter: alternate dipping sonar and buoys; never two helicopters on the same datum,
-    // and the silent attacker keeps its helicopter for the torpedo
-    const deep = (s.btLayer ?? 0) > 0 && !w.env.adapt?.west?.above;
-    const helo = role !== 'attacker' && !heloCovered(w, s, drop);
-    if (helo && SKILL[skill].air && Math.floor(now / 400) % 2 === 0) {
-      if (sendDip(w, s, drop, deep && Math.floor(now / 800) % 2 === 1) === true) commitHelo(w, s, drop, 500);
-    } else if (helo && w.air?.buoys.every((b) => distance(b.pos, drop) > 3000)) {
-      // Shallow water or a quiet boat that passive buoys can't hold: an active (DICASS) buoy
-      const shallow = depthAt(w.env.seabed, drop.x, drop.y) < 300;
-      if (sendBuoy(w, s, drop, deep, shallow || Math.floor(now / 600) % 2 === 1) === true) commitHelo(w, s, drop, 200);
-    }
+    // Helicopter: dip-move-dip on the datum with a buoy line across it; never two helicopters on
+    // the same datum, and the silent attacker keeps its helicopter for the torpedo
+    if (role !== 'attacker' && SKILL[skill].air) heloProsecute(w, s, drop);
     // A radio/transient lead far out and nothing better: ask the patrol aircraft for a buoy line across it
     if (SKILL[skill].air && !target && !datum && m.lead && now - m.lead.t < 300 && now - (plan?.mpaAt ?? -1e9) > 1800) {
       const lv = headingVec(m.lead.b);
@@ -184,7 +174,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     const station = task?.station ?? { x: center.x + ahead.x * 3000 + ahead.y * side * 3500, y: center.y + ahead.y * 3000 - ahead.x * side * 3500 };
     // Fleet command's sector: the helicopter dips it when the ship stays with the convoy
     const sector = task?.search;
-    if (sector && SKILL[skill].air && !heloCovered(w, s, sector) && sendDip(w, s, sector, false) === true) commitHelo(w, s, sector, 600);
+    if (sector && SKILL[skill].air) heloSearch(w, s, sector);
     const to = bearing(s.pos, station);
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
@@ -196,7 +186,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   } else if (w.env.mission === 'meerenge') {
     // Guard the narrows: long legs across the channel around the guard line
     const station = { x: flankOf(w, s) * 1200, y: STRAIT_GUARD_Y };
-    if (task?.search && SKILL[skill].air && !heloCovered(w, s, task.search) && sendDip(w, s, task.search, false) === true) commitHelo(w, s, task.search, 600);
+    if (task?.search && SKILL[skill].air) heloSearch(w, s, task.search);
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
       m.legUntil = now + 360;
@@ -216,10 +206,15 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   const mines = knownMines(w, s.team);
   if (mines.length) s.order.heading = steerClear(s.pos, s.order.heading, mines, 1500, 300);
 
-  if (now - m.lastShot < ROCKET_COOLDOWN / SKILL[skill].fireRate) return;
   const friends = w.ships.filter((f) => f.team === s.team && f.alive);
   // Weaker captains aim worse
   const err = SKILL[skill].aimErr;
+  const aimOff = (): Vec2 | undefined => (err ? { x: w.rng.gauss(0, err), y: w.rng.gauss(0, err) } : undefined);
+  // The own dipping sonar holds the boat: the helicopter attacks its latest fix; idle, it comes home
+  heloOnDipContact(w, m, s, tracks, friends, aimOff);
+  heloIdle(w, s);
+
+  if (now - m.lastShot < ROCKET_COOLDOWN / SKILL[skill].fireRate) return;
   const scatter = (p: Vec2): Vec2 => (err ? { x: p.x + w.rng.gauss(0, err), y: p.y + w.rng.gauss(0, err) } : p);
   // A lightweight torpedo searches a wide circle: never fire near own ships
   // Inside the rocket's minimum range: turn the bow on the datum and throw a mortar salvo once
@@ -244,7 +239,14 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   };
   // Hunter-killer: the attacker fires on the director's fresh echo datum; the director holds
   // fire while an attacker with rockets is on the team
-  if (role === 'attacker' && datum && datum.by !== s.id && now - datum.t < 40 && datum.q >= 85 && shoot(datum)) return;
+  if (role === 'attacker' && datum && datum.by !== s.id && now - datum.t < 40 && datum.q >= 85) {
+    if (shoot(datum)) return;
+    // Out of rocket range or rockets gone: the attacker's helicopter drops on the datum
+    if (!friends.some((f) => distance(f.pos, datum) < 3000) && heloAttack(w, s, datum, undefined, aimOff())) {
+      m.lastShot = now;
+      return;
+    }
+  }
   const att = plan?.attacker && w.ships.find((x) => x.id === plan.attacker && x.alive);
   if (role === 'director' && att && (w.weapons?.loadouts.get(att.id)?.rockets ?? 0) > 0 && distance(att.pos, datum ?? att.pos) < 18_000) return;
   for (const t of tracks) {
@@ -258,7 +260,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
       const fix = { x: at.x + v.x * echo.r!, y: at.y + v.y * echo.r! };
       if (shoot(fix)) return;
       // Out of rocket range or rockets gone: the helicopter delivers
-      if (!friends.some((f) => distance(f.pos, fix) < 3000) && sendHeloTorpedo(w, s, scatter(fix)) === true) {
+      if (!friends.some((f) => distance(f.pos, fix) < 3000) && heloAttack(w, s, fix, t.label, aimOff())) {
         m.lastShot = now;
         return;
       }

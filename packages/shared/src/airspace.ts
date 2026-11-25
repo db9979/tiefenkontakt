@@ -1,4 +1,5 @@
 import { aircraftPosition, type Sortie } from './aviation.js';
+import { heloLow } from './helo.js';
 import { fogAt, inSquall } from './met.js';
 import { CLASSES, isEscort } from './classes.js';
 import { canCopy } from './command-radio.js';
@@ -171,9 +172,22 @@ export interface PlaneView {
 
 const SORTIE_ALT: Record<string, number> = { mpa: 300, mad: 60, dip: 25, buoy: 120, torpedo: 120 };
 
-/** Every aircraft in the air right now, including the helicopters and patrol aircraft of both sides. */
-export function allPlanes(w: World): Plane[] {
-  const out = [...(w.env.airspace?.planes ?? [])];
+/** An own-side aircraft of the air wing (patrol aircraft sortie or ship's helicopter). */
+interface WingAircraft {
+  key: object;
+  id: string;
+  kind: 'mpa' | 'helo';
+  owner: Ship;
+  pos: Vec2;
+  alt: number;
+  heading: number;
+  speedKn: number;
+  radar: boolean;
+}
+
+/** The air wing in the air: patrol aircraft sorties (older saves: helicopter sorties) and the ships' helicopters. */
+function wingAircraft(w: World): WingAircraft[] {
+  const out: WingAircraft[] = [];
   for (const s of w.air?.sorties ?? []) {
     const ship = w.ships.find((x) => x.id === s.shipId);
     const p = ship ? aircraftPosition(s as Sortie, w.time, ship) : undefined;
@@ -182,10 +196,30 @@ export function allPlanes(w: World): Plane[] {
     const moving = distance(p, next) > 1;
     const mpa = s.kind === 'mpa';
     out.push({
-      id: `${mpa ? 'P' : 'H'}${s.shipId}-${Math.round(s.launchAt)}`, kind: mpa ? 'mpa' : 'helo', team: ship.team as 'west' | 'east',
+      key: s, id: `${mpa ? 'P' : 'H'}${s.shipId}-${Math.round(s.launchAt)}`, kind: mpa ? 'mpa' : 'helo', owner: ship,
       pos: p, alt: SORTIE_ALT[s.kind ?? 'buoy'] ?? 120, heading: moving ? bearing(p, next) : 0,
       speedKn: moving ? distance(p, next) / 5 / KN : 0, radar: sortieRadarOn(s as Sortie, w.time),
     });
+  }
+  for (const h of Object.values(w.air?.helos ?? {})) {
+    const ship = w.ships.find((x) => x.id === h.shipId);
+    if (!ship || h.state !== 'air') continue;
+    // Low and slow while it dips or flies the MAD pattern (radar off); in transit at 120 m, radar on
+    const low = heloLow(h);
+    const loiter = !h.queue.length;
+    out.push({
+      key: h, id: `H${h.shipId}-${Math.round(h.launchAt)}`, kind: 'helo', owner: ship, pos: { x: h.x, y: h.y },
+      alt: low ? SORTIE_ALT[low]! : 120, heading: h.heading, speedKn: low === 'dip' || loiter ? 0 : low === 'mad' ? 60 : 120, radar: !low,
+    });
+  }
+  return out;
+}
+
+/** Every aircraft in the air right now, including the helicopters and patrol aircraft of both sides. */
+export function allPlanes(w: World): Plane[] {
+  const out = [...(w.env.airspace?.planes ?? [])];
+  for (const a of wingAircraft(w)) {
+    out.push({ id: a.id, kind: a.kind, team: a.owner.team as 'west' | 'east', pos: a.pos, alt: a.alt, heading: a.heading, speedKn: a.speedKn, radar: a.radar });
   }
   return out;
 }
@@ -210,7 +244,7 @@ export const AIR_MAST_RADAR: Record<'mpa' | 'helo', Record<MastKind, number>> = 
 /** Position error of an aircraft radar fix, per axis (m): about 1 km off in all. */
 export const AIR_FIX_SD = 700;
 const AIR_ALERT_GAP_S = 120;
-const airAlertAt = new WeakMap<Sortie, Record<string, number>>();
+const airAlertAt = new WeakMap<object, Record<string, number>>();
 
 /**
  * Once a second: every friendly aircraft with its radar on gets one look per antenna sweep at
@@ -218,15 +252,11 @@ const airAlertAt = new WeakMap<Sortie, Record<string, number>>();
  * of the side as a fix from the aircraft (≈1 km error) and the crews are told.
  */
 export function aircraftRadarSweep(w: World): void {
-  for (const s of w.air?.sorties ?? []) {
-    const owner = w.ships.find((x) => x.id === s.shipId);
-    if (!owner?.alive || !sortieRadarOn(s, w.time)) continue;
-    const p = aircraftPosition(s, w.time, owner);
-    if (!p) continue;
-    const kind = s.kind === 'mpa' ? 'mpa' : 'helo';
+  for (const a of wingAircraft(w)) {
+    const { owner, kind, alt, pos: p, key: s } = a;
+    if (!owner.alive || !a.radar) continue;
     const rot = emitterSpec(aircraftEmitter(kind))?.rotationS ?? 4;
-    if (!antennaTurned(`${kind}${s.shipId}-${Math.round(s.launchAt)}`, rot, w.time)) continue;
-    const alt = SORTIE_ALT[s.kind ?? 'buoy'] ?? 120;
+    if (!antennaTurned(`${kind}${a.id}`, rot, w.time)) continue;
     for (const sub of w.ships) {
       if (!sub.alive || sub.team === owner.team || !CLASSES[sub.cls].submarine) continue;
       const mk = exposedMast(sub);

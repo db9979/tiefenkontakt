@@ -14,7 +14,6 @@ describe('helicopter and sonobuoys', () => {
   it('drops a buoy after the flight and reports bearings from the buoy position', () => {
     const { w, ffg } = world();
     expect(sendBuoy(w, ffg, { x: 10_000, y: 500 }, false)).toBe(true);
-    expect(sendBuoy(w, ffg, { x: 9000, y: 0 }, false)).toBe('Hubschrauber ist unterwegs');
     for (let i = 0; i < 2000 && !w.air!.buoys.length; i++) stepWorld(w);
     expect(w.air!.buoys).toHaveLength(1);
     for (let i = 0; i < 50; i++) stepWorld(w);

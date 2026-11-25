@@ -4,6 +4,7 @@ import { net } from '../net.js';
 import { store } from '../store.js';
 import { km, tdeg3 } from './format.js';
 import type { MenuItem } from './menu.js';
+import { heloMode, pickHeloPoint } from './helo-panel.js';
 
 /** A warning in front of a weapon order when own or friendly ships are near where it lands. */
 const warnNear = (s: Snapshot, p: Vec2): string => (friendNear(s, p, 2000) ? '⚠ EIGENE IN DER NÄHE · ' : '');
@@ -72,19 +73,23 @@ export function buoyAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s?.air) return [];
   const d = distance(s.own, p);
+  const hv = s.air.helo;
+  if (!hv) return [];
   if (d < 500 || d > 30_000) return [{ label: 'Hubschrauber: 0,5–30 km Reichweite', run: () => undefined }];
-  if (s.air.heloReadyInS > 0) return [{ label: `Hubschrauber bereit in ${Math.ceil(s.air.heloReadyInS / 60)} min`, run: () => undefined }];
   const b = bearing(s.own, p);
+  // Tasks go into the helicopter's queue (at the end, or at once in SOFORT mode of the helicopter panel)
+  const op = heloMode();
+  const now = op === 'now' ? ' (sofort)' : '';
+  const task = (kind: 'dip' | 'buoys' | 'mad' | 'attack', extra: { active?: boolean } = {}) => () => net.send({ t: 'helo', op, kind, bearing: b, range: d, ...extra });
   return [
-    ...(s.air.stock > 0 ? [
-      { label: `Sonarboje flach hierher (${km(d)})`, run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: false }) },
-      { label: 'Sonarboje tief (unter Schicht) hierher', run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: true }) },
-      { label: 'Aktive Boje (DICASS) hierher · pingt, verrät sich', run: () => net.send({ t: 'buoy', bearing: b, range: d, deep: true, active: true }) },
+    { label: `Hubschrauber-Ziel hier (${km(d)})`, run: () => pickHeloPoint(p) },
+    { label: `Hubschrauber: Tauchsonar hier${now}`, run: task('dip') },
+    ...(hv.buoys + hv.magBuoys > 0 ? [
+      { label: `Hubschrauber: Bojenlinie hier${now}`, run: task('buoys') },
+      { label: 'Hubschrauber: aktive Bojenlinie (DICASS) · pingt, verrät sich', run: task('buoys', { active: true }) },
     ] : []),
-    { label: 'Hubschrauber: Tauchsonar hier (flach)', run: () => net.send({ t: 'dip', bearing: b, range: d, deep: false }) },
-    { label: 'Hubschrauber: Tauchsonar hier (unter Schicht)', run: () => net.send({ t: 'dip', bearing: b, range: d, deep: true }) },
-    { label: 'Hubschrauber: MAD-Suche hier (Kleeblatt, 6 min)', run: () => net.send({ t: 'mad', bearing: b, range: d }) },
-    ...(s.air.heloTorps > 0 ? [{ label: `Hubschrauber: Torpedo hier (${s.air.heloTorps})`, danger: true, run: () => net.send({ t: 'helotorp', bearing: b, range: d }) }] : []),
+    { label: `Hubschrauber: MAD-Suche hier (Kleeblatt, 6 min)${now}`, run: task('mad') },
+    ...(hv.torps + hv.magTorps > 0 ? [{ label: `${warnNear(s, p)}Hubschrauber: Torpedo hier (${hv.torps})${now}`, danger: true, run: task('attack') }] : []),
   ];
 }
 

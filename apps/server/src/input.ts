@@ -11,6 +11,9 @@ import {
   sendBuoy,
   sendDip,
   sendHeloTorpedo,
+  heloOrder,
+  heloRemove,
+  heloClear,
   callMpa,
   fireSalvo,
   headingVec,
@@ -133,6 +136,14 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('buoy'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean(), active: z.boolean().optional() }),
   z.object({ t: z.literal('dip'), bearing: deg, range: z.number().finite().min(500).max(30_000), deep: z.boolean() }),
   z.object({ t: z.literal('helotorp'), bearing: deg, range: z.number().finite().min(500).max(30_000) }),
+  // Helicopter task queue (helo.ts): append / do now / strike one / clear
+  z.object({
+    t: z.literal('helo'), op: z.enum(['add', 'now', 'remove', 'clear']),
+    kind: z.enum(['dip', 'buoys', 'mad', 'attack', 'return']).optional(),
+    bearing: deg.optional(), range: z.number().finite().min(0).max(30_000).optional(), axis: deg.optional(),
+    count: z.number().int().min(1).max(6).optional(), label: z.string().min(1).max(24).optional(), active: z.boolean().optional(),
+    id: z.number().int().min(0).max(1e9).optional(),
+  }),
   z.object({ t: z.literal('mpa'), bearing: deg, range: z.number().finite().min(0).max(80_000) }),
   z.object({ t: z.literal('sam'), planeId: z.string().min(1).max(24) }),
   z.object({ t: z.literal('fighter') }),
@@ -167,7 +178,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'scope' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
+  { t: 'order' | 'scope' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'helo' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -302,6 +313,10 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       const r = m.t === 'dip' ? sendDip(w, s, p, m.deep) : m.t === 'helotorp' ? sendHeloTorpedo(w, s, p) : callMpa(w, s, p, m.bearing);
       return r === true ? undefined : r;
     }
+    case 'helo': {
+      const r = heloCommand(w, s, m);
+      return r === true ? undefined : r;
+    }
     case 'buoy': {
       const v = headingVec(m.bearing);
       const r = sendBuoy(w, s, { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range }, m.deep, m.active ?? false);
@@ -329,4 +344,17 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       return r === true ? undefined : r;
     }
   }
+}
+
+/** Helicopter queue message: the point is bearing/range from the own ship. */
+function heloCommand(w: World, s: Ship, m: Extract<GameCommand, { t: 'helo' }>): true | string {
+  if (m.op === 'clear') return heloClear(w, s);
+  if (m.op === 'remove') return m.id === undefined ? 'Kein Auftrag gewählt' : heloRemove(w, s, m.id);
+  if (!m.kind) return 'Kein Auftrag gewählt';
+  let at: { x: number; y: number } | undefined;
+  if (m.bearing !== undefined && m.range !== undefined) {
+    const v = headingVec(m.bearing);
+    at = { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range };
+  }
+  return heloOrder(w, s, m.op, { kind: m.kind, at, axis: m.axis, count: m.count, track: m.label, active: m.active });
 }

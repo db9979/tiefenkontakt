@@ -60,6 +60,16 @@ export type ClientMsg =
   | { t: 'bt' }
   | { t: 'buoy'; bearing: number; range: number; deep: boolean; active?: boolean }
   | { t: 'dip'; bearing: number; range: number; deep: boolean }
+  /**
+   * Helicopter task queue: 'add' appends a task, 'now' replaces the queue with it, 'remove' strikes
+   * task `id`, 'clear' empties the queue (airborne: home). The point is bearing/range from the own
+   * ship; `label` = contact whose latest fix the task follows; `axis` = search direction (dip) or
+   * direction of the buoy line; `count` = dips or buoys (4–6).
+   */
+  | {
+    t: 'helo'; op: 'add' | 'now' | 'remove' | 'clear'; kind?: import('./helo.js').HeloTaskKind; bearing?: number; range?: number;
+    axis?: number; count?: number; label?: string; active?: boolean; id?: number;
+  }
   | { t: 'helotorp'; bearing: number; range: number }
   | { t: 'mpa'; bearing: number; range: number }
   /** Air defence: missile at an air track (own radar), interceptors from land; submarines lay a mine. */
@@ -436,10 +446,14 @@ export interface Snapshot {
   /** Own team's sonobuoys and helicopters (surface ships, via datalink). */
   air?: {
     buoys: { id: string; x: number; y: number; depth: number; leftS: number; active?: boolean }[];
-    helos: { x: number; y: number; kind: 'buoy' | 'dip' | 'torpedo' | 'mpa' | 'mad'; hovering: boolean }[];
+    /** Team aircraft on the plot ('transit': helicopter going home or loitering). */
+    helos: { x: number; y: number; kind: 'buoy' | 'dip' | 'torpedo' | 'mpa' | 'mad' | 'transit'; hovering: boolean }[];
+    /** Own helicopter: buoys and torpedoes aboard; seconds until it is next on deck and ready. */
     stock: number;
     heloReadyInS: number;
     heloTorps: number;
+    /** Own helicopter: state, fuel, load, magazine and the task queue with ETAs. */
+    helo?: import('./helo-view.js').HeloView;
     mpaReadyInS: number;
     mpaBuoys: number;
   };
