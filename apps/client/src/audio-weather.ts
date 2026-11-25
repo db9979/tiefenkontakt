@@ -40,7 +40,6 @@ export class WeatherSound {
     const src = c.createBufferSource();
     src.buffer = this.fx.noise;
     src.loop = true;
-    src.loopStart = Math.random();
     const filter = c.createBiquadFilter();
     filter.type = type;
     filter.frequency.value = hz;
@@ -48,7 +47,7 @@ export class WeatherSound {
     const gain = c.createGain();
     gain.gain.value = 0;
     src.connect(filter).connect(gain).connect(this.dest);
-    src.start();
+    src.start(0, Math.random() * this.fx.noise.duration);
     return { src, gain, filter };
   }
 
@@ -94,7 +93,7 @@ export class WeatherSound {
     g.gain.exponentialRampToValueAtTime(0.03 * (0.3 + near), at + 1.5);
     g.gain.exponentialRampToValueAtTime(0.0001, at + 4 + 4 * (1 - near));
     src.connect(lp).connect(g).connect(this.dest);
-    src.start(at, Math.random());
+    src.start(at, Math.random() * this.fx.noise.duration);
     src.stop(at + 9);
   }
 

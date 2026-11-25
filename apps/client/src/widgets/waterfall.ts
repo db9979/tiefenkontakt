@@ -12,6 +12,36 @@ interface Line {
   width: number;
 }
 
+export interface WfOpts { norm: boolean; integ: number; gain: number; contrast: number }
+const OPTS_KEY = 'tk_wf_opts';
+const INTEG = [1, 3, 10];
+
+function loadOpts(): WfOpts {
+  try {
+    const o = JSON.parse(localStorage.getItem(OPTS_KEY) ?? '{}') as Partial<WfOpts>;
+    return { norm: o.norm ?? true, integ: INTEG.includes(o.integ ?? 0) ? o.integ! : 1, gain: Math.min(2, Math.max(0.5, o.gain ?? 1)), contrast: Math.min(2, Math.max(0.6, o.contrast ?? 1)) };
+  } catch {
+    return { norm: true, integ: 1, gain: 1, contrast: 1 };
+  }
+}
+
+/** Split-window normaliser: value over the mean of the neighbours 4°–20° away on both sides, back on a noise floor. */
+export function normalise(raw: Float32Array): Float32Array {
+  const n = raw.length;
+  const out = new Float32Array(n);
+  for (let x = 0; x < n; x++) {
+    let sum = 0;
+    let k = 0;
+    for (let d = 4; d <= 20; d++) {
+      sum += raw[(x + d) % n]! + raw[(x - d + n) % n]!;
+      k += 2;
+    }
+    const bg = sum / k;
+    out[x] = 0.18 + Math.max(0, raw[x]! - bg) * 1.6 + (raw[x]! - bg < 0 ? (raw[x]! - bg) * 0.3 : 0);
+  }
+  return out;
+}
+
 /**
  * Broadband waterfall: true bearing (x) over time (y, newest on top). Columns are true degrees;
  * contact bearings arrive in the game frame and are turned on the way in.
@@ -22,6 +52,9 @@ export class Waterfall {
   private bctx: CanvasRenderingContext2D;
   private lastT = -1;
   private fader = new Fader();
+  /** Display settings (shared by every waterfall, stored): normaliser, averaging, gain, contrast, baffle shading. */
+  opts = loadOpts();
+  private acc = new Float32Array(BINS);
 
   constructor(private sensors: readonly string[] = ['hull', 'towed', 'intercept', 'active']) {
     this.buf.width = BINS;
@@ -53,16 +86,26 @@ export class Waterfall {
     const stern = trueDeg(s.own.heading + 180);
     const selfNoise = Math.min(0.35, Math.max(0, (s.own.noiseDb - 110) / 120));
     const ice = iceCover(s.env.met, s.own);
+    const raw = new Float32Array(BINS);
     for (let x = 0; x < BINS; x++) {
       let v = 0.1 + Math.random() * 0.2 + selfNoise * Math.random() + (s.env.rain ? 0.08 * Math.random() : 0);
       // Ice: a raised floor and sharp crackling all round
       if (ice > 0) v += ice * 0.12 * Math.random() + (Math.random() < ice * 0.1 ? 0.3 + Math.random() * 0.5 : 0);
       for (const l of lines) {
         const d = Math.abs(angleDiff(l.b, x));
-        v += l.amp * Math.exp((-d * d) / (2 * l.width * l.width)) * (0.6 + 0.4 * Math.random());
+        if (d < 4 * l.width) v += l.amp * Math.exp((-d * d) / (2 * l.width * l.width)) * (0.6 + 0.4 * Math.random());
       }
       if (Math.abs(angleDiff(stern, x)) < baffleHalf) v *= 0.3;
-      v = Math.min(1, v);
+      raw[x] = v;
+    }
+    // Background normaliser (split window): each bearing against the mean of its neighbours
+    // 4°–20° either side, so a loud sector flattens and single ships stay apart as narrow peaks
+    const out = this.opts.norm ? normalise(raw) : raw;
+    // Averaging over seconds: steadier traces, less speckle (and slower to show a change)
+    const a = 1 / this.opts.integ;
+    for (let x = 0; x < BINS; x++) {
+      this.acc[x] = this.acc[x]! * (1 - a) + out[x]! * a;
+      const v = Math.min(1, Math.max(0, this.acc[x]!));
       const i = x * 4;
       row.data[i] = 8 + v * 85;
       row.data[i + 1] = 12 + v * 190;
@@ -83,7 +126,10 @@ export class Waterfall {
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, w, height);
     ctx.imageSmoothingEnabled = false;
+    // Gain and contrast act on the whole history, like the knobs on a display
+    ctx.filter = `brightness(${this.opts.gain}) contrast(${this.opts.contrast})`;
     ctx.drawImage(this.buf, pl, pt, pw, ph);
+    ctx.filter = 'none';
     ctx.strokeStyle = '#2c3a36';
     ctx.strokeRect(pl + 0.5, pt + 0.5, pw, ph);
     ctx.font = '11px ui-monospace, monospace';
@@ -157,6 +203,38 @@ export class Waterfall {
         ctx.setLineDash([]);
       }
     }
+  }
+
+  /** A small control strip (normaliser, averaging, gain, contrast) for the panel header. */
+  controls(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = 'wf-ctl';
+    el.style.cssText = 'display:inline-flex;gap:3px;align-items:center';
+    const btn = (label: string, title: string, run: () => void) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.title = title;
+      b.style.cssText = 'padding:0 6px;min-height:0;font-size:0.8333rem';
+      b.onclick = () => {
+        run();
+        localStorage.setItem(OPTS_KEY, JSON.stringify(this.opts));
+        paint();
+      };
+      el.appendChild(b);
+      return b;
+    };
+    const norm = btn('NORM', 'Normalisierer: hebt einzelne Spuren aus lautem Hintergrund (Nachbarpeilungen als Bezug)', () => (this.opts.norm = !this.opts.norm));
+    const integ = btn('', 'Mittelung über mehrere Sekunden: ruhigere Spuren, aber träger', () => (this.opts.integ = INTEG[(INTEG.indexOf(this.opts.integ) + 1) % INTEG.length]!));
+    btn('−', 'Helligkeit verringern', () => (this.opts.gain = Math.max(0.5, +(this.opts.gain - 0.15).toFixed(2))));
+    btn('+', 'Helligkeit erhöhen', () => (this.opts.gain = Math.min(2, +(this.opts.gain + 0.15).toFixed(2))));
+    const con = btn('', 'Kontrast: niedrig / normal / hoch', () => (this.opts.contrast = this.opts.contrast < 0.9 ? 1 : this.opts.contrast < 1.2 ? 1.4 : 0.7));
+    const paint = () => {
+      norm.classList.toggle('on', this.opts.norm);
+      integ.textContent = `MITTEL ${this.opts.integ} S`;
+      con.textContent = this.opts.contrast < 0.9 ? 'KONTR −' : this.opts.contrast > 1.2 ? 'KONTR +' : 'KONTR';
+    };
+    paint();
+    return el;
   }
 
   /** Bearing under a canvas x coordinate (for click-to-select), in the game frame like contact bearings. */

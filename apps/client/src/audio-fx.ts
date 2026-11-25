@@ -39,7 +39,10 @@ function src(fx: Fx): AudioBufferSourceNode {
   const s = fx.ctx.createBufferSource();
   s.buffer = fx.noise;
   s.loop = true;
-  s.loopStart = Math.random();
+  // Start every source at a random place in the long buffer, so no two noises are the same
+  const start = s.start.bind(s);
+  s.start = ((when = 0, offset?: number, duration?: number) =>
+    duration === undefined ? start(when, offset ?? Math.random() * fx.noise.duration) : start(when, offset ?? Math.random() * fx.noise.duration, duration)) as typeof s.start;
   return s;
 }
 
@@ -150,15 +153,16 @@ export function sinkingNoises(fx: Fx, dest: AudioNode, startIn = 3, gain = 0.3):
 }
 
 /** Active sonar ping: a clean tone with a slight sweep and a long water reverb tail. */
-export function sonarPing(fx: Fx, dest: AudioNode, distant: boolean): void {
+export function sonarPing(fx: Fx, dest: AudioNode, distant: boolean, lfm = false): void {
   const { ctx } = fx;
   const t = ctx.currentTime;
   const o = ctx.createOscillator();
   o.type = 'sine';
   const f = distant ? 3200 : 3500;
-  o.frequency.setValueAtTime(f, t);
-  o.frequency.linearRampToValueAtTime(f * 1.012, t + 0.35);
-  const g = env(ctx, t, distant ? 0.07 : 0.3, 0.008, distant ? 0.6 : 0.9);
+  o.frequency.setValueAtTime(lfm ? f * 0.94 : f, t);
+  // CW: one steady tone; LFM: a clear upward sweep across the band
+  o.frequency.linearRampToValueAtTime(lfm ? f * 1.06 : f * 1.004, t + 0.35);
+  const g = env(ctx, t, distant ? 0.09 : 0.6, 0.008, distant ? 0.6 : 0.9);
   o.connect(g);
   g.connect(dest);
   g.connect(fx.reverb);
@@ -187,7 +191,7 @@ export function hullCreak(fx: Fx, dest: AudioNode, depthM: number): void {
   bp.type = 'bandpass';
   bp.frequency.value = 300 + Math.random() * 300;
   bp.Q.value = 5;
-  const g = env(ctx, t, Math.min(0.12, 0.03 + depthM / 3000), 0.15, 0.9);
+  const g = env(ctx, t, Math.min(0.5, 0.15 + depthM / 800), 0.15, 0.9);
   o.connect(trem).connect(bp).connect(g);
   g.connect(dest);
   g.connect(fx.reverb);

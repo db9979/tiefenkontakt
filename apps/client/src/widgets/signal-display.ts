@@ -11,9 +11,9 @@ export function dbToAmp(db: number, lo = -6, hi = 26): number {
   return Math.pow(x, 0.85);
 }
 
-/** Beam spread in display bins (degrees on the waterfall): about 1.2° main lobe, wider for loud sources. */
+/** Beam spread in display bins (degrees on the waterfall): a narrow main lobe, a little wider for very loud sources. */
 export function beamWidth(db: number): number {
-  return 1.2 + 2.6 * Math.max(0, Math.min(1, (db - 12) / 18));
+  return 0.9 + 0.6 * Math.max(0, Math.min(1, (db - 15) / 15));
 }
 
 /** A weak signal breaks up: chance (0..1) that it shows in one row. */

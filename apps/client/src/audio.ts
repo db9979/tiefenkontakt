@@ -46,8 +46,16 @@ class Audio {
     this.ctx = new AudioContext();
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : this.volume;
-    this.master.connect(this.ctx.destination);
-    const len = this.ctx.sampleRate * 2;
+    // A gentle limiter before the speakers: explosions next to a quiet hydrophone never clip
+    const lim = this.ctx.createDynamicsCompressor();
+    lim.threshold.value = -10;
+    lim.knee.value = 6;
+    lim.ratio.value = 8;
+    lim.attack.value = 0.003;
+    lim.release.value = 0.25;
+    this.master.connect(lim).connect(this.ctx.destination);
+    // Long noise buffer: loops are not heard as a pattern
+    const len = this.ctx.sampleRate * 9;
     this.noiseBuf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -84,6 +92,9 @@ class Audio {
     const s = this.ctx.createBufferSource();
     s.buffer = this.noiseBuf;
     s.loop = true;
+    const dur = this.noiseBuf.duration;
+    const start = s.start.bind(s);
+    s.start = ((when = 0, offset?: number, d?: number) => (d === undefined ? start(when, offset ?? Math.random() * dur) : start(when, offset ?? Math.random() * dur, d))) as typeof s.start;
     return s;
   }
 
@@ -120,9 +131,9 @@ class Audio {
   }
 
   /** Short sine burst with optional echo tail: active sonar ping. */
-  ping(distant = false, pan = 0): void {
+  ping(distant = false, pan = 0, lfm = false): void {
     if (!this.ctx || !this.master) return;
-    if (this.fx) return sonarPing(this.fx, this.out(pan), distant);
+    if (this.fx) return sonarPing(this.fx, this.out(pan), distant, lfm);
     const c = this.ctx;
     const t = c.currentTime;
     const o = c.createOscillator();
@@ -357,7 +368,7 @@ class Audio {
       const firstSeen = this.lastPing < 0;
       this.lastPing = s.own.lastPingAt;
       if (!firstSeen) {
-        this.ping(false);
+        this.ping(false, 0, s.own.pulse === 'lfm');
         // Echoes return after 2R/c, scaled to real time
         for (const c of s.contacts) {
           if (c.via !== 'own' || c.rangeAt !== s.own.lastPingAt || c.range === undefined || !c.sensors.includes('active')) continue;
@@ -380,7 +391,8 @@ class Audio {
       else if (a.kind === 'ping') this.ping(true, pan);
       // Another ship: a detonation, or (her sinking after the hit) the long break-up
       else if (a.kind === 'hit') (a.sink ? this.sinking(pan) : this.explosion(false, pan));
-      else if (a.kind === 'sunk') this.explosion(true);
+      // Own ship: a mine or a hit is a blast; running aground is a long grinding scrape, no explosion
+      else if (a.kind === 'sunk') (/GRUND/.test(a.text) ? this.fx && sinkingNoises(this.fx, this.out(0), 0, 0.35) : this.explosion(true));
       else if (a.kind === 'transient') this.transient(pan);
     }
   }

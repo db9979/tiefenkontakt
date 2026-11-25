@@ -59,6 +59,7 @@ export function subSonarStation(): Station {
   const active = activeScope();
   range.el.before(active.el);
   const wf = new Waterfall();
+  el.querySelector('#own')!.before(wf.controls());
   const wfCanvas = el.querySelector<HTMLCanvasElement>('#wf')!;
   const analysis = new AcousticAnalysis(250);
   el.querySelector('#ana')!.appendChild(analysis.el);

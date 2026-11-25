@@ -65,7 +65,7 @@ export function breakUpSequence(fx: Fx, dest: AudioNode, gain = 0.25, durS = 60)
     const g = env(at, gain * (deep ? 1 : 0.7), 0.004, deep ? rnd(0.8, 1.6) : rnd(0.3, 0.6));
     n.connect(f).connect(g);
     out(g);
-    n.start(at, Math.random());
+    n.start(at, Math.random() * fx.noise.duration);
     n.stop(at + 2);
     if (deep) {
       // The thud of collapsing hull spaces
@@ -101,7 +101,7 @@ export function breakUpSequence(fx: Fx, dest: AudioNode, gain = 0.25, durS = 60)
   level.gain.exponentialRampToValueAtTime(0.0001, t0 + durS * 0.8);
   bubbles.connect(bp).connect(am).connect(level);
   out(level);
-  bubbles.start(t0);
+  bubbles.start(t0, Math.random() * fx.noise.duration);
   lfo.start(t0);
   bubbles.stop(t0 + durS);
   lfo.stop(t0 + durS);

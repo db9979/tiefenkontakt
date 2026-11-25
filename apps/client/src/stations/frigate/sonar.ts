@@ -43,6 +43,8 @@ export function frigateSonarStation(): Station {
   range.el.before(active.el);
   const hull = new Waterfall(['hull', 'active', 'intercept']);
   const tow = new Waterfall(['towed']);
+  el.querySelector('#hs')!.before(hull.controls());
+  el.querySelector('#ts')!.before(tow.controls());
   const hullCv = el.querySelector<HTMLCanvasElement>('#hull')!;
   const towCv = el.querySelector<HTMLCanvasElement>('#tow')!;
   const analysis = new AcousticAnalysis(250);

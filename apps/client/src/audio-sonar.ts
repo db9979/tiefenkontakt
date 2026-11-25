@@ -71,11 +71,11 @@ export class SonarVoice {
     this.out.connect(dest);
     const noise = (type: BiquadFilterType, hz: number, q = 0.7) => {
       const s = c.createBufferSource();
-      s.buffer = fx.noise; s.loop = true; s.loopStart = Math.random();
+      s.buffer = fx.noise; s.loop = true;
       const f = c.createBiquadFilter(); f.type = type; f.frequency.value = hz; f.Q.value = q;
       const g = c.createGain(); g.gain.value = 0;
       s.connect(f).connect(g);
-      s.start();
+      s.start(0, Math.random() * fx.noise.duration);
       return { f, g };
     };
     const loop = (buf: AudioBuffer, type: BiquadFilterType, hz: number) => {
@@ -138,17 +138,31 @@ export class SonarVoice {
     whistleG.connect(pan);
     const calls = new BioCalls(c, whistleG, songG);
     const snap = loop(clickBuffer(c, 400, 0.003), 'highpass', 2000).g;
+    // Whale pulses: the square LFO gates an inner gain around 0.5; pulseG alone sets the level (0 = silent)
     const pulse = osc('sine', 80); const pulseG = c.createGain(); pulseG.gain.value = 0;
     const pulseAm = osc('square', 0.8); const pam = c.createGain(); pam.gain.value = 0.5;
-    pulseAm.connect(pam).connect(pulseG.gain);
-    pulse.connect(pulseG).connect(pan);
+    const gate = c.createGain(); gate.gain.value = 0.5;
+    pulseAm.connect(pam).connect(gate.gain);
+    pulse.connect(gate).connect(pulseG).connect(pan);
     this.bio = { songG, clicks, clickG, whistleG, snap, pulse, pulseG, pulseAm, calls };
     // Torpedo: a high, rising whine with a fast flutter of its screw
     const wo = osc('sawtooth', 1400); const wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 1600; wf.Q.value = 4;
     const wg = c.createGain(); wg.gain.value = 0;
     const vib = osc('sine', 28); const vd = c.createGain(); vd.gain.value = 40;
     vib.connect(vd).connect(wo.frequency);
-    wo.connect(wf).connect(wg).connect(pan);
+    // Mostly a hiss: high broadband flow and screw noise, the tonal whine only riding on top
+    const tn2 = c.createBufferSource(); tn2.buffer = fx.noise; tn2.loop = true;
+    const hiss = c.createBiquadFilter(); hiss.type = 'bandpass'; hiss.frequency.value = 3200; hiss.Q.value = 0.9;
+    const hissG = c.createGain(); hissG.gain.value = 1.6;
+    // The screw beats the hiss at a fast blade rate
+    const beatO = osc('sawtooth', 45); const beatD = c.createGain(); beatD.gain.value = -0.35;
+    const beatG = c.createGain(); beatG.gain.value = 0.65;
+    beatO.connect(beatD).connect(beatG.gain);
+    tn2.connect(hiss).connect(hissG).connect(beatG).connect(wg);
+    tn2.start(0, Math.random() * fx.noise.duration);
+    const tone = c.createGain(); tone.gain.value = 0.35;
+    wo.connect(wf).connect(tone).connect(wg);
+    wg.connect(pan);
     this.whine = { o: wo, g: wg, vib };
   }
 
@@ -179,7 +193,8 @@ export class SonarVoice {
     // The screw: blade-rate thump, shaft-rate swell
     const blade = hh.bladeHz && hh.bladeHz > 0.3 ? hh.bladeHz : undefined;
     this.tgt.blade.frequency.setTargetAtTime(blade ?? 0.01, t, k);
-    this.tgt.bladeDepth.gain.setTargetAtTime(blade ? 0.45 : 0, t, k);
+    // Inverted sawtooth: each blade passing is a sharp thump that dies away (not a swell that cuts off)
+    this.tgt.bladeDepth.gain.setTargetAtTime(blade ? -0.45 : 0, t, k);
     this.tgt.shaft.frequency.setTargetAtTime(hh.shaftHz && hh.shaftHz > 0.2 ? hh.shaftHz : 0.01, t, k);
     this.tgt.shaftDepth.gain.setTargetAtTime(hh.shaftHz ? 0.15 : 0, t, k);
     this.cav.gain.setTargetAtTime(machine && hh.cav ? sig * 1.2 : 0, t, k);
@@ -215,7 +230,7 @@ export class SonarVoice {
     b.whistleG.gain.setTargetAtTime(on('pfiffe') * 0.25, t, k);
     b.snap.gain.setTargetAtTime(on('knistern') * 1.5, t, k);
     b.pulseG.gain.setTargetAtTime(on('puls') * 0.9, t, k);
-    this.whine.g.gain.setTargetAtTime(on('torpedo') * 1.4, t, k);
+    this.whine.g.gain.setTargetAtTime(on('torpedo') * 0.7, t, k);
     this.whine.o.frequency.setTargetAtTime(1300 * dop * (1 + Math.max(0, 6000 - range) / 30000), t, 0.3);
   }
 }
