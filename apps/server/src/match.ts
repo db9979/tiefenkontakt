@@ -38,7 +38,7 @@ export type { Conn, SavedMatch } from './match-io.js';
 import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 import { FF_TICK_BUDGET_MS, FastForward } from './fast-forward.js';
 import { SANDBOX_MAX_SCALE } from './sandbox.js';
-import { boardTeammate } from './crew-transfer.js';
+import { boardTeammate, boardable } from './crew-transfer.js';
 
 export const MAX_PER_TEAM = 6;
 const SPECTATE_EVERY = 30; // ticks (3 s)
@@ -468,6 +468,7 @@ export class Match {
           snap.crew = this.aboard(ship.id).map((a) => a.callsign);
           snap.lesson = this.settings.lesson;
           if (!this.settings.sandbox) snap.ff = this.ff.view(s.playerId);
+          if (!ship.alive) snap.boardable = boardable(this.slots, s, (id) => this.shipOf(id));
           if (!x.briefed && !this.settings.lesson) {
             snap.briefing = buildBriefing(w, ship, this.settings, Math.random);
             x.briefed = true;

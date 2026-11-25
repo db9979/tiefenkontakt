@@ -360,6 +360,8 @@ export interface Snapshot {
   stations?: { callsign: string; station: number }[];
   /** "Zeitraffer bis Ereignis" state (absent in the sandbox, which has its own time controls). */
   ff?: FastForwardView;
+  /** Own ship sunk: living teammates' ships with a human captain the player may go aboard. */
+  boardable?: { captainId: string; callsign: string; ship: string }[];
   /** Training lesson id when this is a lesson. */
   lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
   briefing?: Briefing;

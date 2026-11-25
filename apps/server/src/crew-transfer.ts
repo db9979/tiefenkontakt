@@ -20,8 +20,11 @@ export function boardTeammate(slots: PlayerSlot[], slot: PlayerSlot, captainId: 
   return undefined;
 }
 
-/** Ship id a player's statistics belong to (own ship even after boarding a teammate). */
-export const statsShipId = (p: PlayerSlot): string => `p_${p.transferred ? p.playerId : p.crewOf ?? p.playerId}`;
+/** Teammates' ships (human captain, afloat) a sunk player may go aboard. */
+export function boardable(slots: PlayerSlot[], slot: PlayerSlot, shipOf: (playerId: string) => Ship | undefined): { captainId: string; callsign: string; ship: string }[] {
+  return slots.filter((c) => c.team === slot.team && !c.bot && !c.crewOf && c.playerId !== slot.playerId && shipOf(c.playerId)?.alive)
+    .map((c) => ({ captainId: c.playerId, callsign: c.callsign, ship: shipOf(c.playerId)!.name }));
+}
 
 /** The debrief so far for a sunk player: truth cut off `delayS` ago (nothing to relay to the team), own figures included. */
 export function provisionalDebrief(recorder: Recorder, w: World, slots: PlayerSlot[], playerId: string, delayS: number): Debrief {

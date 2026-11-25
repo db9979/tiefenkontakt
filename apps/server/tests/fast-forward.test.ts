@@ -132,6 +132,8 @@ describe('sunk player', () => {
     expect(errors(a).at(-1)).toMatch(/Untergang/);
     const own = m.shipOf('a')!;
     own.alive = false;
+    m.tick();
+    expect(lastSnap(a)?.boardable).toEqual([{ captainId: 'b', callsign: 'b', ship: m.shipOf('b')!.name }]);
     lobby.handle(a, { t: 'crew', captainId: 'b' });
     expect(m.shipOf('a')?.id).toBe(m.shipOf('b')?.id);
     m.tick();
