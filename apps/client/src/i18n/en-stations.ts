@@ -180,6 +180,12 @@ export const EN_STATIONS: [string, string][] = [
   ['Einmal die beste Lösung aus allen Peilungen rechnen (danach von Hand nachführen)', 'Compute the best solution from all bearings once (then refine by hand)'],
   ['Lösung des gewählten Kontakts verwerfen', 'Discard the selected contact’s solution'],
   ['ZIEHEN SCHWENKT · WASD · RAD ZOOMT', 'DRAG TURNS · WASD · WHEEL ZOOMS'],
+  ['BOJEN JE LINIE', 'BUOYS PER LINE'], ['UNBEKANNT · PINGEN', 'UNKNOWN · PING'], ['FLUGZEUGE', 'AIRCRAFT'], ['OHNE BT', 'NO BT'], ['KEINE SCHICHT', 'NO LAYER'],
+  ['SEITE EINDEUTIG', 'SIDE RESOLVED'], ['SEITE MEHRDEUTIG · 20° WENDEN', 'SIDE AMBIGUOUS · TURN 20°'], ['SEITE DURCH RUMPFSONAR AUFGELÖST', 'SIDE RESOLVED BY THE HULL SONAR'],
+  ['Schleppsonar: Peilung links/rechts mehrdeutig, bis ein Kurswechsel oder das Rumpfsonar die Seite klärt', 'Towed array: bearing ambiguous left/right until a course change or the hull sonar settles the side'],
+  ['Kabellänge in Metern (lang = unter der Sprungschicht)', 'Cable length in metres (long = below the layer)'],
+  ['Nixie-Schleppe ausbringen oder einholen (Taste T)', 'Stream or recover the Nixie decoy (key T)'],
+  ['Schicht nicht gemessen: Bathythermograph werfen (Sonar · VDS/BT)', 'Layer not measured: drop a bathythermograph (Sonar · VDS/BT)'],
 ];
 
 /** Texts with figures in them. */
@@ -191,4 +197,5 @@ export const EN_STATIONS_PHRASES: [RegExp, string][] = [
   [/^(\d+) · (\d+) IM WASSER$/, '$1 · $2 IN THE WATER'], [/^SCHICHT (\d+) M · DARUNTER$/, 'LAYER $1 M · BELOW'], [/^SCHICHT (\d+) M · DARÜBER$/, 'LAYER $1 M · ABOVE'],
   [/^OBEN (\d+) S · SICHTBAR UND PEILBAR$/, 'UP $1 S · VISIBLE AND DF-ABLE'], [/^→ (\d+) M · GRUND (.+)$/, '→ $1 M · BOTTOM $2'], [/^GRUND (.+)$/, 'BOTTOM $1'],
   [/^SETZT (\d+)° · ([\d,]+) KN$/, 'SETS $1° · $2 KN'], [/KENTERT IN (\S+)$/, 'TURNS IN $1'],
+  [/^Über und unter der gemessenen Schicht \((\d+) m\)$/, 'Above and below the measured layer ($1 m)'],
 ];

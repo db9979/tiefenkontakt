@@ -6,7 +6,7 @@ export const EN_HELO: [string, string][] = [
   ['ZURÜCK AN DECK', 'BACK TO DECK'], ['HÄLT POSITION', 'HOLDING POSITION'], ['IN DER LUFT', 'AIRBORNE'], ['SCHWEBT', 'HOVERING'],
   ['TANKEN/AUFMUNITIONIEREN', 'REFUEL/REARM'], ['KRAFTSTOFF', 'FUEL'], ['KARTENPUNKT', 'MAP POINT'], ['KONTAKT ODER PUNKT WÄHLEN', 'SELECT A CONTACT OR POINT'],
   ['KEIN HUBSCHRAUBER', 'NO HELICOPTER'], ['ZU WEIT (30 KM)', 'TOO FAR (30 KM)'], ['LÄUFT', 'RUNNING'], ['KEIN AUFTRAG', 'NO TASK'],
-  ['ZIEL: GEWÄHLTER KONTAKT ODER KARTE', 'TARGET: SELECTED CONTACT OR MAP'], ['RECHTSKLICK / LANGE TIPPEN', 'RIGHT-CLICK / LONG PRESS'],
+  ['ZIEL: GEWÄHLTER KONTAKT ODER KARTE', 'TARGET: SELECTED CONTACT OR MAP'], ['RECHTSKLICK / LANGE TIPPEN', 'RIGHT-CLICK / LONG PRESS'], ['(RECHTSKLICK / LANGE TIPPEN)', '(RIGHT-CLICK / LONG PRESS)'],
   ['Auftrag streichen', 'Strike task'],
   ['Anhängen: ans Ende der Liste · Sofort: alles andere fällt weg', 'Append: to the end of the list · At once: everything else is dropped'],
   ['Bojen in der Linie (2,5 km Abstand, quer zur Sichtlinie)', 'Buoys in the line (2.5 km apart, across the line of sight)'],

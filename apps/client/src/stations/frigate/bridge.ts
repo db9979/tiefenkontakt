@@ -33,12 +33,14 @@ export function bridgeStation(): Station {
       <div class="panel grow"><div class="hd"><span>Brücke · Ausguck</span><span id="b-brg" class="dim"></span></div>
         <div class="fill" id="view-box"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep"></canvas></div>
         <div class="btnrows">
-          <div class="btngroup"><button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button></div>
           <div class="btngroup"><span class="seg"><button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button><button id="tup" title="Blick nach oben (W)">▲</button><button id="tdn" title="Blick nach unten (S)">▼</button></span>
             <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button></div>
-          <div class="btngroup"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button></div>
+          <div class="btngroup"><button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button></div>
         </div>
-        <div class="hint">ZIEHEN SCHWENKT · W A S D · RAD ZOOMT</div>
+        <div class="btnrows">
+          <div class="btngroup"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button></div>
+          <div class="hint">ZIEHEN SCHWENKT · WASD · RAD ZOOMT</div>
+        </div>
       </div>
     </div>
     <div class="st-col">
@@ -223,7 +225,7 @@ export function bridgeStation(): Station {
     const kinds = new Map<string, number>();
     for (const p of air) kinds.set(NAME[p.kind], (kinds.get(NAME[p.kind]) ?? 0) + 1);
     const what = [...kinds].map(([k, n]) => `${n} ${k}`).join(' · ');
-    return `<div class="row"><span class="dim">FLUGZEUGE IN SICHT</span><span>${what || 'KEINE'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
+    return `<div class="row"><span class="dim">FLUGZEUGE</span><span>${what || 'KEINE'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
   };
 
   /** Selected contact with its assigned class (from the recognition book) and the photo counter. */

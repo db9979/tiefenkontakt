@@ -5,19 +5,36 @@
 
 /* OPZ: the ASW strip as one 24 px line inside the plot panel, small chips (F1) */
 .st.opz .aswstrip { height: 24px; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: 4px; margin: 4px 0 2px; }
-.st.opz .aswchip { font-size: 10px; line-height: 16px; padding: 0 6px; }
-/* The selected contact: a fixed card under the tabs with its three actions */
-.st.opz .selcard { flex: none; min-height: 150px; display: flex; flex-direction: column; }
-.st.opz .selcard > #oc-rows { flex: 1; }
+/* Status chips, not controls: no button border, a faint fill; the value in the data colour */
+.st.opz .aswchip { font-size: 10px; line-height: 18px; padding: 0 6px; border-color: transparent; background: rgba(93, 202, 165, 0.07); color: var(--g2); }
+.st.opz .aswchip.amber { border-color: transparent; background: rgba(250, 199, 117, 0.1); color: var(--amber); }
+html[data-theme='light'] .st.opz .aswchip { background: rgba(27, 116, 88, 0.08); }
+html[data-theme='light'] .st.opz .aswchip.amber { background: rgba(154, 88, 0, 0.1); }
+/* The selected contact: a card under the tabs sized to its rows, with its three actions */
+.st.opz .selcard { flex: none; display: flex; flex-direction: column; }
 .st.opz .selcard .actionbar { padding-bottom: 0; }
+/* Helicopter tab: queue mode and the labelled buoy count on one line, the target hint in full */
+.helo-panel .hp-opts { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp2) var(--sp3); margin: 6px 0; }
+.helo-panel .hp-n { display: inline-flex; align-items: center; gap: var(--sp2); font-size: var(--fs-cap); letter-spacing: 0.04em; white-space: nowrap; }
+.helo-panel .hp-n .seg > button { min-width: 28px; }
+.helo-panel #hp-hint { white-space: normal; }
+.helo-panel #hp-hint > span { display: inline-block; white-space: nowrap; }
 .st.opz .selcard .actionbar > button { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Sonar: array length in the towed panel's header, one display popover for both waterfalls (F2) */
+/* The length buttons keep their full width; only the status before them gives way */
 .hd-r { display: flex; align-items: center; gap: var(--sp2); }
+.hd-r > #ts { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hd-r > .seg { flex: none; }
 .hdseg > button { padding: 0 6px; min-height: 20px; font-size: var(--fs-cap); }
+/* Footer: ANZEIGE ▾ looks like the buttons beside it (26 px), the side state as text, the how-to on its own line */
 .wfpop { position: relative; }
-.wfpop > summary { list-style: none; cursor: pointer; padding: 2px 8px; border: 1px solid var(--line2); border-radius: 3px;
-  font-size: var(--fs-cap); letter-spacing: 0.06em; text-transform: uppercase; color: var(--g); white-space: nowrap; }
+.wfpop > summary { list-style: none; cursor: pointer; padding: 0 9px; min-height: var(--btn-h); line-height: calc(var(--btn-h) - 2px); border: 1px solid var(--line2); border-radius: 3px;
+  background: linear-gradient(180deg, #111b18, #0a1110); letter-spacing: 0.04em; text-transform: uppercase; color: var(--g2); white-space: nowrap; }
+.wfpop > summary:hover { border-color: var(--g); }
+html[data-theme='light'] .wfpop > summary { background: linear-gradient(180deg, #ffffff, #e8eeeb); }
+.st.fsonar .foot > .tas-st { font-size: var(--fs-cap); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; cursor: help; }
+.st.fsonar .foot > .hint { flex: 1 0 100%; }
 .wfpop > summary::-webkit-details-marker { display: none; }
 .wfpop[open] > summary { border-color: var(--g); }
 .wfpop > .wf-ctl { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: 5; padding: 6px; white-space: nowrap;
@@ -27,6 +44,9 @@
 .st.wpn { grid-template-columns: minmax(0, 45fr) minmax(0, 55fr); }
 .wcard .wstat { color: var(--g2); letter-spacing: 0.04em; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wcard > button { letter-spacing: 0.03em; padding-left: 6px; padding-right: 6px; }
+/* Every card's action one 30 px row at the card's foot, level across the row of cards */
+.wcard > button, .wcard > .seg > button { height: 30px; min-height: 30px; padding-top: 0; padding-bottom: 0; }
+.wcard > button:last-child, .wcard > .seg:last-child { margin-top: auto; margin-bottom: 0; }
 .wcard .tubebank { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 4px 0; }
 .st.wpn .listpanel { min-height: 120px; }
 
@@ -49,4 +69,15 @@
   /* The selected contact's actions right after the chart */
   .st.opz .selcard { order: -1; min-height: 0; }
   .st.wpn .listpanel, .st.fradar .listpanel { min-height: 0; }
+}
+/* OPZ on a small laptop (901–1150 px): it keeps chart and side column side by side and fits the
+   window instead of stacking into a page taller than the screen; the list scrolls in its tab */
+@media (min-width: 901px) and (max-width: 1150px) {
+  .station:has(> .st.opz) { overflow: hidden; }
+  .st.opz { height: 100%; grid-template-columns: minmax(0, 60fr) minmax(0, 40fr); }
+  .st.opz .panel.grow { flex: 1 1 0; }
+  .st.opz .fill { flex: 1 1 0; height: auto; }
+  .st.opz .st-col.scroll, .st.opz .panel.tabbed > .pane { overflow: auto; }
+  .st.opz .panel.grow.tabbed > .pane { flex: 1 1 0; }
+  .st.opz .selcard { order: 0; }
 }

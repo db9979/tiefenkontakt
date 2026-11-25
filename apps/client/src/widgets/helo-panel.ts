@@ -54,9 +54,9 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
   const root = h(`<div class="panel helo-panel"><div class="hd"><span>Bordhubschrauber</span><span id="hp-st"></span></div>
     <div id="hp-rows"></div>
     <div class="row"><span class="dim">ZIEL</span><span id="hp-tgt" class="amber"></span></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">
+    <div class="hp-opts">
       <div class="seg" title="Anhängen: ans Ende der Liste · Sofort: alles andere fällt weg"><button data-mode="add">ANHÄNGEN</button><button data-mode="now">SOFORT</button></div>
-      <div class="seg" title="Bojen in der Linie (2,5 km Abstand, quer zur Sichtlinie)"><button data-n="4">4</button><button data-n="5">5</button><button data-n="6">6</button></div>
+      <span class="hp-n" title="Bojen in der Linie (2,5 km Abstand, quer zur Sichtlinie)"><span class="dim">BOJEN JE LINIE</span><span class="seg"><button data-n="4">4</button><button data-n="5">5</button><button data-n="6">6</button></span></span>
     </div>
     <div class="grid2" style="gap:4px">
       <button class="primary" data-task="dip" title="Schwebt 3 min und pingt über und unter der gemessenen Schicht, dann 4 km weiter in Suchrichtung (3 Tauchstellen)">Tauchsonar</button>
@@ -66,7 +66,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
       <button data-task="return" title="Zurück an Deck: 10 min tanken und aufmunitionieren">Zurück</button>
       <button id="hp-clr" title="Auftragsliste leeren (in der Luft: zurück an Deck)">Liste leeren</button>
     </div>
-    <div class="hint" id="hp-hint">ZIEL: GEWÄHLTER KONTAKT ODER KARTE · RECHTSKLICK / LANGE TIPPEN</div>
+    <div class="hint" id="hp-hint"><span>ZIEL: GEWÄHLTER KONTAKT ODER KARTE</span> <span>(RECHTSKLICK / LANGE TIPPEN)</span></div>
     <div id="hp-q" style="margin-top:4px"></div>
   </div>`);
   el.append(root);
