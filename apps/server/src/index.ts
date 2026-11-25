@@ -33,6 +33,7 @@ import { CampaignService } from './campaign-match.js';
 import { SeriesRunner } from './series.js';
 import { handleOps } from './ops-api.js';
 import { startWatchdog } from './watchdog.js';
+import { AdminNotifier, clientError, notifyConfig } from './admin-notify.js';
 import { RecentFinished, ReplayStore } from './replays.js';
 import { ReplayApi, replayPageId, withOgTags } from './replays-api.js';
 import { PerfStore } from './perf-samples.js';
@@ -78,6 +79,7 @@ lobby.onReport = (conn, m, from, reason) => {
   const reported = m.slots.find((x) => x.playerId === s.playerId)?.callsign ?? from;
   const fresh = mod.report({ reporter: conn.callsign, reported, reportedId: s.playerId, matchId: m.id, reason, evidence: s.evidence });
   log('info', 'Meldung', { reporter: conn.callsign, reported, reason });
+  if (fresh) notify.report({ at: Date.now(), reporter: conn.callsign, reported, reportedId: s.playerId, matchId: m.id, reason, evidence: s.evidence });
   return fresh ? undefined : 'Bereits gemeldet';
 };
 const LESSON_STEP: Record<string, string> = { klassifizieren: 'l1', tma: 'l2', angriff: 'l3', ujagd: 'l4' };
@@ -130,6 +132,7 @@ if (mailer instanceof SmtpMailer) {
   const c = mailer.cfg;
   log('info', 'Mailversand über SMTP', { host: c.host, port: c.port, security: c.security, from: c.from, login: c.user ? 'ja' : 'nein' });
 } else log('info', 'Kein Mailserver eingestellt: Bestätigungs- und Reset-Links stehen im Log');
+const notify = new AdminNotifier(mailer, notifyConfig()); // feedback, reports, browser errors to the admin
 // Operator alerts (failed backups, disk, memory, lag); hooked in before the first backup run
 startWatchdog(mailer, backups, () => {
   const all = lobby.allMatches();
@@ -257,7 +260,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
       return json(res, 400, { ok: false });
     }
     if (!parsed.success) return json(res, 400, { ok: false });
-    feedback.add(parsed.data, auth.userForToken(token)?.callsign);
+    const callsign = auth.userForToken(token)?.callsign;
+    feedback.add(parsed.data, callsign);
+    notify.feedback(parsed.data, callsign);
     return json(res, 200, { ok: true });
   }
   if (req.url === '/api/perf') {
@@ -274,18 +279,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
   if (req.url === '/api/client-error') {
     // Browser errors from players, so problems on their devices show up in the server log
     if (!errorLimiter.allow(ip)) return json(res, 429, { ok: false });
-    let b: Record<string, unknown>;
-    try {
-      b = (await readBody(req)) as Record<string, unknown>;
-    } catch {
-      return json(res, 400, { ok: false });
-    }
-    const str = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : undefined);
+    const b = await readBody(req).catch(() => undefined);
+    if (!b || typeof b !== 'object') return json(res, 400, { ok: false });
+    const err = clientError(b as Record<string, unknown>, req.headers['user-agent'], auth.userForToken(token)?.callsign);
     metrics.clientErrors++;
-    log('warn', 'Client-Fehler', {
-      msg: str(b.msg, 300), stack: str(b.stack, 1200), where: str(b.where, 120), ua: str(req.headers['user-agent'], 160),
-      user: auth.userForToken(token)?.callsign,
-    });
+    log('warn', 'Client-Fehler', { msg: err.msg, stack: err.stack, where: err.where, ua: err.ua, user: err.user });
+    notify.clientError(err);
     return json(res, 200, { ok: true });
   }
   if (req.url === '/api/logout') {

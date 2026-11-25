@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { adminMail } from '../apps/server/src/admin-mail.js';
 import { arenaReport, operatorAlert, restoreReport, watchdogAlert, watchdogDaily, watchdogRecovered } from '../apps/server/src/admin-mails.js';
+import { clientErrorReport, feedbackReport, playerReport } from '../apps/server/src/admin-live-mails.js';
 import type { Mail } from '../apps/server/src/mailer.js';
 import { resetMail, testMail, verifyMail } from '../apps/server/src/mail-templates.js';
 
@@ -61,6 +62,20 @@ Ausfall: etwa 17 min, 4 fehlgeschlagene Prüfungen, 1 automatische(r) Neustart(s
     passed: false, failures: ['integrity_check: *** in database main *** Page 12: btreeInitPage() returns error code 11'], warnings: [], url,
     lines: ['Restore-Test 2026-11-22T04:15:00.000Z', 'Backup: /backups/tiefenkontakt-20261122-030000.db (2.1 MB, 1.2 h alt)', '✗ integrity_check: *** in database main *** Page 12: btreeInitPage() returns error code 11', 'Dauer 0.8 s'],
   }))],
+  ['feedback', adminMail(to, feedbackReport([{
+    at: Date.now() - 600_000, callsign: 'Seewolf', rating: 2, tags: ['fehler', 'ruckeln'], mission: 'fjord', side: 'east', cls: 'ssk', won: false, quality: 'mittel',
+    text: 'Nach dem zweiten Torpedo blieb das Feuerleitpult hängen, erst ein Neuladen half. Sonst sehr stimmungsvoll!',
+  }, { at: Date.now() - 120_000, rating: 5, tags: ['super'], text: '', mission: 'groenland', side: 'west', cls: 'ffg', won: true, quality: 'hoch' }], 0, url))],
+  ['meldung', adminMail(to, playerReport([{
+    at: Date.now() - 60_000, reporter: 'Seewolf', reported: 'Rammbock', reportedId: 'g-3f9a1c0d2b7e4a51', matchId: 'm-8c21f0', reason: 'Beleidigung im Funk',
+    evidence: '20:14 Rammbock: ihr seid alle zu blöd zum Tauchen\n20:15 Seewolf: lass das bitte\n20:15 Rammbock: heul doch',
+  }], 0, url))],
+  ['client-fehler', adminMail(to, clientErrorReport([
+    ...[1, 2, 3, 4, 5, 6].map((i) => ({ at: Date.now() - i * 300_000, msg: "TypeError: Cannot read properties of undefined (reading 'bearing')",
+      stack: "TypeError: Cannot read properties of undefined (reading 'bearing')\n    at drawContacts (index-3fa1.js:1:48211)\n    at frame (index-3fa1.js:1:50112)",
+      where: i % 2 ? '#lobby' : '#reset=abcDEFghiJKL123', ua: i % 2 ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1) Safari/604.1' : 'Mozilla/5.0 Firefox/132.0', user: i % 3 ? 'Seewolf' : undefined })),
+    { at: Date.now(), msg: 'Uncaught RangeError: Maximum call stack size exceeded', where: '/', ua: 'Chrome/131' },
+  ], 0, url))],
 ];
 
 mkdirSync(out, { recursive: true });
