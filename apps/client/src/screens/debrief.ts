@@ -50,6 +50,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
     </div>
     <div style="min-width:0;overflow:auto">
       ${live ? '<div class="hd"><span>Zuschauer</span><span class="amber">LIVE · VERZÖGERT</span></div><div class="dim">DU SIEHST DIE WAHRE LAGE MIT EINIGEN MINUTEN VERZÖGERUNG, DAMIT NIEMAND SEINEM TEAM HELFEN KANN.</div>'
+        : d.provisional ? '<div class="hd"><span>Zwischenstand</span><span class="amber">PARTIE LÄUFT NOCH</span></div><div class="dim">DIE LAGE ENDET EINIGE MINUTEN VOR JETZT, DAMIT NIEMAND SEINEM TEAM HELFEN KANN. „ZUR LOBBY“ VERLÄSST DIE PARTIE.</div>'
         : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
       ${mine ? debriefTips(d.stats.find((s) => s.playerId === store.playerId)) : ''}
       ${mine ? photoStrip(d, store.playerId) : ''}

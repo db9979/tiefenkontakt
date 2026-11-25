@@ -20,6 +20,7 @@ import { CLASS_LABEL, clock, esc, h, mastState, tdeg3 } from '../widgets/format.
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
+import { mountFastForward, mountSunkPanel } from '../widgets/pacing.js';
 import { debriefOverlay } from './debrief.js';
 import { helpOverlay } from './help.js';
 import { radioLog } from '../widgets/radio-log.js';
@@ -164,6 +165,11 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const assistant = mountAssistant(q('.station-wrap'), (i) => i < stations.length && show(i));
   const banner = document.createElement('div');
   banner.className = 'banner blink';
+  // Top bar: "Zeitraffer bis Ereignis" with its ×6 tag; own ship sunk: crew / watch / debrief
+  const fastFwd = mountFastForward();
+  q('#clock').before(fastFwd.el);
+  const sunkPanel = mountSunkPanel((d) => debriefOverlay(d, onExit));
+  document.body.appendChild(sunkPanel.el);
   let endShown = false;
 
   const unlock = () => audio.unlock();
@@ -331,10 +337,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
       if (!banner.isConnected) document.body.appendChild(banner);
     } else banner.remove();
-    if (!s.own.alive && !banner.isConnected) {
-      banner.textContent = 'EIGENES SCHIFF GESUNKEN';
-      document.body.appendChild(banner);
-    }
+    fastFwd.update(s);
+    sunkPanel.update(s, store.matchId);
   }
 
   // Panels and lists redraw at most 4× a second: data still arrives at 10 Hz, but phones
@@ -463,6 +467,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     helmToggle.remove();
     document.body.classList.remove('helm-open');
     tutorial?.el.remove();
+    sunkPanel.dispose();
     closeMenu();
     audio.stopAll();
   };
