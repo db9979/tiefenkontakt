@@ -479,3 +479,6 @@ input[type=range] { accent-color: var(--g); }
 .st-clock { flex: none !important; overflow: visible !important; }
 .h-ship { display: none; color: var(--g2); text-transform: none; letter-spacing: 0.02em; }
 @media (max-width: 1499px) { .topbar .status .st-ship { display: none; } .h-ship { display: inline; } }
+/* Helm: layer, bottom and depth alarm under the depth line, one row, never wrapping mid-fact */
+.hm-depinfo { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: var(--fs-cap); color: var(--dim); margin: -2px 0 4px; }
+.hm-depinfo > span { white-space: nowrap; }

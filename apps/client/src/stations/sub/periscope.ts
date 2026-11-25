@@ -104,7 +104,7 @@ export function periscopeStation(): Station {
     </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
-  const box = fillBox(el.querySelector<HTMLElement>('#view-box')!, 300, 760);
+  const box = fillBox(el.querySelector<HTMLElement>('#view-box')!, 300);
   // three.js is loaded only when the periscope is used (falls back to 2D without WebGL2) and freed 20 s after leaving
   const g3 = new LazyGl<Periscope3D>(el.querySelector<HTMLCanvasElement>('#gl')!, (c) =>
     import('../../widgets/periscope3d.js').then((m) => (m.Periscope3D.supported() ? new m.Periscope3D(c) : undefined)));

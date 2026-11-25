@@ -35,6 +35,8 @@ export interface ContactTrack {
   optAt?: number;
   se: number;
   sensors: SensorKind[];
+  /** When each sensor last held the contact (sensors only grows; this says who holds it now). */
+  seenBy?: Partial<Record<SensorKind, number>>;
   /**
    * Visual identification only (periscope). On the server's books the class seen; a player's
    * snapshot carries it only in Einsteiger mode after the auto-identification (idAt).
@@ -160,6 +162,7 @@ export class ContactBook {
       tr.scopeAt = d.time;
     }
     if (!tr.sensors.includes(d.sensor)) tr.sensors.push(d.sensor);
+    (tr.seenBy ??= {})[d.sensor] = d.time;
     if (d.classified) tr.classified = d.classified;
     if (d.emitter) {
       tr.emitter = d.emitter;

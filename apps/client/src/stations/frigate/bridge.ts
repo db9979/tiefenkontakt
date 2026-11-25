@@ -47,7 +47,7 @@ export function bridgeStation(): Station {
     </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
-  const box = fillBox(el.querySelector<HTMLElement>('#view-box')!, 300, 760);
+  const box = fillBox(el.querySelector<HTMLElement>('#view-box')!, 300);
   /** The 3D scene is created on first view and freed 20 s after the player leaves the bridge. */
   const ownCls = () => (store.snap?.own.cls === 'kor' || store.snap?.own.cls === 'ffv' ? store.snap.own.cls : store.snap?.own.cls === 'ffk' ? 'ffv' : 'ffg');
   const g3 = new LazyGl<Periscope3D>(el.querySelector<HTMLCanvasElement>('#gl')!, (c) =>

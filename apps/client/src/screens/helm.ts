@@ -127,6 +127,7 @@ export function mountHelm(el: HTMLElement) {
     </div>
     <div id="depth-box">
       <div class="row"><span class="dim">TIEFE</span><span id="h-dep"></span></div>
+      <div class="hm-depinfo" id="h-dep2"></div>
       <div class="steps">
         <button id="h-peri" title="Sehrohrtiefe ${PERISCOPE_DEPTH} m">Sehrohr</button>
         <button id="h-above" title="Knapp über der Sprungschicht">Über Schicht</button>
@@ -406,8 +407,11 @@ export function mountHelm(el: HTMLElement) {
       depthAlarms.update(s);
       if (spec.submarine) {
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
-        const ground = s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
-        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? (s.env.noLayer ? 'KEINE' : '?')}</span>${ground} ${depthAlarms.helmTag()}`);
+        // Depth on one line; layer, bottom and an alarm as one row of small facts under it (no wrapping)
+        setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span>`);
+        const ground = s.env.bottom !== undefined ? `<span class="${under! < 40 ? 'red blink' : ''}">GRUND ${s.env.bottom} M</span>` : '';
+        const layer = `<span>SCHICHT ${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M` : s.env.noLayer ? 'KEINE' : '?'}</span>`;
+        setHtml(q('#h-dep2'), [layer, ground, depthAlarms.helmTag()].filter(Boolean).join(''));
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
         const lay = s.env.layerDepth;
         depthBtn(q('#h-peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);

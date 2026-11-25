@@ -88,7 +88,11 @@ export class Waterfall {
     const lines: Line[] = [];
     for (const c of s.contacts) {
       if (c.via !== 'own' || s.time - c.lastSeen > 2) continue;
-      if (!c.sensors.some((x) => this.sensors.includes(x))) continue;
+      // Only what this array hears now: a contact another sensor holds (radar, eye) leaves no trace here,
+      // so nothing paints in the deaf sector astern
+      const seen = c.seenBy as Record<string, number | undefined> | undefined;
+      const heardNow = this.sensors.some((x) => (seen?.[x] ?? ((c.sensors as string[]).includes(x) ? c.lastSeen : -Infinity)) >= s.time - 2);
+      if (!heardNow) continue;
       // dB brightness with slow multipath fading; weak contacts break up, loud ones spread
       const db = c.se + this.fader.at(c.label, s.time);
       if (Math.random() > showChance(db)) continue;
