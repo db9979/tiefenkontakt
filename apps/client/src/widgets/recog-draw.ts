@@ -117,13 +117,28 @@ export function topSvg(pics: Pics, cls: ClassId): string {
   </svg>`;
 }
 
-/** Narrowband lines 0–500 Hz as bars (height from the line's strength); snorkel lines in amber. HTML, so labels keep their size. */
+/**
+ * Narrowband lines 0–500 Hz as bars (height from the line's strength), each with its frequency
+ * right under it; snorkel lines in amber. Close lines put their labels on a second row.
+ * HTML, so labels keep their size.
+ */
 export function lofarChart(sheet: AcousticSheet): string {
-  const axis = [0, 100, 200, 300, 400, 500].map((hz) => `<div style="position:absolute;left:${hz / 5}%;bottom:1px;transform:translateX(${hz === 0 ? 0 : hz === 500 ? -100 : -50}%);font-size:0.75rem;color:var(--dim)">${hz}</div>`).join('');
-  const bars = lofarBars(sheet).map((b) => `<div title="${n1(b.hz)} Hz" style="position:absolute;left:calc(${(b.x * 100).toFixed(2)}% - 1.5px);bottom:16px;width:3px;height:${(b.h * 62).toFixed(0)}px;background:${b.snorkel ? 'var(--amber)' : 'var(--g)'}"></div>`).join('');
-  return `<div style="position:relative;height:84px;background:var(--well);border:1px solid var(--line);padding:0 8px;margin-top:2px">
+  const BASE = 34;
+  const axis = [0, 100, 200, 300, 400, 500].map((hz) => `<div style="position:absolute;left:${hz / 5}%;bottom:0;transform:translateX(${hz === 0 ? 0 : hz === 500 ? -100 : -50}%);font-size:0.6875rem;color:var(--dim)">${hz}</div>`).join('');
+  const lines = lofarBars(sheet).sort((a, b) => a.x - b.x);
+  let lastX = -1;
+  let row = 0;
+  const labels = lines.map((b) => {
+    row = b.x - lastX < 0.07 ? 1 - row : 0;
+    lastX = b.x;
+    const color = b.snorkel ? 'var(--amber)' : 'var(--g)';
+    const shift = b.x < 0.03 ? 0 : b.x > 0.97 ? -100 : -50;
+    return `<div style="position:absolute;left:${(b.x * 100).toFixed(2)}%;bottom:${row ? 11 : 21}px;transform:translateX(${shift}%);font-size:0.75rem;color:${color};white-space:nowrap">${n1(b.hz)}</div>`;
+  }).join('');
+  const bars = lines.map((b) => `<div title="${n1(b.hz)} Hz" style="position:absolute;left:calc(${(b.x * 100).toFixed(2)}% - 1.5px);bottom:${BASE}px;width:3px;height:${(b.h * 62).toFixed(0)}px;background:${b.snorkel ? 'var(--amber)' : 'var(--g)'}"></div>`).join('');
+  return `<div style="position:relative;height:104px;background:var(--well);border:1px solid var(--line);padding:0 8px;margin-top:2px">
     <div style="position:relative;height:100%">
-      <div style="position:absolute;left:0;right:0;bottom:16px;border-top:1px solid var(--line2)"></div>${bars}${axis}
+      <div style="position:absolute;left:0;right:0;bottom:${BASE}px;border-top:1px solid var(--line2)"></div>${bars}${labels}${axis}
     </div>
   </div>`;
 }

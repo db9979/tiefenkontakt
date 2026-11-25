@@ -24,6 +24,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - **Erkennungsheft als PDF:** In der Lobby und in der Hilfe neben dem Handbuch zum Herunterladen: Titelseite mit allen
   Silhouetten im Maßstab, dann je Klasse eine A4-Seite mit Sicht, Bedrohung, Radar im ESM und Akustik
   (`npx tsx scripts/handbook/recog-pdf.ts` baut es neu).
+- **Schelf ausgeglichen:** Die U-Boote warten 12 statt 10 km abseits der Route. KI-Arena je 12 Partien, Grund / Ost
+  gemischt / West gemischt / beide gemischt: vorher 4:8, 11:1, 2:10, 2:10, jetzt 5:7, 7:5, 6:6, 4:8.
 - **Weniger ESM-Meldungen:** Dasselbe Radar auf derselben Peilung kommt nur neu, stärker, näherkommend oder nach zwei
   Minuten wieder ins Meldungsprotokoll (Flugzeug- und Feuerleitradar nach 30 s).
 - **Zeitraffer voreingestellt auf Echtzeit:** 2× und 3× bleiben in der Lobby wählbar.

@@ -204,6 +204,7 @@ describe('AI captains', () => {
     lobby.handle(solo, { t: 'ready', ready: true });
     m.stop();
     expect(m.slots.filter((s) => s.bot).map((s) => s.cls).sort()).toEqual(['ssk', 'ssn']);
+    m.settings.timeScale = 3; // half an hour of sea time in 6000 ticks
     for (let i = 0; i < 6000 && !m.world!.events.some((e) => e.kind === 'transient'); i++) m.tick();
     expect(m.world!.events.some((e) => e.kind === 'transient' && e.sourceId.startsWith('p_bot'))).toBe(true);
     const text = solo.inbox.filter((x) => x.t === 'snap').map((x) => JSON.stringify(x)).join('');

@@ -57,7 +57,8 @@ export type TimeOfDay = 'tag' | 'daemmerung' | 'nacht';
  */
 export const MISSIONS: Record<MissionId, { title: string; info: string; seabed: SeabedKind; region: RegionId; subSpread: number; convoyKn?: number; escortY?: number }> = {
   groenland: { title: 'Grönland-Lücke', info: 'Färöer-Bank: aus dem tiefen Färöer-Bank-Kanal (700 m) auf die flache Bank (100–200 m), nur dort Minen', seabed: 'tief', region: 'faroebank', subSpread: 4000 },
-  schelf: { title: 'Schelfmeer', info: 'Barentssee bei der Bäreninsel (120–240 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', region: 'barents', subSpread: 10_000 },
+  // Boats wait 12 km off the route (arena, Schelf, 12 games each, base / East mixed / West mixed / both mixed: 10 km 4:8 11:1 2:10 2:10, 12 km 5:7 7:5 6:6 4:8, 14 km 10:2 9:3 9:3 5:7)
+  schelf: { title: 'Schelfmeer', info: 'Barentssee bei der Bäreninsel (120–240 m): schwache Schicht, Nachhall, wenig Tauchtiefe', seabed: 'schelf', region: 'barents', subSpread: 12_000 },
   // A slow convoy; in the wide real fjord the escorts screen ahead of it again (level with its head the boats won 9 in 10)
   fjord: { title: 'Fjordausfahrt', info: 'Vestfjord zwischen Lofoten und Festland (300–600 m); wer die Rinne verlässt, läuft auf', seabed: 'fjord', region: 'vestfjord', subSpread: 2500, convoyKn: 8, escortY: 4000 },
   duell: { title: 'U-Boot-Duell', info: 'Lofotenbecken (3000 m), kein Konvoi: wer zuerst hört, gewinnt', seabed: 'tief', region: 'lofotenbasin', subSpread: 3000 },
