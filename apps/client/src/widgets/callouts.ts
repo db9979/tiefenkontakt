@@ -1,8 +1,9 @@
-import { CLASSES, angleDiff, type AlertView, type Snapshot } from '@tk/shared';
+import { CLASSES, angleDiff, isDangerEmitter, type AlertView, type Snapshot } from '@tk/shared';
 import { announce } from '../a11y.js';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { store } from '../store.js';
+import { EsmThrottle } from './esm-throttle.js';
 import { tdeg3 } from './format.js';
 
 /**
@@ -61,7 +62,10 @@ function say(text: string, urgent: boolean): void {
 const LEVEL: Record<string, LogEntry['level']> = { flash: 'alarm', command: 'info', boat: 'warn', sighting: 'warn', torpedo: 'alarm', sunk: 'alarm', ping: 'warn', esm: 'warn', transient: 'warn', hit: 'info' };
 
 export class Callouts {
+  private esm = new EsmThrottle();
+
   reset(): void {
+    this.esm.clear();
     this.log = [];
     this.prev = undefined;
     this.known.clear();
@@ -129,6 +133,8 @@ export class Callouts {
       } else if (a.kind === 'hit') {
         this.report(s, { level: 'info', text: a.text }, en ? `Explosion, bearing ${b}.` : `Explosion, Peilung ${b}.`);
       } else if (a.kind === 'esm') {
+        // The same radar on the same bearing only when new, stronger, closing or after a quiet spell
+        if (!this.esm.report(a, isDangerEmitter(a.emitter))) continue;
         this.report(s, { level: 'warn', text: a.text }, en ? `Radar intercept, bearing ${b}.` : `Radarpeilung, Peilung ${b}.`);
       } else if (a.kind === 'sunk' || a.kind === 'flash') {
         // FLASH orders: the orders panel sounds the teletype alarm and speaks
