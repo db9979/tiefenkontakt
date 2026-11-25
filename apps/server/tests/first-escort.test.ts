@@ -82,7 +82,7 @@ describe('Erste Geleitfahrt (guided first escort)', () => {
       let result: ReturnType<typeof lessonResult>;
       for (let i = 0; i < 10 * 60 * 30 && !result; i++) {
         stepWorld(w);
-        if (w.time > 300 && (w.air?.buoys.length ?? 0) === 0 && !w.air?.sorties.length) {
+        if (w.time > 300 && (w.air?.buoys.length ?? 0) === 0 && !w.air?.helos?.[frigate.id]?.queue.length) {
           expect(applyCommand(w, frigate, { t: 'buoy', bearing: 90, range: 4000, deep: true })).toBeUndefined();
         }
         if (heardAt === undefined && heard(w, frigate.id, sub.id)?.sensors.includes('towed')) {

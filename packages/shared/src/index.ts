@@ -30,6 +30,8 @@ export * from './tma.js';
 export * from './tma-lsq.js';
 export * from './signatures.js';
 export * from './aviation.js';
+export * from './helo.js';
+export * from './helo-view.js';
 export * from './damage.js';
 export * from './compartments.js';
 export * from './flooding.js';

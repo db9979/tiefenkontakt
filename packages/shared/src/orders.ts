@@ -5,6 +5,7 @@ import { KN, angleDiff, bearing, distance, headingVec, wrap360, type Vec2 } from
 import { Rng } from './rng.js';
 import type { World } from './world.js';
 import { trueDeg3 } from './regions.js';
+import { heloLow } from './helo.js';
 
 /**
  * FLASH orders: fleet command issues one to three time-limited orders per side during a
@@ -271,7 +272,7 @@ function check(w: World, o: FlashOrder, fresh: World['events']): void {
     const air = w.air;
     const byShip = sideShips(w, o.team).some((s) => inside(s.pos));
     const byAir = !!air && (air.buoys.some((b) => mine(b.ownerId) && inside(b.pos)) ||
-      air.sorties.some((x) => x.kind === 'dip' && mine(x.shipId) && w.time >= x.dropAt && w.time < (x.hoverUntil ?? 0) && inside(x.target)));
+      Object.values(air.helos ?? {}).some((h) => heloLow(h) === 'dip' && mine(h.shipId) && inside(h)));
     if (byShip || byAir) return finish(w, o, 'done');
   }
   if (w.time < o.deadline) return;

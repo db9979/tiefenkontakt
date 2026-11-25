@@ -1,9 +1,8 @@
-import { havenBlocks } from './haven.js';
 import { currentAt } from './currents.js';
 import { ambientNoise, reverbLevel, transmissionLoss, DT_ACTIVE, DT_PASSIVE, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { dbSum } from './math.js';
 import { CLASSES, hasHelicopter, isEscort } from './classes.js';
-import { dropLightweight } from './weapons.js';
+import { HELO_BUOYS, HELO_TORPS, newHelo, stepHelos, type Helo } from './helo.js';
 import { bookFor } from './world.js';
 import type { Ship } from './entities.js';
 import { KN, bearing, distance, headingVec, wrap360, type Vec2 } from './math.js';
@@ -16,11 +15,14 @@ import { aircraftRadarSweep } from './airspace.js';
 import { soundPathDepth as pathDepth, terrainLossDb } from './terrain.js';
 import type { World } from './world.js';
 
-/** Frigate helicopter dropping passive DIFAR sonobuoys. */
+/**
+ * Air wing: sonobuoys (passive DIFAR, active DICASS), the patrol aircraft's buoy lines, MAD and
+ * active pings from the water. The ship's helicopter and its task queue live in helo.ts.
+ */
 
 export const HELO_SPEED = 120 * KN; // m/s
+/** Farthest task point from the own ship. */
 export const HELO_RANGE = 30_000; // m
-export const HELO_TURNAROUND = 120; // s on deck after landing
 export const BUOY_LIFE = 1800; // s
 export const BUOY_BEARING_SD = 4; // deg (DIFAR)
 const BUOY_SHALLOW = 30;
@@ -63,23 +65,28 @@ export interface Sortie {
 
 export interface AirState {
   buoys: Buoy[];
+  /** Patrol aircraft (older saves: helicopter sorties too, migrated on the next step). */
   sorties: Sortie[];
+  /** Ship's magazine of sonobuoys (not yet loaded into the helicopter). */
   stock: Map<string, number>;
   nextId: number;
-  /** Helicopter lightweight torpedoes per frigate. */
+  /** Ship's magazine of helicopter lightweight torpedoes (not yet loaded). */
   heloTorps?: Map<string, number>;
   /** Maritime patrol aircraft per team: ready time and buoys left. */
   mpa?: Record<string, { readyAt: number; buoys: number }>;
+  /** The ship's helicopter with its task queue, per ship id (helo.ts). Missing in older saves. */
+  helos?: Record<string, Helo>;
 }
 
-export const DIP_HOVER_S = 300;
+/** Dipping sonar: hover time per dip. */
+export const DIP_HOVER_S = 180;
 /** MAD search: a cloverleaf at 30–60 m over the datum. */
 export const MAD_PATTERN_S = 360;
 const MAD_PETAL_M = 900;
 const MAD_ALT_M = 50;
 const MAD_SURE_M = 250;
 const MAD_MAX_M = 400;
-const DIP_PING_S = 20;
+export const DIP_PING_S = 20;
 const DIP_RANGE = 12_000;
 export { DIP_RANGE };
 const MPA_SPEED = 300 * KN;
@@ -87,101 +94,73 @@ const MPA_COOLDOWN = 1800;
 const MPA_PATTERN = 6;
 const MPA_SPACING = 3000;
 
-export function installAir(w: World, buoysPerFrigate = 16): AirState {
+/**
+ * Air wing of the match. Every ship with a helicopter starts with it on deck, fuelled and loaded
+ * (HELO_BUOYS buoys, HELO_TORPS torpedoes), and one reload of each in the ship's magazine
+ * (`magazineBuoys`, HELO_TORPS).
+ */
+export function installAir(w: World, magazineBuoys = HELO_BUOYS): AirState {
   const stock = new Map<string, number>();
-  for (const s of w.ships) if (hasHelicopter(s.cls)) stock.set(s.id, buoysPerFrigate);
   const heloTorps = new Map<string, number>();
-  for (const s of w.ships) if (hasHelicopter(s.cls)) heloTorps.set(s.id, 2);
+  for (const s of w.ships) {
+    if (!hasHelicopter(s.cls)) continue;
+    stock.set(s.id, magazineBuoys);
+    heloTorps.set(s.id, HELO_TORPS);
+  }
   const teams = new Set(w.ships.filter((s) => isEscort(s.cls)).map((s) => s.team));
   const mpa: AirState['mpa'] = {};
   for (const t of teams) mpa[t] = { readyAt: 0, buoys: 18 };
-  w.air = { buoys: [], sorties: [], stock, nextId: 1, heloTorps, mpa };
+  w.air = { buoys: [], sorties: [], stock, nextId: 1, heloTorps, mpa, helos: {} };
+  for (const s of w.ships) if (hasHelicopter(s.cls)) w.air.helos![s.id] = newHelo(s, HELO_BUOYS, HELO_TORPS);
   w.systems.push(airSystem);
   return w.air;
 }
 
-/** Launch the helicopter to drop a buoy at a point. deep = below the layer. */
-function heloCheck(w: World, ship: Ship, target: Vec2): string | undefined {
-  const air = w.air;
-  if (!air || !hasHelicopter(ship.cls)) return 'Kein Hubschrauber an Bord';
-  if (!ship.alive) return 'Schiff ist gesunken';
-  if (air.sorties.some((s) => s.shipId === ship.id && s.kind !== 'mpa' && w.time < s.readyAt)) return 'Hubschrauber ist unterwegs';
-  if (distance(ship.pos, target) > HELO_RANGE) return 'Außer Reichweite des Hubschraubers (30 km)';
-  return undefined;
-}
-
-function launchHelo(w: World, ship: Ship, target: Vec2, kind: SortieKind, deep: boolean): void {
-  const flight = distance(ship.pos, target) / HELO_SPEED;
-  const hover = kind === 'dip' ? DIP_HOVER_S : kind === 'mad' ? MAD_PATTERN_S : 0;
-  w.air!.sorties.push({
-    kind, shipId: ship.id, from: { ...ship.pos }, target: { ...target }, launchAt: w.time, dropAt: w.time + flight,
-    hoverUntil: kind === 'dip' || kind === 'mad' ? w.time + flight + hover : undefined,
-    landAt: w.time + 2 * flight + hover, readyAt: w.time + 2 * flight + hover + HELO_TURNAROUND, deep, dropped: false,
-  });
-}
-
-/** Dipping sonar: the helicopter hovers and pings from above or below the layer. */
-export function sendDip(w: World, ship: Ship, target: Vec2, deep: boolean): true | string {
-  const e = heloCheck(w, ship, target);
-  if (e) return e;
-  launchHelo(w, ship, target, 'dip', deep);
-  return true;
-}
-
-/** MAD search: the helicopter flies a low cloverleaf over a datum; a hull close below it is detected. */
-export function sendMad(w: World, ship: Ship, target: Vec2): true | string {
-  const e = heloCheck(w, ship, target);
-  if (e) return e;
-  launchHelo(w, ship, target, 'mad', false);
-  return true;
-}
-
 /** Four-petal rose around the datum, one petal per 90 s. */
-function cloverleaf(center: Vec2, t: number): Vec2 {
+export function cloverleaf(center: Vec2, t: number): Vec2 {
   const th = (t / MAD_PATTERN_S) * Math.PI * 2;
   const r = MAD_PETAL_M * Math.abs(Math.sin(2 * th));
   return { x: center.x + r * Math.cos(th), y: center.y + r * Math.sin(th) };
 }
 
-/** Once a second: every low-flying MAD sortie and patrol aircraft checks for a hull below it. */
-function madSweep(w: World): void {
-  const air = w.air!;
-  for (const s of air.sorties) {
-    if (s.kind !== 'mad' && s.kind !== 'mpa') continue;
-    const owner = w.ships.find((x) => x.id === s.shipId);
-    if (!owner?.alive) continue;
-    const p = aircraftPosition(s, w.time, owner);
-    if (!p) continue;
-    for (const sub of w.ships) {
-      if (!sub.alive || !CLASSES[sub.cls].submarine || sub.team === owner.team) continue;
-      const horiz = distance(p, sub.pos);
-      const slant = Math.hypot(horiz, sub.depth + MAD_ALT_M);
-      if (slant > MAD_MAX_M || (slant > MAD_SURE_M && w.rng.next() > 0.3)) continue;
-      const det: Detection = {
-        observerId: owner.id, targetId: sub.id, sensor: 'mad', time: w.time,
-        bearing: wrap360(bearing(p, sub.pos) + w.rng.gauss(0, 4)), range: Math.max(20, horiz + w.rng.gauss(0, 40)), se: 15,
-        originX: p.x, originY: p.y,
-      };
-      w.lastDetections.push(det);
-      bookFor(w, owner.id).ingest(det);
-      if (!s.madHit) w.events.push({ kind: 'boat', time: w.time, shipId: owner.id, what: 'mad', text: 'MAD-KONTAKT · MAGNETISCHE ANOMALIE UNTER DEM HUBSCHRAUBER' });
-      s.madHit = true;
-    }
+/**
+ * One MAD look from a low aircraft at p: every enemy hull close below it is detected and goes
+ * into the owner's book. Returns whether anything was found.
+ */
+export function madLook(w: World, owner: Ship, p: Vec2): boolean {
+  let hit = false;
+  for (const sub of w.ships) {
+    if (!sub.alive || !CLASSES[sub.cls].submarine || sub.team === owner.team) continue;
+    const horiz = distance(p, sub.pos);
+    const slant = Math.hypot(horiz, sub.depth + MAD_ALT_M);
+    if (slant > MAD_MAX_M || (slant > MAD_SURE_M && w.rng.next() > 0.3)) continue;
+    const det: Detection = {
+      observerId: owner.id, targetId: sub.id, sensor: 'mad', time: w.time,
+      bearing: wrap360(bearing(p, sub.pos) + w.rng.gauss(0, 4)), range: Math.max(20, horiz + w.rng.gauss(0, 40)), se: 15,
+      originX: p.x, originY: p.y,
+    };
+    w.lastDetections.push(det);
+    bookFor(w, owner.id).ingest(det);
+    hit = true;
   }
+  return hit;
 }
 
-/** Helicopter drops a lightweight torpedo at a point. */
-export function sendHeloTorpedo(w: World, ship: Ship, target: Vec2): true | string {
-  const e = heloCheck(w, ship, target);
-  if (e) return e;
-  const left = w.air!.heloTorps?.get(ship.id) ?? 0;
-  if (left <= 0) return 'Keine Hubschrauber-Torpedos mehr';
-  const haven = havenBlocks(w, ship.team, target);
-  if (haven) return haven;
-  w.air!.heloTorps!.set(ship.id, left - 1);
-  w.events.push({ kind: 'weapon', time: w.time, sourceId: ship.id, what: 'rocket' });
-  launchHelo(w, ship, target, 'torpedo', false);
-  return true;
+/** The MAD-contact report to the crew. */
+export function madReport(w: World, owner: Ship): void {
+  w.events.push({ kind: 'boat', time: w.time, shipId: owner.id, what: 'mad', text: 'MAD-KONTAKT · MAGNETISCHE ANOMALIE UNTER DEM HUBSCHRAUBER' });
+}
+
+/** Once a second: every patrol aircraft checks for a hull below it. */
+function madSweep(w: World): void {
+  for (const s of w.air!.sorties) {
+    if (s.kind !== 'mpa') continue;
+    const owner = w.ships.find((x) => x.id === s.shipId);
+    const p = owner?.alive ? aircraftPosition(s, w.time, owner) : undefined;
+    if (!owner || !p || !madLook(w, owner, p)) continue;
+    if (!s.madHit) madReport(w, owner);
+    s.madHit = true;
+  }
 }
 
 /** Maritime patrol aircraft: lays a line of buoys across a bearing, then needs 30 min to return. */
@@ -202,65 +181,36 @@ export function callMpa(w: World, ship: Ship, center: Vec2, acrossBearing: numbe
   return true;
 }
 
-export function sendBuoy(w: World, ship: Ship, target: Vec2, deep: boolean, active = false): true | string {
-  const e = heloCheck(w, ship, target);
-  if (e) return e;
-  const air = w.air!;
-  const left = air.stock.get(ship.id) ?? 0;
-  if (left <= 0) return 'Keine Sonarbojen mehr';
-  const d = distance(ship.pos, target);
-  air.stock.set(ship.id, left - 1);
-  w.events.push({ kind: 'weapon', time: w.time, sourceId: ship.id, what: 'buoy' });
-  void d;
-  launchHelo(w, ship, target, 'buoy', deep);
-  if (active) air.sorties[air.sorties.length - 1]!.active = true;
-  return true;
+/** Depth for a buoy at p: shallow (30 m) or below the layer, at least 10 m off the bottom. */
+function buoyDepthAt(w: World, p: Vec2, deep: boolean): number {
+  const bottom = depthAt(w.env.seabed, p.x, p.y);
+  return Math.max(10, Math.min(deep ? (w.env.layerDepth > 0 ? w.env.layerDepth + 40 : 150) : BUOY_SHALLOW, bottom - 10));
 }
 
-/** Helicopter position while airborne (straight out and back). */
-export function heloPosition(s: Sortie, now: number, ship: Ship): Vec2 | undefined {
-  if (now < s.launchAt || now > s.landAt) return undefined;
-  if (now <= s.dropAt) {
-    const f = (now - s.launchAt) / Math.max(1, s.dropAt - s.launchAt);
-    return { x: s.from.x + (s.target.x - s.from.x) * f, y: s.from.y + (s.target.y - s.from.y) * f };
-  }
-  const f = (now - s.dropAt) / Math.max(1, s.landAt - s.dropAt);
-  return { x: s.target.x + (ship.pos.x - s.target.x) * f, y: s.target.y + (ship.pos.y - s.target.y) * f };
+/** A sonobuoy into the water at p (passive 30 min, active 15 min); the splash can be heard. */
+export function layBuoy(w: World, ownerId: string, p: Vec2, depth: number, active = false): Buoy {
+  const air = w.air!;
+  const b: Buoy = { id: `B${air.nextId++}`, ownerId, pos: { ...p }, depth, expiresAt: w.time + (active ? BUOY_LIFE / 2 : BUOY_LIFE), active: active || undefined };
+  air.buoys.push(b);
+  w.events.push({ kind: 'transient', time: w.time, sourceId: ownerId, x: p.x, y: p.y, what: 'splash' });
+  return b;
 }
 
-export function airSystem(w: World): void {
+export function airSystem(w: World, dt = 0.1): void {
   const air = w.air!;
-  const buoyDepth = (p: Vec2, deep: boolean) => {
-    const bottom = depthAt(w.env.seabed, p.x, p.y);
-    return Math.max(10, Math.min(deep ? (w.env.layerDepth > 0 ? w.env.layerDepth + 40 : 150) : BUOY_SHALLOW, bottom - 10));
-  };
+  stepHelos(w, dt);
+  // Patrol aircraft: the buoy line goes in across the bearing when it is over the point
   for (const s of air.sorties) {
-    const owner = w.ships.find((x) => x.id === s.shipId);
-    if (s.kind === 'dip' && owner?.alive && w.time >= s.dropAt && w.time < (s.hoverUntil ?? 0) && w.time - (s.lastPing ?? -1e9) >= DIP_PING_S) {
-      s.lastPing = w.time;
-      const dets = dipPing(w, s, owner, buoyDepth(s.target, s.deep));
-      w.lastDetections.push(...dets);
-      for (const d of dets) bookFor(w, d.observerId).ingest(d);
-    }
-    if (s.dropped || w.time < s.dropAt) continue;
+    if (s.kind !== 'mpa' || s.dropped || w.time < s.dropAt) continue;
     s.dropped = true;
-    const kind = s.kind ?? 'buoy';
-    // A buoy hitting the water is a sharp transient that boats nearby can hear
-    if (kind === 'buoy' || kind === 'torpedo') w.events.push({ kind: 'transient', time: w.time, sourceId: s.shipId, x: s.target.x, y: s.target.y, what: 'splash' });
-    // Active buoys run their battery down in 15 minutes, passive ones last 30
-    if (kind === 'buoy') air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: { ...s.target }, depth: buoyDepth(s.target, s.deep), expiresAt: w.time + (s.active ? BUOY_LIFE / 2 : BUOY_LIFE), active: s.active || undefined });
-    // The pilot holds fire if an own boat has come into the haven meanwhile
-    else if (kind === 'torpedo' && !havenBlocks(w, w.ships.find((x) => x.id === s.shipId)?.team ?? 'neutral', s.target)) dropLightweight(w, s.shipId, s.target);
-    else if (kind === 'mpa') {
-      const across = headingVec((s.bearing ?? 0) + 90);
-      for (let i = 0; i < MPA_PATTERN; i++) {
-        const off = (i - (MPA_PATTERN - 1) / 2) * MPA_SPACING;
-        const p = { x: s.target.x + across.x * off, y: s.target.y + across.y * off };
-        air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: p, depth: buoyDepth(p, s.deep), expiresAt: w.time + BUOY_LIFE * 1.5 });
-      }
+    const across = headingVec((s.bearing ?? 0) + 90);
+    for (let i = 0; i < MPA_PATTERN; i++) {
+      const off = (i - (MPA_PATTERN - 1) / 2) * MPA_SPACING;
+      const p = { x: s.target.x + across.x * off, y: s.target.y + across.y * off };
+      air.buoys.push({ id: `B${air.nextId++}`, ownerId: s.shipId, pos: p, depth: buoyDepthAt(w, p, s.deep), expiresAt: w.time + BUOY_LIFE * 1.5 });
     }
   }
-  if (Math.floor(w.time) !== Math.floor(w.time - 0.1)) {
+  if (Math.floor(w.time) !== Math.floor(w.time - dt)) {
     madSweep(w);
     aircraftRadarSweep(w);
   }
@@ -269,8 +219,8 @@ export function airSystem(w: World): void {
   // Buoys drift with the current; active ones ping on their own
   for (const b of air.buoys) {
     const cur = currentAt(w.env, b.pos, b.depth, w.time);
-    b.pos.x += cur.x * 0.1;
-    b.pos.y += cur.y * 0.1;
+    b.pos.x += cur.x * dt;
+    b.pos.y += cur.y * dt;
     if (b.active && w.time >= (b.nextPing ?? 0)) {
       b.nextPing = w.time + 45;
       const owner = w.ships.find((x) => x.id === b.ownerId);
@@ -305,15 +255,15 @@ export function buoySensors(buoys: readonly Buoy[], ctx: SensorContext): Detecti
 }
 
 /** One dipping-sonar ping: echoes (with range) for the frigate, intercepts for every listening boat. */
-function dipPing(w: World, s: Sortie, owner: Ship, depth: number): Detection[] {
-  return activePing(w, s.target, depth, owner, 212, 'dip', DIP_RANGE);
+export function dipPing(w: World, at: Vec2, owner: Ship, depth: number): Detection[] {
+  return activePing(w, at, depth, owner, 212, 'dip', DIP_RANGE);
 }
 
 /**
  * An active ping from a point in the water (dipping sonar, DICASS buoy): range and bearing
  * from that point for the owner, and an intercept for every boat that hears it.
  */
-function activePing(w: World, from: Vec2, depth: number, owner: Ship, sl: number, source: 'dip' | 'buoy', maxRange: number): Detection[] {
+export function activePing(w: World, from: Vec2, depth: number, owner: Ship, sl: number, source: 'dip' | 'buoy', maxRange: number): Detection[] {
   const out: Detection[] = [];
   const nl = ambientNoise(w.env, from);
   const s = { target: from };

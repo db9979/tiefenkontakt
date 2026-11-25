@@ -9,7 +9,7 @@ import { guardFire, targetCheck } from '../../widgets/fire-guard.js';
 import { h, km, setHtml } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 
-const KIND = { buoy: 'BOJEN LEGEN', dip: 'TAUCHSONAR', torpedo: 'TORPEDOANGRIFF', mpa: 'SEEFERNAUFKLÄRER', mad: 'MAD-SUCHE' } as const;
+const KIND = { buoy: 'BOJEN LEGEN', dip: 'TAUCHSONAR', torpedo: 'TORPEDOANGRIFF', mpa: 'SEEFERNAUFKLÄRER', mad: 'MAD-SUCHE', transit: 'IM FLUG' } as const;
 
 /** Where the selected contact probably is: a fresh fix, else the TMA solution. */
 function targetPoint(): Vec2 | undefined {
