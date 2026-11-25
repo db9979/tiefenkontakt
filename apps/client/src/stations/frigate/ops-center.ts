@@ -62,9 +62,11 @@ export function opsCenterStation(): Station {
   const box = fillBox(q('#plot-box'), 300);
   const escort = mountEscortOrders(q('#group-slot'));
   const helo = mountHeloPanel(q('#helo-slot'));
-  const tabs = panelTabs(q('#tabs'), 'opz');
+  // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
+  let redraw = () => {};
+  const tabs = panelTabs(q('#tabs'), 'opz', () => redraw());
 
-  return {
+  const station: Station = {
     id: 'opz',
     title: 'OPZ',
     el,
@@ -92,4 +94,8 @@ export function opsCenterStation(): Station {
       helo.dispose?.();
     },
   };
+  redraw = () => {
+    if (store.snap) station.snap?.();
+  };
+  return station;
 }

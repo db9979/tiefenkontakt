@@ -55,7 +55,7 @@ export const LESSON_STEPS: Record<string, Lesson> = {
       { station: 'sonar', where: 'Schleppsonar', target: '[data-len="900"]', do: 'Bringe das Schleppsonar mit 900 m aus.', why: 'Lang liegt es unter der Sprungschicht. Die Winde braucht knapp 4 Minuten; danach 60 s Kurs halten.', done: (s) => s.own.towedLength >= 600 },
       { station: 'opz', where: 'Sonarboje', target: '#plot', do: 'Rechtsklick vor den Konvoi: „Sonarboje tief“.', done: (s) => (s.air?.buoys.length ?? 0) > 0 },
       { station: 'sonar', where: 'Klassifizieren', target: '[data-ptab="ana"]', do: 'Finde den leisen Kontakt und klassifiziere ihn per LOFAR/DEMON als U-Boot.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine') },
-      { station: 'sonar', where: 'Aktiv', target: '#as-one', do: 'Reiter „Aktiv“: LFM wählen und einen Einzelping senden.', why: 'Der Ping gibt die Entfernung (LFM ist genauer), verrät aber die Fregatte.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine' && c.range !== undefined) },
+      { station: 'sonar', where: 'Aktiv', target: '#as-one', do: 'Reiter „Aktiv“: LFM und 16 KM wählen, dann Einzelpings, bis eine Entfernung steht.', why: 'Der Ping gibt die Entfernung (LFM ist genauer), verrät aber die Fregatte.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine' && c.range !== undefined) },
       { station: 'waffen', where: 'Rakete', target: '#rocket', do: 'U-Jagd-Rakete auf das U-Boot (Knopf oder Rechtsklick auf die Karte).', done: (s) => s.own.loadout.rockets < 8 },
     ],
   },
