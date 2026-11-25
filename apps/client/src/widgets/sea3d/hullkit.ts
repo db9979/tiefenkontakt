@@ -16,7 +16,7 @@ export const std = (color: number, o: THREE.MeshStandardMaterialParameters = {})
 
 export const K = {
   navy: std(0x6b767c), navyDark: std(0x4d565b), deck: std(0x3d4244, { roughness: 0.95 }), black: std(0x1a1d1f, { roughness: 0.6 }),
-  white: std(0xcfd4d4, { roughness: 0.7 }), glass: std(0x0a1013, { roughness: 0.15, metalness: 0.6 }), sub: std(0x2a3135, { roughness: 0.55, metalness: 0.2 }),
+  white: std(0xcfd4d4, { roughness: 0.7 }), glass: std(0x0a1013, { roughness: 0.15, metalness: 0.6, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }), sub: std(0x2a3135, { roughness: 0.55, metalness: 0.2 }),
   rubber: std(0x15181a, { roughness: 0.95 }), orange: std(0xd8732e, { roughness: 0.6 }), steel: std(0x8b9499, { roughness: 0.5, metalness: 0.5 }),
 };
 
@@ -226,6 +226,8 @@ export function lathe(g: THREE.Object3D, profile: [number, number][], m: THREE.M
   return mesh;
 }
 
+const RAIL = new THREE.LineBasicMaterial({ color: 0x9aa3a8 });
+
 /** Deck-edge railing on both sides between z0 and z1 (thin lines, cheap). */
 export function railing(g: THREE.Object3D, h: Hull, z0: number, z1: number, height = 1.1, inset = 0.25): void {
   const pts: number[] = [];
@@ -242,7 +244,7 @@ export function railing(g: THREE.Object3D, h: Hull, z0: number, z1: number, heig
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x9aa3a8 })));
+  g.add(new THREE.LineSegments(geo, RAIL));
 }
 
 /** Dark window band on a box face: x side (±1 or 0 for the front), centred at (x, y, z). */

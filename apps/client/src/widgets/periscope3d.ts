@@ -104,6 +104,7 @@ export class Periscope3D {
 
   constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
     this.eye = opts.eye ?? 4;
+    this.camera.near = opts.own ? 1.5 : 3; // depth precision at range: nothing comes within 3 m of a periscope head
     canvas.classList.add('gl');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x24343b);

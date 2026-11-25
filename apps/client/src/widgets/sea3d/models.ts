@@ -7,7 +7,8 @@ import { trawler, yacht } from './smallcraft.js';
 import { cargoShip, convoyShip } from './freighter.js';
 import type { ConvoyType } from './convoy-types.js';
 import { look, type Look } from './variety.js';
-import { asw, corvette, vdsFrigate } from './warships.js';
+import { corvette, vdsFrigate } from './warships.js';
+import { asw, patrolShip } from './escorts.js';
 
 /**
  * Low-poly ship models for the 3D sea view. Bow toward +z, waterline at y = 0.
@@ -53,22 +54,6 @@ export function shipModel(cls: ClassId, id?: string | number): THREE.Group {
   else surfacedBoat(g, cls);
   cabinLights(g, lk.seed);
   return g;
-}
-
-/** Ostpakt ASW patrol ship (Krivak type): the VDS frigate's lines stretched, a big quadruple ASW launcher on the forecastle, no hangar. */
-function patrolShip(g: THREE.Group): void {
-  const hull = new THREE.Group();
-  vdsFrigate(hull, true);
-  hull.scale.z = 123 / 113;
-  g.add(hull);
-  const launcher = new THREE.Group();
-  for (const sx of [-1, 1]) for (const sy of [0, 1]) {
-    const tube = add(launcher, new THREE.CylinderGeometry(0.55, 0.55, 7.5, 10), M.grey, sx * 0.62, sy * 1.15, 0);
-    tube.rotation.x = Math.PI / 2 - 0.12;
-  }
-  add(launcher, new THREE.BoxGeometry(3, 0.6, 3), M.hullGrey, 0, -0.7, -1.5);
-  launcher.position.set(0, 8.2, 47);
-  g.add(launcher);
 }
 
 /**

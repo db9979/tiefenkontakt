@@ -6,7 +6,8 @@ import { blockWindows, deckPaint } from './civil.js';
 import { hullFor, pick, stretch, type Look } from './variety.js';
 
 /**
- * Small civil craft: sloops and ketches under sail, motor yachts, stern trawlers with a ramp
+ * Small civil craft: sloops under sail (the yacht class always carries a mast: the stadimeter
+ * ranges on it), stern trawlers with a ramp
  * and gantry, and older side trawlers with the bridge aft and gallows at the rail. Bow +z,
  * waterline y = 0, port = +x. Each takes a Look (variety.ts) for its colours and size.
  */
@@ -24,7 +25,6 @@ SAIL_MAT.customProgramCacheKey = () => 'sailcloth';
 
 /** Sailing yacht (~13 m sloop) under sail: coachroof, cockpit, mast with main and jib sheeted to starboard. */
 export function yacht(g: THREE.Group, lk: Look): void {
-  if (lk.varied && lk.r() < 0.35) return motorYacht(g, lk);
   const r = lk.r;
   const hullC = pick(r, [C.white, C.white, C.blue, 0x2b4a3a, 0x9a2a2a, 0x23324a]);
   const len = 13;
@@ -50,7 +50,7 @@ export function yacht(g: THREE.Group, lk: Look): void {
   // Mast on the coachroof, spreaders, boom swung out to starboard
   const zM = 1.5;
   const yM = h.deckAt(-1.4) + 0.5;
-  const mh = 13 + r() * 4;
+  const mh = 14 + r() * 3;
   const head: V3 = [0, yM + mh, zM];
   k.cyl(0.11, mh, 0, yM + mh / 2, zM, C.steel, 0.08, 6);
   k.box(2.4, 0.06, 0.1, 0, yM + mh * 0.55, zM, C.steel);
@@ -160,35 +160,6 @@ export function trawler(g: THREE.Group, lk: Look): void {
   navLights(g, len, beam, yR + 6.5, 11, h.deckAt(0));
   wake(g, 70, beam, len / 2, -len / 2);
   stretch(g, lk, 0.15, 0.06);
-}
-
-/** Motor yacht (~18 m): flybridge cruiser with a raked saloon and a dark window band. */
-function motorYacht(g: THREE.Group, lk: Look): void {
-  const r = lk.r;
-  const len = 16 + r() * 6;
-  const beam = len * 0.27;
-  const L = len / 2;
-  const hullC = pick(r, [C.white, C.white, C.blue, 0x23324a, 0xcfc7b0]);
-  const h = loftHull(g, {
-    len, beam, freeboard: 1.6, draft: 1.1, sheerBow: 0.7, sheerStern: 0.1, rake: 2.2, flare: 0.12, fullness: 0.2, transom: 0.85, bilge: 0.2,
-    colors: { top: hullC, boot: hullC === C.white ? pick(r, [C.blue, C.dark, C.red]) : C.white, bottom: 0x23324a }, boot: [-0.05, 0.25],
-  });
-  const k = new Kit(g);
-  deckPaint(k, h, -L + 0.3, L - 1.5, 0.12, C.wood);
-  const y0 = base(h, -L * 0.6, L * 0.35);
-  const hw = narrowest(h, -L * 0.6, L * 0.35) - 0.35;
-  // Saloon with a raked front, window band, flybridge with its own screen and a short mast
-  loftBlock(k, h, -L * 0.6, L * 0.35, 0.35, () => y0, () => y0 + 2.1, C.white);
-  for (const sx of [-1, 1]) k.box(0.06, 0.7, len * 0.7, sx * (hw + 0.02), y0 + 1.3, -L * 0.12, C.glass);
-  k.box(hw * 2 - 0.4, 0.8, 0.1, 0, y0 + 1.3, L * 0.35 + 0.03, C.glass);
-  k.block(hw * 1.6, 0.9, len * 0.4, 0, y0 + 2.1, -L * 0.2, C.white);
-  k.box(hw * 1.6, 0.35, 0.08, 0, y0 + 3.15, -L * 0.2 + len * 0.2, C.glass);
-  pole(k, 0, y0 + 3, -L * 0.3, 2.5, 0.08, C.white, [0.7], 1.2);
-  radar(g, k, 0, y0 + 3, -L * 0.1, 1.2);
-  railing(g, h, -L + 0.5, L - 1, 0.7, 0.12);
-  k.done();
-  navLights(g, len, beam, y0 + 5.5, -L * 0.3, h.deckAt(0));
-  wake(g, 40, beam, L, -L);
 }
 
 /** Side trawler (~50 m, the older type): long forecastle, bridge and funnel aft, gallows at the starboard rail, two masts. */
