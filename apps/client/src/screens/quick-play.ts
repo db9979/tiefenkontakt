@@ -26,10 +26,10 @@ function rows(list: WeeklyRow[]): string {
  */
 export function quickPanel(): HTMLElement {
   const el = h(`<div class="panel" style="margin-top:10px">
-    <div class="hd"><span>Sofort spielen</span><span class="dim">GEGEN DIE KI · OHNE LOBBY</span></div>
+    <div class="hd"><span>Gegen KI spielen</span><span class="dim">ALLEIN · OHNE LOBBY · SOFORT LOS</span></div>
     <div class="row" style="gap:6px;flex-wrap:wrap">
-      <span class="dim" title="Zufällige Mission, Tageszeit, Wetter und Lage; leere Plätze spielt die KI">ZUFÄLLIGE LAGE</span>
-      <span style="display:flex;gap:6px"><button data-solo="west" title="Sofort als Fregatte gegen KI-U-Boote">Als Geleitschutz</button><button data-solo="east" title="Sofort als U-Boot gegen die KI-Eskorte">Als U-Boot</button></span>
+      <span class="dim" title="Zufällige Mission, Tageszeit, Wetter und Lage; die Gegner spielt die KI">ZUFÄLLIGE LAGE</span>
+      <span style="display:flex;gap:6px"><button data-solo="east" class="on" title="Sofort als U-Boot gegen die KI-Eskorte">Als U-Boot</button><button data-solo="west" class="on" title="Sofort als Fregatte gegen KI-U-Boote">Als Geleitschutz</button></span>
     </div>
     <div id="wk" style="margin-top:8px"><div class="dim">WOCHENLAGE WIRD GELADEN …</div></div>
   </div>`);

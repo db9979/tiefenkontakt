@@ -12,6 +12,29 @@ import { CLASS_NAME, esc, h } from '../widgets/format.js';
 import { missionCards, paintMissionCharts } from '../widgets/mission-cards.js';
 import { logout } from './logout.js';
 
+/**
+ * First steps for someone new (an account without a finished match, or a guest): the two
+ * guided first sorties as the one primary action, above "Gegen KI spielen" and "Mit anderen spielen".
+ */
+function heroRow(slot: HTMLElement): void {
+  fetch('/api/stats').then(async (r) => {
+    const d = r.ok ? (await r.json()) as { summary?: { matches: number } } : undefined;
+    if (d && (d.summary?.matches ?? 0) > 0) return slot.remove();
+    slot.outerHTML = `<div class="panel hero" style="margin-bottom:10px;border-color:var(--amber-line)">
+      <div class="hd"><span class="amber">Neu hier?</span><span class="dim">GEFÜHRTE ERSTE FAHRT · SCHRITT FÜR SCHRITT</span></div>
+      <div class="grid2">
+        <button class="primary on" data-hero="feindfahrt" style="text-align:left;text-transform:none;padding:10px"><div>→ U-Boot lernen</div><div class="dim">Tauchen, Horchen, Lösung, Torpedo</div></button>
+        <button class="primary on" data-hero="geleitfahrt" style="text-align:left;text-transform:none;padding:10px"><div>→ Fregatte lernen</div><div class="dim">Schleppsonar, Boje, Ping, U-Jagd-Rakete</div></button>
+      </div></div>`;
+    document.querySelectorAll<HTMLButtonElement>('[data-hero]').forEach((b) => {
+      b.onclick = () => net.send({ t: 'training', lesson: b.dataset.hero as 'feindfahrt' | 'geleitfahrt' });
+    });
+  }).catch(() => slot.remove());
+}
+
+/** One class per side for a first match: the boats and ships the guided sorties teach. */
+const BEGINNER = new Set(['ssk', 'ffg']);
+
 const rankShort = (r: string) => ({ 'Kapitän zur See': 'KptzS', Fregattenkapitän: 'FKpt', Korvettenkapitän: 'KKpt', Kapitänleutnant: 'KptLt', 'Oberleutnant zur See': 'OLzS', 'Leutnant zur See': 'LzS' })[r] ?? r;
 
 /** Match browser plus the lobby of the joined match. */
@@ -19,6 +42,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
   let matches: MatchSummary[] = [];
   let match: MatchLobby | undefined;
   let error = '';
+  /** "Erweitert" stays open across lobby re-renders. */
+  let advOpen = false;
 
   const el = h(`<div class="center"></div>`);
   root.replaceChildren(el);
@@ -50,13 +75,18 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       el.innerHTML = `
         <div class="title">TIEFENKONTAKT</div>
         <div class="dim" style="margin-bottom:16px;display:flex;gap:10px;align-items:center">EINGELOGGT ALS ${esc(me.callsign)} <button id="logout" title="Abmelden und zurück zur Anmeldung">Abmelden</button></div>
-        <div class="panel">
+        <div id="hero"></div>
+        <div id="vs-ai"></div>
+        <div class="panel" style="margin-top:10px">
+          <div class="hd"><span>Mit anderen spielen</span><span class="dim">LOBBY · BIS ZU 6 GEGEN 6</span></div>
+          <div class="steps" style="margin-bottom:8px;flex-wrap:wrap">
+            <button id="quick" class="on" title="Der offenen Partie mit den passendsten Mitspielern beitreten; gibt es keine, wird eine eröffnet">Offener Partie beitreten</button>
+          </div>
           <div id="mlist"></div>
           <div class="newmatch">
             <input id="mname" placeholder="Grönland-Lücke" maxlength="40">
             <label class="dim" title="Nicht in der Liste; nur per Einladungslink"><input type="checkbox" id="mpriv"> PRIVAT</label>
-            <button id="create">Partie erstellen</button>
-            <button id="quick" class="on" title="Einer offenen Partie beitreten oder eine neue eröffnen">Schnelles Spiel</button>
+            <button id="create">Eigene Partie erstellen</button>
           </div>
           <div class="err" id="merr"></div>
         </div>
@@ -71,7 +101,8 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
             <button data-lesson="ujagd" style="text-align:left;text-transform:none"><div>4 · U-Jagd mit Fregatte</div><div class="dim">Schleppsonar, Bojen, Rakete</div></button>
           </div>
         </div>`;
-      el.querySelector('.panel')!.after(quickPanel());
+      el.querySelector('#vs-ai')!.replaceWith(quickPanel());
+      heroRow(el.querySelector<HTMLElement>('#hero')!);
       el.appendChild(careerPanels());
       el.appendChild(campaignPanel());
       el.appendChild(seriesPanel());
@@ -90,6 +121,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       return renderList();
     }
     el.dataset.view = 'match';
+    advOpen = el.querySelector<HTMLDetailsElement>('#adv')?.open ?? advOpen;
     // Keep a half-typed chat line and the focus across re-renders
     const draft = el.querySelector<HTMLInputElement>('#lc-text')?.value ?? '';
     const typing = document.activeElement?.id === 'lc-text';
@@ -116,7 +148,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           ${mine?.crewOf ? '<div class="dim" style="margin-bottom:6px">DU FÄHRST ALS BESATZUNG MIT. ALLE AN BORD KÖNNEN JEDE STATION BEDIENEN.</div>' : ''}
           <div class="grid2">${classes.map((c) => `
             <button data-cls="${c}" class="${mine?.cls === c ? 'on' : ''}" style="text-align:left;text-transform:none;padding:10px">
-              <div>${CLASS_NAME[c].title}</div><div class="dim">${CLASS_NAME[c].info}</div></button>`).join('')}
+              <div>${CLASS_NAME[c].title}</div>${BEGINNER.has(c) && match!.settings.mission !== 'duell' ? '<div class="amber">EMPFOHLEN FÜR EINSTEIGER</div>' : ''}<div class="dim">${CLASS_NAME[c].info}</div></button>`).join('')}
           </div></div>
         <div class="panel"><div class="hd"><span>Einstellungen</span></div>
           <div class="dim" style="margin:2px 0 4px">MISSION</div>
@@ -124,7 +156,6 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           <select id="s-mission" style="display:none">
             <option value="groenland">Grönland-Lücke · tief</option><option value="schelf">Schelfmeer · flach</option><option value="fjord">Fjordausfahrt · Kanal</option>
             <option value="duell">U-Boot-Duell</option><option value="hafen">Hafenangriff</option><option value="fuehlung">Fühlung halten</option><option value="meerenge">Meerengen-Durchbruch</option><option value="aufklaerung">Aufklärung</option><option value="eigene">Eigene Mission</option></select>
-          <div class="row"><span class="dim" title="Echte Seegebiete (Tiefen: NOAA ETOPO 2022). Jede Mission spielt in den Gebieten, die zu ihr passen">SEEGEBIET</span><select id="s-area">${areasFor(match.settings.mission).map((id: RegionId) => `<option value="${id}">${esc(REGIONS[id].name)}</option>`).join('')}</select></div>
           <div id="custom" style="display:none">
             <div class="row"><span class="dim">FRACHTER</span><select id="c-n">${[4, 6, 8, 10, 12].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
             <div class="row"><span class="dim">KONVOIFAHRT</span><select id="c-kn">${[7, 9, 11, 13].map((v) => `<option value="${v}">${v} KN</option>`).join('')}</select></div>
@@ -132,17 +163,20 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
             <div class="row"><span class="dim">U-BOOTE WARTEN BEI</span><select id="c-sub">${[0.3, 0.5, 0.7].map((v) => `<option value="${v}">${Math.round(v * 100)} % DER ROUTE</option>`).join('')}</select></div>
           </div>
           <div class="row"><span class="dim">TAGESZEIT</span><select id="s-tod"><option value="tag">Tag</option><option value="daemmerung">Dämmerung</option><option value="nacht">Nacht</option><option value="zufall">Zufall</option></select></div>
+          <div class="row"><span class="dim" title="So lange dauert die Partie in echten Minuten; mit Zeitraffer vergeht auf See entsprechend mehr Zeit">EINSATZDAUER</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
+          <details id="adv" ${advOpen ? 'open' : ''} style="margin-top:6px"><summary class="dim" style="cursor:pointer" title="Seegebiet, Jahreszeit, Wetter, Seegang, Variation, Zeitraffer, KI und Übungsmodus">ERWEITERT</summary>
+          <div class="row"><span class="dim" title="Echte Seegebiete (Tiefen: NOAA ETOPO 2022). Jede Mission spielt in den Gebieten, die zu ihr passen">SEEGEBIET</span><select id="s-area">${areasFor(match.settings.mission).map((id: RegionId) => `<option value="${id}">${esc(REGIONS[id].name)}</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Monat der Partie: Sonnenstand (Polarnacht, Mitternachtssonne), Sprungschicht, Nebel und Eis wie im echten Seegebiet">JAHRESZEIT</span><select id="s-season"><option value="zufall">ZUFALL</option><option value="winter">WINTER</option><option value="fruehling">FRÜHLING</option><option value="sommer">SOMMER</option><option value="herbst">HERBST</option></select></div>
           <div class="row"><span class="dim">WETTER</span><select id="s-wx"><option value="wechselhaft">WECHSELHAFT</option><option value="stabil">STABIL</option><option value="zufall">ZUFALL</option></select></div>
           <div class="row"><span class="dim">SEEGANG</span><select id="s-sea">${[1, 2, 3, 4, 5, 6].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Wartepositionen, Abstände, Route, Konvoifahrt und Seegang (±1) ändern sich von Partie zu Partie">VARIATION</span><select id="s-var"><option value="aus">AUS</option><option value="leicht">GERING</option><option value="stark">STARK</option></select></div>
           ${match.settings.lage !== undefined ? `<div class="row"><span class="dim">LAGE</span><span>#${match.settings.lage} · WIE IN DER LETZTEN PARTIE</span></div>` : ''}
-          <div class="row"><span class="dim" title="So lange dauert die Partie in echten Minuten; mit Zeitraffer vergeht auf See entsprechend mehr Zeit">EINSATZDAUER</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Wie schnell die Zeit auf See läuft. Die echte Spieldauer bleibt gleich; mit Zeitraffer ist der Weg des Konvois länger und die Lage weiter auseinander">ZEITRAFFER</span><select id="s-scale">${TIME_SCALES.map((n) => `<option value="${n}">${n === 1 ? 'ECHTZEIT' : `${n}×`} · ${seaMinutesFor(match!.settings.timeLimitMin, n)} MIN AUF SEE</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>
           <div class="row"><span class="dim">KI-STÄRKE</span><select id="s-skill"><option value="leicht">LEICHT</option><option value="normal">NORMAL</option><option value="schwer">SCHWER</option></select></div>
           <div class="row"><span class="dim" title="Wahrheitsansicht, Zeitraffer und Ziele setzen; ohne Wertung">ÜBUNGSMODUS (SANDKASTEN)</span><select id="s-sandbox"><option value="0">NEIN</option><option value="1">JA</option></select></div>
           <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${match.settings.layerDepth > 0 ? match.settings.layerDepth + ' M' : 'UNBEKANNT · MESSEN'}</span></div>
+          </details>
 
           <div style="display:flex;gap:6px;margin-top:10px">
             <button id="ready" class="${mine?.ready ? 'on' : ''}" style="flex:1">${mine?.ready ? 'Bereit ✓' : 'Bereit melden'}</button>
