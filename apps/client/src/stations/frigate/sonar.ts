@@ -68,7 +68,9 @@ export function frigateSonarStation(): Station {
   q('#as-slot').replaceWith(scope.el);
   const range = rangePanel();
   q('#range-slot').replaceWith(range.el);
-  const tabs = panelTabs(q('#tabs'), 'fsonar');
+  // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
+  let redraw = () => {};
+  const tabs = panelTabs(q('#tabs'), 'fsonar', () => redraw());
   for (const [wf, cv] of [[hull, hullCv], [tow, towCv]] as const) {
     cv.style.cursor = 'pointer';
     cv.onmousedown = (e) => {
@@ -89,7 +91,7 @@ export function frigateSonarStation(): Station {
   q<HTMLButtonElement>('#mav').onclick = () => net.send({ t: 'toggle', what: 'mineavoid', on: !store.snap?.own.mineAvoid });
   q<HTMLButtonElement>('#vds').onclick = () => net.send({ t: 'toggle', what: 'vds', on: !(store.snap?.own.vdsOrder ?? 0) });
 
-  return {
+  const station: Station = {
     id: 'sonar',
     title: 'Sonar',
     el,
@@ -158,4 +160,8 @@ export function frigateSonarStation(): Station {
       towBox.dispose();
     },
   };
+  redraw = () => {
+    if (store.snap) station.snap?.();
+  };
+  return station;
 }
