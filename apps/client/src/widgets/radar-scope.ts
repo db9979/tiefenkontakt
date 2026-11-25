@@ -145,6 +145,21 @@ export class RadarScope {
       pc.fillStyle = 'rgba(200,250,225,0.85)';
       pc.beginPath(); pc.arc(C + Math.cos(a) * r, C + Math.sin(a) * r, 2.5 + b.r / 60, 0, TAU); pc.fill();
     }
+    // Aircraft held by the radar: a small, sharp return each time the beam passes (smaller than a ship's)
+    for (const pl of s.planes ?? []) {
+      if (!pl.via.includes('radar') || pl.x === undefined || pl.y === undefined || pl.rough) continue;
+      const brg = (Math.atan2(pl.x - s.own.x, pl.y - s.own.y) * 180) / Math.PI;
+      if ((brg - prev + 720) % 360 > span) continue;
+      const r = Math.hypot(pl.x - s.own.x, pl.y - s.own.y) * scale;
+      if (r > R) continue;
+      const a = toRad(brg);
+      const x = C + Math.cos(a) * r, y = C + Math.sin(a) * r;
+      const g = pc.createRadialGradient(x, y, 0, x, y, 4.5);
+      g.addColorStop(0, 'rgba(235,255,245,0.95)');
+      g.addColorStop(1, 'rgba(93,202,165,0)');
+      pc.fillStyle = g;
+      pc.beginPath(); pc.arc(x, y, 4.5, 0, TAU); pc.fill();
+    }
     // Contacts painted by this sweep segment
     for (const c of s.contacts) {
       if (!c.sensors.includes('radar') || c.range === undefined || s.time - c.lastSeen > 3) continue;
@@ -216,7 +231,7 @@ export class RadarScope {
     ctx.textAlign = 'left';
     for (let i = 1; i <= 4; i++) {
       ctx.beginPath(); ctx.arc(cx, cy, (rr * i) / 4, 0, TAU); ctx.stroke();
-      if (i < 4) ctx.fillText(`${(rangeNm * i) / 4}`, cx + 3, cy - (rr * i) / 4 + 11);
+      if (i < 4) ctx.fillText(`${String((rangeNm * i) / 4).replace('.', ',')} SM`, cx + 3, cy - (rr * i) / 4 + 11);
     }
     ctx.beginPath(); ctx.moveTo(cx - rr, cy); ctx.lineTo(cx + rr, cy); ctx.moveTo(cx, cy - rr); ctx.lineTo(cx, cy + rr); ctx.stroke();
     // Bezel: true bearing ring with 5° ticks, numerals every 30°
