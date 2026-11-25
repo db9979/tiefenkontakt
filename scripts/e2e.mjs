@@ -253,12 +253,13 @@ async function main() {
   assert(true, `all ${tabCount} stations opened`);
 
   step = 'orders';
-  await A.click('#h-steps button[data-s="3"]');
+  await A.click('#h-tel [data-tel="6"]');
   await waitFor('speed order applied', () => A.ev(`__tk.store.snap.own.order.speedKn === 12`), 10_000);
   // Course: click the compass east of its centre (090)
   const c = await A.ev(`(() => { const r = document.querySelector('#h-compass').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()`);
   for (const type of ['mousePressed', 'mouseReleased']) await A.cmd('Input.dispatchMouseEvent', { type, x: c.x + c.w * 0.35, y: c.y, button: 'left', clickCount: 1 });
-  await waitFor('course order applied', () => A.ev(`Math.abs(__tk.store.snap.own.order.heading - 90) < 10`), 10_000);
+  // The rose is north-up in true degrees; the order travels in the game frame (north.ts converts)
+  await waitFor('course order applied', () => A.ev(`import('/src/north.ts').then((n) => Math.abs(((n.trueDeg(__tk.store.snap.own.order.heading) - 90 + 540) % 360) - 180) < 10)`), 10_000);
   assert(true, 'helm orders (speed 12 kn, course 090) reached the server');
   await A.ev(`__tk.msgs.length = 0; __tk.net.send({ t: 'sandbox', op: 'truth', on: true }); true`);
   await waitFor('sandbox refusal', () => A.ev(`__tk.msgs.some((m) => m.t === 'error' && /Sandkasten/.test(m.msg))`), 5000);
