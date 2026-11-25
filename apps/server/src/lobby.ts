@@ -230,6 +230,10 @@ export class Lobby {
   handle(conn: Conn, msg: ClientMsg): void {
     const err = (e: string | undefined) => e && conn.send({ t: 'error', msg: e });
     if (msg.t === 'voice') return void err(this.voice.handle(conn, msg));
+    // Sent on every connect and match, in or out of one: never an error toast
+    if (msg.t === 'realism') return void this.matchOf(conn.playerId)?.setRealism(conn.playerId, msg.realism);
+    // Optic reports arrive while sunk or after the end too: quietly ignored then
+    if (msg.t === 'scope') return void this.matchOf(conn.playerId)?.command(conn.playerId, msg);
     switch (msg.t) {
       case 'create_match': {
         const m = this.create(msg.name);
