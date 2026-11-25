@@ -1,0 +1,43 @@
+/* Widget fixes (contact list, waterfall and analysis toolbars, scopes): loaded after stations.css */
+
+/* Contact list: KLASSE holds only the class, PEGEL the level or the age (right-aligned) */
+.clist .ctable { grid-template-columns: 74px minmax(0, 1fr) minmax(0, 0.8fr) 40px minmax(0, 1.2fr) 72px; }
+.clist.norange .ctable { grid-template-columns: 74px minmax(0, 1.1fr) 40px minmax(0, 1.4fr) 72px; }
+.clist .ctable > span:nth-last-child(2) { text-align: left; }
+.clist .ctable > span:last-child { text-align: right; }
+/* Filter chips stay on one row (the count right); they shrink rather than wrap */
+.clist .chips { flex-wrap: nowrap; min-width: 0; }
+.clist .chips .chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.clist .chips .chipcount { flex: 0 0 auto; white-space: nowrap; }
+
+/* Waterfall display controls: one height with the other footer controls (24 px), no lone wraps */
+.wf-ctl { display: inline-flex; gap: 3px; align-items: stretch; white-space: nowrap; }
+.wf-ctl button { min-height: 24px; padding: 0 7px; font-size: var(--fs-cap); line-height: 22px; white-space: nowrap; }
+.wf-ctl > .seg > button { min-width: 24px; }
+.st.sub-horch .foot .lm-seg > button, .st.sub-horch .foot > button { min-height: 24px; padding: 0 7px; font-size: var(--fs-cap); line-height: 22px; white-space: nowrap; }
+/* The LOFAR popover button looks like a button (it was dim like a disabled one) and never wraps */
+.st.sub-horch details.pop > summary { color: var(--g2); min-height: 24px; line-height: 22px; white-space: nowrap; }
+.st.sub-horch details.pop[open] > summary { color: var(--g); }
+
+/* Signal analysis: buttons in the panel's top corner (HOCH) sat under the CRT vignette and looked
+   disabled; the controls are drawn above it like every other button */
+body.crt .analysis button { position: relative; z-index: 1; }
+body.crt .analysis button.on { z-index: 2; }
+
+/* Active sonar: ping, pulse and range as three joined groups on one row (16 KM no longer wraps alone) */
+.as-bar { display: flex; gap: 4px; align-items: stretch; flex-wrap: wrap; margin-bottom: 4px; }
+.as-bar > .seg { flex: 0 0 auto; }
+.as-bar > .seg > button { padding: 3px 7px; white-space: nowrap; }
+.as-bar > .as-range { margin-left: auto; }
+
+/* ESM list: one row per intercept: label · bearing · emitter · strength · age */
+.row.esm-row { display: grid; grid-template-columns: 4ch 5ch minmax(0, 1fr) auto auto; gap: 8px; align-items: baseline; }
+.row.esm-row > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; text-align: left; }
+.row.esm-row > span:nth-child(2), .row.esm-row > span:last-child { text-align: right; }
+.row.esm-row > .esm-lvl { font-size: var(--fs-cap); }
+
+/* Class buttons of the signal analysis: one row, each as wide as its word (no lone UNBEKANNT on a
+   second row); a 3 x 2 grid on a phone */
+.analysis .steps.cls-grid { display: flex; flex-wrap: nowrap; gap: 3px; }
+.analysis .steps.cls-grid > button { flex: 1 1 auto; min-width: 0; padding: 2px 3px; font-size: var(--fs-cap); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) { .analysis .steps.cls-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); } }

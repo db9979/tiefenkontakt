@@ -1,5 +1,6 @@
 import './style.css';
 import './stations.css';
+import './widgets.css';
 import './stations-frigate.css';
 import './stations-sub.css';
 import './theme-light.css';
