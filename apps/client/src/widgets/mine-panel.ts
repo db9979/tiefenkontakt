@@ -1,7 +1,7 @@
 import { MINE_BOTTOM_MAX, MINE_LAY_MAX_KN, MINE_MAX_WATER, MINE_MIN_WATER } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { h, setHtml } from './format.js';
+import { h, kn, setHtml } from './format.js';
 
 /**
  * The boat's mines (fire-control station): how many are left, whether the water here takes
@@ -30,8 +30,11 @@ export function minePanel(): { el: HTMLElement; update(): void } {
       setHtml(q('#mn-st'), `
         <div class="row"><span class="dim">WASSERTIEFE</span><span class="${depthOk ? '' : 'amber'}">${water !== undefined ? `${water} M` : '—'} · ${
           !depthOk ? (water !== undefined && water < MINE_MIN_WATER ? 'ZU FLACH' : 'ZU TIEF') : water! <= MINE_BOTTOM_MAX ? 'GRUNDMINE' : 'ANKERTAUMINE'}</span></div>
-        <div class="row"><span class="dim">FAHRT</span><span class="${slow ? '' : 'amber'}">${s.own.speedKn.toFixed(1)} KN${slow ? '' : ` · MAX. ${MINE_LAY_MAX_KN} KN`}</span></div>`);
-      q<HTMLButtonElement>('#mn-lay').disabled = n <= 0 || !depthOk || !slow || !s.own.alive;
+        <div class="row"><span class="dim">FAHRT</span><span class="${slow ? '' : 'amber'}">${kn(s.own.speedKn)}${slow ? '' : ` · MAX. ${kn(MINE_LAY_MAX_KN)}`}</span></div>`);
+      // Red only when a mine can go: disabled in the neutral grey, not as a red alarm
+      const lay = q<HTMLButtonElement>('#mn-lay');
+      lay.disabled = n <= 0 || !depthOk || !slow || !s.own.alive;
+      lay.classList.toggle('fire', !lay.disabled);
     },
   };
 }

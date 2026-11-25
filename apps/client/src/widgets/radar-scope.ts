@@ -1,6 +1,7 @@
 import { inkOn, isInkLight } from './ink.js';
 import { depthAt, headingVec, isDangerEmitter, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
+import { plateText } from './canvas-text.js';
 import { northOff, toNorthUp } from '../north.js';
 
 /**
@@ -291,13 +292,14 @@ export class RadarScope {
       }
     }
     if (!on) {
-      ctx.fillStyle = 'rgba(232,195,122,0.85)';
+      // On a plate of the tube's glass: the crosshair, rings and strobes do not run through the words
+      ctx.fillStyle = 'rgba(232,195,122,0.95)';
       ctx.textAlign = 'center';
       ctx.font = `${Math.max(11, 14 * k)}px ui-monospace, monospace`;
-      ctx.fillText('STANDBY · SENDER AUS', cx, cy - 8);
-      ctx.fillStyle = 'rgba(159,230,204,0.6)';
+      plateText(ctx, 'STANDBY · SENDER AUS', cx, cy - 8, '#06140f', 4);
+      ctx.fillStyle = 'rgba(159,230,204,0.8)';
       ctx.font = `${Math.max(11, 11 * k)}px ui-monospace, monospace`;
-      ctx.fillText('ESM HÖRT WEITER MIT', cx, cy + 12);
+      plateText(ctx, 'ESM HÖRT WEITER MIT', cx, cy + 12, '#06140f', 4);
     }
     // Tube vignette
     const vig = ctx.createRadialGradient(cx, cy, rr * 0.7, cx, cy, rr);
