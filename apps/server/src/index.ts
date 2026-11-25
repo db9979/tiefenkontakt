@@ -441,7 +441,12 @@ wss.on('connection', (ws: WebSocket, req) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
   // A paired phone (3D view only): its own small protocol, phone.ts
   const phoneCode = url.searchParams.get('phone');
-  if (phoneCode !== null) return void phones.attach(ws, phoneCode);
+  if (phoneCode !== null) {
+    // The phone answers the heartbeat too (without this it was dropped at the first ping round)
+    alive.add(ws);
+    ws.on('pong', () => alive.add(ws));
+    return void phones.attach(ws, phoneCode);
+  }
   const user = auth.userForToken(parseCookies(req.headers.cookie)[COOKIE]);
   const conn: Conn = {
     ...identity(user, url.searchParams.get('guest'), url.searchParams.get('gid')),
