@@ -168,7 +168,9 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
         ctx.moveTo(cx + Math.sin(a) * R, cy - Math.cos(a) * R);
         ctx.lineTo(cx + Math.sin(a) * (R + len), cy - Math.cos(a) * (R + len));
         ctx.stroke();
-        if (d % 30 === 0) ctx.fillText(d === 0 ? 'N' : deg3(d), cx + Math.sin(a) * (R + 12), cy - Math.cos(a) * (R + 12) + 3);
+        // Labels beside the scale stand further out (they are wider than tall), clear of the 30° ticks
+        const off = R + 11 + Math.abs(Math.sin(a)) * 6;
+        if (d % 30 === 0) ctx.fillText(d === 0 ? 'N' : deg3(d), cx + Math.sin(a) * off, cy - Math.cos(a) * off + 3);
       }
       const hd = (trueDeg(o.heading) * Math.PI) / 180;
       ctx.strokeStyle = COL.blue;
