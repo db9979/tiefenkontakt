@@ -52,18 +52,20 @@ export function defaultAlarmCfg(testDepth: number): DepthAlarmCfg {
   };
 }
 
-/** Keeps values sane: whole metres, inside the hull's range, danger never above warning. */
+/** Keeps values sane: whole metres, inside the hull's range, upper above lower, danger never above warning. */
 export function sanitizeCfg(c: Partial<DepthAlarmCfg>, testDepth: number): DepthAlarmCfg {
   const d = defaultAlarmCfg(testDepth);
   const num = (v: unknown, def: number, lo: number, hi: number) =>
     typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : def;
   const bool = (v: unknown, def: boolean) => (typeof v === 'boolean' ? v : def);
   const groundWarn = num(c.groundWarn, d.groundWarn, 5, 300);
+  const lower = num(c.lower, d.lower, 10, Math.max(10, testDepth * 1.2));
   return {
     upperOn: bool(c.upperOn, d.upperOn),
-    upper: num(c.upper, d.upper, 0, testDepth),
+    // The upper limit stays at least 10 m above the lower one
+    upper: Math.min(num(c.upper, d.upper, 0, testDepth), lower - 10),
     lowerOn: bool(c.lowerOn, d.lowerOn),
-    lower: num(c.lower, d.lower, 10, Math.max(10, testDepth * 1.2)),
+    lower,
     groundOn: bool(c.groundOn, d.groundOn),
     groundWarn,
     groundDanger: Math.min(groundWarn, num(c.groundDanger, d.groundDanger, 1, 300)),

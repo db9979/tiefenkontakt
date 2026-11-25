@@ -75,4 +75,8 @@ describe('depth alarms', () => {
     expect(loadAlarmCfg('typ209', 250, st).lower).toBe(180);
     expect(loadAlarmCfg('other', 250, st).lower).toBe(225);
   });
+
+  it('keeps the upper limit at least 10 m above the lower one', () => {
+    expect(sanitizeCfg({ upper: 200, lower: 120 }, 300)).toMatchObject({ upper: 110, lower: 120 });
+  });
 });
