@@ -15,6 +15,10 @@ export const EN_WEAPONS: [string, string][] = [
   ['TRIMMPUMPEN LAUFEN · HÖRBAR', 'TRIM PUMPS RUNNING · AUDIBLE'],
   ['SCHNELLTAUCHEN · FLUTEN UND KLAPPERN IM BOOT', 'CRASH DIVE · FLOODING AND RATTLING IN THE BOAT'],
   ['SCHIFF SCHWER GETROFFEN · FÄLLT ZURÜCK', 'SHIP BADLY HIT · FALLING BEHIND'],
+  ['IM WURFFELD', 'IN THE PATTERN'], ['ZU NAH · UNTER 1,8 KM', 'TOO CLOSE · UNDER 1.8 KM'], ['Werfer leer', 'Mortar empty'],
+  ['Salve 400–800 m voraus geworfen', 'salvo thrown 400–800 m ahead'],
+  ['TRÄGT EINEN LEICHTGEWICHTSTORPEDO 1,8–18 KM WEIT, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. DER TORPEDO SUCHT AKTIV IM KREIS, ÜBER UND UNTER DER GEMESSENEN SCHICHT.',
+    'CARRIES A LIGHTWEIGHT TORPEDO 1.8–18 KM, FLIGHT ABOUT 40 S, SCATTER ABOUT 150 M. THE TORPEDO SEARCHES ACTIVELY IN CIRCLES, ABOVE AND BELOW THE MEASURED LAYER.'],
 ];
 
 export const EN_WEAPONS_PHRASES: [RegExp, string][] = [
@@ -25,4 +29,6 @@ export const EN_WEAPONS_PHRASES: [RegExp, string][] = [
   [/^(\d) TORPEDOS · FÄCHER (\d+)°$/, '$1 TORPEDOES · SPREAD $2°'],
   [/^Batterie bei (\d+) %: bei 4 kn etwa (\d+) h getaucht, bei 10 kn etwa (\d+),(\d) h; Schnorcheln lädt$/, 'Battery at $1 %: about $2 h submerged at 4 kn, about $3.$4 h at 10 kn; snorkelling charges'],
   [/^Werfer: noch (\d+) Salven$/, 'Mortar: $1 salvos left'],
+  [/^(\d+) \/ (\d+) M \(SCHICHT (\d+) M\)$/, '$1 / $2 M (LAYER $3 M)'], [/^(\d+) \/ (\d+) M · SCHICHT NICHT GEMESSEN \(BT\)$/, '$1 / $2 M · LAYER NOT MEASURED (BT)'],
+  [/ · BUG AUF DAS ZIEL, 400–800 M$/, ' · BOW ON THE TARGET, 400–800 M'],
 ];

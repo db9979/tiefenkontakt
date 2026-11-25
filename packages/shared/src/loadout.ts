@@ -29,13 +29,15 @@ const TEMPLATES: Record<ClassId, Omit<Loadout, 'tubes'> & { tubeCount: number }>
   // Coastal boat: eight bow tubes and no reloads (Type-206 style)
   // ... and an external mine belt around the hull (laid without using a tube)
   ssc: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 4, tubeCount: 8, reloadTime: 150, towedDecoy: false, xbt: 0, mines: 4 },
-  kor: { heavy: 0, light: 4, rockets: 4, depthCharges: 16, noisemakers: 0, tubeCount: 2, reloadTime: 50, towedDecoy: false, xbt: 6 },
+  // Escorts: depthCharges counts salvos of the ahead-throwing mortar (six charges each)
+  kor: { heavy: 0, light: 4, rockets: 4, depthCharges: 8, noisemakers: 0, tubeCount: 2, reloadTime: 50, towedDecoy: false, xbt: 6 },
   ssw: { heavy: 14, light: 0, rockets: 0, depthCharges: 0, noisemakers: 8, tubeCount: 4, reloadTime: 90, towedDecoy: false, xbt: 0 },
-  ffk: { heavy: 0, light: 8, rockets: 8, depthCharges: 12, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 6 },
-  ffv: { heavy: 0, light: 8, rockets: 8, depthCharges: 8, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
+  // Frigates: two triple tube mounts, all six loaded; a reload from the magazine takes 15 minutes
+  ffk: { heavy: 0, light: 10, rockets: 8, depthCharges: 6, noisemakers: 0, tubeCount: 6, reloadTime: 900, towedDecoy: false, xbt: 6 },
+  ffv: { heavy: 0, light: 10, rockets: 8, depthCharges: 6, noisemakers: 0, tubeCount: 6, reloadTime: 900, towedDecoy: false, xbt: 8 },
   ssa: { heavy: 8, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 4, reloadTime: 120, towedDecoy: false, xbt: 0, mines: 4 },
   fischer: NONE, tanker: NONE, container: NONE, faehre: NONE, schlepper: NONE, yacht: NONE,
-  ffg: { heavy: 0, light: 6, rockets: 8, depthCharges: 12, noisemakers: 0, tubeCount: 2, reloadTime: 60, towedDecoy: false, xbt: 8 },
+  ffg: { heavy: 0, light: 8, rockets: 8, depthCharges: 6, noisemakers: 0, tubeCount: 6, reloadTime: 900, towedDecoy: false, xbt: 8 },
   merchant: { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 },
 };
 

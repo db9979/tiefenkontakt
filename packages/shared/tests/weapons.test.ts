@@ -80,15 +80,19 @@ describe('frigate ASW weapons', () => {
     expect(sub.hp).toBeLessThan(80);
   });
 
-  it('depth charges hurt only nearby submarines', () => {
+  it('the mortar salvo lands 400–800 m ahead: it hurts a boat there, not one under the ship or far off', () => {
     const ffg = createShip({ id: 'f1', cls: 'ffg', name: 'F1', pos: { x: 0, y: 0 }, heading: 0 });
-    const near = createShip({ id: 'u1', cls: 'ssk', name: 'U1', pos: { x: 20, y: 0 }, heading: 0, depth: 100 });
-    const far = createShip({ id: 'u2', cls: 'ssk', name: 'U2', pos: { x: 3000, y: 0 }, heading: 0, depth: 100 });
-    const w = createWorld([ffg, near, far], 9);
+    const ahead = createShip({ id: 'u1', cls: 'ssk', name: 'U1', pos: { x: 0, y: 600 }, heading: 0, depth: 100 });
+    const under = createShip({ id: 'u2', cls: 'ssk', name: 'U2', pos: { x: 20, y: 0 }, heading: 0, depth: 100 });
+    const far = createShip({ id: 'u3', cls: 'ssk', name: 'U3', pos: { x: 3000, y: 0 }, heading: 0, depth: 100 });
+    const w = createWorld([ffg, ahead, under, far], 9);
     installWeapons(w);
-    dropDepthCharge(w, ffg, 100);
+    expect(dropDepthCharge(w, ffg, 100)).toBe(true);
     for (let i = 0; i < 300; i++) stepWorld(w);
-    expect(near.hp).toBeLessThan(80);
+    expect(ahead.hp).toBeLessThan(80);
+    expect(under.hp).toBe(80);
     expect(far.hp).toBe(80);
+    // The blasts are heard (transients)
+    expect(w.events.filter((e) => e.kind === 'transient' && e.what === 'charge').length).toBeGreaterThan(1);
   });
 });

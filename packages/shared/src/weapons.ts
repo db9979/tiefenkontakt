@@ -33,6 +33,8 @@ export interface Torpedo {
   alerted: string[]; // ship ids already warned
   /** Decoys the seeker has already classified as false targets. */
   rejected?: string[];
+  /** Lightweights: the two search depths (above and below the measured layer), one circle each in turn. */
+  searchDepths?: [number, number];
   /** Snake search: centre course and start time, set when the search (re)starts. */
   searchCourse?: number;
   searchSince?: number;
@@ -77,9 +79,25 @@ const WIRE_MAX_RANGE = 18_000;
 const WIRE_MAX_OWNER_KN = 12;
 const ALERT_RANGE = 8_000;
 const ROCKET_MAX_RANGE = 18_000;
+/** Inside this the rocket's trajectory can't bring the torpedo down (and it would land on the own wake). */
+const ROCKET_MIN_RANGE = 1800;
+/** Where the lightweight actually enters the water: aim point ± this (σ per axis, m). */
+const ROCKET_SCATTER = 150;
 const ROCKET_FLIGHT = 40;
-const DC_SINK_RATE = 4;
-const DC_LETHAL = 60;
+/**
+ * Ahead-throwing ASW mortar (replaces dropped depth charges): a salvo of charges laid in a line
+ * 400–800 m ahead on the own heading, sinking to the set depth. Lethal within 20 m, damage to 60 m.
+ */
+export const MORTAR_MIN = 400;
+export const MORTAR_MAX = 800;
+const MORTAR_CHARGES = 6;
+const MORTAR_LATERAL = 40;
+const MORTAR_FLIGHT_S = 8;
+const DC_SINK_RATE = 6;
+const DC_LETHAL = 20;
+const DC_DAMAGE_R = 60;
+/** Lightweight search: one circle (8°/s) at each of the two depths in turn. */
+const LIGHT_CIRCLE_S = 45;
 /** ASW lightweights ignore anything shallower (surface ships, towed decoys): no attacks on the own escort. */
 const LIGHT_CEILING = 10;
 /** Torpedoes keep this clearance above the seabed. */
@@ -133,7 +151,16 @@ export function defaultSpreadDeg(rangeM: number, tmaErrDeg = 1, targetLengthM = 
 }
 
 /** For the recognition book's threat page (ranges as the simulation uses them). */
-export { SPEC as TORPEDO_SPECS, ROCKET_MAX_RANGE, WIRE_MAX_RANGE, DC_LETHAL };
+export { SPEC as TORPEDO_SPECS, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, WIRE_MAX_RANGE, DC_LETHAL, DC_DAMAGE_R };
+
+/**
+ * Lightweight search depths from the ship's measured layer: just above it (≈40 m) and 40 m
+ * below it. No measurement: 40 and 120 m (the old fixed depth).
+ */
+export function lightSearchDepths(btLayer: number | undefined): [number, number] {
+  if (!btLayer || btLayer <= 0) return [40, 120];
+  return [Math.max(15, Math.min(40, btLayer - 10)), btLayer + 40];
+}
 
 
 export function createWeaponsState(ships: Ship[]): WeaponsState {
@@ -182,6 +209,10 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
     run: 0, maxRun: sp.maxRun, wire: kind === 'heavy', launchedAt: w.time, alerted: [shooter.id],
   };
   if (kind === 'heavy') t.maxRun = heavyRange(t.speedKn);
+  else {
+    t.searchDepths = lightSearchDepths(shooter.btLayer);
+    t.searchDepth = t.searchDepths[0];
+  }
   st.torpedoes.push(t);
   const at = { x: shooter.pos.x, y: shooter.pos.y };
   if (kind === 'heavy') w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'flood' });
@@ -236,24 +267,41 @@ export function steerTorpedo(w: World, shooter: Ship, torpId: string, heading: n
 export function launchAswRocket(w: World, shooter: Ship, aim: Vec2): true | string {
   const l = ws(w).loadouts.get(shooter.id);
   if (!l || l.rockets <= 0) return 'Keine Raketen';
-  if (distance(shooter.pos, aim) > ROCKET_MAX_RANGE) return 'Ziel außer Reichweite';
+  const r = distance(shooter.pos, aim);
+  if (r > ROCKET_MAX_RANGE) return 'Ziel außer Reichweite';
+  if (r < ROCKET_MIN_RANGE) return 'Ziel zu nah: U-Jagd-Rakete erst ab 1,8 km';
   const haven = havenBlocks(w, shooter.team, aim);
   if (haven) return haven;
   l.rockets -= 1;
   w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'rocket' });
-  ws(w).pending.push({ at: w.time + ROCKET_FLIGHT, kind: 'rocket', ownerId: shooter.id, pos: { ...aim }, depth: 0 });
+  // The rocket's ballistics and the parachute scatter the drop point around the aim
+  const drop = { x: aim.x + w.rng.gauss(0, ROCKET_SCATTER), y: aim.y + w.rng.gauss(0, ROCKET_SCATTER) };
+  ws(w).pending.push({ at: w.time + ROCKET_FLIGHT, kind: 'rocket', ownerId: shooter.id, pos: drop, depth: 0 });
   return true;
 }
 
+/**
+ * ASW mortar salvo: MORTAR_CHARGES charges thrown in a line 400–800 m ahead on the own
+ * heading (alternately a little to port and starboard), fused for `depth`.
+ */
 export function dropDepthCharge(w: World, shooter: Ship, depth: number): true | string {
   const l = ws(w).loadouts.get(shooter.id);
-  if (!l || l.depthCharges <= 0) return 'Keine Wasserbomben';
-  const haven = havenBlocks(w, shooter.team, shooter.pos);
+  if (!l || l.depthCharges <= 0) return 'Werfer leer';
+  const ahead = headingVec(shooter.heading);
+  const side = headingVec(shooter.heading + 90);
+  const mid = (MORTAR_MIN + MORTAR_MAX) / 2;
+  const centre = { x: shooter.pos.x + ahead.x * mid, y: shooter.pos.y + ahead.y * mid };
+  const haven = havenBlocks(w, shooter.team, centre);
   if (haven) return haven;
   l.depthCharges -= 1;
   w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'dc' });
   const d = clamp(depth, 20, 400);
-  ws(w).pending.push({ at: w.time + d / DC_SINK_RATE, kind: 'depthcharge', ownerId: shooter.id, pos: { ...shooter.pos }, depth: d });
+  for (let i = 0; i < MORTAR_CHARGES; i++) {
+    const along = MORTAR_MIN + ((MORTAR_MAX - MORTAR_MIN) * i) / (MORTAR_CHARGES - 1);
+    const lat = (i % 2 ? 1 : -1) * MORTAR_LATERAL;
+    const pos = { x: shooter.pos.x + ahead.x * along + side.x * lat, y: shooter.pos.y + ahead.y * along + side.y * lat };
+    ws(w).pending.push({ at: w.time + MORTAR_FLIGHT_S + d / DC_SINK_RATE, kind: 'depthcharge', ownerId: shooter.id, pos, depth: d });
+  }
   return true;
 }
 
@@ -385,7 +433,10 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
     } else {
       t.homingOn = undefined;
       // Search pattern: lightweights circle, heavyweights snake ±SNAKE_DEG around the course they had when the search began
-      if (t.kind === 'light') t.heading = wrap360(t.heading + 8 * dt);
+      if (t.kind === 'light') {
+        t.heading = wrap360(t.heading + 8 * dt);
+        if (t.searchDepths) t.searchDepth = t.searchDepths[Math.floor((w.time - t.launchedAt) / LIGHT_CIRCLE_S) % 2]!;
+      }
       else {
         if (t.searchCourse === undefined) {
           t.searchCourse = t.heading;
@@ -433,12 +484,17 @@ function hearsTorpedo(w: World, s: Ship, t: Torpedo, r: number): boolean {
   return towedArrayReady(s, w.time) && passiveExcessFrom(sl, t.depth, s, r, 'towed', w.env, towedArrayDepth(s)) > 0;
 }
 
-/** A lightweight torpedo entering the water at a point (ASW rocket, helicopter) and searching in circles. */
+/**
+ * A lightweight torpedo entering the water at a point (ASW rocket, helicopter) and searching in
+ * circles, alternately above and below the layer the dropping ship measured.
+ */
 export function dropLightweight(w: World, ownerId: string, pos: Vec2): void {
   const st = ws(w);
+  const owner = w.ships.find((s) => s.id === ownerId);
+  const depths = lightSearchDepths(owner?.btLayer);
   st.torpedoes.push({
     id: `T${st.nextId++}`, kind: 'light', ownerId, pos: { ...pos }, depth: 10,
-    heading: w.rng.range(0, 360), speedKn: SPEC.light.speedKn, searchDepth: 120, enableAfter: 0,
+    heading: w.rng.range(0, 360), speedKn: SPEC.light.speedKn, searchDepth: depths[0], searchDepths: depths, enableAfter: 0,
     mode: 'active', run: 0, maxRun: SPEC.light.maxRun, wire: false, launchedAt: w.time, alerted: [ownerId],
   });
 }
@@ -450,7 +506,7 @@ function resolvePending(w: World, e: DelayedEffect): void {
   for (const s of w.ships) {
     if (!s.alive) continue;
     const r3 = Math.hypot(distance(s.pos, e.pos), s.depth - e.depth);
-    if (r3 < DC_LETHAL * 3) damage(w, s, r3 < DC_LETHAL ? 60 : 15, e.ownerId, e.pos);
+    if (r3 < DC_DAMAGE_R) damage(w, s, r3 < DC_LETHAL ? 100 : 30, e.ownerId, e.pos);
   }
 }
 

@@ -1,4 +1,4 @@
-import { bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
+import { ROCKET_MIN_RANGE, bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
 import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -49,7 +49,7 @@ export function rocketAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s || s.own.loadout.rockets <= 0) return [];
   const d = distance(s.own, p);
-  if (d < 1000 || d > 18_000) return [{ label: 'U-Jagd-Rakete: 1–18 km Reichweite', run: () => undefined }];
+  if (d < ROCKET_MIN_RANGE || d > 18_000) return [{ label: 'U-Jagd-Rakete: 1,8–18 km Reichweite', run: () => undefined }];
   return [{
     label: `${warnNear(s, p)}U-Jagd-Rakete hierher (${km(d)})`,
     danger: true,
