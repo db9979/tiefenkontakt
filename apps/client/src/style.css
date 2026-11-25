@@ -32,7 +32,7 @@
 /* Colour roles (aliases of the palette; declared on body too so the colour-blind palette on body
    reaches them): ok/own = green, attention = amber, threat and damage only = red, friend = blue */
 :root, body { --c-ok: var(--g); --c-attn: var(--amber); --c-threat: var(--red); --c-friend: var(--blue); --c-data: var(--g2); --c-mute: var(--dim); }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
 body { margin: 0; min-height: 100vh; }
 button, input, select {
   font: inherit; color: var(--g2); background: #0b1311; border: 1px solid var(--line2);

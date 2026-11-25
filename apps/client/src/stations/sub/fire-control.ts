@@ -84,7 +84,6 @@ export function fireControlStation(): Station {
         <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
         <div class="hint">GELBEN KREIS ZIEHEN = TMA · RECHTSKLICK = AKTIONEN</div>
       </div>
-      <div class="panel fc-list" style="--stack:7"><div id="list"></div></div>
       <div class="panel fc-wire" style="--stack:3" title="Draht: unter 12 kn bleiben · nach dem Täuschkörper abdrehen und Tiefe wechseln">
         <span class="tl">DRAHT</span><div id="wires"></div>
         <button id="tr-nm" class="warn" title="Geräuschboje gegen anlaufende Torpedos; danach abdrehen und Tiefe wechseln">Täuschkörper${keycap('decoy')}</button>
@@ -110,17 +109,18 @@ export function fireControlStation(): Station {
       </div>
       <div class="panel fc-set" style="--stack:6">
         <div class="fc-grid">
-          <label title="Laufgeschwindigkeit"><span class="dim">LAUF</span><span><select id="t-spd"><option>40</option><option>30</option></select> KN</span></label>
-          <label title="Suchkopf ein nach"><span class="dim">SUCHKOPF</span><span><input id="t-en" type="number" value="2000" step="250"> M</span></label>
-          <label><span class="dim">SUCHTIEFE</span><span><input id="t-dep" type="number" value="15" step="5"> M</span></label>
-          <label title="Suchmodus"><span class="dim">MODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select></label>
-          <label><span class="dim">SCHUSSKURS</span><span><input id="t-hdg" type="number" min="0" max="359">°</span></label>
-          <div class="lbl"><span class="dim">SALVE</span><span class="seg" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span></div>
-          <label class="span2"><span class="dim">FÄCHER</span><span><span id="t-spread-auto" class="dim"></span> <input id="t-spread" type="number" min="0" max="10" step="0.5" value="3">°</span></label>
+          <label title="Laufgeschwindigkeit"><span class="dim">LAUF</span><select id="t-spd"><option>40</option><option>30</option></select><span class="u">KN</span></label>
+          <label title="Suchkopf ein nach"><span class="dim">SUCHKOPF</span><input id="t-en" type="number" value="2000" step="250"><span class="u">M</span></label>
+          <label><span class="dim">SUCHTIEFE</span><input id="t-dep" type="number" value="15" step="5"><span class="u">M</span></label>
+          <label title="Suchmodus"><span class="dim">MODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select><span class="u"></span></label>
+          <label><span class="dim">SCHUSSKURS</span><input id="t-hdg" type="number" min="0" max="359" placeholder="—"><span class="u">°</span></label>
+          <label title="Fächerwinkel zwischen zwei Torpedos"><span class="dim">FÄCHER</span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3"><span class="u">°</span></label>
+          <div class="lbl span2"><span class="dim">SALVE</span><span class="seg" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span><span id="t-spread-auto" class="dim"></span></div>
         </div>
         <div id="fire-why" class="row amber" style="display:none;margin-top:4px;align-items:center"><span id="fire-why-t"></span><button id="fire-fix"></button></div>
       </div>
-      <div class="actionbar" style="--stack:2"><button id="calc" style="flex:1">Lösung übernehmen</button><button id="fire" class="fire" style="flex:2">Feuer${keycap('fire')}</button></div>
+      <div class="panel fc-list" style="--stack:7"><div id="list"></div></div>
+      <div class="actionbar" style="--stack:2"><button id="calc" style="flex:3">Lösung übernehmen</button><button id="fire" class="fire" style="flex:4">Feuer${keycap('fire')}</button></div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;

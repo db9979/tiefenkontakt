@@ -39,7 +39,7 @@
 /* ---- Feuerleitung (U3): plot 55 %, TMA and torpedo 45 % with FEUER in the action bar ---- */
 @media (min-width: 1151px) { .st.sub-fc { grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); } }
 /* Contacts: four rows, the list scrolls */
-.sub-fc .fc-list { max-height: 150px; overflow: auto; padding-top: 4px; padding-bottom: 4px; }
+.sub-fc .fc-list { flex: 1 1 0; min-height: 110px; overflow: auto; padding-top: 4px; padding-bottom: 4px; }
 /* Wire strip: the running torpedoes on the wire and the decoy (key T) */
 .sub-fc .fc-wire { display: flex; align-items: center; gap: var(--sp3); padding-top: 4px; padding-bottom: 4px; }
 .sub-fc .fc-wire > .tl { font-size: var(--fs-cap); color: var(--g); letter-spacing: 0.08em; }
@@ -65,12 +65,17 @@
 .sub-fc .fc-tubes .tube > b { font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Settings: a 2-column grid, label left, control right */
 .sub-fc .fc-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp2) var(--sp4); }
-.sub-fc .fc-grid > label, .sub-fc .fc-grid > .lbl { display: flex; justify-content: space-between; align-items: center; gap: var(--sp2); min-height: 28px; border-bottom: 1px solid var(--line); }
+/* Every field the same: label | control of one fixed width | unit, so the columns line up */
+.sub-fc .fc-grid > label { display: grid; grid-template-columns: minmax(0, 1fr) 84px 18px; align-items: center; gap: var(--sp2);
+  min-height: 30px; border-bottom: 1px solid var(--line); }
+.sub-fc .fc-grid > label > input, .sub-fc .fc-grid > label > select { width: 100%; min-width: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; text-align: right; }
+.sub-fc .fc-grid .u { color: var(--dim); font-size: var(--fs-cap); }
+.sub-fc .fc-grid > .lbl { display: flex; align-items: center; gap: var(--sp3); min-height: 30px; border-bottom: 1px solid var(--line); }
+.sub-fc .fc-grid > .lbl > .dim:first-child { min-width: 0; flex: 0 0 auto; }
 .sub-fc .fc-grid > .span2 { grid-column: span 2; }
-.sub-fc .fc-grid input[type=number] { width: 72px; }
-.sub-fc .fc-grid .seg > button { padding: 1px 8px; min-height: 24px; }
+.sub-fc .fc-grid .seg > button { padding: 1px 10px; min-height: 24px; }
 /* The action bar at the foot of the right column */
-.sub-fc .actionbar { margin-top: auto; }
+.sub-fc .actionbar { margin-top: 0; }
 .sub-fc .actionbar > button { min-width: 0; padding-left: 4px; padding-right: 4px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 @media (max-width: 1150px) {

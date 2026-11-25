@@ -169,9 +169,10 @@ export class Waterfall {
     ctx.fillText('−4', pl - 4, pt + ph);
     if (!s) return;
     const stern = trueDeg(s.own.heading + 180);
+    // The deaf sector's name inside the picture at its foot, kept clear of the edges and of the contact labels below
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'center';
-    ctx.fillText('TOTER WINKEL', pl + (stern / 360) * pw, pt + ph + 13);
+    ctx.fillText('TOTER WINKEL', Math.min(pl + pw - 44, Math.max(pl + 44, pl + (stern / 360) * pw)), pt + ph - 5);
     const hx = pl + (trueDeg(s.own.heading) / 360) * pw;
     ctx.fillStyle = COL.blue;
     ctx.fillText('▼', hx, pt + 9);
