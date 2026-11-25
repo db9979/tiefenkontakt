@@ -17,6 +17,9 @@ import {
   ownPosAt,
   targetPosAt,
   type TmaSolution,
+  defaultSpreadDeg,
+  launchBlock,
+  SALVO_MAX,
 } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, tubeTag } from '../../widgets/btn-state.js';
@@ -25,7 +28,7 @@ import { isFriendlyContact } from '../../widgets/friendly.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { COL, fitCanvas, h, km, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
+import { COL, clock, fitCanvas, h, km, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 
@@ -92,7 +95,10 @@ export function fireControlStation(): Station {
         <div class="row"><span class="dim">SUCHTIEFE</span><span><input id="t-dep" type="number" value="15" step="5" style="width:80px"> M</span></div>
         <div class="row"><span class="dim">SUCHMODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select></div>
         <div class="row"><span class="dim">SCHUSSKURS</span><span><input id="t-hdg" type="number" min="0" max="359" style="width:80px">°</span></div>
+        <div class="row"><span class="dim">SALVE</span><span class="steps" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span></div>
+        <div class="row"><span class="dim">FÄCHER</span><span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3" style="width:80px">° <span id="t-spread-auto" class="dim"></span></span></div>
         <div style="display:flex;gap:4px;margin-top:6px"><button id="calc">Lösung übernehmen</button><button id="fire" class="fire" style="flex:1">Feuer</button></div>
+        <div id="fire-why" class="row amber" style="display:none;margin-top:4px;align-items:center"><span id="fire-why-t"></span><button id="fire-fix"></button></div>
         <div id="wires" style="margin-top:6px"></div>
       </div>
     </div>
@@ -109,6 +115,15 @@ export function fireControlStation(): Station {
     ],
   });
 
+
+  // Salvo: how many fish, and the angle between them (default from the target's size at range and the TMA error)
+  let salvo = 1;
+  let spreadTouched = false;
+  onTap(q('#t-salvo'), '[data-salvo]', (b) => (salvo = Number(b.dataset.salvo)));
+  q<HTMLInputElement>('#t-spread').addEventListener('input', () => (spreadTouched = true));
+  // Outside the launch envelope the fire button is off; one click on the fix brings the boat into it
+  let fix: (() => void) | undefined;
+  q<HTMLButtonElement>('#fire-fix').onclick = () => fix?.();
 
   /** Edit the selected solution via range (along latest bearing), course and speed. */
   function fromSliders(): void {
@@ -172,6 +187,10 @@ export function fireControlStation(): Station {
     if (hdg !== undefined) q<HTMLInputElement>('#t-hdg').value = String(Math.round(trueDeg(hdg)) % 360);
     const rng = distance(s.own, targetPosAt(sol, s.time));
     q<HTMLInputElement>('#t-en').value = String(Math.max(500, Math.round((rng * 0.7) / 250) * 250));
+    if (!spreadTouched && c) {
+      const fan = defaultSpreadDeg(rng, evaluateSolution(sol, c.history, store.ownTrack).rmsDeg);
+      q<HTMLInputElement>('#t-spread').value = (Math.round(fan * 2) / 2).toFixed(1);
+    }
   };
   // Fire asks twice on a weak or missing solution, or with our own ship as the target
   guardFire(q<HTMLButtonElement>('#fire'), () => {
@@ -190,6 +209,7 @@ export function fireControlStation(): Station {
       t: 'fire', heading: gameDeg(hdg), enableAfter: Number(q<HTMLInputElement>('#t-en').value),
       mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active', searchDepth: Number(q<HTMLInputElement>('#t-dep').value),
       speedKn: Number(q<HTMLSelectElement>('#t-spd').value),
+      ...(salvo > 1 ? { salvo, spread: Math.max(0, Math.min(10, Number(q<HTMLInputElement>('#t-spread').value) || 0)) } : {}),
     });
   });
   el.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
@@ -210,7 +230,30 @@ export function fireControlStation(): Station {
       q('#auto').style.display = store.realism === 'einsteiger' ? '' : 'none';
       // Fire: tubes ready or the next reload; take-over: only with a solution
       const lo = s.own.loadout;
-      btnState(q('#fire'), tubeTag(lo.tubes));
+      // Launch envelope: too fast or too deep switches the button off and offers the fix
+      const block = launchBlock(s.own.cls, s.own.speedKn, s.own.depth);
+      const fireBtn = q<HTMLButtonElement>('#fire');
+      fireBtn.disabled = !!block;
+      if (block?.why === 'speed') {
+        const to = Math.min(12, block.limit - 3);
+        fix = () => net.send({ t: 'order', speedKn: to });
+        btnState(fireBtn, { label: 'ZU SCHNELL', tone: 'warn' });
+        q('#fire-why-t').textContent = `Abschuss nur bis ${block.limit} kn (jetzt ${Math.round(s.own.speedKn)} kn)`;
+        q('#fire-fix').textContent = `ZU SCHNELL · AUF ${to} KN`;
+      } else if (block?.why === 'depth') {
+        const to = block.limit - 10;
+        fix = () => net.send({ t: 'order', depth: to });
+        btnState(fireBtn, { label: 'ZU TIEF', tone: 'warn' });
+        q('#fire-why-t').textContent = `Abschuss nur bis ${block.limit} m Tiefe (jetzt ${Math.round(s.own.depth)} m)`;
+        q('#fire-fix').textContent = `ZU TIEF · AUF ${to} M`;
+      } else {
+        fix = undefined;
+        btnState(fireBtn, tubeTag(lo.tubes));
+      }
+      q('#fire-why').style.display = block ? '' : 'none';
+      el.querySelectorAll<HTMLButtonElement>('[data-salvo]').forEach((b) => b.classList.toggle('on', Number(b.dataset.salvo) === salvo));
+      q<HTMLInputElement>('#t-spread').disabled = salvo === 1;
+      q('#t-spread-auto').textContent = salvo > 1 ? `${salvo} TORPEDOS · FÄCHER ${Math.round((salvo - 1) * (Number(q<HTMLInputElement>('#t-spread').value) || 0))}°` : '';
       const hasSol = !!(store.selected && store.solutions.get(store.selected));
       btnState(q('#calc'), hasSol ? { label: 'LÖSUNG' } : { label: 'KEINE', tone: 'empty' });
       const legs = c ? c.history.length : 0;
@@ -268,7 +311,7 @@ export function fireControlStation(): Station {
       setHtml(q('#tubes'), tubes.map((t, i) => `<span class="${t.loaded ? '' : 'dim'}">R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}</span>`).join(' ') + ` <span class="dim">· VORRAT ${s.own.loadout.heavy}</span>`);
       setHtml(q('#wires'), s.torpedoes.map((t) => `
         <div class="row ${t.id === store.selected ? 'selrow amber' : ''}"><span>${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-        <span>${tdeg1(t.heading)}° · ${km(t.run)} <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
+        <span>${tdeg1(t.heading)}° · ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">${t.leftS !== undefined ? clock(t.leftS) : '—'}</span> <button data-steer="${t.id}" data-d="-10">◀</button><button data-steer="${t.id}" data-d="10">▶</button></span></div>`).join(''));
     },
     frame() {
       plot.draw(Math.max(320, window.innerHeight - 300));

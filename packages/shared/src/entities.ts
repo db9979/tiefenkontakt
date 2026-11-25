@@ -114,6 +114,8 @@ export interface Ship {
   settle?: number;
   /** Who hit her last (credited when she sinks later from flooding or fire). */
   lastHitBy?: string;
+  /** A merchant crippled by a torpedo: she drags along at ≤4 kn and founders at this time (damage.ts). */
+  founderAt?: number;
 }
 
 export const PERISCOPE_DEPTH = 18;

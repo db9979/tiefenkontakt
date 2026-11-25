@@ -4,7 +4,7 @@ import { seesTorpedoTrack } from './lookout.js';
 import { crossesLayer, passiveExcessFrom, torpedoSourceLevel, sourceLevelToward, targetStrengthToward } from './acoustics.js';
 import { CLASSES, isEscort } from './classes.js';
 import type { Ship } from './entities.js';
-import { applyHitDamage, reloadFactor, weaponsBroken } from './damage.js';
+import { applyHitDamage, crippleIfMerchant, reloadFactor, weaponsBroken } from './damage.js';
 import { createLoadout, stepReload, type Loadout } from './loadout.js';
 import { KN, angleDiff, approach, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import { depthAt } from './seabed.js';
@@ -95,6 +95,43 @@ const ALERT_CLOSE = 1000;
 /** Heavyweight snake search: ±25° around the search course, one swing every ~38 s. */
 const SNAKE_DEG = 25;
 const SNAKE_PERIOD_S = 6;
+/** A heavyweight on a merchant: one hit cripples (110 hp), two sink; escorts take the class damage. */
+const MERCHANT_HIT = 95;
+/** Launch envelope of a submarine: tubes can't be fired faster or deeper than this. */
+export const LAUNCH_MAX_KN = 15;
+export const LAUNCH_DEPTH_FRAC = 0.8;
+/** Most torpedoes in one salvo, and the widest angle between two of them (deg). */
+export const SALVO_MAX = 4;
+export const SPREAD_MAX_DEG = 10;
+
+/**
+ * Heavyweight reach by run speed: 25 km at 30 kn or slower, 15 km at 40 kn (the battery
+ * runs down faster at high speed), linear in between.
+ */
+export function heavyRange(speedKn: number): number {
+  const f = clamp((speedKn - 30) / 10, 0, 1);
+  return 25_000 - f * 10_000;
+}
+
+/** Why a submarine can't fire now, with the limit that would make it possible; undefined = clear to fire. */
+export function launchBlock(cls: Ship['cls'], speedKn: number, depth: number): { why: 'speed' | 'depth'; limit: number } | undefined {
+  const spec = CLASSES[cls];
+  if (!spec.submarine) return undefined;
+  if (speedKn > LAUNCH_MAX_KN + 0.05) return { why: 'speed', limit: LAUNCH_MAX_KN };
+  const deepest = Math.floor(spec.maxDepth * LAUNCH_DEPTH_FRAC);
+  if (depth > deepest + 0.5) return { why: 'depth', limit: deepest };
+  return undefined;
+}
+
+/**
+ * Default angle between the torpedoes of a salvo (deg): the target's length seen at that range
+ * plus the TMA's bearing error, kept between 2° and 4°.
+ */
+export function defaultSpreadDeg(rangeM: number, tmaErrDeg = 1, targetLengthM = 150): number {
+  const seen = (Math.atan2(targetLengthM, Math.max(500, rangeM)) * 180) / Math.PI;
+  return clamp(seen + tmaErrDeg, 2, 4);
+}
+
 /** For the recognition book's threat page (ranges as the simulation uses them). */
 export { SPEC as TORPEDO_SPECS, ROCKET_MAX_RANGE, WIRE_MAX_RANGE, DC_LETHAL };
 
@@ -125,6 +162,12 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
   if (!shooter.alive || !l) return 'Schiff kann nicht feuern';
   if (w.env.weaponsTight === shooter.team) return 'Waffen gesperrt: Fühlung halten, nicht schießen';
   if (weaponsBroken(shooter)) return 'Waffenanlage ausgefallen';
+  const block = launchBlock(shooter.cls, shooter.speed / KN, shooter.depth);
+  if (block) {
+    return block.why === 'speed'
+      ? `Abschuss nur bis ${block.limit} kn (jetzt ${Math.round(shooter.speed / KN)} kn)`
+      : `Abschuss nur bis ${block.limit} m Tiefe (jetzt ${Math.round(shooter.depth)} m)`;
+  }
   const tube = l.tubes.find((t) => t.loaded);
   if (!tube) return 'Kein Rohr geladen';
   tube.loaded = false;
@@ -138,12 +181,37 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
     enableAfter: Math.max(o.enableAfter ?? 1500, 500), mode: o.mode ?? 'passive',
     run: 0, maxRun: sp.maxRun, wire: kind === 'heavy', launchedAt: w.time, alerted: [shooter.id],
   };
+  if (kind === 'heavy') t.maxRun = heavyRange(t.speedKn);
   st.torpedoes.push(t);
   const at = { x: shooter.pos.x, y: shooter.pos.y };
   if (kind === 'heavy') w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'flood' });
   w.events.push({ kind: 'transient', time: w.time, sourceId: shooter.id, ...at, what: 'launch' });
   w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'torpedo' });
   return t;
+}
+
+/**
+ * A salvo of 1–4 torpedoes fanned symmetrically about the ordered heading, `spreadDeg` apart.
+ * Fires as many as tubes are loaded; an error only when not even the first one could go.
+ */
+export function fireSalvo(w: World, shooter: Ship, o: FireOptions, count: number, spreadDeg: number): Torpedo[] | string {
+  const n = clamp(Math.round(count), 1, SALVO_MAX);
+  const spread = clamp(spreadDeg, 0, SPREAD_MAX_DEG);
+  const out: Torpedo[] = [];
+  for (let i = 0; i < n; i++) {
+    const r = fireTorpedo(w, shooter, { ...o, heading: o.heading + (i - (n - 1) / 2) * spread });
+    if (typeof r === 'string') {
+      if (!out.length) return r;
+      break;
+    }
+    out.push(r);
+  }
+  return out;
+}
+
+/** Seconds a torpedo still runs before its fuel is gone. */
+export function runTimeLeft(t: Pick<Torpedo, 'run' | 'maxRun' | 'speedKn'>): number {
+  return Math.max(0, (t.maxRun - t.run) / (t.speedKn * KN));
 }
 
 export function dropXbt(w: World, ship: Ship): true | string {
@@ -274,6 +342,8 @@ function damage(w: World, target: Ship, amount: number, byId: string, at?: Vec2)
   target.hp -= amount;
   w.events.push({ kind: 'hit', time: w.time, shipId: target.id, byId, x: at?.x ?? target.pos.x, y: at?.y ?? target.pos.y });
   if (target.hp > 0) applyHitDamage(target, amount, w.rng, { at, byId, w });
+  target.lastHitBy = byId;
+  crippleIfMerchant(target, w.time);
   if (target.hp <= 0 && target.alive) {
     target.alive = false;
     target.order.speedKn = 0;
@@ -309,7 +379,7 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
       t.depth = approach(t.depth, c.depth, 8 * dt);
       if (Math.hypot(r, t.depth - c.depth) < HIT_RADIUS) {
         const ship = w.ships.find((s) => s.id === c.id);
-        if (ship) damage(w, ship, sp.damage, t.ownerId, t.pos);
+        if (ship) damage(w, ship, t.kind === 'heavy' && ship.cls === 'merchant' ? MERCHANT_HIT : sp.damage, t.ownerId, t.pos);
         return false;
       }
     } else {

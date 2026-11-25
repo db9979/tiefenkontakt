@@ -1,4 +1,6 @@
+import { CLASSES } from './classes.js';
 import { crewWorkRate } from './crew.js';
+import { KN } from './math.js';
 import { compartmentLayout, floodWeight, hitCompartments, reserveBuoyancy, type HitOptions } from './compartments.js';
 import type { Ship } from './entities.js';
 import { stepCompartments } from './flooding.js';
@@ -42,8 +44,34 @@ export function deriveSystems(s: Ship): void {
   d.leck = Math.min(1, floodWeight(s) / reserveBuoyancy(s));
 }
 
+/** A crippled merchant makes at most this (kn) and goes down this long after the hit (s). */
+export const CRIPPLED_MAX_KN = 4;
+export const FOUNDER_S = 900;
+/** A merchant left with this share of her hull points or less is crippled. */
+const CRIPPLE_SHARE = 0.4;
+
+/**
+ * A merchant hit hard (one torpedo) is crippled: she can't keep up, drops out of the convoy as a
+ * straggler and founders from the flooding about 15 minutes later. A second hit sinks her outright.
+ */
+export function crippleIfMerchant(s: Ship, now: number): void {
+  if (s.cls !== 'merchant' || !s.alive || s.hp <= 0 || s.founderAt !== undefined) return;
+  if (s.hp <= CLASSES[s.cls].hp * CRIPPLE_SHARE) s.founderAt = now + FOUNDER_S;
+}
+
+/** A crippled ship drags along slowly and loses her buoyancy until she founders at founderAt. */
+function stepFoundering(s: Ship, dt: number, w?: World): void {
+  if (s.founderAt === undefined || !s.alive || !w) return;
+  s.order.speedKn = Math.min(s.order.speedKn, CRIPPLED_MAX_KN);
+  s.speed = Math.min(s.speed, CRIPPLED_MAX_KN * KN);
+  const left = s.founderAt - w.time;
+  // Hull points ebb away with the flooding: zero (sunk, credited to the last hit) when the time is up
+  s.hp = left <= 0 ? Math.min(s.hp, 0) : s.hp - (s.hp / left) * dt;
+}
+
 /** Damage control for one tick: water, fire, repairs, trim and the sinking point. */
 export function stepDamage(s: Ship, dt: number, w?: World): void {
+  stepFoundering(s, dt, w);
   if (!s.comps || !s.alive) return;
   stepCompartments(s, dt, w);
   deriveSystems(s);

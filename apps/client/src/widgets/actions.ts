@@ -1,4 +1,4 @@
-import { bearing, distance, type Snapshot, type Vec2 } from '@tk/shared';
+import { bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
 import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -16,15 +16,32 @@ export function courseAction(p: Vec2): MenuItem[] {
   return [{ label: `Kurs hierher (${tdeg3(b)}°)`, run: () => net.send({ t: 'order', heading: b % 360 }) }];
 }
 
-export function torpedoAction(p: Vec2, opts: { speedKn: number; searchDepth: number; mode: 'passive' | 'active' }): MenuItem[] {
+/**
+ * "Torpedo hierher". Outside the launch envelope it only says why. With `aim` (expert mode) it
+ * doesn't fire: it sets the firing course and seeker distance, and the guarded FEUER button fires.
+ */
+export function torpedoAction(
+  p: Vec2,
+  opts: { speedKn: number; searchDepth: number; mode: 'passive' | 'active'; aim?: (heading: number, enableAfter: number) => void },
+): MenuItem[] {
   const s = store.snap;
   if (!s || !s.own.loadout.tubes.some((t) => t.loaded)) return [];
+  const block = launchBlock(s.own.cls, s.own.speedKn, s.own.depth);
+  if (block) {
+    const why = block.why === 'speed'
+      ? `Abschuss nur bis ${block.limit} kn (jetzt ${Math.round(s.own.speedKn)} kn)`
+      : `Abschuss nur bis ${block.limit} m Tiefe (jetzt ${Math.round(s.own.depth)} m)`;
+    return [{ label: why, run: () => undefined }];
+  }
   const b = bearing(s.own, p);
   const d = distance(s.own, p);
+  const enableAfter = Math.max(500, d * 0.7);
+  const aim = opts.aim;
+  if (aim) return [{ label: `Schusskurs hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`, run: () => aim(b, enableAfter) }];
   return [{
     label: `${warnNear(s, p)}Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
     danger: true,
-    run: () => net.send({ t: 'fire', heading: b, enableAfter: Math.max(500, d * 0.7), mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn }),
+    run: () => net.send({ t: 'fire', heading: b, enableAfter, mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn }),
   }];
 }
 
