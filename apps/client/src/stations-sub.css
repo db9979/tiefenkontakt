@@ -1,0 +1,37 @@
+/*
+ * Submarine stations (layout spec round 3, U1–U4): Horchraum, Sehrohr, Feuerleitung, Zentrale.
+ * Generic pieces (.actionbar, .stack ordering) live in stations.css; this file holds what only
+ * the boat's stations use. At 1440 × 900 no right column scrolls: one list per column takes
+ * what is left and scrolls inside, everything else has a fixed height.
+ */
+
+/* ---- Horchraum (U1): waterfall 58 %, signal analysis and the contact tabs 42 % ---- */
+@media (min-width: 1151px) { .st.sub-horch { grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); } }
+.sub-horch .foot { row-gap: var(--sp2); }
+.sub-horch .ana-foot { display: inline-flex; gap: var(--sp2); align-items: center; }
+.sub-horch .lm-seg > button { padding: 0 6px; min-height: 22px; font-size: var(--fs-cap); }
+/* The analysis filters as a popover above the footer (they used to fold open in the panel) */
+.sub-horch details.pop { position: relative; }
+.sub-horch details.pop > summary { list-style: none; cursor: pointer; padding: 0 6px; min-height: 22px; line-height: 20px; border: 1px solid var(--line2);
+  border-radius: 3px; color: var(--dim); font-size: var(--fs-cap); letter-spacing: 0.04em; }
+.sub-horch details.pop > summary::-webkit-details-marker { display: none; }
+.sub-horch details.pop[open] > summary { border-color: var(--g); color: var(--g); }
+.sub-horch details.pop > .pop-body { position: absolute; bottom: calc(100% + 4px); right: 0; z-index: 5; width: 360px; max-width: 80vw; padding: var(--sp2) var(--sp3);
+  background: var(--panel); border: 1px solid var(--line2); border-radius: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+/* Analysis: LOFAR/DEMON at a fixed height, the marker and the six class buttons one 26 px row each */
+.sub-horch .analysis .steps { margin: 2px 0; flex-wrap: nowrap; }
+.sub-horch .analysis .steps button { flex: 1 1 auto; min-height: 26px; padding: 2px 3px; font-size: var(--fs-cap); letter-spacing: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-horch #a-pages > button, .sub-horch #a-bands > button { flex: none; padding-left: 8px; padding-right: 8px; }
+.sub-horch .analysis canvas { margin: 2px 0; }
+.sub-horch .analysis .hd { margin-top: 2px !important; }
+.sub-horch .analysis .row { padding: 1px 0; }
+.sub-horch #a-verdict .dim { margin: 2px 0 !important; }
+.sub-horch #a-verdict .steps { margin-top: 3px !important; }
+/* Contacts | Bedrohung | Aktiv: the rest of the column, never less than 220 px */
+.sub-horch .panel.grow.tabbed { min-height: 220px; }
+
+@media (max-width: 1150px) {
+  .sub-horch .fill { height: 50vh; }
+  /* The list tab keeps six rows and scrolls (G3); threat and active sonar show in full */
+  .sub-horch .panel.tabbed > .pane[data-pane="list"] { max-height: 230px; overflow: auto; }
+}

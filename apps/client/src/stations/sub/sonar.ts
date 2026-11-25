@@ -35,20 +35,22 @@ export function pickByBearing(b: number, maxDeg = 6): string | undefined {
 }
 
 /**
- * Horchraum: the passive picture. The broadband waterfall takes the full height on the left;
- * on the right the signal analysis (LOFAR/DEMON) and one tabbed panel: the contact list, the
- * threat picture (who is pinging us, the evasion proposal, the listening-range prediction)
- * and the active sonar for the single ping when a range is worth giving ourselves away.
+ * Horchraum: the passive picture. The broadband waterfall takes the full height on the left,
+ * with the listening modes and the analysis filters in its footer; on the right the signal
+ * analysis (LOFAR/DEMON at a fixed height) and one tabbed panel that takes the rest: the
+ * contact list, the threat picture (who is pinging us, the evasion proposal, the
+ * listening-range prediction) and the active sonar for the single ping. Nothing in the right
+ * column scrolls but the tab pane.
  */
 export function subSonarStation(): Station {
-  const el = h(`<div class="st two">
+  const el = h(`<div class="st two sub-horch stack">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Horchraum · Breitband</span><span id="own" class="dim"></span></div>
         <div class="fill" id="wf-box"><canvas id="wf"></canvas></div>
-        <div class="foot"><span id="wf-ctl"></span><button id="tow" title="Schleppsonar aus- oder einholen">Schleppsonar</button><span class="hint">KLICK AUF EINE SPUR WÄHLT DEN KONTAKT</span></div>
+        <div class="foot"><span id="wf-ctl"></span><span id="lm-slot"></span><button id="tow" title="Schleppsonar aus- oder einholen">Schleppsonar</button><span class="hint">KLICK AUF EINE SPUR WÄHLT DEN KONTAKT</span></div>
       </div>
     </div>
-    <div class="st-col scroll">
+    <div class="st-col">
       <div class="panel" style="min-width:0"><div class="hd"><span>Signalanalyse</span><span id="lab" class="amber"></span></div><div id="ana"></div></div>
       <div class="panel grow tabbed" id="tabs">
         <div class="hd">${tabRow([['list', 'Kontakte'], ['threat', 'Bedrohung', 'Wer pingt uns, Ausweichvorschlag, Hörreichweite'], ['active', 'Aktiv', 'Einzelping: Entfernung, verrät aber das Boot']])}<span id="tab-st" class="dim"></span></div>
@@ -63,8 +65,9 @@ export function subSonarStation(): Station {
   q('#wf-ctl').replaceWith(wf.controls());
   const wfCanvas = q<HTMLCanvasElement>('#wf');
   const box = fillBox(q('#wf-box'), 220);
-  const analysis = new AcousticAnalysis(250);
+  const analysis = new AcousticAnalysis(170);
   q('#ana').appendChild(analysis.el);
+  q('#lm-slot').replaceWith(analysis.footControls());
   const threat = threatPanel();
   q('#threat-slot').replaceWith(threat.el);
   const range = rangePanel();
