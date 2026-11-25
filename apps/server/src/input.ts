@@ -180,7 +180,13 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'toggle':
       if (m.what === 'mast') {
         if (!spec.submarine) return 'Nur für U-Boote';
-        if (m.on && !isAtPeriscopeDepth(s)) return `Erst auf Sehrohrtiefe (${PERISCOPE_DEPTH} m)`;
+        // Too deep: remember it, go to periscope depth, the mast follows on arrival
+        if (m.on && !isAtPeriscopeDepth(s)) {
+          s.mastPending = true;
+          s.order.depth = PERISCOPE_DEPTH;
+          return undefined;
+        }
+        s.mastPending = false;
         s.mastUp = m.on;
       } else if (m.what === 'snorkel') {
         if (!spec.battery) return 'Nur für Diesel-U-Boote';

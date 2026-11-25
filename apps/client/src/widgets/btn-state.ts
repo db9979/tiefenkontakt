@@ -49,7 +49,8 @@ export function tubeTag(tubes: { loaded: boolean; reloadLeft: number }[]): BtnSt
 }
 
 /** Mast button: lit when up, the way up or down as a fill and percentage; below periscope depth it can't go up. */
-export function mastBtn(ms: { ext: number; moving?: 'aus' | 'ein' }, up: boolean, tooDeep = false): BtnState {
+export function mastBtn(ms: { ext: number; moving?: 'aus' | 'ein' }, up: boolean, tooDeep = false, pending = false): BtnState {
+  if (pending) return { on: true, label: 'VORGEMERKT', tone: 'busy' };
   if (!up && !ms.moving && tooDeep) return { on: false, label: 'ZU TIEF', tone: 'warn' };
   return ms.moving ? { on: up, label: `${Math.round(ms.ext * 100)} %`, pct: ms.ext * 100, tone: 'busy' } : { on: up, label: up ? 'OBEN' : 'UNTEN' };
 }

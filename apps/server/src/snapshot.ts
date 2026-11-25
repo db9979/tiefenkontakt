@@ -200,7 +200,7 @@ export function buildSnapshot(
       id: own.id, cls: own.cls, team: own.team, name: own.name, x: own.pos.x + (own.drErr?.x ?? 0), y: own.pos.y + (own.drErr?.y ?? 0),
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, order: { ...own.order }, route: own.route?.wps.length ? { wps: own.route.wps.map((p) => ({ ...p })), idx: own.route.idx, active: own.route.active } : undefined,
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
-      snorkel: own.snorkel, mastUp: own.mastUp, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
+      snorkel: own.snorkel, mastUp: own.mastUp, mastPending: own.mastPending || undefined, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
       activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, mineAvoid: own.mineAvoid || undefined, mineAvoidRange: isEscort(own.cls) ? mineSearchRange(w, own) || undefined : undefined, convoyOffset: isEscort(own.cls) && w.convoy?.offset ? w.convoy.offset : undefined, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
       comps: own.comps && compartmentView(own), dcComp: own.dcComp, dcAt: own.comps && dcTarget(own), wreck: wreckView(own),

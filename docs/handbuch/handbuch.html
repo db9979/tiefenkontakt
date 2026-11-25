@@ -245,6 +245,9 @@ Ein Kontakt wird erst „feindlich“, wenn du ihn klassifiziert hast; vorher is
 <tr><td>2</td><td>Sehrohr</td><td>3D-Sicht über Wasser: Peilung, Lagewinkel, Entfernung über die Masthöhe, Zähler für die Zeit mit Mast oben, Radarwarnung. Der Mast fährt in 8 s aus und 5 s ein. Am Mast sitzt auch ein kleines <b>Radar</b>: Es sendet nur mit ganz ausgefahrenem Mast (auf Sehrohrtiefe oder aufgetaucht) und findet Schiffe bis zum nahen Horizont, etwa 14 sm; ein kleiner Radarschirm erscheint dann unter dem Sehrohr. Jedes Schiff und Flugzeug mit ESM peilt das Boot dabei an und erkennt ein U-Boot-Radar, also nur für einen kurzen Rundblick einschalten. Beim Einfahren des Masts oder Tauchen schaltet es ab.</td></tr>
 <tr><td>3</td><td>Feuerleitung</td><td>TMA-Plot, Lösung erarbeiten, Torpedo programmieren (Fahrt, Suchtiefe, Aktiv/Passiv, Freigabe-Entfernung), Feuer und Drahtlenkung.</td></tr>
 <tr><td>4</td><td>Tauchstand</td><td>Tiefenprofil mit Sprungschicht und Grund, Antrieb, Batterie und Restzeit, Schnorchel, Kavitationsgrenze.</td></tr>
+<tr><td>5</td><td>Zentrale</td><td>Koppeltisch mit Wegpunkten, kleiner Wasserfall, Bootszustand, Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot, Mast, Echolot, Gefechtsstationen, Notanblasen), Funkbuch.</td></tr>
+<tr><td>6</td><td>Ortung</td><td>Bedrohung mit Ausweichvorschlag, Aktivsonar-Schirm (Pings verraten das Boot), ESM-Radarwarnung mit Mast oben, Echolot, Reichweitenvorhersage.</td></tr>
+<tr><td>7</td><td>Torpedoraum</td><td>Rohre mit Ladestand und Nachladezeit, Vorrat, Torpedos am Draht mit Feinsteuerung, Täuschkörper, Minen.</td></tr>
 </table>
 <div class="cols2 shots"><figure class="ui"><img src="img/ui-u-horchraum.jpg" alt=""><figcaption>Bild 3 · Horchraum: Wasserfall, DEMON-Analyse, Kontaktliste und Bedrohungsseite.</figcaption></figure><figure class="ui"><img src="img/ui-u-sehrohr.jpg" alt=""><figcaption>Bild 4 · Sehrohr mit Strichplatte; rechts die Messwerte.</figcaption></figure></div>
 <div class="cols2 shots"><figure class="ui"><img src="img/ui-u-feuer.jpg" alt=""><figcaption>Bild 5 · Feuerleitung: Lagebild, TMA und Torpedoprogrammierung.</figcaption></figure><figure class="ui"><img src="img/ui-u-tauch.jpg" alt=""><figcaption>Bild 6 · Tauchstand: Tiefenprofil, Maschine und Batterie.</figcaption></figure></div>
@@ -287,6 +290,8 @@ taktischen Hinweis. Alle Werte kommen aus der Simulation. „Klasse zuweisen“ 
 <tr><td>Koppelort</td><td>Getaucht wird die eigene Position nur gekoppelt und immer ungenauer (bis 8 sm). Ein Fix am Mast setzt sie zurück.</td></tr>
 <tr><td>Besatzung</td><td>Gefechtsstationen geben +10 % Leistung, ermüden aber in etwa 90 Minuten. „Ruhe im Boot“ senkt den Lärm um 3 dB, halbiert aber Reparatur und Nachladen.</td></tr>
 </table>
+<h3>Route plotten</h3>
+<p>Auf dem Koppeltisch der Zentrale setzt <b>„⚑ Wegpunkte“</b> mit jedem Klick einen Wegpunkt; Ziehen verschiebt ihn, Rechtsklick auf einen Punkt gibt ihm Fahrt und Tiefe oder löscht ihn. Fahrt und Tiefe gelten ab Beginn des Schenkels zu diesem Punkt, danach darf man sie von Hand ändern. An jedem Schenkel stehen rechtweisender Kurs und Länge. <b>„Route fahren“</b> lässt den Rudergänger Punkt für Punkt abfahren (der Knopf zeigt den nächsten Wegpunkt); er steuert nach dem Koppelort, getaucht liegt die Route also so ungenau wie dieser. Jeder Kurs von Hand schaltet die Route ab, die Punkte bleiben stehen. <b>„Voraus N min“</b> zeigt, wo das Boot nach 3 bis 30 Minuten steht.</p>
 <h2>Funk und Führung</h2>
 <p>Funken geht nur mit ausgefahrenem Mast auf Sehrohrtiefe, und jede Sendung erzeugt beim Gegner eine Funkpeilung.
 Die Flottenführung sendet etwa alle 20 Minuten für 3 Minuten. Empfangen kann man über VLF bis 25 m Tiefe oder mit der Schleppantenne bis 60 m bei höchstens 6 kn.</p>
@@ -311,14 +316,17 @@ In der Kampagne bleiben gelegte Minen verbraucht, bis die Werft aufmunitioniert.
 <table class="grid">
 <tr><th>Taste</th><th>Station</th><th>Aufgabe</th></tr>
 <tr><td>1</td><td>Operationszentrale</td><td>Lagebild mit Konvoi, Eskorten, Datalink-Kontakten, Bojen, Hubschrauber und Funkpeilungen; Befehle an den Konvoi (Kurs, Zickzack, Fahrt).</td></tr>
-<tr><td>2</td><td>Sonar</td><td>Rumpfsonar aktiv/passiv, Pulsart CW oder LFM, Schleppsonar mit Länge und Seitenwahl, BT-Sonde, VDS (nur F-30).</td></tr>
+<tr><td>2</td><td>Sonar</td><td>Rumpfsonar (Aktivsonar jetzt auf der Station Ortung), Schleppsonar mit Länge und Seitenwahl, BT-Sonde, VDS (nur F-30).</td></tr>
 <tr><td>3</td><td>Waffen</td><td>U-Jagd-Rakete (bis 18 km, 40 s Flugzeit, setzt einen Leichttorpedo ab), Torpedorohre, Wasserbomben, Täuschkörper-Schleppe, Torpedowarnung.</td></tr>
 <tr><td>4</td><td>Radar und ESM</td><td>Radar an/aus (verrät die eigene Position), kurze Echos von Masten und Schnorcheln, Peilung gegnerischer Funksprüche.</td></tr>
 <tr><td>5</td><td>Brücke</td><td>Ausguck in 3D: Masten, Schnorchelfahnen, Torpedolaufbahnen, Treffer bei Tag; nachts nur beleuchtete Schiffe.</td></tr>
+<tr><td>6</td><td>Ortung</td><td>Aktivsonar-Schirm (Ring läuft hinaus, Nachhall, Echos mit Doppler-Farbe bei CW, Echotabelle, Countdown zum nächsten Ping, Bereiche 2–10 sm), Pulsart CW/LFM, BT messen, Tiefensonar (VDS), Minenmeiden, Reichweitenvorhersage.</td></tr>
+<tr><td>7</td><td>Flug</td><td>Nur Fregatte mit Bordhubschrauber: Status, Bojen und Torpedos an Bord, Aufträge zum gewählten Kontakt (Tauchsonar flach/tief, Boje, MAD, Torpedo), Bojensperre des Seefernaufklärers, Bojen im Wasser; auf der Karte dieselben Aufträge per Rechtsklick.</td></tr>
 </table>
 <div class="cols2 shots"><figure class="ui"><img src="img/ui-f-opz.jpg" alt=""><figcaption>Bild 7 · Operationszentrale mit Konvoi, Peillinien und Verbandsstatus.</figcaption></figure><figure class="ui"><img src="img/ui-f-sonar.jpg" alt=""><figcaption>Bild 8 · Sonarraum der F-30: Rumpfsonar am VDS in 146 m, Schleppsonar, LOFAR.</figcaption></figure></div>
 <div class="cols2 shots"><figure class="ui"><img src="img/ui-f-waffen.jpg" alt=""><figcaption>Bild 9 · Waffenleitstand mit Zielkarte.</figcaption></figure><figure class="ui"><img src="img/ui-f-radar.jpg" alt=""><figcaption>Bild 10 · Radar und Funkpeilung (ESM-Rose).</figcaption></figure></div>
 <figure class="ui"><img src="img/ui-f-bruecke.jpg" alt=""><figcaption>Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.</figcaption></figure>
+<p><b>Route plotten:</b> In der OPZ werden Wegpunkte genauso gesetzt wie im U-Boot (<b>„⚑ Wegpunkte“</b>, Ziehen, Rechtsklick für Fahrt oder Löschen). <b>„Route fahren“</b> steuert die Fregatte selbst von Punkt zu Punkt, etwa für einen Suchschlag vor dem Konvoi; ein Kurs von Hand oder „Kurs hierher“ schaltet sie ab. Der Vorausvektor zeigt die Position in N Minuten.</p>
 <h2>Sensoren richtig einsetzen</h2>
 <table class="grid">
 <tr><td>Schleppsonar</td><td>Das beste passive Ohr. Lang ausgebracht hängt es unter der Schicht. Nur bis 14 kn brauchbar, nach jedem Kurswechsel 60 s Stabilisierung. Links/rechts-Mehrdeutigkeit: 20° wenden oder das Rumpfsonar entscheidet.</td></tr>

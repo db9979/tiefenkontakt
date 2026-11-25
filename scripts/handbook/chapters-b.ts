@@ -17,6 +17,9 @@ export const chapterSub = `
 <tr><td>2</td><td>Sehrohr</td><td>3D-Sicht über Wasser: Peilung, Lagewinkel, Entfernung über die Masthöhe, Zähler für die Zeit mit Mast oben, Radarwarnung. Der Mast fährt in 8 s aus und 5 s ein. Am Mast sitzt auch ein kleines <b>Radar</b>: Es sendet nur mit ganz ausgefahrenem Mast (auf Sehrohrtiefe oder aufgetaucht) und findet Schiffe bis zum nahen Horizont, etwa 14 sm; ein kleiner Radarschirm erscheint dann unter dem Sehrohr. Jedes Schiff und Flugzeug mit ESM peilt das Boot dabei an und erkennt ein U-Boot-Radar, also nur für einen kurzen Rundblick einschalten. Beim Einfahren des Masts oder Tauchen schaltet es ab.</td></tr>
 <tr><td>3</td><td>Feuerleitung</td><td>TMA-Plot, Lösung erarbeiten, Torpedo programmieren (Fahrt, Suchtiefe, Aktiv/Passiv, Freigabe-Entfernung), Feuer und Drahtlenkung.</td></tr>
 <tr><td>4</td><td>Tauchstand</td><td>Tiefenprofil mit Sprungschicht und Grund, Antrieb, Batterie und Restzeit, Schnorchel, Kavitationsgrenze.</td></tr>
+<tr><td>5</td><td>Zentrale</td><td>Koppeltisch mit Wegpunkten, kleiner Wasserfall, Bootszustand, Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot, Mast, Echolot, Gefechtsstationen, Notanblasen), Funkbuch.</td></tr>
+<tr><td>6</td><td>Ortung</td><td>Bedrohung mit Ausweichvorschlag, Aktivsonar-Schirm (Pings verraten das Boot), ESM-Radarwarnung mit Mast oben, Echolot, Reichweitenvorhersage.</td></tr>
+<tr><td>7</td><td>Torpedoraum</td><td>Rohre mit Ladestand und Nachladezeit, Vorrat, Torpedos am Draht mit Feinsteuerung, Täuschkörper, Minen.</td></tr>
 </table>
 ${pair(shot('ui-u-horchraum.jpg', 'Bild 3 · Horchraum: Wasserfall, DEMON-Analyse, Kontaktliste und Bedrohungsseite.'), shot('ui-u-sehrohr.jpg', 'Bild 4 · Sehrohr mit Strichplatte; rechts die Messwerte.'))}
 ${pair(shot('ui-u-feuer.jpg', 'Bild 5 · Feuerleitung: Lagebild, TMA und Torpedoprogrammierung.'), shot('ui-u-tauch.jpg', 'Bild 6 · Tauchstand: Tiefenprofil, Maschine und Batterie.'))}
@@ -78,10 +81,12 @@ export const chapterEscort = `
 <table class="grid">
 <tr><th>Taste</th><th>Station</th><th>Aufgabe</th></tr>
 <tr><td>1</td><td>Operationszentrale</td><td>Lagebild mit Konvoi, Eskorten, Datalink-Kontakten, Bojen, Hubschrauber und Funkpeilungen; Befehle an den Konvoi (Kurs, Zickzack, Fahrt).</td></tr>
-<tr><td>2</td><td>Sonar</td><td>Rumpfsonar aktiv/passiv, Pulsart CW oder LFM, Schleppsonar mit Länge und Seitenwahl, BT-Sonde, VDS (nur F-30).</td></tr>
+<tr><td>2</td><td>Sonar</td><td>Rumpfsonar (Aktivsonar jetzt auf der Station Ortung), Schleppsonar mit Länge und Seitenwahl, BT-Sonde, VDS (nur F-30).</td></tr>
 <tr><td>3</td><td>Waffen</td><td>U-Jagd-Rakete (bis 18 km, 40 s Flugzeit, setzt einen Leichttorpedo ab), Torpedorohre, Wasserbomben, Täuschkörper-Schleppe, Torpedowarnung.</td></tr>
 <tr><td>4</td><td>Radar und ESM</td><td>Radar an/aus (verrät die eigene Position), kurze Echos von Masten und Schnorcheln, Peilung gegnerischer Funksprüche.</td></tr>
 <tr><td>5</td><td>Brücke</td><td>Ausguck in 3D: Masten, Schnorchelfahnen, Torpedolaufbahnen, Treffer bei Tag; nachts nur beleuchtete Schiffe.</td></tr>
+<tr><td>6</td><td>Ortung</td><td>Aktivsonar-Schirm (Ring läuft hinaus, Nachhall, Echos mit Doppler-Farbe bei CW, Echotabelle, Countdown zum nächsten Ping, Bereiche 2–10 sm), Pulsart CW/LFM, BT messen, Tiefensonar (VDS), Minenmeiden, Reichweitenvorhersage.</td></tr>
+<tr><td>7</td><td>Flug</td><td>Nur Fregatte mit Bordhubschrauber: Status, Bojen und Torpedos an Bord, Aufträge zum gewählten Kontakt (Tauchsonar flach/tief, Boje, MAD, Torpedo), Bojensperre des Seefernaufklärers, Bojen im Wasser; auf der Karte dieselben Aufträge per Rechtsklick.</td></tr>
 </table>
 ${pair(shot('ui-f-opz.jpg', 'Bild 7 · Operationszentrale mit Konvoi, Peillinien und Verbandsstatus.'), shot('ui-f-sonar.jpg', 'Bild 8 · Sonarraum der F-30: Rumpfsonar am VDS in 146 m, Schleppsonar, LOFAR.'))}
 ${pair(shot('ui-f-waffen.jpg', 'Bild 9 · Waffenleitstand mit Zielkarte.'), shot('ui-f-radar.jpg', 'Bild 10 · Radar und Funkpeilung (ESM-Rose).'))}

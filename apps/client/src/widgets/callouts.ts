@@ -63,9 +63,11 @@ const LEVEL: Record<string, LogEntry['level']> = { flash: 'alarm', command: 'inf
 
 export class Callouts {
   private esm = new EsmThrottle();
+  private pings = new EsmThrottle();
 
   reset(): void {
     this.esm.clear();
+    this.pings.clear();
     this.log = [];
     this.prev = undefined;
     this.known.clear();
@@ -127,6 +129,8 @@ export class Callouts {
         const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND|WASSEREINBRUCH|^FEUER (IM|IN|GREIFT)|MUNITION|AUFTRIEB|SINKT|SACKT/.test(a.text);
         this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined }, boatCall(a.text));
       } else if (a.kind === 'ping') {
+        // A pinger on the same bearing every 30 s: report it once, again when it gets louder or after 2 minutes
+        if (!this.pings.report({ time: a.time, bearing: a.bearing, emitter: 'PING', esmLvl: Math.floor((a.level ?? 0) / 10) }, false)) continue;
         this.report(s, { level: 'warn', text: a.text }, en ? `Active sonar, bearing ${b}. We are being pinged.` : `Aktivsonar, Peilung ${b}. Wir werden angepingt.`);
       } else if (a.kind === 'transient') {
         this.report(s, { level: 'warn', text: a.text, station: sonar }, en ? `Transient, bearing ${b}. Possible torpedo launch.` : `Transient, Peilung ${b}. Möglicher Torpedoabschuss.`);

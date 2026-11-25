@@ -47,7 +47,7 @@ function silhouette(ctx: CanvasRenderingContext2D, x: number, size: number, cls:
 export function periscopeStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
-      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:380px"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
+      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button id="up">Mast ausfahren</button><button id="zoom" title="Vergrößerung 1,5× (Rundblick), 6× und 12× (Beobachten, Entfernung)">Vergr 6×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Seegang und Bootsbewegung still (Taste G)">Stab</button>
         <button id="peri">Auf Sehrohrtiefe</button>
@@ -103,7 +103,7 @@ export function periscopeStation(): Station {
   let radarSince = 0;
   let flashAt = -1e9;
 
-  el.querySelector<HTMLButtonElement>('#up')!.onclick = () => net.send({ t: 'toggle', what: 'mast', on: !store.snap?.own.mastUp });
+  el.querySelector<HTMLButtonElement>('#up')!.onclick = () => net.send({ t: 'toggle', what: 'mast', on: !(store.snap?.own.mastUp || store.snap?.own.mastPending) });
   const setZoom = (m: number) => {
     mag = m;
     el.querySelector('#zoom')!.textContent = `Vergr ${String(mag).replace('.', ',')}×`;
@@ -220,7 +220,7 @@ export function periscopeStation(): Station {
       const up = el.querySelector<HTMLButtonElement>('#up')!;
       up.textContent = o.mastUp ? 'Mast einfahren' : 'Mast ausfahren';
       const ms = mastState(o);
-      btnState(up, mastBtn(ms, o.mastUp, !atDepth));
+      btnState(up, mastBtn(ms, o.mastUp, !atDepth, !!o.mastPending));
       // Radar: on the air only with the mast fully up; how long it has been sending
       if (o.radarOn && !radarSince) radarSince = s.time;
       if (!o.radarOn) radarSince = 0;
@@ -264,7 +264,8 @@ export function periscopeStation(): Station {
       // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
       if (store.snap && mastState(store.snap.own).ext > 0) ensureGl();
       const s = store.snap;
-      const H = 380;
+      // The optic fills the station height (within reason) instead of a fixed strip
+      const H = Math.max(320, Math.min(680, window.innerHeight - 290));
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;
       const nowMs = performance.now();

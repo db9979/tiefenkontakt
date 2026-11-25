@@ -271,7 +271,7 @@ export class Plot {
     const c = this.center();
 
     this.depth.draw(ctx, s.env.seabed, this.center(), this.scale, w, height);
-    drawMet(ctx, s.env.met, P, this.scale);
+    if (!(CLASSES[s.own.cls].submarine && s.own.depth > 20)) drawMet(ctx, s.env.met, P, this.scale);
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
     ctx.lineWidth = 1;

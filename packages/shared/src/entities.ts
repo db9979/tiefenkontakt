@@ -32,6 +32,8 @@ export interface Ship {
   battery?: number;
   snorkel: boolean; // ordered to snorkel (SSK, needs shallow depth)
   mastUp: boolean; // periscope / radio mast ordered up (needs periscope depth)
+  /** Mast ordered while still too deep: it goes up as soon as the boat reaches periscope depth. */
+  mastPending?: boolean;
   /** How far the mast is out of its well, 0..1: it takes seconds to hoist and to lower. */
   mastExt?: number;
   /** Snorkel head extension 0..1; the diesels only run once it is fully up. */

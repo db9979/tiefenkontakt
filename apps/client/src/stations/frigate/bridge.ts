@@ -15,7 +15,8 @@ import { btnState } from '../../widgets/btn-state.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
-const H = 380;
+/** View height: follows the window (set each frame). */
+let H = 380;
 const WIDE_FOV = 75;
 /** Binocular magnifications: true field of view is about 52° / magnification (7×50: 7.4°). */
 const MAGS = [6, 8, 10, 12];
@@ -25,7 +26,7 @@ const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL',
 export function bridgeStation(): Station {
   const el = h(`<div class="cols">
     <div class="panel"><div class="hd"><span>Brücke · Ausguck</span><span id="b-brg" class="dim"></span></div>
-      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:${H}px"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
+      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
         <button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button>
         <button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button>
@@ -259,6 +260,7 @@ export function bridgeStation(): Station {
     frame() {
       ensureGl();
       const s = store.snap;
+      H = Math.max(320, Math.min(680, window.innerHeight - 290));
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;
       const nowMs = performance.now();

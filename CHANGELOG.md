@@ -6,6 +6,27 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Stationen neu geordnet:** U-Boote bekommen „Ortung“ (Bedrohung und Ausweichen, Aktivsonar-Schirm, ESM-Radarwarnung,
+  Echolot, Reichweitenvorhersage) und „Torpedoraum“ (Rohre mit Ladestand, Draht mit Feinsteuerung, Täuschkörper, Minen),
+  Überwasserschiffe „Ortung“ (Aktivsonar, BT, VDS, Minenmeiden) und die Fregatte mit Hubschrauber „Flug“ (Aufträge zum
+  gewählten Kontakt als Knöpfe). Flugabwehr sitzt bei Radar/ESM, Gefechtsstationen und Notanblasen in der Zentrale, die
+  doppelte Fahrstufenleiste im Tauchstand ist weg. Tasten 6 und 7, auf dem Telefon eine scrollbare Stationsleiste.
+- **Aktivsonar-Schirm überarbeitet:** Bereiche 2–10 sm, Gradring, toter Winkel achtern, Echos nach Doppler gefärbt (CW),
+  Echotabelle, Countdown zum nächsten Ping, Ping- und Pulsknöpfe direkt am Schirm.
+- **Feuern mit Sicherung:** Raketen, Torpedos, Seeziel-FK und Hubschraubertorpedo fragen ein zweites Mal, wenn das Ziel ein
+  eigenes Schiff ist, Eigene nahe am Zielpunkt stehen oder die TMA-Güte unter 30 % liegt; ohne Ziel verweigern sie.
+- **Keine Lücken mehr:** Wasserfälle, Tiefenprofil und Signalanalyse sammeln auch, wenn ihre Station nicht angezeigt wird.
+- **Mast vormerken:** Zu tief gedrückt fährt das Boot auf Sehrohrtiefe und der Mast geht bei Ankunft hoch („VORGEMERKT“).
+- **Klassengerecht:** Korvette und Wachschiff zeigen keine Hubschrauber-/Bojenzeilen mehr, Schleppsonar-Längen nur bis
+  zur Kabellänge der Klasse; Sehrohr, Brücke und Tiefenprofil füllen die Höhe; Wetterkreise getaucht ausgeblendet;
+  wiederholte Aktivsonar-Peilungen im Meldungsprotokoll gebündelt.
+- **Wasserfall:** schmale Keulen, Normalisierer (NORM), Mittelung, Helligkeit und Kontrast; der Konvoi zerfließt nicht mehr.
+- **3D-Modelle:** eigenes Jagd-U-Boot mit Kreuzleitwerk, eigenständiges Wachschiff (U-Jagd-Starter vorn, schräge FK-Starter,
+  Türme achtern, VDS-Pforte), Fregatte mit Geschütz vorn und Gittermast, Masthöhen und Tiefgang passend zum Erkennungsheft,
+  Küsten-U-Boot liegt tiefer, erfundene statt echter Reedereinamen, kein Flimmern auf Distanz.
+- **Klang:** Dauerbrummen (80 Hz) im Hydrophon behoben, Blattschlag richtig herum, Rauschen ohne hörbare Wiederholung,
+  Begrenzer gegen Übersteuern, lauterer eigener Ping mit CW/LFM-Klang, Torpedo als Rauschen mit Blattschlag, Grundberührung
+  ohne Explosion.
 - **Reichweitenvorhersage:** Horchraum und Fregatten-Sonar zeigen einen Schnitt Entfernung gegen Tiefe: wo man den
   Gegner hört (grün) und wo man selbst gehört wird (rot), mit Schicht, Grund und Konvergenzzone, berechnet aus dem
   Schallmodell des Spiels. Ohne gemessene Schicht nur als grobe Schätzung gekennzeichnet.

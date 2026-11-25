@@ -40,3 +40,19 @@ describe('submarine radar on the mast', () => {
     expect(runSensors(ctx([quiet, ffg])).some((x) => x.observerId === 'f' && x.sensor === 'esm' && x.targetId === 'u')).toBe(false);
   });
 });
+
+describe('mast ordered while too deep', () => {
+  it('goes up on arrival at periscope depth, and is dropped when the boat is sent deep', () => {
+    const s = createShip({ id: 'u', cls: 'ssk', name: 'U', team: 'east', pos: { x: 0, y: 0 }, heading: 0, speedKn: 4, depth: 15 });
+    s.order.depth = 14;
+    s.mastPending = true;
+    for (let i = 0; i < 100 && !s.mastUp; i++) stepShip(s, 0.5, 1000 + i);
+    expect(s.mastUp).toBe(true);
+    expect(s.mastPending).toBe(false);
+    const d = createShip({ id: 'd', cls: 'ssk', name: 'D', team: 'east', pos: { x: 0, y: 0 }, heading: 0, speedKn: 4, depth: 60 });
+    d.mastPending = true;
+    d.order.depth = 100;
+    stepShip(d, 0.5, 1000);
+    expect(d.mastPending).toBe(false);
+  });
+});

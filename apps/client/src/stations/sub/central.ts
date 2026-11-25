@@ -1,6 +1,7 @@
 import { CLASSES, NM, PERISCOPE_DEPTH, REGIONS, regionToGeo, type Snapshot } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, depthBtn, mastBtn } from '../../widgets/btn-state.js';
+import { guardFire } from '../../widgets/fire-guard.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
@@ -29,13 +30,15 @@ export function centralStation(): Station {
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="panel"><div class="hd"><span>Boot</span><span id="c-alarm" class="red"></span></div><div id="c-boat"></div></div>
       <div class="panel"><div class="hd"><span>Befehle</span></div>
-        <div class="steps" style="flex-wrap:wrap">
+        <div class="grid3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:4px">
           <button data-cmd="peri" title="Auf Sehrohrtiefe (${PERISCOPE_DEPTH} m)">Sehrohrtiefe</button>
           <button data-cmd="under" title="30 m unter die gemessene Sprungschicht">Unter die Schicht</button>
           <button data-cmd="alarm" class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">Alarmtauchen</button>
           <button data-cmd="silent" title="Ruhe im Boot: Hilfsmaschinen aus, keine lauten Arbeiten (leiser, die Besatzung ermüdet schneller)">Ruhe im Boot</button>
           <button data-cmd="mast" title="Sehrohr / Funkmast aus- oder einfahren">Mast</button>
           <button data-cmd="sound" title="Echolot: ein Lotimpuls nach unten, mit der Seekarte verglichen. Hilft nur, wo der Grund geneigt ist; ein Geleitschiff in wenigen Kilometern kann ihn hören">Echolot</button>
+          <button data-cmd="battle" title="Gefechtsstationen: +10 % Leistung, ermüdet die Besatzung in etwa 90 Minuten">Gefechtsstationen</button>
+          <button data-cmd="blow" class="fire" title="Alle Tauchzellen anblasen: schnell nach oben, sehr laut, kostet eine Pressluftflasche (zweimal drücken)">Notanblasen</button>
         </div>
       </div>
       <div class="panel"><div class="hd"><span>Funkbuch</span><span class="dim" id="c-sched">NUR MIT MAST OBEN</span></div><div id="c-radio" style="max-height:180px;overflow:auto"></div></div>
@@ -53,7 +56,9 @@ export function centralStation(): Station {
     if (hit) store.selected = hit;
   };
 
-  el.querySelectorAll<HTMLButtonElement>('[data-cmd]').forEach((b) => (b.onclick = () => {
+  // Emergency blow: loud and irreversible, so it asks for a second press
+  guardFire(q<HTMLButtonElement>('[data-cmd="blow"]'), () => ({ warn: 'WIRKLICH ANBLASEN' }), () => net.send({ t: 'blow' }));
+  el.querySelectorAll<HTMLButtonElement>('[data-cmd]:not([data-cmd="blow"])').forEach((b) => (b.onclick = () => {
     const s = store.snap;
     if (!s) return;
     const o = s.own;
@@ -71,8 +76,9 @@ export function centralStation(): Station {
       if (o.snorkel) net.send({ t: 'toggle', what: 'snorkel', on: false });
       net.send({ t: 'order', depth: Math.max(40, Math.min(maxD * 0.8, bottom - 30, layer !== undefined ? layer + 40 : 150)), speedKn: CLASSES[o.cls].maxSpeedKn });
     } else if (cmd === 'silent') net.send({ t: 'toggle', what: 'silent', on: !o.crew?.silent });
-    else if (cmd === 'mast') net.send({ t: 'toggle', what: 'mast', on: !o.mastUp });
+    else if (cmd === 'mast') net.send({ t: 'toggle', what: 'mast', on: !(o.mastUp || o.mastPending) });
     else if (cmd === 'sound') net.send({ t: 'toggle', what: 'sounding', on: true });
+    else if (cmd === 'battle') net.send({ t: 'toggle', what: 'battle', on: !o.crew?.battle });
   }));
 
   return {
@@ -102,7 +108,8 @@ export function centralStation(): Station {
         <div class="row"><span class="dim">MAST</span><span class="${mast > 0.5 ? 'amber' : ''}">${mast >= 1 ? 'OBEN · SICHTBAR UND PEILBAR' : mast > 0 ? `FÄHRT ${Math.round(mast * 100)} %` : 'EINGEFAHREN'}${o.snorkel ? ' · SCHNORCHELT' : ''}</span></div>
         <div class="row"><span class="dim">TORPEDOS</span><span>${o.loadout.heavy} · ROHRE ${o.loadout.tubes.filter((t) => t.loaded).length}/${o.loadout.tubes.length} GELADEN · TÄUSCHKÖRPER ${o.loadout.noisemakers}</span></div>`);
       btnState(q('[data-cmd="silent"]'), { on: !!o.crew?.silent });
-      btnState(q('[data-cmd="mast"]'), mastBtn(mastState(o), o.mastUp, o.depth > PERISCOPE_DEPTH + 0.5));
+      btnState(q('[data-cmd="battle"]'), { on: !!o.crew?.battle });
+      btnState(q('[data-cmd="mast"]'), mastBtn(mastState(o), o.mastUp, o.depth > PERISCOPE_DEPTH + 0.5, !!o.mastPending));
       depthBtn(q('[data-cmd="peri"]'), o.depth, o.order.depth, PERISCOPE_DEPTH);
       depthBtn(q('[data-cmd="under"]'), o.depth, o.order.depth, layer !== undefined ? Math.min(spec.maxDepth * 0.9, layer + 30, (s.env.bottom ?? 9999) - 30) : undefined);
       // VLF schedule of fleet command: every 20 minutes, three minutes on air

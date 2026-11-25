@@ -195,11 +195,12 @@ body.cb .team-e { color: #ff9b45; }
 /* Phones: station tabs as a bottom bar, helm as a drawer */
 @media (max-width: 600px) {
   .game { padding-bottom: 64px; }
-  .topbar .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
-    background: #070b0a; border-top: 1px solid var(--line2); max-width: none; padding: 4px; }
-  .topbar .tabs button { font-size: 0.8333rem; padding: 8px 2px; white-space: normal; border-radius: 0; }
+  /* One scrollable row at the bottom: up to seven stations, none wrapped, the helm button above it */
+  .topbar .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 0;
+    background: #070b0a; border-top: 1px solid var(--line2); max-width: none; padding: 4px; scrollbar-width: none; }
+  .topbar .tabs button { flex: 0 0 auto; min-width: 22%; font-size: 0.8333rem; padding: 10px 6px; white-space: nowrap; border-radius: 0; }
   .st-prog .dim { display: none; }
-  .helm-toggle { display: block; position: fixed; right: 10px; bottom: 60px; z-index: 56; background: #12302a; border-color: var(--g); box-shadow: 0 4px 14px rgba(0,0,0,0.6); }
+  .helm-toggle { display: block; position: fixed; right: 10px; bottom: 64px; z-index: 56; background: #12302a; border-color: var(--g); box-shadow: 0 4px 14px rgba(0,0,0,0.6); }
   .side .helm { position: fixed; left: 0; right: 0; bottom: 52px; z-index: 54; max-height: 70vh; overflow: auto; transform: translateY(110%);
     transition: transform 0.25s ease; border-top: 2px solid var(--g); }
   body.helm-open .side .helm { transform: translateY(0); }

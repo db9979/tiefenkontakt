@@ -201,7 +201,7 @@ export interface OwnShipView {
   battery?: number;
   batteryEnduranceS?: number;
   snorkel: boolean;
-  mastUp: boolean;
+  mastUp: boolean; mastPending?: boolean;
   /** Mast and snorkel hoist state 0..1 (they take seconds to move). */
   mastExt?: number;
   snorkelExt?: number;

@@ -93,7 +93,7 @@ export function diveEngineStation(): Station {
     frame() {
       const s = store.snap;
       const c = q<HTMLCanvasElement>('#prof');
-      const H = 360;
+      const H = Math.max(300, Math.min(620, window.innerHeight - 300));
       const ctx = fitCanvas(c, H);
       const w = c.clientWidth;
       ctx.fillStyle = COL.bg;
