@@ -8,6 +8,8 @@ import { renderContactList } from '../../widgets/contact-list.js';
 import { h, km, setHtml, tdeg1 } from '../../widgets/format.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
+import { fillBox } from '../../widgets/fill.js';
+import { tubeBank } from '../../widgets/tube-bank.js';
 import { samAction } from '../../widgets/airdef-panel.js';
 import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
 import { keycap } from '../../widgets/keys.js';
@@ -28,38 +30,40 @@ function aim(): { bearing: number; range: number; source: string } | undefined {
 }
 
 export function weaponsStation(): Station {
-  // Left: the target, then the weapons as a 2×2 grid of cards (rocket, tubes, ahead-thrower,
-  // torpedo defence; the anti-ship missile as a fifth card where fitted). Right: a small target
-  // chart and the contact list.
-  const el = h(`<div class="st two">
-    <div class="st-col scroll">
+  // Left (45 %): the target, the weapons as a 2×2 grid of cards (rocket, tubes, ahead-thrower,
+  // torpedo defence; the anti-ship missile as a fifth card where fitted) and the contact list,
+  // the one part that scrolls. Right: the target chart at full height.
+  const el = h(`<div class="st wpn">
+    <div class="st-col">
       <div class="panel"><div class="hd"><span>Waffenleitstand · Ziel</span><span id="src" class="dim"></span></div><div id="target"></div></div>
       <div class="wgrid">
-        <div class="panel wcard"><div class="hd"><span>U-Jagd-Rakete</span><span id="rk" class="dim"></span></div>
-          <div class="wbody dim">LEICHTGEWICHTSTORPEDO 1,8–18 KM, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div>
+        <div class="panel wcard"><div class="hd"><span>ASW-Rakete</span></div>
+          <div class="wbody"><div id="rk" class="wstat"></div><div class="dim">LEICHTGEWICHTSTORPEDO 1,8–18 KM, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div></div>
           <button id="rocket" class="fire">Rakete auf Ziel${keycap('rocket')}</button>
         </div>
-        <div class="panel wcard"><div class="hd"><span>Torpedorohre</span><span id="tb" class="dim"></span></div>
-          <div class="wbody"><div class="row"><span class="dim">SUCHTIEFE</span><span id="tdep"></span></div></div>
+        <div class="panel wcard"><div class="hd"><span>Torpedorohre</span></div>
+          <div class="wbody"><div id="tb" class="wstat"></div><div id="tubes-slot"></div><div class="row"><span class="dim">SUCHTIEFE</span><span id="tdep"></span></div></div>
           <button id="tube" class="fire">Torpedo auf Zielpeilung</button>
         </div>
-        <div class="panel wcard"><div class="hd"><span>Wasserbombenwerfer</span><span id="dcn" class="dim"></span></div>
-          <div class="wbody"><div class="dim">ZIEL 400–800 M VORAUS AUF EIGENEM KURS</div><div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div></div>
+        <div class="panel wcard"><div class="hd"><span>Werfer</span></div>
+          <div class="wbody"><div id="dcn" class="wstat"></div><div class="dim">ZIEL 400–800 M VORAUS AUF EIGENEM KURS</div><div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div></div>
           <span class="seg wide">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}" class="fire">${d} m</button>`).join('')}</span>
         </div>
-        <div class="panel wcard"><div class="hd"><span>Torpedoabwehr</span><span id="dec-st" class="dim"></span></div>
-          <div class="wbody dim">NIXIE-SCHLEPPE: LOCKT ANLAUFENDE TORPEDOS, RAUSCHT ABER IM EIGENEN SONAR. HÖCHSTENS 25 KN.</div>
+        <div class="panel wcard"><div class="hd"><span>Torpedoabwehr</span></div>
+          <div class="wbody"><div id="dec-st" class="wstat"></div><div class="dim">NIXIE-SCHLEPPE: LOCKT ANLAUFENDE TORPEDOS, RAUSCHT ABER IM EIGENEN SONAR. HÖCHSTENS 25 KN.</div></div>
           <button id="decoy" class="warn">Täuschkörper-Schleppe${keycap('decoy')}</button>
         </div>
-        <div id="ssmp" class="panel wcard span2" style="display:none"><div class="hd"><span>Seezielflugkörper</span><span id="ssmn" class="dim"></span></div>
-          <div class="wbody dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div>
+        <div id="ssmp" class="panel wcard span2" style="display:none"><div class="hd"><span>Seezielflugkörper</span></div>
+          <div class="wbody"><div id="ssmn" class="wstat"></div><div class="dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div></div>
           <button id="ssm" class="fire">FK auf Ziel</button>
         </div>
       </div>
+      <div class="panel grow listpanel"><div class="hd"><span>Kontakte</span></div><div id="list" class="scroll"></div></div>
     </div>
     <div class="st-col">
-      <div class="panel"><div class="hd"><span>Zielkarte</span><span class="dim">RECHTSKLICK = RAKETE HIERHER</span></div><canvas id="plot"></canvas></div>
-      <div class="panel grow listpanel"><div class="hd"><span>Kontakte</span></div><div id="list" class="scroll"></div></div>
+      <div class="panel grow"><div class="hd"><span>Zielkarte</span><span class="dim">RECHTSKLICK = RAKETE HIERHER</span></div>
+        <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
+      </div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
@@ -95,6 +99,9 @@ export function weaponsStation(): Station {
     bearingLines: true, showConvoy: true, esmLines: true, actions: (p) => [...samAction(p, plot.scale * 14), ...ssmAction(p), ...rocketAction(p), ...buoyAction(p), ...mpaAction(p), ...courseAction(p)],
   });
   plot.scale = 30;
+  const box = fillBox(q('#plot-box'), 260);
+  const bank = tubeBank();
+  q('#tubes-slot').replaceWith(bank.el);
 
   return {
     id: 'waffen',
@@ -115,8 +122,9 @@ export function weaponsStation(): Station {
       q('#ssmp').style.display = fk ? '' : 'none';
       if (fk) q('#ssmn').textContent = `${fk.left} AN BORD${fk.readyInS ? ` · LÄDT ${fk.readyInS} S` : ''}`;
       q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
-      q('#tb').textContent = l.tubes.map((t, i) => `R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}`).join(' ') + ` · VORRAT ${l.light}`;
-      q('#dcn').textContent = `Werfer: noch ${l.depthCharges} Salven`;
+      q('#tb').textContent = `${l.tubes.filter((t) => t.loaded).length}/${l.tubes.length} GELADEN · VORRAT ${l.light}`;
+      bank.update(l.tubes);
+      q('#dcn').textContent = `NOCH ${l.depthCharges} SALVEN`;
       const [above, below] = lightSearchDepths(s.env.layerDepth);
       q('#tdep').textContent = s.env.layerDepth ? `${above} / ${below} M (SCHICHT ${s.env.layerDepth} M)` : `${above} / ${below} M · SCHICHT NICHT GEMESSEN (BT)`;
       // Mortar: is the target in the field the salvo covers (400–800 m, within a few degrees of the bow)?
@@ -128,14 +136,17 @@ export function weaponsStation(): Station {
       btnState(q('#decoy'), { on: l.towedDecoy });
       q('#dec-st').textContent = l.towedDecoy ? 'AUSGEBRACHT' : 'EINGEHOLT';
       btnState(q('#rocket'), l.rockets ? { label: String(l.rockets) } : { label: 'LEER', tone: 'empty' });
-      btnState(q('#tube'), tubeTag(l.tubes));
+      // The tube bank above shows every tube: the button keeps only its tone (and the guard's warnings)
+      btnState(q('#tube'), { ...tubeTag(l.tubes), label: '' });
       if (fk) btnState(q('#ssm'), !fk.left ? { label: 'LEER', tone: 'empty' } : fk.readyInS ? { label: `LÄDT ${fk.readyInS} S`, tone: 'busy' } : { label: `${fk.left} BEREIT` });
       el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => btnState(b, { tone: l.depthCharges ? undefined : 'empty' }));
       renderContactList(q('#list'));
     },
     frame() {
-      // The target chart is an inset: big enough to aim, the list gets the rest
-      plot.draw(Math.max(200, Math.min(320, Math.round(el.clientHeight * 0.42))));
+      plot.draw(box.h);
+    },
+    dispose() {
+      box.dispose();
     },
   };
 }

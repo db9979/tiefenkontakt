@@ -16,6 +16,17 @@ export const EN_STATIONS: [string, string][] = [
   // Hints and footers
   ['KLICK WÄHLT · RECHTSKLICK = KURS', 'CLICK SELECTS · RIGHT-CLICK = COURSE'], ['KLICK IN DAS PROFIL = BEFOHLENE TIEFE', 'CLICK THE PROFILE = ORDERED DEPTH'],
   ['KLICK WÄHLT · RECHTSKLICK = KURS / RAKETE / BOJE', 'CLICK SELECTS · RIGHT-CLICK = COURSE / ROCKET / BUOY'], ['KLICK AUF EINE SPUR WÄHLT', 'CLICK A TRACE TO SELECT'],
+  // Frigate stations, designer round 3 (OPZ contact card, sonar header and popover, weapon cards, ESM, sightings)
+  ['Gewählter Kontakt', 'Selected contact'], ['Ping', 'Ping'], ['Hubschrauber hin', 'Send helicopter'], ['KONTAKT IN KARTE ODER LISTE WÄHLEN', 'SELECT A CONTACT ON THE MAP OR IN THE LIST'],
+  ['ALTER', 'AGE'], ['ZU WEIT · ÜBER 18 KM', 'TOO FAR · OVER 18 KM'],
+  ['Einzelping: Entfernung zum gewählten Kontakt, verrät aber das eigene Schiff', 'Single ping: range to the selected contact, but gives the own ship away'],
+  ['U-Jagd-Rakete auf die letzte Position des gewählten Kontakts (1,8–18 km)', 'ASW rocket at the selected contact\'s last position (1.8–18 km)'],
+  ['Bordhubschrauber zum gewählten Kontakt: Tauchsonar an seiner letzten Position', 'Helicopter to the selected contact: dipping sonar at its last position'],
+  ['Anzeige ▾', 'Display ▾'], ['Anzeige beider Wasserfälle: Normalisierer, Mittelung, Helligkeit, Kontrast', 'Display of both waterfalls: normaliser, averaging, brightness, contrast'],
+  ['Kabellänge (lang = unter der Sprungschicht)', 'Cable length (long = below the layer)'], ['Klick auf eine Spur wählt den Kontakt', 'Click a trace to select the contact'],
+  ['Schleppsonar: Peilung links/rechts mehrdeutig', 'Towed array: bearing ambiguous left/right'],
+  ['ASW-Rakete', 'ASW rocket'], ['Werfer', 'Mortar'], ['Sichtungen', 'Sightings'], ['Klick dreht den Blick auf die Sichtung', 'Click turns the view to the sighting'],
+  ['Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)', 'Click an echo to select · strokes on the rim = ESM bearings (red = fire-control or aircraft radar, amber = unknown or radio)'],
   ['UNTER 12 KN BLEIBEN', 'STAY BELOW 12 KN'], ['NACH DEM TÄUSCHKÖRPER ABDREHEN UND TIEFE WECHSELN', 'AFTER THE DECOY TURN AWAY AND CHANGE DEPTH'],
   ['KLICK AUF ECHO WÄHLT · ROTE STRICHE AM RAND = ESM-PEILUNGEN', 'CLICK AN ECHO TO SELECT · RED STROKES ON THE RIM = ESM BEARINGS'],
   ['ZIEHEN DREHT UND HEBT · KLICK WÄHLT', 'DRAG TRAINS AND TILTS · CLICK SELECTS'], ['HÖRT RADARE', 'HEARS RADARS'],
@@ -152,6 +163,7 @@ export const EN_STATIONS: [string, string][] = [
 
 /** Texts with figures in them. */
 export const EN_STATIONS_PHRASES: [RegExp, string][] = [
+  [/^NOCH (\d+) SALVEN$/, '$1 SALVOS LEFT'], [/^(\d+) VERFÜGBAR$/, '$1 AVAILABLE'], [/^(\d+) MIN$/, '$1 MIN'],
   [/^UNTER KIEL (\d+) M$/, 'UNDER KEEL $1 M'], [/^NUR AUF (\d+) M$/, 'ONLY AT $1 M'], [/^ZIEL (\S+)$/, 'TARGET $1'],
   [/^(\d+)\/(\d+) GELADEN · VORRAT (\d+)$/, '$1/$2 LOADED · STOCK $3'], [/^(\d+) FEINDKONTAKTE?$/, '$1 HOSTILE CONTACT(S)'],
   [/^(\d+) KONTAKTE$/, '$1 CONTACTS'], [/^(\d+) PEILUNGEN$/, '$1 BEARINGS'], [/^ZUSTAND (\d+) %$/, 'CONDITION $1 %'],
