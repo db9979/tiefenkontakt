@@ -50,11 +50,11 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
       intel.push(`Aufklärung: ${harbour ? 'Ankerplatz' : 'Konvoi'} etwa Peilung ${trueDeg3(w, b)}, ${km(distance(ship.pos, centre) * (0.75 + rnd() * 0.5))} (ungenau)`);
       if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9} kn, Generalkurs ${trueDeg3(w, w.convoy?.guideHeading ?? 0, 10)}`);
     }
-    intel.push(`Eskorte: ${enemies.length} Fregatte(n) mit Schleppsonar, Hubschrauber und U-Jagd-Raketen`);
+    intel.push(`Eskorte: ${enemies.length} ${enemies.length === 1 ? 'Fregatte' : 'Fregatten'} mit Schleppsonar, Hubschrauber und U-Jagd-Raketen`);
   } else {
     goal = harbour ? 'Die Einfahrt halten, bis die Zeit abläuft.' : 'Den Konvoi ins Ziel bringen oder alle U-Boote versenken.';
     if (centre) intel.push(`${harbour ? 'Ankerplatz' : 'Konvoi'}: Peilung ${trueDeg3(w, bearing(ship.pos, centre))}, ${km(distance(ship.pos, centre))}, ${merchants.length} Frachter`);
-    intel.push(`Bedrohung: ${enemies.length} U-Boot(e), vermutlich voraus des Konvois`);
+    intel.push(`Bedrohung: ${enemies.length} ${enemies.length === 1 ? 'U-Boot' : 'U-Boote'}, vermutlich voraus des Konvois`);
   }
   // Missions with goals beyond sinking (the strait runs along the route, game +y: named by its true direction)
   const to = compassStem(w, 0);

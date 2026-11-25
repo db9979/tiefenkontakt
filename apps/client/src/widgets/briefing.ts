@@ -11,6 +11,9 @@ import { esc, h } from './format.js';
 
 const TOD: Record<string, string> = { tag: 'Tag', daemmerung: 'Dämmerung', nacht: 'Nacht' };
 
+/** "Diesel-U-Boot Projekt 4 Messer-543": the call sign (last word) never breaks at its hyphen. */
+const shipLine = (ship: string): string => esc(ship).replace(/(\S+)$/, '<span class="nowrap">$1</span>');
+
 /** Mission briefing overlay: once per match automatically, again via the menu. */
 export function showBriefing(b: Briefing, force = false): void {
   const key = `tk_brief_${store.matchId ?? ''}`;
@@ -22,7 +25,7 @@ export function showBriefing(b: Briefing, force = false): void {
       <div class="dim">${esc(b.info)}</div></div>
     <div class="brief-grid">
       <div><div class="brief-k">AUFTRAG</div><div class="brief-goal">${esc(b.goal)}</div></div>
-      <div><div class="brief-k">EIGENES SCHIFF</div><div>${esc(b.ship)}</div>
+      <div><div class="brief-k">EIGENES SCHIFF</div><div>${shipLine(b.ship)}</div>
         <div class="dim">${esc(TOD[b.timeOfDay] ?? b.timeOfDay)} · ${duration(b)}</div></div>
     </div>
     <div class="brief-k">LAGE</div>

@@ -51,7 +51,7 @@ export function rankingPanel(board: HTMLElement): void {
     const span = v.season ? `${day(v.season.start)} – ${day(v.season.end - 1)}` : 'ALLE PARTIEN';
     const podium = v.past.slice(0, 4).map((p) => `<div class="row dim"><span>SAISON ${esc(p.id)}</span><span>${p.podium.map((x) => `${x.place}. ${esc(x.callsign)} (${x.points})`).join(' · ')}</span></div>`).join('');
     board.innerHTML = `<div class="hd"><span>Rangliste</span><span class="dim"><select id="season" title="Saison wählen">${opts}</select></span></div>
-      <div class="row dim"><span>${span}</span><span>KLICK AUF SPALTE SORTIERT</span></div>` +
+      <div class="row dim"><span class="nowrap">${span}</span><span>KLICK AUF SPALTE SORTIERT</span></div>` +
       (rows.length
         ? `<div class="row dim ltable">${hd('rank', '#')}${hd('callsign', 'RUFZ.')}${hd('points', 'PKT')}${hd('wins', 'SIEGE')}${hd('rate', 'QUOTE')}${hd('kills', 'VERS.')}${hd('tonnage', 'BRT')}</div>` +
           rows.map((x) => `<div class="row ltable"><span>${x.rank}</span><span>${esc(x.callsign)}${badgeIcons(x.badges)}</span><span>${x.points}</span><span>${x.wins}/${x.matches}</span><span>${x.matches ? Math.round((100 * x.wins) / x.matches) + ' %' : '—'}</span><span>${x.kills}</span><span>${Math.round(x.tonnage / 1000)}K</span></div>`).join('')

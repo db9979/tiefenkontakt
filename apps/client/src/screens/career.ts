@@ -36,10 +36,12 @@ export function careerPanels(): HTMLElement {
 
   fetch('/api/stats').then(async (r) => {
     if (!r.ok) {
-      // Nothing to show for a guest: one line instead of an empty box
-      me.innerHTML = '<div class="dim">DIENSTBUCH UND KAMPAGNE · NUR MIT KONTO: ERGEBNISSE, PUNKTE UND KAMPAGNE WERDEN GESPEICHERT</div>';
-      me.style.padding = '4px 10px';
-      me.style.alignSelf = 'start';
+      // Nothing to show for a guest: one note across both columns, Rangliste and Balance side by side below it
+      me.innerHTML = '<div class="dim">Dienstbuch und Kampagne nur mit Konto: dann werden Ergebnisse, Punkte und der Kampagnenstand gespeichert.</div>';
+      me.style.padding = '6px 10px';
+      me.style.gridColumn = '1 / -1';
+      const right = board.parentElement!;
+      right.replaceWith(board, balance);
       return;
     }
     const d = (await r.json()) as { summary?: Summary; campaign: Step[]; rating?: number; badges?: { id: string; at: number }[] };

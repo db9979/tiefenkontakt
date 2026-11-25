@@ -45,12 +45,12 @@ export function quickPanel(): HTMLElement {
     wk.innerHTML = `
       <div class="row" style="gap:6px;flex-wrap:wrap">
         <span title="Eine Lage pro Woche, für alle gleich: Mission, Wetter, Positionen und Route. Mit Konto kommt dein bestes Ergebnis je Seite auf die Wochenliste."><span class="amber">WOCHENLAGE KW ${esc(kw)}</span>
-          ${l ? `<span class="dim"> · ${esc(MISSION[l.mission] ?? l.mission)}${l.area ? ` · ${esc(l.area)}` : ''} · ${esc(TOD[l.timeOfDay] ?? l.timeOfDay)} · SEEGANG ${l.seaState} · ${left(l.endsAt)}</span>` : ''}</span>
+          ${l ? `<span class="dim"> · ${esc(MISSION[l.mission] ?? l.mission)}${l.area ? ` · ${esc(l.area)}` : ''} · ${esc(TOD[l.timeOfDay] ?? l.timeOfDay)} · SEEGANG ${l.seaState} · </span><span class="dim nowrap">${left(l.endsAt)}</span>` : ''}</span>
         <span style="display:flex;gap:6px"><button data-week="west" class="on">Geleitschutz</button><button data-week="east" class="on">U-Boot</button></span>
       </div>
       <div class="grid2" style="margin-top:4px">
-        <div><div class="dim team-w">BESTE GELEITE</div>${rows(b.west)}</div>
-        <div><div class="dim team-e">BESTE U-BOOTE</div>${rows(b.east)}</div>
+        <div><div class="dim"><span class="team-dot team-w">●</span> BESTE GELEITE</div>${rows(b.west)}</div>
+        <div><div class="dim"><span class="team-dot team-e">●</span> BESTE U-BOOTE</div>${rows(b.east)}</div>
       </div>`;
     wk.querySelectorAll<HTMLButtonElement>('[data-week]').forEach((btn) => {
       btn.onclick = () => net.send({ t: 'solo', team: btn.dataset.week as 'west' | 'east', weekly: true });
