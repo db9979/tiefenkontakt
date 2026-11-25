@@ -12,6 +12,7 @@ import { MatchStore } from './match-store.js';
 import { createMailer, SmtpMailer } from './mailer.js';
 import { resetMail, verifyMail } from './mail-templates.js';
 import { handleAdmin } from './admin.js';
+import { StatsAdmin } from './stats-admin.js';
 import { bathyFile } from './bathy-load.js';
 import { PhoneHub } from './phone.js';
 import { FeedbackStore, feedbackSchema } from './feedback.js';
@@ -47,6 +48,7 @@ const auth = new AuthStore();
 export const lobby = new Lobby();
 const store = new MatchStore();
 const stats = new StatsStore(auth.db);
+const statsAdmin = new StatsAdmin(auth.db);
 const mod = new ModerationStore(auth.db);
 const backups = new Backups(auth.db);
 const ratings = new Ratings(auth.db);
@@ -219,7 +221,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<voi
       if (!backups.enabled) return json(res, 400, { error: 'BACKUP_DIR ist nicht gesetzt' });
       return json(res, 200, { file: backups.run(), backups: backups.list() });
     }
-    return handleAdmin(req, body, (status, b) => json(res, status, b), lobby, mod);
+    return handleAdmin(req, body, (status, b) => json(res, status, b), lobby, mod, statsAdmin);
   }
   if (req.url?.startsWith('/api/replays') && await replayApi.handle({
     method: req.method ?? 'GET', url: req.url ?? '', ip, accountPlayerId: ((u) => (u ? `u-${u.id}` : undefined))(auth.userForToken(token)),

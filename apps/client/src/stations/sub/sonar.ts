@@ -1,5 +1,6 @@
 import { angleDiff, CLASSES } from '@tk/shared';
 import { net } from '../../net.js';
+import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
@@ -70,12 +71,14 @@ export function subSonarStation(): Station {
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
       const o = s.own;
       setText(el.querySelector('#own')!, `EIGENGERÄUSCH ${o.noiseDb.toFixed(0)} DB`);
-      el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
+      btnState(el.querySelector<HTMLElement>('#ping'), { on: o.activeSonar, tone: o.activeSonar ? 'warn' : undefined });
       const tow = el.querySelector<HTMLButtonElement>('#tow')!;
       tow.style.display = CLASSES[o.cls].towed ? '' : 'none';
       const tgt = o.towedOrder ?? o.towedLength;
-      tow.classList.toggle('on', tgt > 0);
-      tow.textContent = tgt !== o.towedLength ? `Schlepp ${tgt > o.towedLength ? 'aus' : 'ein'} ${o.towedLength} m` : o.towedLength > 0 ? (o.towedReady ? 'Schlepp ausgebracht' : 'Schlepp stabilisiert…') : 'Schleppsonar';
+      tow.textContent = 'Schleppsonar';
+      const maxLen = CLASSES[o.cls].towed?.maxLength ?? 1;
+      btnState(tow, tgt !== o.towedLength ? { on: tgt > 0, label: `${tgt > o.towedLength ? 'AUS' : 'EIN'} ${o.towedLength} M`, pct: (100 * o.towedLength) / maxLen, tone: 'busy' }
+        : o.towedLength > 0 ? (o.towedReady ? { on: true, label: `${o.towedLength} M` } : { on: true, label: 'STABILISIERT…', tone: 'busy' }) : { on: false });
       setText(el.querySelector('#lab')!, store.selected ?? '');
       analysis.update();
     },

@@ -108,8 +108,8 @@ export class StatsStore {
     const classes = d.ships.filter((s) => s.player).map((s) => `${s.team}:${s.cls}`);
     // Who sailed which class, human or AI (balance from real matches, real-balance.ts)
     const crew = d.stats.map((s) => [s.team, s.cls, s.playerId.startsWith('bot-') ? 0 : 1]);
-    this.db.prepare('INSERT INTO matches (ended_at, mission, time_of_day, winner, duration, humans_west, humans_east, classes, crew) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(now, mission, timeOfDay, d.winner, d.duration, humans('west'), humans('east'), JSON.stringify(classes), JSON.stringify(crew));
+    this.db.prepare('INSERT INTO matches (ended_at, mission, time_of_day, winner, duration, humans_west, humans_east, classes, crew, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(now, mission, timeOfDay, d.winner, d.duration, humans('west'), humans('east'), JSON.stringify(classes), JSON.stringify(crew), d.reason.slice(0, 200));
     const ins = this.db.prepare(`INSERT INTO results (user_id, ended_at, mission, time_of_day, team, cls, won, kills, tonnage, shots, survived, points, weight, mine_kills, attacks_survived)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const s of d.stats) {
@@ -228,6 +228,7 @@ export function migrateResults(db: DatabaseSync): void {
     db.exec('CREATE INDEX IF NOT EXISTS results_ended ON results (ended_at)');
     const mcols = (db.prepare('PRAGMA table_info(matches)').all() as { name: string }[]).map((c) => c.name);
     if (!mcols.includes('crew')) db.exec('ALTER TABLE matches ADD COLUMN crew TEXT');
+    if (!mcols.includes('reason')) db.exec('ALTER TABLE matches ADD COLUMN reason TEXT');
     db.exec('COMMIT');
   } catch (e) {
     db.exec('ROLLBACK');

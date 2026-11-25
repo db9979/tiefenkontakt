@@ -69,8 +69,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // A merchant nearby whose noise masks ours: with escorts close, creep in under it
   const cover = !w.ships.some(isConvoyShip) ? undefined
     : fresh.filter((t) => voted(m, t) === 'merchant' && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m) && t.se > 10).sort((a, b) => b.se - a.se)[0];
-  // Strait breakthrough: creep north through the deepest water, deep and slow, ignore targets
-  if (w.env.mission === 'meerenge') {
+  // Strait breakthrough: creep north through the deepest water, deep and slow, ignore targets (a West boat hunts them)
+  if (w.env.mission === 'meerenge' && s.team === 'east') {
     // Straight north unless the water ahead gets shallow; then the deeper side
     let best = 0;
     let bestDepth = depthAt(w.env.seabed, s.pos.x, s.pos.y + 1500);
@@ -191,7 +191,11 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     m.peekAgain = now + 420 * tr.peek;
   }
 
-  if (range !== undefined && range < 8000 && now - m.lastShot > SHOT_COOLDOWN) {
+  // A guarding boat holds fire while its own convoy or neutral traffic is near the target: the seeker would take them
+  const rad = (target.bearing * Math.PI) / 180;
+  const aimAt = range !== undefined ? { x: s.pos.x + Math.sin(rad) * range, y: s.pos.y + Math.cos(rad) * range } : undefined;
+  const fouled = guard && !!aimAt && w.ships.some((x) => x.alive && x.id !== s.id && (x.team === s.team || x.team === 'neutral') && distance(x.pos, aimAt) < GUARD_CLEAR_M);
+  if (range !== undefined && range < 8000 && !fouled && now - m.lastShot > SHOT_COOLDOWN) {
     // Long passive shots run slow: quieter, and the seeker hears more without flow noise
     const runKn = !duel && range > 4000 ? 30 : 40;
     const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
@@ -209,6 +213,9 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     }
   }
 }
+
+/** A guarding boat's torpedo needs this much water free of friends and neutrals around its target (m). */
+const GUARD_CLEAR_M = 3000;
 
 function headingTo(s: Ship, r: { x: number; y: number; b: number }): number {
   // Steer for a point 12 km down the reported bearing from where it was reported

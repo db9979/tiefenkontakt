@@ -371,3 +371,15 @@ a.btnlink:hover { background: #12302a; }
 :focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
 input:focus-visible, select:focus-visible { outline: 2px solid var(--amber); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* Status on the button itself (widgets/btn-state.ts): tag, progress fill, press flash */
+button[data-bst]::after { content: attr(data-bst); display: inline-block; margin-left: 6px; padding: 0 4px; font-size: 0.75rem; line-height: 1.3; border: 1px solid currentColor; border-radius: 2px; opacity: 0.8; text-transform: none; letter-spacing: 0; vertical-align: 1px; }
+button.on[data-bst]::after { color: var(--g); opacity: 1; }
+button.st-busy[data-bst]::after, button.st-warn[data-bst]::after { color: var(--amber); opacity: 1; }
+button.st-busy[data-bst]::after { animation: st-pulse 1s ease-in-out infinite; }
+button.st-empty { opacity: 0.55; }
+button.prog { background: linear-gradient(90deg, rgba(93, 202, 165, 0.3) var(--pct, 0%), transparent var(--pct, 0%)), linear-gradient(180deg, #111b18, #0a1110); }
+button.prog.st-busy { background: linear-gradient(90deg, rgba(230, 170, 60, 0.3) var(--pct, 0%), transparent var(--pct, 0%)), linear-gradient(180deg, #111b18, #0a1110); }
+button.ack { animation: btn-ack 0.45s ease-out; }
+@keyframes btn-ack { 0% { box-shadow: 0 0 0 2px var(--g), inset 0 0 10px rgba(93, 202, 165, 0.5); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes st-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { button.ack, button.st-busy[data-bst]::after { animation: none; } }

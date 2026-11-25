@@ -1,5 +1,6 @@
 import { CLASSES, PERISCOPE_DEPTH, headingVec, wrap360 } from '@tk/shared';
 import { net } from '../net.js';
+import { depthBtn } from '../widgets/btn-state.js';
 import { store } from '../store.js';
 import { COL, fitCanvas, kn, setHtml, tdeg3 } from '../widgets/format.js';
 import { gameDeg, trueDeg } from '../north.js';
@@ -161,6 +162,10 @@ export function mountHelm(el: HTMLElement) {
         const ground = s.env.bottom !== undefined ? ` <span class="${under! < 40 ? 'red blink' : 'dim'}">GRUND ${s.env.bottom} M</span>` : '';
         setHtml(q('#h-dep'), `${o.depth.toFixed(0)} M <span class="amber">→ ${o.order.depth.toFixed(0)} M</span> <span class="dim">SCHICHT ${s.env.layerDepth ?? '?'}</span>${ground}`);
         q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
+        const lay = s.env.layerDepth;
+        depthBtn(q('#h-peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);
+        depthBtn(q('#h-above'), o.depth, o.order.depth, lay === undefined ? undefined : Math.max(30, lay - 40));
+        depthBtn(q('#h-below'), o.depth, o.order.depth, lay === undefined ? undefined : lay + 30);
         const dp = q<HTMLInputElement>('#h-depth');
         dp.max = String(spec.maxDepth);
         if (document.activeElement !== dp) dp.value = String(o.order.depth);

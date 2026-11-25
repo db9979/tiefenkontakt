@@ -1,4 +1,5 @@
 import { net } from '../../net.js';
+import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { AcousticAnalysis } from '../../widgets/analysis.js';
@@ -67,24 +68,31 @@ export function frigateSonarStation(): Station {
       tow.push(s, 15);
       const o = s.own;
       renderContactList(el.querySelector('#list')!, (via) => via === 'own');
-      el.querySelector('#ping')!.classList.toggle('on', o.activeSonar);
+      btnState(el.querySelector<HTMLElement>('#ping'), { on: o.activeSonar, tone: o.activeSonar ? 'warn' : undefined });
       const vdsTxt = (o.vdsDepth ?? 0) > 5 || (o.vdsOrder ?? 0) > 0 ? ` · VDS ${o.vdsDepth ?? 0}${o.vdsOrder !== o.vdsDepth ? ` / ${o.vdsOrder ?? 0}` : ''} M` : '';
       const mavTxt = o.mineAvoid ? (o.mineAvoidRange ? ` · MINENMEIDEN ${o.mineAvoidRange} M` : ' · MINENMEIDEN ZU SCHNELL') : '';
       setText(el.querySelector('#hs')!, (o.activeSonar ? 'AKTIV · VERRÄT EIGENE POSITION' : 'PASSIV') + vdsTxt + mavTxt);
-      el.querySelector('#mav')!.classList.toggle('on', !!o.mineAvoid);
+      btnState(el.querySelector<HTMLElement>('#mav'), o.mineAvoid && !o.mineAvoidRange ? { on: true, label: 'ZU SCHNELL', tone: 'warn' } : { on: !!o.mineAvoid });
       const vb = el.querySelector<HTMLButtonElement>('#vds')!;
       vb.style.display = CLASSES[o.cls].vds ? '' : 'none';
-      vb.classList.toggle('on', (o.vdsOrder ?? 0) > 0);
       setText(vb, (o.vdsOrder ?? 0) > 0 ? 'VDS einholen' : 'VDS absenken');
+      const vd = o.vdsDepth ?? 0, vo = o.vdsOrder ?? 0;
+      btnState(vb, Math.abs(vd - vo) > 2 ? { on: vo > 0, label: `${vd} M`, pct: (100 * vd) / Math.max(vd, vo, 1), tone: 'busy' } : { on: vo > 0, label: vo > 0 ? `${vd} M` : undefined });
       const tgt = o.towedOrder ?? o.towedLength;
       const winch = tgt !== o.towedLength;
       el.querySelector('#ts')!.textContent = winch
         ? `${tgt > o.towedLength ? 'AUSBRINGEN' : 'EINHOLEN'} ${o.towedLength} / ${tgt} M`
         : o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
-      el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => b.classList.toggle('on', Number(b.dataset.len) === tgt));
+      el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => {
+        const len = Number(b.dataset.len);
+        if (len !== tgt) return btnState(b, { on: false, label: '' });
+        btnState(b, winch ? { on: true, label: `${o.towedLength} M`, pct: (100 * o.towedLength) / Math.max(1, len, o.towedLength), tone: 'busy' }
+          : { on: true, label: len && !o.towedReady ? 'STAB…' : '✓', tone: len && !o.towedReady ? 'busy' : undefined });
+      });
       el.querySelector('#lab')!.textContent = store.selected ?? '';
       el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => b.classList.toggle('on', b.dataset.pulse === o.pulse));
-      el.querySelector('#xbt')!.textContent = `BT messen (${o.loadout.xbt})`;
+      el.querySelector('#xbt')!.textContent = 'BT messen';
+      btnState(el.querySelector<HTMLElement>('#xbt'), o.loadout.xbt ? { label: String(o.loadout.xbt) } : { label: 'LEER', tone: 'empty' });
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));

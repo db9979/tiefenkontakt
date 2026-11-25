@@ -19,6 +19,7 @@ import {
   type TmaSolution,
 } from '@tk/shared';
 import { net } from '../../net.js';
+import { btnState, tubeTag } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
@@ -200,6 +201,11 @@ export function fireControlStation(): Station {
       const sol: TmaSolution | undefined = c ? store.solutions.get(c.label) : undefined;
       q('#tgt').textContent = c ? c.label : 'KONTAKT WÄHLEN';
       q('#auto').style.display = store.realism === 'einsteiger' ? '' : 'none';
+      // Fire: tubes ready or the next reload; take-over: only with a solution
+      const lo = s.own.loadout;
+      btnState(q('#fire'), tubeTag(lo.tubes));
+      const hasSol = !!(store.selected && store.solutions.get(store.selected));
+      btnState(q('#calc'), hasSol ? { label: 'LÖSUNG' } : { label: 'KEINE', tone: 'empty' });
       const legs = c ? c.history.length : 0;
       const fitQ = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
       const step = (done: boolean, text: string) => `<div class="${done ? '' : 'amber'}">${done ? '✓' : '▸'} ${text}</div>`;

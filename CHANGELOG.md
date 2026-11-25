@@ -5,7 +5,19 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 
 ## [Unreleased]
 
+### Moderation
+- **Beendete Partien verwalten:** Das Moderationspanel listet die aufgezeichneten Partien (Zeit, Mission, Sieger, Dauer,
+  Spieler und Endgrund, der jetzt mitgespeichert wird). Einzelne Partien lassen sich aus Balance, Rangliste und Dienstbuch
+  nehmen. „Alles zurücksetzen“ löscht nach Eingabe von RESET alle Partie-Statistiken samt Wertung; Konten und Kampagne
+  bleiben. Bereits verrechnete Wertungspunkte einer einzeln gelöschten Partie bleiben stehen.
+
 ### Spiel
+- **Knöpfe zeigen ihren Status:** Jeder Druck blinkt sofort auf. Schalter tragen AN/AUS, laufende Vorgänge Prozent und
+  einen Füllbalken (Mast, Schnorchel, Schleppsonar, VDS, Tiefenbefehle bis zum Haken), Waffen ihre bereiten Rohre, die
+  Nachladezeit oder LEER. Der Mast meldet „ZU TIEF“, solange das Boot unter Sehrohrtiefe ist.
+- **Jagd-U-Boot schießt nicht mehr in den eigenen Konvoi:** Steht ein eigener Frachter oder ein Neutraler näher als 3 km
+  am Ziel, hält es das Feuer (im Schelf traf es zuvor 12 eigene Frachter in 12 Partien). In der Meerenge jagt ein
+  West-U-Boot jetzt die Durchbrecher, statt selbst durch die Enge zu schleichen.
 - **Jagd-U-Boot wehrt sich:** Die KI des S-14 hat nur U-Boote angegriffen und wurde vom Wachschiff mit U-Jagd-Raketen
   gejagt (in 11 von 30 Partien versenkt). Wird es bedrängt und ist kein U-Boot in Sicht, greift sie jetzt das feindliche
   Kriegsschiff an. Beide Seiten gemischt in der KI-Arena 16:44 -> 35:25, West gemischt unverändert.

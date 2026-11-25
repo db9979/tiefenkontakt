@@ -11,6 +11,7 @@ import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
 import { CLASS_LABEL, fitCanvas, h, km, setHtml, tdeg3 } from '../../widgets/format.js';
+import { btnState } from '../../widgets/btn-state.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 
@@ -80,7 +81,7 @@ export function bridgeStation(): Station {
   const setStab = (on: boolean) => {
     stab = on;
     localStorage.setItem('tk_stab_glass', on ? '1' : '0');
-    el.querySelector('#stab')!.classList.toggle('on', on);
+    btnState(el.querySelector<HTMLElement>('#stab'), { on });
   };
   const tiltBy = (d: number) => (tilt = Math.max(-30, Math.min(75, tilt + d)));
   let maskCanvas: HTMLCanvasElement | undefined;
@@ -102,7 +103,7 @@ export function bridgeStation(): Station {
   };
   el.querySelector<HTMLButtonElement>('#glass')!.onclick = (e) => {
     glass = !glass;
-    (e.target as HTMLButtonElement).classList.toggle('on', glass);
+    btnState(e.currentTarget as HTMLElement, { on: glass });
   };
   el.querySelector<HTMLButtonElement>('#mag')!.onclick = () => {
     if (!glass) {
@@ -265,7 +266,7 @@ export function bridgeStation(): Station {
       const pl = phoneLook();
       if (pl && s) {
         glass = pl.glass;
-        el.querySelector('#glass')!.classList.toggle('on', glass);
+        btnState(el.querySelector<HTMLElement>('#glass'), { on: glass });
         if (glass) setMag(MAGS.reduce((a, b) => (Math.abs(b - pl.mag) < Math.abs(a - pl.mag) ? b : a)));
         relTarget = rel = angleDiff(s.own.heading, pl.bearing);
         tilt = Math.max(-30, Math.min(75, pl.elev - (glass ? -0.15 : -8)));

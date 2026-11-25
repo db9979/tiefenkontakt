@@ -1,5 +1,6 @@
 import { NM, angleDiff, headingVec } from '@tk/shared';
 import { net } from '../../net.js';
+import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { esc, fitCanvas, h, setHtml, tdeg3 } from '../../widgets/format.js';
@@ -125,7 +126,7 @@ export function radarEsmStation(): Station {
     snap() {
       const s = store.snap!;
       const on = s.own.radarOn;
-      el.querySelector('#radar')!.classList.toggle('on', on);
+      btnState(el.querySelector<HTMLElement>('#radar'), { on, tone: on ? 'warn' : undefined });
       el.querySelector('#rs')!.textContent = on ? `SENDET · ${RPM} U/MIN` : 'STANDBY';
       const emit = el.querySelector<HTMLElement>('#emit')!;
       emit.textContent = on ? '● ABSTRAHLUNG' : '○ STILL';

@@ -1,5 +1,6 @@
 import { bearing, distance, targetPosAt } from '@tk/shared';
 import { net } from '../../net.js';
+import { btnState, tubeTag } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
@@ -99,7 +100,11 @@ export function weaponsStation(): Station {
       q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
       q('#tb').textContent = l.tubes.map((t, i) => `R${i + 1}${t.loaded ? '' : ` ${Math.ceil(t.reloadLeft)}S`}`).join(' ') + ` · VORRAT ${l.light}`;
       q('#dcn').textContent = `${l.depthCharges} VERFÜGBAR`;
-      q('#decoy').classList.toggle('on', l.towedDecoy);
+      btnState(q('#decoy'), { on: l.towedDecoy });
+      btnState(q('#rocket'), l.rockets ? { label: String(l.rockets) } : { label: 'LEER', tone: 'empty' });
+      btnState(q('#tube'), tubeTag(l.tubes));
+      if (fk) btnState(q('#ssm'), !fk.left ? { label: 'LEER', tone: 'empty' } : fk.readyInS ? { label: `LÄDT ${fk.readyInS} S`, tone: 'busy' } : { label: `${fk.left} BEREIT` });
+      el.querySelectorAll<HTMLButtonElement>('[data-dc]').forEach((b) => btnState(b, { tone: l.depthCharges ? undefined : 'empty' }));
       renderContactList(q('#list'));
       ad.update();
     },

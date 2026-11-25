@@ -4,6 +4,7 @@ import { planeTargets } from '../../widgets/air-targets.js';
 import type { Periscope3D } from '../../widgets/periscope3d.js';
 import { blasts } from '../../widgets/blasts.js';
 import { net } from '../../net.js';
+import { btnState, depthBtn, mastBtn } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
@@ -111,7 +112,7 @@ export function periscopeStation(): Station {
   const setStab = (on: boolean) => {
     stab = on;
     localStorage.setItem('tk_stab_peri', on ? '1' : '0');
-    el.querySelector('#stab')?.classList.toggle('on', on);
+    btnState(el.querySelector<HTMLElement>('#stab'), { on });
   };
   el.querySelector<HTMLButtonElement>('#peri')!.onclick = () => net.send({ t: 'order', depth: PERISCOPE_DEPTH });
   const train = (d: number) => (periTarget = (periTarget + d + 360) % 360);
@@ -211,9 +212,10 @@ export function periscopeStation(): Station {
       const o = s.own;
       const atDepth = o.depth <= PERISCOPE_DEPTH + 0.5;
       const up = el.querySelector<HTMLButtonElement>('#up')!;
-      up.classList.toggle('on', o.mastUp);
       up.textContent = o.mastUp ? 'Mast einfahren' : 'Mast ausfahren';
       const ms = mastState(o);
+      btnState(up, mastBtn(ms, o.mastUp, !atDepth));
+      depthBtn(el.querySelector<HTMLElement>('#peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);
       const since = o.mastUpSince !== undefined ? s.time - o.mastUpSince : 0;
       const mast = el.querySelector<HTMLElement>('#mast')!;
       mast.className = ms.moving ? 'amber blink' : o.mastUp ? (since > 20 ? 'red' : 'amber') : 'dim';
@@ -221,7 +223,7 @@ export function periscopeStation(): Station {
       const esm = s.alerts.filter((a) => a.kind === 'esm' && s.time - a.time < 10);
       const skyNow = sky.readout(planeTargets(s, s.own, simNow()), simNow(), ms.raised);
       el.querySelector<HTMLButtonElement>('#foto')!.disabled = !ms.raised;
-      el.querySelector('#sky')!.classList.toggle('on', sky.sweeping);
+      btnState(el.querySelector<HTMLElement>('#sky'), sky.sweeping ? { on: true, label: 'SUCHT', tone: 'busy' } : { on: false, label: '' });
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
       el.querySelector('#data')!.innerHTML = `

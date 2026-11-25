@@ -2,15 +2,19 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import type { Lobby } from './lobby.js';
 import type { ModerationStore } from './moderation.js';
+import type { StatsAdmin } from './stats-admin.js';
+import { log } from './log.js';
 
 /**
  * Moderator API (accounts listed in ADMIN only):
- *   GET  /api/admin/overview        matches, players, open reports, active bans
+ *   GET  /api/admin/overview        matches, players, open reports, active bans, finished matches
  *   POST /api/admin/end    {matchId}
  *   POST /api/admin/kick   {playerId}
  *   POST /api/admin/ban    {playerId, hours, reason}
  *   POST /api/admin/unban  {banId}
  *   POST /api/admin/dismiss {reportId}
+ *   POST /api/admin/delete {finishedId}       take one finished match out of the statistics
+ *   POST /api/admin/reset  {confirm: 'RESET'} clear all match statistics
  */
 
 const schemas = {
@@ -19,19 +23,21 @@ const schemas = {
   ban: z.object({ playerId: z.string().min(1).max(40), hours: z.number().min(1).max(24 * 365), reason: z.string().trim().min(1).max(200) }),
   unban: z.object({ banId: z.number().int() }),
   dismiss: z.object({ reportId: z.number().int() }),
+  delete: z.object({ finishedId: z.number().int() }),
+  reset: z.object({ confirm: z.literal('RESET') }),
 };
 
 type Reply = (status: number, body: unknown) => void;
 
-export function handleAdmin(req: IncomingMessage, body: unknown, reply: Reply, lobby: Lobby, mod: ModerationStore): void {
+export function handleAdmin(req: IncomingMessage, body: unknown, reply: Reply, lobby: Lobby, mod: ModerationStore, stats: StatsAdmin): void {
   const action = (req.url ?? '').slice('/api/admin/'.length);
   if (action === 'overview' && req.method === 'GET') {
-    return reply(200, { matches: lobby.adminView(), reports: mod.reports(), bans: mod.bans() });
+    return reply(200, { matches: lobby.adminView(), reports: mod.reports(), bans: mod.bans(), finished: stats.recent() });
   }
   if (req.method !== 'POST' || !(action in schemas)) return reply(404, { error: 'Nicht gefunden' });
   const parsed = schemas[action as keyof typeof schemas].safeParse(body);
   if (!parsed.success) return reply(400, { error: 'Ungültige Angaben' });
-  const p = parsed.data as { matchId: string; playerId: string; banId: number; reportId: number };
+  const p = parsed.data as { matchId: string; playerId: string; banId: number; reportId: number; finishedId: number };
   switch (action) {
     case 'end':
       return lobby.endMatch(p.matchId) ? reply(200, { ok: true }) : reply(404, { error: 'Partie nicht gefunden' });
@@ -52,5 +58,13 @@ export function handleAdmin(req: IncomingMessage, body: unknown, reply: Reply, l
     case 'dismiss':
       mod.dismissReport(p.reportId);
       return reply(200, { ok: true });
+    case 'delete':
+      log('info', 'Moderation: Partie aus der Statistik genommen', { id: p.finishedId });
+      return stats.deleteMatch(p.finishedId) ? reply(200, { ok: true }) : reply(404, { error: 'Partie nicht gefunden' });
+    case 'reset': {
+      const removed = stats.reset();
+      log('warn', 'Moderation: Statistik zurückgesetzt', { removed });
+      return reply(200, { ok: true, removed });
+    }
   }
 }

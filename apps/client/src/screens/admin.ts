@@ -7,6 +7,7 @@ interface Overview {
   matches: { id: string; name: string; state: string; mission: string; lesson: string | null; players: { playerId: string; callsign: string; team: string; online: boolean }[] }[];
   reports: { id: number; at: number; reporter: string; reported: string; reportedId: string; reason: string; evidence: string }[];
   bans: { id: number; callsign: string; until: number; reason: string }[];
+  finished?: { id: number; endedAt: number; mission: string; timeOfDay: string; winner: string; duration: number; humansWest: number; humansEast: number; reason: string; players: string[] }[];
 }
 
 const when = (t: number) => new Date(t).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
@@ -30,7 +31,8 @@ export function adminPanel(): HTMLElement {
         <pre class="dim" style="margin:2px 0;white-space:pre-wrap">${esc(r.evidence)}</pre></span>
         <span><button data-a="ban" data-id="${esc(r.reportedId)}" data-cs="${esc(r.reported)}" class="danger">Sperren</button> <button data-a="dismiss" data-id="${r.id}">Erledigt</button></span></div>`).join('') || '<div class="dim">Keine offenen Meldungen</div>'}
       <div class="dim" style="margin:8px 0 4px">SPERREN</div>
-      ${o.bans.map((b) => `<div class="row"><span>${esc(b.callsign)} <span class="dim">bis ${when(b.until)} · ${esc(b.reason)}</span></span><button data-a="unban" data-id="${b.id}">Aufheben</button></div>`).join('') || '<div class="dim">Keine aktiven Sperren</div>'}`;
+      ${o.bans.map((b) => `<div class="row"><span>${esc(b.callsign)} <span class="dim">bis ${when(b.until)} · ${esc(b.reason)}</span></span><button data-a="unban" data-id="${b.id}">Aufheben</button></div>`).join('') || '<div class="dim">Keine aktiven Sperren</div>'}
+      ${finishedSection(o.finished ?? [])}`;
     el.append(insights.el);
     void insights.load();
   }
@@ -58,6 +60,14 @@ export function adminPanel(): HTMLElement {
       case 'dismiss':
         r = await post('/api/admin/dismiss', { reportId: Number(id) });
         break;
+      case 'delete':
+        if (confirm(lang === 'en' ? 'Take this match out of balance, rankings and careers?' : 'Diese Partie aus Balance, Rangliste und Dienstbuch nehmen?')) r = await post('/api/admin/delete', { finishedId: Number(id) });
+        break;
+      case 'reset': {
+        const typed = prompt(lang === 'en' ? 'Clear ALL match statistics (balance, rankings, careers, ratings)? Accounts and campaign stay. Type RESET:' : 'ALLE Partie-Statistiken löschen (Balance, Rangliste, Dienstbuch, Wertung)? Konten und Kampagne bleiben. RESET eintippen:');
+        if (typed === 'RESET') r = await post('/api/admin/reset', { confirm: 'RESET' });
+        break;
+      }
     }
     if (r && !r.ok) toast(r.data.error ?? 'Fehler');
     void load();
@@ -65,4 +75,17 @@ export function adminPanel(): HTMLElement {
   // Only moderators see the panel; others never call the admin API
   fetch('/api/me').then((r) => (r.ok ? r.json() : undefined)).then((me?: { admin?: boolean }) => { if (me?.admin) void load(); }).catch(() => undefined);
   return el;
+}
+
+/** Recorded matches: each can be taken out of the statistics, or all of them reset. */
+function finishedSection(list: NonNullable<Overview['finished']>): string {
+  const rows = list.map((m) => {
+    const side = m.winner === 'west' ? 'WEST' : 'OST';
+    const humans = `${m.humansWest}:${m.humansEast} SPIELER`;
+    return `<div class="row" style="align-items:flex-start"><span>${when(m.endedAt)} · ${esc(m.mission)} · ${esc(m.timeOfDay)} · <b>${side}</b> · ${Math.round(m.duration / 60)} MIN
+      <br><span class="dim">${humans}${m.players.length ? ' · ' + esc(m.players.join(', ')) : ''}${m.reason ? ' · ' + esc(m.reason) : ''}</span></span>
+      <button data-a="delete" data-id="${m.id}" class="danger">Löschen</button></div>`;
+  }).join('');
+  return `<div class="hd" style="margin-top:8px"><span class="dim">BEENDETE PARTIEN (STATISTIK)</span><button data-a="reset" class="danger">Alles zurücksetzen</button></div>
+    <div style="max-height:320px;overflow:auto">${rows || '<div class="dim">Keine aufgezeichneten Partien</div>'}</div>`;
 }

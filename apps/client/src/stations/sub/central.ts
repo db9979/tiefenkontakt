@@ -1,9 +1,10 @@
 import { CLASSES, NM, PERISCOPE_DEPTH, REGIONS, regionToGeo, type Snapshot } from '@tk/shared';
 import { net } from '../../net.js';
+import { btnState, depthBtn, mastBtn } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { clock, esc, h, latLon, setHtml, tdeg3 } from '../../widgets/format.js';
+import { clock, esc, h, latLon, mastState, setHtml, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction } from '../../widgets/actions.js';
 import { Waterfall } from '../../widgets/waterfall.js';
@@ -98,8 +99,10 @@ export function centralStation(): Station {
         ${pct !== undefined ? `<div class="row"><span class="dim">BATTERIE</span><span class="${pct < 25 ? 'red' : pct < 50 ? 'amber' : ''}">${pct.toFixed(0)} %${o.batteryEnduranceS !== undefined ? ` · ${clock(o.batteryEnduranceS)} BEI DIESER FAHRT` : ''}</span></div>` : '<div class="row"><span class="dim">ANTRIEB</span><span>REAKTOR</span></div>'}
         <div class="row"><span class="dim">MAST</span><span class="${mast > 0.5 ? 'amber' : ''}">${mast >= 1 ? 'OBEN · SICHTBAR UND PEILBAR' : mast > 0 ? `FÄHRT ${Math.round(mast * 100)} %` : 'EINGEFAHREN'}${o.snorkel ? ' · SCHNORCHELT' : ''}</span></div>
         <div class="row"><span class="dim">TORPEDOS</span><span>${o.loadout.heavy} · ROHRE ${o.loadout.tubes.filter((t) => t.loaded).length}/${o.loadout.tubes.length} GELADEN · TÄUSCHKÖRPER ${o.loadout.noisemakers}</span></div>`);
-      q<HTMLButtonElement>('[data-cmd="silent"]').classList.toggle('on', !!o.crew?.silent);
-      q<HTMLButtonElement>('[data-cmd="mast"]').classList.toggle('on', !!o.mastUp);
+      btnState(q('[data-cmd="silent"]'), { on: !!o.crew?.silent });
+      btnState(q('[data-cmd="mast"]'), mastBtn(mastState(o), o.mastUp, o.depth > PERISCOPE_DEPTH + 0.5));
+      depthBtn(q('[data-cmd="peri"]'), o.depth, o.order.depth, PERISCOPE_DEPTH);
+      depthBtn(q('[data-cmd="under"]'), o.depth, o.order.depth, layer !== undefined ? Math.min(spec.maxDepth * 0.9, layer + 30, (s.env.bottom ?? 9999) - 30) : undefined);
       // VLF schedule of fleet command: every 20 minutes, three minutes on air
       const cmd = o.command;
       q('#c-sched').textContent = cmd ? (cmd.nextS > 0 ? `VLF IN ${clock(cmd.nextS)}` : cmd.done ? 'VLF EMPFANGEN' : 'VLF SENDET JETZT') : 'NUR MIT MAST OBEN';

@@ -1,5 +1,6 @@
 import { CLASSES, PERISCOPE_DEPTH } from '@tk/shared';
 import { net } from '../../net.js';
+import { btnState, depthBtn } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { COL, clock, fitCanvas, h, setHtml } from '../../widgets/format.js';
@@ -46,7 +47,8 @@ export function diveEngineStation(): Station {
         store.lastError = 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
         return;
       }
-      const depth = v === 'layer-' ? Math.max(30, layer! - 40) : v === 'layer+' ? layer! + 30 : v === 'max' ? CLASSES[s.own.cls].maxDepth * 0.9 : Number(v);
+      const depth = depthOf(v, layer, CLASSES[s.own.cls].maxDepth);
+      if (depth === undefined) return;
       net.send({ t: 'order', depth });
     };
   });
@@ -76,7 +78,12 @@ export function diveEngineStation(): Station {
       if (depthHist.length > 300) depthHist.shift();
       q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
       q('#snort').style.display = spec.battery ? '' : 'none';
-      q('#snort').classList.toggle('on', o.snorkel);
+      // Snorkel: the mast's way up as a fill, then the battery charging
+      const sx = o.snorkelExt ?? (o.snorkel ? 1 : 0);
+      btnState(q('#snort'), o.snorkel && o.depth > PERISCOPE_DEPTH + 0.5 ? { on: true, label: 'ZU TIEF', tone: 'warn' } : o.snorkel && sx < 1 ? { on: true, label: `${Math.round(sx * 100)} %`, pct: sx * 100, tone: 'busy' }
+        : !o.snorkel && sx > 0 ? { on: false, label: 'EIN…', pct: sx * 100, tone: 'busy' } : { on: o.snorkel });
+      btnState(q('#nm'), { label: String(o.loadout.noisemakers), tone: o.loadout.noisemakers ? undefined : 'empty' });
+      el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, s.env.layerDepth, spec.maxDepth)));
       el.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => {
         const kn = Math.min(STEPS[Number(b.dataset.step)]!.kn, spec.maxSpeedKn);
         b.classList.toggle('on', Math.abs(o.order.speedKn - kn) < 0.5);
@@ -152,4 +159,11 @@ export function diveEngineStation(): Station {
       ctx.setLineDash([]);
     },
   };
+}
+
+/** Depth of a depth button ('layer-'/'layer+' need the measured layer). */
+function depthOf(v: string, layer: number | undefined, maxDepth: number): number | undefined {
+  if (v === 'layer-') return layer === undefined ? undefined : Math.max(30, layer - 40);
+  if (v === 'layer+') return layer === undefined ? undefined : layer + 30;
+  return v === 'max' ? maxDepth * 0.9 : Number(v);
 }
