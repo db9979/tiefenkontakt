@@ -62,6 +62,8 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     // Masts: hoisting takes about 8 s, lowering 5 s; the snorkel head 15 s up, 6 s down
     const atPd = s.depth <= PERISCOPE_DEPTH + 0.5;
     if (!atPd) s.mastUp = false;
+    // The radar sits on the mast: lowering it (or diving) switches it off
+    if (!s.mastUp) s.radarOn = false;
     s.mastExt = approach(s.mastExt ?? 0, s.mastUp && atPd ? 1 : 0, (s.mastUp && atPd ? 1 / 8 : 1 / 5) * dt);
     const snorkelOut = s.snorkel && atPd;
     s.snorkelExt = approach(s.snorkelExt ?? 0, snorkelOut ? 1 : 0, (snorkelOut ? 1 / 15 : 1 / 6) * dt);

@@ -28,15 +28,15 @@ import {
 const ctx = (ships: Ship[], env = DEFAULT_ENV) => ({ ships, env, time: 1000, rng: new Rng(3) });
 
 describe('emitter library', () => {
-  it('gives every radar-carrying surface class a search radar, submarines none', () => {
+  it('gives every radar-carrying class a search radar, submarines one on the mast', () => {
     const expected: Partial<Record<ClassId, string>> = {
       ffg: 'SEEFALKE-2', ffv: 'SEEFALKE-2', kor: 'KORMORAN-1', ffk: 'TAIFUN-11',
       merchant: 'LOTSE-9', tanker: 'LOTSE-9', container: 'LOTSE-9', faehre: 'LOTSE-9',
       fischer: 'MÖWE-M', schlepper: 'MÖWE-M', yacht: 'MÖWE-M',
+      ssk: 'KIEBITZ-U', ssn: 'KIEBITZ-U', ssc: 'KIEBITZ-U', ssa: 'KIEBITZ-U', ssw: 'SEESCHWALBE-U',
     };
     for (const id of Object.keys(CLASSES) as ClassId[]) {
-      if (CLASSES[id].submarine) expect(shipEmitter(id)).toBeUndefined();
-      else expect(shipEmitter(id), id).toBe(expected[id]);
+      expect(shipEmitter(id), id).toBe(expected[id]);
     }
     // Every entry points back to its carriers
     for (const [cls, em] of Object.entries(expected)) expect(emitterCandidates(em!)).toContain(cls);

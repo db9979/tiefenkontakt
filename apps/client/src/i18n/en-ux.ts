@@ -1,6 +1,6 @@
 /** German → English: briefing, settings, lobby cards and chat, ranks, empty states. */
 export const EN_UX: [string, string][] = [
-  ['OBEN', 'UP'], ['UNTEN', 'DOWN'], ['SUCHT', 'SEARCHING'], ['LEER', 'EMPTY'], ['LÖSUNG', 'SOLUTION'], ['ZU SCHNELL', 'TOO FAST'], ['STAB…', 'SETTLING…'], ['STABILISIERT…', 'SETTLING…'], ['EIN…', 'IN…'], ['Alles zurücksetzen', 'Reset all'], ['BEENDETE PARTIEN (STATISTIK)', 'FINISHED MATCHES (STATISTICS)'], ['Keine aufgezeichneten Partien', 'No recorded matches'],
+  ['OBEN', 'UP'], ['UNTEN', 'DOWN'], ['SUCHT', 'SEARCHING'], ['LEER', 'EMPTY'], ['LÖSUNG', 'SOLUTION'], ['ZU SCHNELL', 'TOO FAST'], ['STAB…', 'SETTLING…'], ['STABILISIERT…', 'SETTLING…'], ['EIN…', 'IN…'], ['WARTET', 'WAITING'], ['Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten', 'Mast radar: range and bearing to ships out to the horizon. Every ship and aircraft with ESM takes a bearing on you – switch it on only briefly'], ['Erst den Mast ausfahren: das Radar sitzt am Mast', 'Raise the mast first: the radar sits on it'], ['Alles zurücksetzen', 'Reset all'], ['BEENDETE PARTIEN (STATISTIK)', 'FINISHED MATCHES (STATISTICS)'], ['Keine aufgezeichneten Partien', 'No recorded matches'],
   ['ZIELHAFEN', 'DESTINATION'], ['KONVOI', 'CONVOY'], ['RUDEL', 'WOLFPACK'], ['SPERRE', 'BARRIER'], ['ANKERPLATZ', 'ANCHORAGE'], ['ANGRIFF', 'ATTACK'], ['⚙ FREI', '⚙ CUSTOM'], ['≈ 23 KM', '≈ 23 KM'],
   ['Brücke', 'Bridge'], ['Brücke · Ausguck', 'Bridge · Lookout'], ['Fernglas 7×', 'Binoculars 7×'], ['Voraus', 'Ahead'], ['Auf Meldung', 'To report'],
   ['Auf Kontakt', 'To contact'], ['ZIEHEN DREHT · A / D', 'DRAG TURNS · A / D'], ['Blick nach links', 'Look left'], ['Blick nach rechts', 'Look right'],
@@ -106,7 +106,7 @@ export const EN_UX: [string, string][] = [
 // The strait goal names the strait's true direction (briefing.ts, compassStem)
 const STEMS: [string, string][] = [['Nord', 'north'], ['Nordost', 'north-east'], ['Ost', 'east'], ['Südost', 'south-east'], ['Süd', 'south'], ['Südwest', 'south-west'], ['West', 'west'], ['Nordwest', 'north-west']];
 export const EN_UX_PHRASES: [RegExp, string][] = [
-  [/^LÄDT (\d+) S$/, 'LOADING $1 S'], [/^(\d+)\/(\d+) BEREIT$/, '$1/$2 READY'], [/^(\d+) BEREIT$/, '$1 READY'], [/^AUS (\d+) M$/, 'OUT $1 M'], [/^EIN (\d+) M$/, 'IN $1 M'],
+  [/^LÄDT (\d+) S$/, 'LOADING $1 S'], [/^SENDET (\d+) S$/, 'TRANSMITTING $1 S'], [/^(\d+)\/(\d+) BEREIT$/, '$1/$2 READY'], [/^(\d+) BEREIT$/, '$1 READY'], [/^AUS (\d+) M$/, 'OUT $1 M'], [/^EIN (\d+) M$/, 'IN $1 M'],
   ...STEMS.flatMap(([de, en]): [RegExp, string][] => [
     [new RegExp(`^Die Enge halten: kein U-Boot darf nach ${de}en durch\\.$`), `Hold the narrows: no submarine may get through to the ${en}.`],
     [new RegExp(`^Durch die Enge nach ${de}en durchbrechen: ein Boot muss das ${de}ende erreichen\\.$`), `Break through the narrows to the ${en}: one boat must reach the ${en}ern end.`],

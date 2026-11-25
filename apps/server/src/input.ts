@@ -170,7 +170,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
         s.snorkel = m.on;
         if (m.on) s.order.depth = PERISCOPE_DEPTH;
       } else if (m.what === 'radar') {
-        if (spec.submarine) return 'Kein Radar an Bord';
+        if (spec.submarine && m.on && !s.mastUp) return 'Erst den Mast ausfahren: das Radar sitzt am Mast';
         s.radarOn = m.on;
       } else if (m.what === 'active') {
         if (spec.hull.activeSl === undefined) return 'Kein Aktivsonar';

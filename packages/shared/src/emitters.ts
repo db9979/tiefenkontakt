@@ -37,14 +37,17 @@ export const EMITTERS: Record<string, EmitterSpec> = {
   'MÖWE-M': { id: 'MÖWE-M', band: 'X', rotationS: 2, pulse: 'kleines Navigationsradar, schwach', threat: 'nav', likely: 'KLEINFAHRZEUG', carriers: ['fischer', 'schlepper', 'yacht'] },
   'ALBATROS-7': { id: 'ALBATROS-7', band: 'X', rotationS: 4, pulse: 'Sektorabtastung, Pulskompression', threat: 'aircraft', likely: 'SEEAUFKLÄRER', carriers: ['mpa'] },
   'LIBELLE-5': { id: 'LIBELLE-5', band: 'X', rotationS: 3, pulse: 'kurze Pulse, schnelle Rundsuche', threat: 'aircraft', likely: 'HUBSCHRAUBER', carriers: ['helo'] },
+  'KIEBITZ-U': { id: 'KIEBITZ-U', band: 'X', rotationS: 3, pulse: 'kurze Pulse, wenige Umläufe', threat: 'surface', likely: 'U-BOOT', carriers: ['ssk', 'ssn', 'ssc', 'ssa'] },
+  'SEESCHWALBE-U': { id: 'SEESCHWALBE-U', band: 'X', rotationS: 2.5, pulse: 'kurze Pulse, Sektorabtastung', threat: 'surface', likely: 'U-BOOT', carriers: ['ssw'] },
   'NORDLICHT-3': { id: 'NORDLICHT-3', band: 'X', rotationS: 5, pulse: 'lange Pulse, Seeraumüberwachung', threat: 'aircraft', likely: 'FERNAUFKLÄRER', carriers: ['recon'] },
 };
 
-/** Search / navigation radar per ship class (submarines carry none in this game). */
+/** Search / navigation radar per ship class (a submarine's radar on its mast, only with the mast up). */
 const SHIP_SEARCH: Partial<Record<ClassId, string>> = {
   ffg: 'SEEFALKE-2', ffv: 'SEEFALKE-2', kor: 'KORMORAN-1', ffk: 'TAIFUN-11',
   merchant: 'LOTSE-9', tanker: 'LOTSE-9', container: 'LOTSE-9', faehre: 'LOTSE-9',
   fischer: 'MÖWE-M', schlepper: 'MÖWE-M', yacht: 'MÖWE-M',
+  ssk: 'KIEBITZ-U', ssn: 'KIEBITZ-U', ssc: 'KIEBITZ-U', ssa: 'KIEBITZ-U', ssw: 'SEESCHWALBE-U',
 };
 
 /** Fire-control radar per class: radiates while the ship guides a missile. */

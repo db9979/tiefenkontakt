@@ -54,7 +54,7 @@ export function periscopeStation(): Station {
         <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button>
         <button id="elup" title="Sehrohrprisma anheben (Himmel)">▲</button><button id="eldn" title="Sehrohrprisma absenken">▼</button>
         <button id="sky" title="Prisma anheben und einmal rundum nach Flugzeugen suchen">Himmel absuchen</button>
-        <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Sehrohrfoto (wird in der Nachbesprechung bewertet)">Foto</button>
+        <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Sehrohrfoto (wird in der Nachbesprechung bewertet)">Foto</button><button id="radar" class="warn" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button>
         <span class="kbd" style="align-self:center">ZIEHEN DREHT UND HEBT · KLICK WÄHLT</span>
       </div>
     </div>
@@ -99,6 +99,7 @@ export function periscopeStation(): Station {
   const t0 = performance.now();
   const sky = new SkySearch();
   let photoReq = false;
+  let radarSince = 0;
   let flashAt = -1e9;
 
   el.querySelector<HTMLButtonElement>('#up')!.onclick = () => net.send({ t: 'toggle', what: 'mast', on: !store.snap?.own.mastUp });
@@ -124,6 +125,7 @@ export function periscopeStation(): Station {
   el.querySelector<HTMLButtonElement>('#sky')!.onclick = () => (sky.sweeping ? sky.cancel() : (sky.startSweep(performance.now(), periTarget), setZoom(1.5)));
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Sehrohr', el);
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
+  el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
   el.querySelector('#foto')!.after(phoneButton());
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
     sky.level();
@@ -216,6 +218,11 @@ export function periscopeStation(): Station {
       up.textContent = o.mastUp ? 'Mast einfahren' : 'Mast ausfahren';
       const ms = mastState(o);
       btnState(up, mastBtn(ms, o.mastUp, !atDepth));
+      // Radar: on the air only with the mast fully up; how long it has been sending
+      if (o.radarOn && !radarSince) radarSince = s.time;
+      if (!o.radarOn) radarSince = 0;
+      btnState(el.querySelector<HTMLElement>('#radar'), !o.radarOn ? { on: false, label: o.mastUp ? 'AUS' : 'MAST', tone: o.mastUp ? undefined : 'empty' }
+        : ms.raised ? { on: true, label: `SENDET ${Math.round(s.time - radarSince)} S`, tone: 'warn' } : { on: true, label: 'WARTET', tone: 'busy' });
       depthBtn(el.querySelector<HTMLElement>('#peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);
       const since = o.mastUpSince !== undefined ? s.time - o.mastUpSince : 0;
       const mast = el.querySelector<HTMLElement>('#mast')!;

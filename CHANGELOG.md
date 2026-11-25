@@ -11,6 +11,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   Schallmodell des Spiels. Ohne gemessene Schicht nur als grobe Schätzung gekennzeichnet.
 - **Tiefen- und Grundalarme:** Im Tauchstand lassen sich Ober- und Untergrenze sowie zwei Grundabstände (Warnung,
   Gefahr) setzen. Ein Alarm piept, wird vorgelesen und steht auf jeder Station und am Ruderstand.
+- **ESM erkennt den Radartyp:** Jede Abfangmeldung nennt den (erfundenen) Radartyp, die vermutliche Plattform mit „?“,
+  wo mehrere Klassen dasselbe Gerät tragen, Stärke und Trend („SEEFALKE-2 · FREGATTE? (OBERFLÄCHENSUCHE) · STARK,
+  STEIGEND“). Flugzeug- und Feuerleitradar sind rot („FLUGZEUGRADAR – TAUCHEN“). Gilt für Fregatten-ESM, Sehrohr und Lagebild.
+- **U-Boot-Radar am Mast:** Mit ganz ausgefahrenem Mast kann ein U-Boot kurz sein Radar einschalten und findet Schiffe bis
+  zum nahen Horizont (etwa 14 sm). Jedes ESM peilt es dabei als U-Boot-Radar an; Mast einfahren oder Tauchen schaltet es ab.
 - **Zeitraffer voreingestellt auf Echtzeit:** 2× und 3× bleiben in der Lobby wählbar.
 
 ### Moderation

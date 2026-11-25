@@ -328,6 +328,13 @@ function bottomEchoes(pinger: Ship, ctx: SensorContext, out: Detection[]): void 
 /** Height of a ship's masts and of a radar antenna above the sea (m). */
 const SHIP_TOP_M = 25;
 const RADAR_ANTENNA_M = 20;
+/** A submarine's radar sits on a mast a few metres above the waves: short horizon. */
+const SUB_RADAR_ANTENNA_M = 4;
+
+/** Is this ship's radar on the air? A submarine's only with the mast fully up. */
+function radiating(s: Ship): boolean {
+  return s.radarOn && (!CLASSES[s.cls].submarine || mastRaised(s));
+}
 
 /** Geometric horizon range in meters between an eye height and a target height. */
 export function horizonRange(eyeHeight: number, targetHeight: number): number {
@@ -357,18 +364,23 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
 }
 
 function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
+  const low = CLASSES[obs.cls].submarine;
+  const antenna = low ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M;
+  // From a submarine's mast the horizon limits the range to ships, and masts are lost in the waves sooner
+  const shipRange = low ? Math.min(RADAR_RANGE, horizonRange(antenna, SHIP_TOP_M)) : RADAR_RANGE;
+  const mastRange = low ? RADAR_MAST_RANGE * 0.6 : RADAR_MAST_RANGE;
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive) continue;
     const range = distance(obs.pos, tgt.pos);
     const sub = CLASSES[tgt.cls].submarine;
     if (sub) {
-      if (!mastExposed(tgt) || range > RADAR_MAST_RANGE) continue;
+      if (!mastExposed(tgt) || range > mastRange) continue;
       // Rain clutter swallows a small mast return inside a shower
       const pDetect = 0.35 * (1 - ctx.env.seaState * 0.1) * (inSquall(ctx.env.met, tgt.pos) ? 0.25 : 1);
       if (ctx.rng.next() > pDetect) continue;
-    } else if (range > RADAR_RANGE) continue;
+    } else if (range > shipRange) continue;
     // Land in between hides the target in its radar shadow
-    if (!lineOfSight(ctx.env.seabed, obs.pos, RADAR_ANTENNA_M, tgt.pos, sub ? 3 : SHIP_TOP_M)) continue;
+    if (!lineOfSight(ctx.env.seabed, obs.pos, antenna, tgt.pos, sub ? 3 : SHIP_TOP_M)) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'radar', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.5)),
@@ -388,11 +400,11 @@ function guiding(ctx: SensorContext): Set<string> {
 /** ESM: anyone with an antenna above water hears active radars (bearing, emitter, strength). */
 function esm(obs: Ship, ctx: SensorContext, out: Detection[], fc: Set<string>): void {
   for (const emitter of ctx.ships) {
-    if (emitter === obs || !emitter.alive || !emitter.radarOn) continue;
+    if (emitter === obs || !emitter.alive || !radiating(emitter)) continue;
     const range = distance(obs.pos, emitter.pos);
     if (range > ESM_RANGE) continue;
     // Radar waves travel in straight lines: no intercept from behind a mountain
-    if (!lineOfSight(ctx.env.seabed, obs.pos, CLASSES[obs.cls].submarine ? 3 : RADAR_ANTENNA_M, emitter.pos, RADAR_ANTENNA_M)) continue;
+    if (!lineOfSight(ctx.env.seabed, obs.pos, CLASSES[obs.cls].submarine ? 3 : RADAR_ANTENNA_M, emitter.pos, CLASSES[emitter.cls].submarine ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M)) continue;
     out.push({
       observerId: obs.id, targetId: emitter.id, sensor: 'esm', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, emitter.pos) + ctx.rng.gauss(0, 2)), se: 10,
@@ -421,7 +433,7 @@ export function runSensors(ctx: SensorContext): Detection[] {
       ping(obs, ctx, out);
     }
     if (CLASSES[obs.cls].submarine && mastRaised(obs)) periscope(obs, ctx, out);
-    if (obs.radarOn && !CLASSES[obs.cls].submarine) radar(obs, ctx, out);
+    if (radiating(obs)) radar(obs, ctx, out);
     if (!CLASSES[obs.cls].submarine) {
       for (const v of lookoutSweep(obs, ctx.ships, ctx.env, ctx.rng)) {
         out.push({ observerId: obs.id, targetId: v.targetId, sensor: 'visual', time: ctx.time, bearing: v.bearing, range: v.range, se: 20, sighting: v.sighting });
