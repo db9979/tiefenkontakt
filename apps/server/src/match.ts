@@ -42,6 +42,8 @@ export interface Conn {
   playerId: string;
   callsign: string;
   send(msg: ServerMsg): void;
+  /** The link is backed up (unsent data piling up): skip this tick's snapshot. */
+  congested?(): boolean;
   /** Close the transport (e.g. when the same player connects again elsewhere; 4001 = banned). */
   close?(reason: string, code?: number): void;
   /** Client address, for bans. */
@@ -465,7 +467,8 @@ export class Match {
         const ship = this.shipOf(s.playerId);
         const x = this.extras.get(s.playerId);
         const c = this.conns.get(s.playerId);
-        if (ship && x && c) {
+        // Skipped before building, so the delta bookkeeping only advances for what was sent
+        if (ship && x && c && !c.congested?.()) {
           const full = !x.histSent;
           const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)]);
           snap.full = full;
