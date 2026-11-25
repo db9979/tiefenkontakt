@@ -116,7 +116,7 @@ const SAVE_S = Math.max(2, Number(process.env.MATCH_SAVE_S ?? 5));
 setInterval(() => lobby.prune(), 5000).unref();
 lobby.voice.start();
 lobby.sandbox.start();
-setInterval(() => store.saveAll(lobby), SAVE_S * 1000).unref();
+setInterval(() => void store.saveAllAsync(lobby), SAVE_S * 1000).unref();
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
     store.saveAll(lobby);

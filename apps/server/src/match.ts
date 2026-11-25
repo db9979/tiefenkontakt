@@ -136,6 +136,9 @@ export class Match {
 
   get connected(): number { return this.conns.size; }
 
+  /** Ticks run so far (the store skips rewriting a match that hasn't moved). */
+  get ticks(): number { return this.tickCount; }
+
   online(playerId: string): boolean { return this.conns.has(playerId); }
 
   /** Who sent radio under this ship name most recently, with their last lines as evidence. */

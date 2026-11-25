@@ -265,6 +265,30 @@ describe('server restart', () => {
     expect(lastSnap(back)!.own.id).toBe(shipId);
     expect(restored.world!.time).toBeGreaterThan(time);
   });
+
+  it('the periodic save writes asynchronously, atomically, and skips a match that has not moved', async () => {
+    const { mkdtempSync, readdirSync, statSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { MatchStore } = await import('../src/match-store.js');
+    const dir = mkdtempSync(join(tmpdir(), 'tk-'));
+    const { lobby, m } = setup();
+    for (let i = 0; i < 5; i++) m.tick();
+    const store = new MatchStore(dir);
+    await store.saveAllAsync(lobby);
+    expect(readdirSync(dir)).toEqual([`${m.id}.json`]); // no .tmp left behind
+    const first = statSync(join(dir, `${m.id}.json`)).mtimeMs;
+    await new Promise((r) => setTimeout(r, 20));
+    await store.saveAllAsync(lobby); // paused: not rewritten
+    expect(statSync(join(dir, `${m.id}.json`)).mtimeMs).toBe(first);
+    m.tick();
+    await store.saveAllAsync(lobby);
+    const lobby2 = new Lobby();
+    expect(new MatchStore(dir).loadAll(lobby2)).toBe(1);
+    const restored = lobby2.allMatches()[0]!;
+    restored.stop();
+    expect(restored.world!.time).toBe(m.world!.time);
+  });
 });
 
 describe('debrief', () => {
