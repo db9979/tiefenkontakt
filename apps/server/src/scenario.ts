@@ -203,12 +203,12 @@ export function startGeometry(mission: MissionId, k: number): { subFrac: number;
  * sideways distance, the harbour boats' start line and the strait's start and exit lines (m).
  */
 const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: number; harbourSubY?: number; straitStartY?: number; straitExitY?: number }>> = {
-  groenland: { subFrac: 0.45, spread: 0.45 },
+  groenland: { subFrac: 0.6, spread: 0.6 },
   schelf: { subFrac: 0.45, spread: 1 / 3 },
   fjord: { subFrac: 0.65, spread: 0.6 },
   // The anchorage lies about 3.5 km up the bay
   hafen: { harbourSubY: 11_000 },
-  meerenge: { straitStartY: 4200, straitExitY: 12_500 },
+  meerenge: { straitStartY: 4800, straitExitY: 11_500 },
 };
 
 /** Sandbox matches run without a time limit (the time scale changes while they run). */
