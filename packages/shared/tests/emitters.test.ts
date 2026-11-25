@@ -85,7 +85,8 @@ describe('emitter library', () => {
 
 describe('ESM intercepts carry the emitter', () => {
   it('a raised mast hears the frigate radar as SEEFALKE-2 and the contact keeps it', () => {
-    const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 0, y: 8 * NM }, heading: 180, speedKn: 15 });
+    // Strong inside about a quarter of the boat's radar-warner reach (≈19 nm against a frigate radar)
+    const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 0, y: 4 * NM }, heading: 180, speedKn: 15 });
     const sub = createShip({ id: 'u', cls: 'ssk', name: 'U', team: 'east', pos: { x: 0, y: 0 }, heading: 0, speedKn: 3, depth: 14 });
     sub.mastUp = true;
     sub.mastExt = 1;

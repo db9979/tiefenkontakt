@@ -14,7 +14,7 @@ import {
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
-import { crewSonarDb } from './crew.js';
+import { crewNoiseDb, crewSonarDb } from './crew.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
 import { SHALLOW_M } from './seabed.js';
 import { bottomFeatures } from './bottom-echo.js';
@@ -25,7 +25,7 @@ import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
 import { KN, NM, angleDiff, bearing, dbSum, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
-import { esmLevel, esmTrend, shipEmitter } from './emitters.js';
+import { emitterSpec, esmLevel, esmTrend, shipEmitter } from './emitters.js';
 import { ICE_MASK_DB, iceCover, inSquall, sightPenalty } from './met.js';
 
 export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual' | 'mad';
@@ -73,7 +73,24 @@ export interface Emitter {
   speedKn: number;
 }
 
-export const PING_INTERVAL = 30; // s
+/**
+ * Active sonar range scales (m) and the ping interval each needs: the echo from the edge of
+ * the scale has to come back (2·r / 1500 m/s) and the operator needs a moment on the picture.
+ * Echoes from beyond the scale arrive after the receiver stopped listening: not shown.
+ */
+export const PING_RANGES = [4000, 8000, 16_000] as const;
+export type PingRange = (typeof PING_RANGES)[number];
+export const DEFAULT_PING_RANGE: PingRange = 8000;
+const PING_EVERY_S: Record<PingRange, number> = { 4000: 6, 8000: 11, 16_000: 22 };
+
+export function pingRangeOf(s: Pick<Ship, 'pingRange'>): PingRange {
+  return (PING_RANGES as readonly number[]).includes(s.pingRange ?? 0) ? (s.pingRange as PingRange) : DEFAULT_PING_RANGE;
+}
+
+/** Seconds between pings on the ship's range scale (4 / 8 / 16 km → 6 / 11 / 22 s). */
+export function pingInterval(s: Pick<Ship, 'pingRange'>): number {
+  return PING_EVERY_S[pingRangeOf(s)];
+}
 const SE_FLUCTUATION = 1; // dB sd per sample (fast part)
 const FADE_DB = 3; // slow fading amplitude
 
@@ -89,9 +106,57 @@ export function fading(key: string, t: number): number {
   return FADE_DB * Math.sin((2 * Math.PI * t) / period + 2 * Math.PI * hash01(key + '#'));
 }
 const RADAR_RANGE = 22 * NM;
-const RADAR_MAST_RANGE = 6 * NM;
 const ESM_RANGE = 40 * NM;
-export { RADAR_RANGE, RADAR_MAST_RANGE };
+
+/**
+ * Radar against a submarine's masts: one chance per antenna turn, p = base · (1 − r/Rmax) ·
+ * clutter. A periscope or mast head is a tiny, intermittent return; the snorkel head with its
+ * spray and exhaust is a far better one. Whitecaps hide both (clutter floor 0.3).
+ */
+export const MAST_RADAR = { mast: { base: 0.08, rmax: 5 * NM }, snorkel: { base: 0.4, rmax: 8 * NM } } as const;
+export type MastKind = keyof typeof MAST_RADAR;
+const RADAR_MAST_RANGE = MAST_RADAR.mast.rmax;
+const RADAR_SNORKEL_RANGE = MAST_RADAR.snorkel.rmax;
+export { RADAR_RANGE, RADAR_MAST_RANGE, RADAR_SNORKEL_RANGE };
+
+/** What of a submarine sticks out of the water for a radar: the snorkel head, a mast, or nothing. */
+export function exposedMast(s: Ship): MastKind | undefined {
+  if (!mastExposed(s)) return undefined;
+  return (s.snorkelExt ?? 0) > 0.3 ? 'snorkel' : 'mast';
+}
+
+/** Sea clutter factor of a radar against small targets. */
+export function radarClutter(seaState: number): number {
+  return Math.max(0.3, 1 - 0.12 * seaState);
+}
+
+/** Chance per antenna turn that a radar paints this mast at this range (rmax: the radar's own limit for it). */
+export function mastDetectP(kind: MastKind, range: number, seaState: number, rmax: number = MAST_RADAR[kind].rmax, base: number = MAST_RADAR[kind].base): number {
+  if (range >= rmax) return 0;
+  return base * (1 - range / rmax) * radarClutter(seaState);
+}
+
+/**
+ * Did this antenna complete a turn during the last sensor second? Each radar has its own phase
+ * (from its id), so the sweeps of two ships don't fall on the same second.
+ */
+export function antennaTurned(id: string, rotationS: number, t: number, dt = 1): boolean {
+  const off = hash01(`${id}|ant`) * rotationS;
+  return Math.floor((t + off) / rotationS) !== Math.floor((t - dt + off) / rotationS);
+}
+
+/** Radio horizon (m) between two antenna heights (m), 4/3 earth radius. */
+export function radioHorizon(hA: number, hB: number): number {
+  return 4120 * (Math.sqrt(hA) + Math.sqrt(hB));
+}
+
+/**
+ * How far an ESM receiver / radar warner at height hObs hears a radar at height hEmit: past
+ * the radio horizon by a third (strong main beam, ducting), never beyond 40 nm.
+ */
+export function esmReach(hObs: number, hEmit: number): number {
+  return Math.min(ESM_RANGE, 1.35 * radioHorizon(hObs, hEmit));
+}
 
 export interface SensorContext {
   ships: readonly Ship[];
@@ -130,9 +195,26 @@ export function towedArrayDepth(s: Ship): number {
   return Math.min(s.depth + s.towedLength * factor, 300);
 }
 
+/** Settling time after the last disturbance: set by the size of the alteration (kinematics), else the class value. */
 export function towedArrayReady(s: Ship, now: number): boolean {
   const spec = CLASSES[s.cls].towed;
-  return !!spec && s.towedLength > 0 && now - s.lastTurnAt >= spec.settleTime;
+  return !!spec && s.towedLength > 0 && now - s.lastTurnAt >= (s.towedSettle ?? spec.settleTime);
+}
+
+/** Narrowband processing gain of a towed array on a target with strong tonals (dB). */
+export const TOWED_NB_GAIN_DB = 8;
+
+/**
+ * Does the target give the towed array's narrowband processing tonals to lock on? Surface ships
+ * (diesels, turbines, generators) always; a submarine only while it snorkels, runs its diesels
+ * surfaced, pumps or works noisily (crewNoiseDb > 0), cavitates or blows tanks. A battery boat
+ * creeping quietly offers none.
+ */
+export function tonalTarget(t: Ship): boolean {
+  const spec = CLASSES[t.cls];
+  if (!spec.submarine) return true;
+  const dieselSurfaced = !!spec.battery && t.depth <= 0.5;
+  return isSnorkeling(t) || dieselSurfaced || crewNoiseDb(t) > 0 || isCavitating(t) || !!t.blowing;
 }
 
 /** Received broadband level of every other loud source at an observer (computed once per sweep). */
@@ -214,7 +296,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
     const endfire = Math.abs(rel) < 20 || Math.abs(rel) > 160 ? 10 : 0;
     const se =
       passiveSignalExcess(tgt, obs, range, 'towed', ctx.env, Math.min(towedArrayDepth(obs), bottom - 10), bottom) -
-      endfire +
+      endfire + (tonalTarget(tgt) ? TOWED_NB_GAIN_DB : 0) +
       fading(`${obs.id}|${tgt.id}|t`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'towed', ctx.env);
     if (se > 0) {
@@ -255,6 +337,8 @@ function passiveEmitters(obs: Ship, ctx: SensorContext, out: Detection[]): void 
 }
 
 function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
+  // Echoes from beyond the range scale come back after the receiver stopped listening
+  const scale = pingRangeOf(pinger);
   for (const tgt of ctx.ships) {
     if (tgt === pinger || !tgt.alive) continue;
     const range = distance(pinger.pos, tgt.pos);
@@ -268,7 +352,7 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
     const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom, { lfm, closingKn: closing }) + ctx.rng.gauss(0, 2) -
       2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger) - 2 * terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), tgt.pos, tgt.depth);
-    if (se > 0 && !inBaffles && !belowHull(pinger, tgt, range)) {
+    if (se > 0 && range <= scale && !inBaffles && !belowHull(pinger, tgt, range)) {
       out.push({
         observerId: pinger.id, targetId: tgt.id, sensor: 'active', time: ctx.time,
         bearing: noisyBearing(trueB, se + 10, ctx.rng),
@@ -286,10 +370,11 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
       }
     }
   }
-  bottomEchoes(pinger, ctx, out);
+  bottomEchoes(pinger, ctx, out, scale);
   // Knuckles answer like a stopped target: an echo with no Doppler that fades within minutes
   for (const k of ctx.knuckles ?? []) {
     const range = distance(pinger.pos, k.pos);
+    if (range > scale) continue;
     const trueB = bearing(pinger.pos, k.pos);
     if (Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - CLASSES[pinger.cls].hull.baffleHalfAngle) continue;
     const se = pointEchoExcess(pinger, range, k.depth, KNUCKLE_TS, ctx.env, pathDepth(ctx.env.seabed, pinger.pos, k.pos)) + ctx.rng.gauss(0, 2) -
@@ -306,13 +391,13 @@ const BOTTOM_ECHO_RANGE = 16_000;
 const BOTTOM_ECHO_MAX = 10;
 
 /** Rocks, seamount tops and steep walls of the real seabed answer a ping like a stopped boat. */
-function bottomEchoes(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
+function bottomEchoes(pinger: Ship, ctx: SensorContext, out: Detection[], scale: number): void {
   const half = CLASSES[pinger.cls].hull.baffleHalfAngle;
   const lfm = pinger.pulse === 'lfm';
   const found: Detection[] = [];
   for (const f of bottomFeatures(ctx.env.seabed)) {
     const range = Math.hypot(f.x - pinger.pos.x, f.y - pinger.pos.y);
-    if (range > BOTTOM_ECHO_RANGE || range < 200) continue;
+    if (range > Math.min(BOTTOM_ECHO_RANGE, scale) || range < 200) continue;
     const trueB = bearing(pinger.pos, f);
     if (Math.abs(angleDiff(pinger.heading, trueB)) >= 180 - half) continue;
     const se = pointEchoExcess(pinger, range, f.depth, f.ts, ctx.env, pathDepth(ctx.env.seabed, pinger.pos, f)) + ctx.rng.gauss(0, 3) -
@@ -331,6 +416,8 @@ const SHIP_TOP_M = 25;
 const RADAR_ANTENNA_M = 20;
 /** A submarine's radar sits on a mast a few metres above the waves: short horizon. */
 const SUB_RADAR_ANTENNA_M = 4;
+/** A boat's ESM / radar-warner head on the mast. */
+const SUB_ESM_ANTENNA_M = 3;
 
 /** Is this ship's radar on the air? A submarine's only with the mast fully up. */
 function radiating(s: Ship): boolean {
@@ -372,16 +459,19 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   const antenna = low ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M;
   // From a submarine's mast the horizon limits the range to ships, and masts are lost in the waves sooner
   const shipRange = low ? SUB_RADAR_RANGE : RADAR_RANGE;
-  const mastRange = low ? RADAR_MAST_RANGE * 0.6 : RADAR_MAST_RANGE;
+  // Masts are rolled for once per antenna turn (not every second); a mast radar's short horizon cuts their range
+  const rot = emitterSpec(shipEmitter(obs.cls))?.rotationS ?? 2.5;
+  const turned = antennaTurned(obs.id, rot, ctx.time);
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive) continue;
     const range = distance(obs.pos, tgt.pos);
     const sub = CLASSES[tgt.cls].submarine;
     if (sub) {
-      if (!mastExposed(tgt) || range > mastRange) continue;
+      const kind = exposedMast(tgt);
+      if (!kind || !turned) continue;
       // Rain clutter swallows a small mast return inside a shower
-      const pDetect = 0.35 * (1 - ctx.env.seaState * 0.1) * (inSquall(ctx.env.met, tgt.pos) ? 0.25 : 1);
-      if (ctx.rng.next() > pDetect) continue;
+      const p = mastDetectP(kind, range, ctx.env.seaState, MAST_RADAR[kind].rmax * (low ? 0.6 : 1)) * (inSquall(ctx.env.met, tgt.pos) ? 0.25 : 1);
+      if (p <= 0 || ctx.rng.next() > p) continue;
     } else if (range > shipRange) continue;
     // Land in between hides the target in its radar shadow
     if (!lineOfSight(ctx.env.seabed, obs.pos, antenna, tgt.pos, sub ? 3 : SHIP_TOP_M)) continue;
@@ -402,17 +492,30 @@ function guiding(ctx: SensorContext): Set<string> {
 }
 
 /** ESM: anyone with an antenna above water hears active radars (bearing, emitter, strength). */
+/** Height of an ESM antenna: a boat's mast head, a ship's mast. */
+export function esmAntennaM(s: Ship): number {
+  return CLASSES[s.cls].submarine ? SUB_ESM_ANTENNA_M : RADAR_ANTENNA_M;
+}
+
+/** Height of a ship's radar antenna (a boat's sits on its mast). */
+export function radarAntennaM(s: Ship): number {
+  return CLASSES[s.cls].submarine ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M;
+}
+
 function esm(obs: Ship, ctx: SensorContext, out: Detection[], fc: Set<string>): void {
+  const hObs = esmAntennaM(obs);
   for (const emitter of ctx.ships) {
     if (emitter === obs || !emitter.alive || !radiating(emitter)) continue;
     const range = distance(obs.pos, emitter.pos);
-    if (range > ESM_RANGE) continue;
+    // Beyond the radio horizon (with some margin) the radar is not heard: a boat's low mast hears less far
+    const reach = esmReach(hObs, radarAntennaM(emitter));
+    if (range > reach) continue;
     // Radar waves travel in straight lines: no intercept from behind a mountain
-    if (!lineOfSight(ctx.env.seabed, obs.pos, CLASSES[obs.cls].submarine ? 3 : RADAR_ANTENNA_M, emitter.pos, CLASSES[emitter.cls].submarine ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M)) continue;
+    if (!lineOfSight(ctx.env.seabed, obs.pos, hObs, emitter.pos, radarAntennaM(emitter))) continue;
     out.push({
       observerId: obs.id, targetId: emitter.id, sensor: 'esm', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, emitter.pos) + ctx.rng.gauss(0, 2)), se: 10,
-      emitter: shipEmitter(emitter.cls, fc.has(emitter.id)), esmLvl: esmLevel(range, ESM_RANGE),
+      emitter: shipEmitter(emitter.cls, fc.has(emitter.id)), esmLvl: esmLevel(range, reach),
       esmTrend: esmTrend(obs.pos, obs.heading, obs.speed, emitter.pos, emitter.heading, emitter.speed),
     });
   }
@@ -432,8 +535,10 @@ export function runSensors(ctx: SensorContext): Detection[] {
       if (tgt !== obs && tgt.alive) passive(obs, tgt, ctx, out);
     }
     passiveEmitters(obs, ctx, out);
-    if (obs.activeSonar && ctx.time - obs.lastPingAt >= PING_INTERVAL) {
+    // Continuous pinging on the range scale's interval, or one single ping on request (as soon as the last one is back)
+    if ((obs.activeSonar || obs.pingOnce) && ctx.time - obs.lastPingAt >= pingInterval(obs)) {
       obs.lastPingAt = ctx.time;
+      obs.pingOnce = undefined;
       ping(obs, ctx, out);
     }
     if (CLASSES[obs.cls].submarine && mastRaised(obs)) periscope(obs, ctx, out);

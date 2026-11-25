@@ -32,7 +32,8 @@ describe('submarine radar on the mast', () => {
   });
 
   it('every frigate with ESM hears it as a submarine radar', () => {
-    const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 0, y: 20 * NM }, heading: 180, speedKn: 15 });
+    // Inside the radio horizon of a 4 m mast radar and a 20 m ESM mast (≈19 nm with the margin)
+    const ffg = createShip({ id: 'f', cls: 'ffg', name: 'F', pos: { x: 0, y: 15 * NM }, heading: 180, speedKn: 15 });
     const d = runSensors(ctx([boat(), ffg])).find((x) => x.observerId === 'f' && x.sensor === 'esm');
     expect(d?.emitter).toBe('KIEBITZ-U');
     const quiet = boat();
