@@ -42,6 +42,9 @@
 .st .panel.tabbed { display: flex; flex-direction: column; min-height: 0; }
 .st .panel.tabbed > .pane { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .st .panel.grow.tabbed > .pane { flex: 1 1 0; }
+/* In a scrolling column a grow panel must not shrink to nothing under a tall neighbour (the
+   Horchraum's contact tabs under the signal analysis): it keeps room for a useful list */
+.st-col.scroll > .panel.grow { flex: 1 0 auto; min-height: 260px; }
 .pane[hidden] { display: none !important; }
 .tabbed .pane > .panel { border: 0 !important; background: none !important; box-shadow: none !important; padding: 0; margin-bottom: var(--sp3); }
 
