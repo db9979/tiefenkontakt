@@ -1,4 +1,5 @@
-import { angleDiff, PERISCOPE_DEPTH, RECOG, stadimeterRange, type ClassId, type WreckView } from '@tk/shared';
+import { angleDiff, PERISCOPE_DEPTH, RECOG, type ClassId, type ScopeMag, type WreckView } from '@tk/shared';
+import { scopeRange, stadimeterOf } from '../../widgets/scope-targets.js';
 import { BearingRangeFilter, easeAngle, ownNow, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
 import type { Periscope3D } from '../../widgets/periscope3d.js';
@@ -15,6 +16,28 @@ import { SkySearch } from '../../widgets/sky-search.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 import { periscopeEsmRows } from '../../widgets/esm-text.js';
+
+/**
+ * Where the optic looks, reported to the server: the periscope sees only its field of view
+ * (sensors.ts). Sent on change at most four times a second, and again after a reconnect
+ * (a restored match may not know it yet). Module-level so it goes out whichever station is shown.
+ */
+let scopeNow: { bearing: number; mag: ScopeMag } | undefined;
+let scopeSent = { key: '', at: -1e9 };
+const SCOPE_MIN_MS = 250;
+function reportScope(): void {
+  if (!scopeNow) return;
+  const bearing = Math.round((((scopeNow.bearing % 360) + 360) % 360) * 10) / 10 % 360;
+  const key = `${bearing}|${scopeNow.mag}`;
+  const now = performance.now();
+  if (key === scopeSent.key || now - scopeSent.at < SCOPE_MIN_MS) return;
+  scopeSent = { key, at: now };
+  net.send({ t: 'scope', bearing, mag: scopeNow.mag });
+}
+net.on((m) => {
+  if (m.t === 'welcome') scopeSent = { key: '', at: -1e9 };
+  else if (m.t === 'snap') reportScope();
+});
 
 interface Wave {
   x: number;
@@ -89,8 +112,14 @@ export function periscopeStation(): Station {
   const filters = new Map<string, BearingRangeFilter>();
   const filteredAt = new Map<string, number>();
   /** Magnification: low power for searching, 6× and 12× for observing and ranging. */
-  let mag = 6;
+  let mag: ScopeMag = 6;
   const pfov = () => 48 / mag;
+  /** Tell the server where the optic looks (rate-limited, only on change). */
+  const report = () => {
+    if (!trained) return;
+    scopeNow = { bearing: periBearing, mag };
+    reportScope();
+  };
   /** Stabilised optic: the picture holds still against swell and the boat's motion. */
   let stab = localStorage.getItem('tk_stab_peri') === '1';
   let trained = false;
@@ -104,7 +133,7 @@ export function periscopeStation(): Station {
   let flashAt = -1e9;
 
   el.querySelector<HTMLButtonElement>('#up')!.onclick = () => net.send({ t: 'toggle', what: 'mast', on: !(store.snap?.own.mastUp || store.snap?.own.mastPending) });
-  const setZoom = (m: number) => {
+  const setZoom = (m: ScopeMag) => {
     mag = m;
     el.querySelector('#zoom')!.textContent = `Vergr ${String(mag).replace('.', ',')}×`;
   };
@@ -182,7 +211,8 @@ export function periscopeStation(): Station {
       if (age > 6) continue;
       const est = filters.get(c.label)?.at(now);
       if (!est) continue;
-      out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit, wreck: c.wreck });
+      // The hull the optic draws (not a classification: the player names her from the book)
+      out.push({ label: c.label, cls: c.look ?? c.classified ?? 'merchant', bearing: est.bearing, range: est.range ?? scopeRange(c) ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit, wreck: c.wreck });
     }
     return out;
   }
@@ -207,13 +237,14 @@ export function periscopeStation(): Station {
         periBearing = periTarget = s.own.heading;
         trained = true;
       }
+      report();
       // Feed the display filters with each new periscope measurement
       for (const c of s.contacts) {
         if (!c.sensors.includes('periscope') || filteredAt.get(c.label) === c.lastSeen) continue;
         filteredAt.set(c.label, c.lastSeen);
         let f = filters.get(c.label);
         if (!f) filters.set(c.label, (f = new BearingRangeFilter(0.2, 0.02)));
-        f.update(c.lastSeen, c.bearing, c.range);
+        f.update(c.lastSeen, c.bearing, scopeRange(c));
       }
       const o = s.own;
       const atDepth = o.depth <= PERISCOPE_DEPTH + 0.5;
@@ -236,13 +267,20 @@ export function periscopeStation(): Station {
       btnState(el.querySelector<HTMLElement>('#sky'), sky.sweeping ? { on: true, label: 'SUCHT', tone: 'busy' } : { on: false, label: '' });
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
+      // Profi: range only from the stadimeter with the assigned class; Einsteiger also the measured range
+      const easy = store.realism === 'einsteiger';
+      const stad = target && stadimeterOf(target, easy);
+      const autoCls = easy && !target?.assignedCls && !target?.assigned ? target?.classified : undefined;
+      const rangeRow = !target ? '—'
+        : easy && target.range !== undefined ? `${stad !== undefined ? km(stad) : '—'} <span class="dim">· ORTUNG</span> ${km(target.range)}`
+        : stad !== undefined ? km(stad) : target.assignedCls ? '—' : '<span class="dim">KLASSE ZUWEISEN</span>';
       el.querySelector('#data')!.innerHTML = `
         <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${tdeg1(periBearing)}°</span></div>
         <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : '—'}</span></div>
-        <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : target ? 'ERKENNUNG ÖFFNEN' : '—'}</span></div>
+        <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls && !autoCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : autoCls ? `${CLASS_LABEL[autoCls]} <span class="dim">AUTO</span>` : target ? 'ERKENNUNG ÖFFNEN' : '—'}</span></div>
         <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
-        <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${target?.range && target.assignedCls && target.classified ? km(stadimeterRange(target.range, target.classified, target.assignedCls)) : '—'}</span></div>
+        <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>
         <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${skyNow.text}</span></div>
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>
@@ -285,6 +323,7 @@ export function periscopeStation(): Station {
       if (s && !mastState(s.own).raised) sky.cancel();
       periBearing = easeAngle(periBearing, periTarget, (nowMs - lastFrame) / 1000, 0.15);
       lastFrame = nowMs;
+      report();
       const cx = w / 2;
       const cy = H / 2;
       const R = Math.min(w * 0.42, H * 0.47);

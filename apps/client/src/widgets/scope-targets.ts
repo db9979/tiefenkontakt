@@ -1,4 +1,4 @@
-import { lookoutRanges, type Snapshot } from '@tk/shared';
+import { RECOG, lookoutRanges, type Snapshot } from '@tk/shared';
 import type { PeriscopeTarget } from './periscope3d.js';
 import { planeTargets } from './air-targets.js';
 import { moverNow, ownNow, simNow } from './smooth.js';
@@ -40,6 +40,27 @@ export function bridgeTargets(s: Snapshot): PeriscopeTarget[] {
   return out;
 }
 
+type Contact = Snapshot['contacts'][number];
+
+/**
+ * How far off the optic draws a ship: the reported range (Einsteiger), else the distance at which
+ * her hull subtends the stadimeter angle (Profi: no range comes from the server, the picture is
+ * what the eye sees, with the marking error). Undefined without either.
+ */
+export function scopeRange(c: Pick<Contact, 'range' | 'look' | 'subtense'>): number | undefined {
+  if (c.range !== undefined) return c.range;
+  return c.look && c.subtense ? (RECOG[c.look].mast * 1000) / c.subtense : undefined;
+}
+
+/**
+ * Stadimeter range: the angle the operator marks, with the mast height of the class assigned
+ * from the recognition book (Einsteiger: the auto-identified class until he assigns one).
+ */
+export function stadimeterOf(c: Pick<Contact, 'subtense' | 'assignedCls' | 'classified'>, einsteiger: boolean): number | undefined {
+  const cls = c.assignedCls ?? (einsteiger ? c.classified : undefined);
+  return cls && c.subtense ? (RECOG[cls].mast * 1000) / c.subtense : undefined;
+}
+
 /** What a periscope shows: contacts seen through it lately (plain bearing and range). */
 export function periscopeTargets(s: Snapshot): PeriscopeTarget[] {
   const now = simNow();
@@ -48,7 +69,7 @@ export function periscopeTargets(s: Snapshot): PeriscopeTarget[] {
     if (!c.sensors.includes('periscope')) continue;
     const age = now - c.lastSeen;
     if (age > 6) continue;
-    out.push({ label: c.label, cls: c.classified ?? 'merchant', bearing: c.bearing, range: c.range ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit, wreck: c.wreck });
+    out.push({ label: c.label, cls: c.look ?? c.classified ?? 'merchant', bearing: c.bearing, range: scopeRange(c) ?? 8000, alpha: Math.max(0, Math.min(1, 1 - (age - 2) / 4)), lit: c.lit, wreck: c.wreck });
   }
   out.push(...planeTargets(s, ownNow(), now));
   return out;

@@ -1,5 +1,6 @@
-import type { Debrief, Marks, OwnFix, Snapshot, TmaSolution } from '@tk/shared';
+import type { Debrief, Marks, OwnFix, Realism, Snapshot, TmaSolution } from '@tk/shared';
 import { setNorthRegion } from './north.js';
+import { net } from './net.js';
 
 /** Bearing samples kept per contact on the client (about one per second). */
 const HISTORY_KEEP = 900;
@@ -14,7 +15,7 @@ const unpackSample = ([t, b, alt, r, sensor, ox, oy]: PackedSample): Sample => (
   t, b, sensor, ...(alt !== null && { alt }), ...(r !== null && { r }), ...(ox !== null && { ox }), ...(oy !== null && { oy }),
 });
 
-export type Realism = 'einsteiger' | 'profi';
+export type { Realism };
 
 /** Client-side game state: latest snapshot plus everything the player derived from it. */
 export const store = {
@@ -134,6 +135,8 @@ export const store = {
   setRealism(r: Realism): void {
     this.realism = r;
     localStorage.setItem('tk_realism', r);
+    // The server tells a Profi player neither the class nor the range seen through the periscope
+    net.send({ t: 'realism', realism: r });
   },
 
   selectedContact() {

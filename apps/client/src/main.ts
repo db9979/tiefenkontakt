@@ -55,9 +55,13 @@ net.on((m: ServerMsg) => {
       net.send({ t: 'join_code', matchId: inv[1]! });
     }
     store.playerId = m.playerId;
+    // The server decides what the periscope tells this player by his realism mode
+    net.send({ t: 'realism', realism: store.realism });
     // A returning player is put back into the match by the server; otherwise show the lobby
     if (!m.resume && screen !== 'lobby') toLobby();
   } else if (m.t === 'match') {
+    // A new match keeps the player's mode on his slot (and old saves learn it)
+    if (store.matchId !== m.match.id) net.send({ t: 'realism', realism: store.realism });
     store.matchId = m.match.id;
     if (m.match.state === 'running' && screen !== 'game') {
       go('game', () => gameScreen(root, () => {
