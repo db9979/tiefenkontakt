@@ -21,7 +21,7 @@ const FUNNELS: [number, number | undefined][] = [
 ];
 const NAMES = [
   'NORDLAND', 'ELBSTROM', 'HANSA TRADER', 'BALTIC STAR', 'MARIA K', 'SKAGEN', 'WESERLAND', 'KAP ARKONA', 'HELLAS', 'ANNA K',
-  'CITY OF LEITH', 'TORM ESBJERG', 'ATLANTIC FAITH', 'MARE NOSTRUM', 'POLAR TRADER', 'SANTA ELENA', 'IRISH OAK', 'FALKENSTEIN',
+  'CITY OF LEITH', 'TERN ESBJERG', 'ATLANTIC FAITH', 'MARE NOSTRUM', 'POLAR TRADER', 'SANTA ELENA', 'IRISH OAK', 'FALKENSTEIN',
   'NORTHERN VENTURE', 'CAPE HORN', 'LAKE ONTARIO', 'STAR OF DUNDEE', 'BERGENSFJORD', 'ROTTERDAM EXPRESS',
 ];
 const CRATES = [0x8a3b2c, 0x2f5d7c, 0x4d6a3a, 0xb08a3a, 0x7a8085, 0xc4c8c2, 0xb8602a, 0x2f6a6a];
@@ -68,7 +68,7 @@ export function house(k: Kit, g: THREE.Object3D, h: Hull, zA: number, zF: number
   k.block(half * 2, 1.1, 2, 0, y, zF - 2, c);
   const roof = y + 2.8;
   k.block(bw - 0.6, 0.3, wl + 0.4, 0, roof, zF - 1 - wl / 2, C.dark);
-  pole(k, 0, roof + 0.3, zF - 1 - wl * 0.8, 5, 0.22, C.dark, [0.6], 2.4);
+  pole(k, 0, roof + 0.3, zF - 1 - wl * 0.8, 5.6, 0.22, C.dark, [0.6], 2.4);
   radar(g, k, 0, roof + 0.3, zF - 2.4, 3);
   return { y2, roof, half };
 }
@@ -151,16 +151,16 @@ export function cargoShip(g: THREE.Group, lk: Look, kind: CargoKind = 'cargo'): 
   const L = len / 2;
   const stripe = reefer ? pick(r, [C.blue, 0x2a6a4a, C.red, undefined]) : r() < 0.25 ? pick(r, [C.white, C.red, C.buff]) : undefined;
   const h = loftHull(g, hullFor(lk, {
-    len, beam, freeboard: 7, draft: 7.5, sheerBow: 2.2, sheerStern: 0.8, rake: reefer ? 10 : 7, flare: 0.08, fullness: reefer ? 0.35 : 0.55,
+    len, beam, freeboard: 7, draft: 8.5, sheerBow: 2.2, sheerStern: 0.8, rake: reefer ? 10 : 7, flare: 0.08, fullness: reefer ? 0.35 : 0.55,
     transom: 0.4, bilge: 0.8, bulb: feeder, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.6, 0.9],
-  }, 3.5, stripe));
+  }, 2.8, stripe));
   const k = new Kit(g);
   // Raised forecastle with bulwark, windlass and foremast; raised poop aft
   const fc = L - 14;
   raisedDeck(k, h, fc, L, 2.4, hullC);
   bulwark(k, h, fc, L - 0.4, 1.0, hullC, 2.4);
   windlass(k, h.deckAt(L - 7) + 2.4, L - 6, 2.2);
-  pole(k, 0, h.deckAt(fc + 3) + 2.3, fc + 3, 13, 0.35, posts, [0.75], 3.5);
+  pole(k, 0, h.deckAt(fc + 3) + 2.3, fc + 3, 13.5, 0.35, posts, [0.75], 3.5);
   raisedDeck(k, h, -L, -L + 8, 2.2, hullC);
   bulwark(k, h, -L + 0.5, -L + 8, 1.0, hullC, 2.2);
   // Where the house stands decides where the holds are
@@ -209,7 +209,7 @@ export function bulkCarrier(g: THREE.Group, lk: Look): void {
   const h = loftHull(g, hullFor(lk, {
     len, beam, freeboard: 6.5, draft: 10, sheerBow: 2, sheerStern: 0.4, rake: 5, flare: 0.04, fullness: 0.85, transom: 0.6, bilge: 1,
     bulb: true, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.7, 1.1],
-  }, 5.5, r() < 0.3 ? C.white : undefined));
+  }, 3, r() < 0.3 ? C.white : undefined));
   const k = new Kit(g);
   raisedDeck(k, h, L - 12, L, 2.6, hullC);
   bulwark(k, h, L - 12, L - 0.4, 1.1, hullC, 2.6);
@@ -222,7 +222,7 @@ export function bulkCarrier(g: THREE.Group, lk: Look): void {
   const sp = (L - 14 - (zF + 3)) / n;
   for (let i = 0; i < n; i++) hatch(k, h, zF + 3 + sp * (i + 0.5), sp * 0.7, beam * 0.6, 1.4, hullC, cover);
   if (geared) for (let i = 1; i < n; i += 2) gearAt(k, h, 'crane', zF + 3 + sp * i, pick(r, [C.buff, C.white, C.orange]), 12, r);
-  const hs = house(k, g, h, -L + 7, zF, 2 + Math.floor(r() * 2), pick(r, [C.white, C.cream]));
+  const hs = house(k, g, h, -L + 7, zF, 2, pick(r, [C.white, C.cream]));
   const top = stack(k, r, hs.y2 + 2.8, -L + 11, fBody, fBand, 1.15);
   k.done();
   shipName(g, h, pick(r, NAMES), L - 8, h.deckAt(L - 8) + 1, 1.8);
@@ -240,7 +240,7 @@ export function roro(g: THREE.Group, lk: Look): void {
   const [fBody, fBand] = pick(r, FUNNELS);
   const len = 140, beam = 22, L = len / 2;
   const h = loftHull(g, hullFor(lk, {
-    len, beam, freeboard: 6, draft: 6.5, sheerBow: 1.8, sheerStern: 0.2, rake: 8, flare: 0.06, fullness: 0.5, transom: 0.95, bilge: 0.7,
+    len, beam, freeboard: 6, draft: 8, sheerBow: 1.8, sheerStern: 0.2, rake: 8, flare: 0.06, fullness: 0.5, transom: 0.95, bilge: 0.7,
     bulb: true, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.6, 1.0],
   }, 2.5, r() < 0.4 ? C.white : undefined));
   const k = new Kit(g);
@@ -290,7 +290,7 @@ export function productTanker(g: THREE.Group, lk: Look): void {
   const h = loftHull(g, hullFor(lk, {
     len, beam, freeboard: 4.5, draft: 8.5, sheerBow: 2, sheerStern: 0.4, rake: 5, flare: 0.03, fullness: 0.8, transom: 0.6, bilge: 0.95,
     bulb: true, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.6, 1.0],
-  }, 4.5, r() < 0.25 ? C.white : undefined));
+  }, 2.9, r() < 0.25 ? C.white : undefined));
   const k = new Kit(g);
   const zH = -L + 27;
   deckPaint(k, h, zH, L - 12, 0.4, deckC);
@@ -317,7 +317,7 @@ export function productTanker(g: THREE.Group, lk: Look): void {
   const hs = house(k, g, h, -L + 4, zH, 2 + Math.floor(r() * 2), pick(r, [C.white, C.white, C.cream]));
   const top = stack(k, r, hs.y2 + 2.8, -L + 9, fBody, fBand);
   k.done();
-  shipName(g, h, pick(r, ['PETRO ATLAS', 'NORDIC SUN', 'ESSO BERLIN', 'TEXACO NORGE', 'BP ENDEAVOUR', 'STOLT EAGLE', 'SHELL MARINER', 'AEGEAN SPIRIT']), L - 8, h.deckAt(L - 8) + 1.1, 1.7);
+  shipName(g, h, pick(r, ['PETRO ATLAS', 'NORDIC SUN', 'BERLIN FJORD', 'NORGE TRADER', 'ENDEAVOUR STAR', 'SEA EAGLE', 'MARINER SPIRIT', 'AEGEAN SPIRIT']), L - 8, h.deckAt(L - 8) + 1.1, 1.7);
   smoke(g, top[0], top[1] + 0.5, top[2], 6);
   navLights(g, len, beam, hs.roof + 5.3, zH - 5, h.deckAt(0));
   wake(g, 220, beam, L, -L);

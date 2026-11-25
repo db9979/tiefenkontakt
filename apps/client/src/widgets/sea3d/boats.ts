@@ -8,8 +8,10 @@ import { K, lathe } from './hullkit.js';
  * Project 9 after a Victor III (fat teardrop, low sail, hump aft of the sail, towed-array pod
  * on the upper rudder); Project 4 after a Kilo (fat beam, wide flat casing with flooding
  * holes, tall rounded sail well forward); Project 2 after a Type 206 (small, slim, tall narrow
- * sail); Project 6 after a Gotland (sail planes, X-rudder). About 42 % of the pressure hull
- * shows above the water and the underside is modelled for the underwater view.
+ * sail, riding almost awash); Project 6 after a Gotland (sail planes, X-rudder); the Westbund
+ * S-14 after a Los Angeles (long cylindrical hull, narrow sail with sail planes, cross stern).
+ * About 42 % of the pressure hull shows above the water and the underside is modelled for the
+ * underwater view.
  *
  * The shape helpers below (rev, foil, pod, rod, blades) are shared with the aircraft models.
  * Every part is built so that it reaches into the body it hangs from: nothing floats.
@@ -363,17 +365,42 @@ function ssa(b: THREE.Group): void {
   screw(b, -30, 0.36, 7, 1.5);
 }
 
+/** Los Angeles type (S-14): long cylindrical hull, narrow sail well forward with sail planes, cross stern, few flood slots. */
+function ssw(b: THREE.Group): void {
+  const s: SubSpec = { len: 85, r: 4.3, bow: 9, tail: 24, tip: 0.4, p: 1.6 };
+  const R = subHull(b, s);
+  // Narrow walkway along the top of the hull
+  casing(b, R, -20, 34, 0.32, 0.22);
+  const top = 7.7;
+  sail(b, { base: R(24) - 0.6, top, le: 29, te: 20, t: 0.85, lean: 0.8, fillet: 0.45 });
+  // Sail planes at mid height, spanning the beam
+  planes(b, 0, 5, 27.6, 2.6, R(24) + (top - R(24)) * 0.55, 0.17);
+  // A few flood slots low on the bow and under the sail
+  const slit = new THREE.BoxGeometry(0.25, 0.32, 1.0);
+  for (const z of [30, 31.6, 33.2, 34.8, 18, 16.4]) {
+    const r = R(z);
+    for (const sx of [-1, 1]) {
+      const m = new THREE.Mesh(slit, K.black);
+      m.position.set(sx * r * 0.93, r * 0.36, z);
+      m.rotation.z = sx * -0.37;
+      b.add(m);
+    }
+  }
+  sternFins(b, R, -31, 4.4, 5, false);
+  screw(b, -42.5, 0.42, 7, 1.9);
+}
+
 export function surfacedBoat(g: THREE.Group, cls: ClassId): void {
   const b = new THREE.Group();
-  const r = cls === 'ssn' ? 5.3 : cls === 'ssc' ? 2.35 : cls === 'ssa' ? 3.1 : cls === 'ssw' ? 4.4 : 4.9;
-  // Hull axis 16 % of the radius under water (≈ 42 % of the hull above), trimmed a little by the stern
-  b.position.y = -0.16 * r;
+  const r = cls === 'ssn' ? 5.3 : cls === 'ssc' ? 2.35 : cls === 'ssa' ? 3.1 : cls === 'ssw' ? 4.3 : 4.9;
+  // Hull axis 16 % of the radius under water (≈ 42 % of the hull above), trimmed a little by the
+  // stern; the small coastal boat rides much deeper, almost awash
+  b.position.y = (cls === 'ssc' ? -0.7 : -0.16) * r;
   b.rotation.x = -0.012;
   if (cls === 'ssn') ssn(b);
   else if (cls === 'ssc') ssc(b);
   else if (cls === 'ssa') ssa(b);
-  // Westbund hunter-killer: the slim AIP hull scaled up to a western SSN
-  else if (cls === 'ssw') { ssa(b); b.scale.set(1.4, 1.4, 1.42); }
+  else if (cls === 'ssw') ssw(b);
   else ssk(b);
   g.add(b);
   const len = cls === 'ssn' ? 100 : cls === 'ssc' ? 48 : cls === 'ssa' ? 60 : cls === 'ssw' ? 85 : 72;

@@ -1,242 +1,21 @@
 import * as THREE from 'three';
 import { add, box, cyl, navLights, smoke, wake } from './parts.js';
-import { K, lathe, loftHull, mast, railing, std, whip, windowBand, hullNumber, type Hull } from './hullkit.js';
+import { K, lathe, loftHull, mast, railing, whip, windowBand, hullNumber } from './hullkit.js';
+import { COLORS, DARK2, MARK, V, YELLOW, base, boat, bridgeGlass, forecastle, house, lattice, profileSolid, rbu, strut, vlathe } from './warkit.js';
 
 /**
  * Escort silhouettes after the period's real types (game names stay fictional):
- * F-12 like a long-hull ASW frigate with one long deckhouse, a tall mast amidships and a
- * twin hangar aft; F-30 like a 1960s/70s frigate with a twin turret, a big round funnel and
- * a VDS gantry on the quarterdeck; K-7 like a small Soviet-style ASW corvette with rocket
- * launchers forward and a pyramid mast. Every part stands on the deck or on another part.
+ * F-30 like a 1960s/70s frigate with a twin turret, a big round funnel and a VDS gantry on
+ * the quarterdeck; K-7 like a small Soviet-style ASW corvette with rocket launchers forward
+ * and a pyramid mast (F-12 and the patrol ship in escorts.ts). Every part stands on the deck
+ * or on another part.
  */
-
-/** Base height for a fitting spanning z0..z1: the lower deck point, slightly sunk (never floats). */
-export const onDeck = (h: Hull, z0: number, z1: number) => Math.min(h.deckAt(z0), h.deckAt(z1)) - 0.15;
-
-/** Long-hull ASW frigate with helicopter (F-12), after the long-hull frigates of the period. */
-export function asw(g: THREE.Group): void {
-  const h = loftHull(g, {
-    len: 136, beam: 14, freeboard: 6, draft: 4.6, sheerBow: 2.6, rake: 6, flare: 0.1, fullness: 0.15, transom: 0.78, bilge: 0.45,
-    colors: { top: 0x6b767c, boot: 0x1a1d1f, bottom: 0x5a2a24 },
-  });
-  const N = K.navy;
-  // Foredeck: single-arm missile launcher with its magazine drum, anchor gear, breakwater
-  const zl = 47;
-  const yl = h.deckAt(zl);
-  vlathe(g, [[0.01, 0], [1.9, 0], [1.9, 1.1], [1.4, 1.5], [0.01, 1.5]], N).position.set(0, yl - 0.1, zl);
-  cyl(g, 0.6, 1.4, 0, yl + 2, zl, N);
-  const arm = box(g, 0.7, 0.7, 4.2, 0, yl + 2.6, zl + 0.8, K.navyDark);
-  arm.rotation.x = -0.35;
-  box(g, 9, 0.9, 0.3, 0, h.deckAt(56) + 0.3, 56, N).rotation.x = 0.4;
-  for (const sx of [-1, 1]) cyl(g, 0.35, 0.6, sx * 2.2, h.deckAt(60) + 0.25, 60, K.black);
-  // Deckhouse in three levels: hangar/main deck house (5 m), upper deck house (3.4 m), bridge on top
-  const base = onDeck(h, -42, 30);
-  const l1 = base + 5;
-  const l2 = l1 + 3.4;
-  const l3 = l2 + 3;
-  box(g, 11.4, 5.15, 72, 0, base + 2.5, -6, N);
-  box(g, 10.2, 3.4, 64, 0, l1 + 1.7, -6, N);
-  box(g, 9.4, 3, 11, 0, l2 + 1.5, 22, N);
-  windowBand(g, 8.8, 1, 0, l2 + 2, 27.52, 'z+');
-  for (const sx of [-1, 1]) {
-    windowBand(g, 9, 1, sx * 4.71, l2 + 2, 22, sx > 0 ? 'x+' : 'x-');
-    windowBand(g, 30, 0.6, sx * 5.11, l1 + 2.2, 4, sx > 0 ? 'x+' : 'x-');
-  }
-  // Bridge wings and the fire-control dome on the bridge roof
-  box(g, 13.6, 0.35, 3, 0, l2 + 0.2, 25.5, N);
-  cyl(g, 0.5, 1.1, 0, l3 + 0.55, 21, N);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.3, 14, 10), K.white);
-  dome.position.set(0, l3 + 1.1 + 1.1, 21);
-  g.add(dome);
-  // Tall mast on the upper deck house with yards and the turning air-search radar
-  const m = mast(g, 0, l2, 12, 18, 0.75, [{ at: 0.55, span: 8 }, { at: 0.8, span: 5 }]);
-  const radar = box(m, 6, 1.4, 0.3, 0, 18.7, 0, K.black);
-  g.userData.radar = radar;
-  for (const z of [4, -4]) whip(g, 4.9, l2, z, 7);
-  // Low stack aft of the mast, with a dark cap
-  box(g, 4.4, 4.2, 5.6, 0, l2 + 2.1, -4, N);
-  box(g, 4.6, 0.5, 5.8, 0, l2 + 4.2, -4, K.black);
-  smoke(g, 0, l2 + 4.8, -4, 5, 0x4a4c4e);
-  // Gun on the upper deck house, close-in weapon on the hangar roof
-  vlathe(g, [[0.01, 0], [1.6, 0], [1.4, 1.2], [0.9, 1.7], [0.01, 1.8]], K.navyDark).position.set(0, l2, -18);
-  const barrel = cyl(g, 0.14, 5, 0, l2 + 1.1, -15.2, N);
-  barrel.rotation.x = Math.PI / 2 - 0.15;
-  vlathe(g, [[0.01, 0], [0.9, 0], [0.9, 1.4], [0.7, 2.4], [0.01, 2.6]], K.white).position.set(0, l1, -40);
-  for (const sx of [-1, 1]) for (const z of [20, 12, -26, -32]) cyl(g, 0.45, 1.6, sx * 5.2, l1 + 0.45, z, K.white).rotation.x = Math.PI / 2;
-  // Triple torpedo tubes on deck, life rafts in canisters along the deckhouse
-  for (const sx of [-1, 1]) {
-    // Triple tubes stacked on a stand, inboard of the deck edge
-    const tz = 34;
-    const tx = sx * (h.halfBeamAt(tz, h.deckAt(tz)) - 1.4);
-    for (let i = 0; i < 3; i++) cyl(g, 0.25, 3.2, tx, h.deckAt(tz) + 0.25 + i * 0.5, tz, K.navyDark).rotation.x = Math.PI / 2;
-  }
-  // Twin hangar doors on the aft face, flight deck with markings and safety nets
-  for (const sx of [-1, 1]) windowBand(g, 4.6, 4.4, sx * 2.7, base + 2.4, -42.02, 'z-');
-  const fz0 = -44;
-  const fz1 = -66;
-  const fy = h.deckAt(-55) + 0.05;
-  const mk = new THREE.MeshBasicMaterial({ color: 0xd9d9d0 });
-  box(g, 0.35, 0.03, 18, 0, fy, (fz0 + fz1) / 2, mk);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.5, 32), mk);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(0, fy + 0.01, -54);
-  g.add(ring);
-  railing(g, h, -66, 40);
-  hullNumber(g, h, 'F 212', 44, h.deckAt(44) - 2.6, 2.6);
-  navLights(g, 136, 14, l2 + 18, 12, h.deckAt(0));
-  wake(g, 190, 14, 68, -68);
-}
-
-// ---- Local helpers for the F-30 and K-7 ---------------------------------------------------
-
-const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-const UP = V(0, 1, 0);
-const UNIT = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
-const WALL = std(0x6b767c, { side: THREE.DoubleSide });
-const DARK2 = std(0x24292c, { side: THREE.DoubleSide });
-const YELLOW = std(0xd8a12e, { roughness: 0.6 });
-const MARK = new THREE.MeshBasicMaterial({ color: 0xd9d9d0 });
-const COLORS = { top: 0x6b767c, boot: 0x1a1d1f, bottom: 0x5a2a24 };
-
-/** Lowest deck point between z0 and z1 (sampled), slightly sunk: a base that never floats. */
-function base(h: Hull, z0: number, z1: number): number {
-  let m = Infinity;
-  for (let i = 0; i <= 8; i++) m = Math.min(m, h.deckAt(z0 + ((z1 - z0) * i) / 8));
-  return m - 0.15;
-}
-
-/** Thin round bar from a to b. */
-function strut(g: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3, r: number, m: THREE.Material): THREE.Mesh {
-  const d = new THREE.Vector3().subVectors(b, a);
-  const s = new THREE.Mesh(UNIT, m);
-  s.scale.set(r, d.length(), r);
-  s.position.copy(a).addScaledVector(d, 0.5);
-  s.quaternion.setFromUnitVectors(UP, d.normalize());
-  g.add(s);
-  return s;
-}
-
-/** Body of revolution about the vertical axis from [radius, y] points, base at y = 0. */
-function vlathe(g: THREE.Object3D, profile: [number, number][], m: THREE.Material, seg = 16): THREE.Mesh {
-  const geo = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(Math.max(0.001, r), y)), seg);
-  return add(g, geo, m, 0, 0, 0);
-}
-
-/** Deckhouse from y up by hgt between z0 (aft) and z1 (front), front corners chamfered by ch. */
-function house(g: THREE.Object3D, w: number, hgt: number, z0: number, z1: number, y: number, m: THREE.Material, ch = 0): THREE.Mesh {
-  const a = w / 2;
-  const pts: [number, number][] = ch > 0
-    ? [[-a, z0], [a, z0], [a, z1 - ch], [a - ch, z1], [-a + ch, z1], [-a, z1 - ch]]
-    : [[-a, z0], [a, z0], [a, z1], [-a, z1]];
-  const geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z))), { depth: hgt, bevelEnabled: false });
-  geo.rotateX(-Math.PI / 2);
-  return add(g, geo, m, 0, y, 0);
-}
-
-/** Solid from a side profile of [z, y] points, extruded across the width (turrets, gunhouses). */
-function profileSolid(g: THREE.Object3D, pts: [number, number][], w: number, m: THREE.Material): THREE.Mesh {
-  const geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(z, y))), { depth: w, bevelEnabled: false });
-  geo.translate(0, 0, -w / 2);
-  geo.rotateY(-Math.PI / 2);
-  return add(g, geo, m, 0, 0, 0);
-}
-
-/** Bridge windows across a chamfered front (front face plus both chamfers). */
-function bridgeGlass(g: THREE.Object3D, w: number, ch: number, y: number, zf: number, hgt: number): void {
-  windowBand(g, w - 2 * ch - 0.2, hgt, 0, y, zf + 0.03, 'z+');
-  for (const sx of [-1, 1]) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(ch * Math.SQRT2 - 0.2, hgt), K.glass);
-    p.position.set(sx * (w / 2 - ch / 2 + 0.02), y, zf - ch / 2 + 0.02);
-    p.rotation.y = (sx * Math.PI) / 4;
-    g.add(p);
-  }
-}
-
-/** Four-legged lattice tower from y0, tapering from w0 to w1, braced in bays. */
-function lattice(g: THREE.Object3D, y0: number, z: number, hgt: number, w0: number, w1: number, bays: number, m: THREE.Material): void {
-  const ring = (k: number) => {
-    const f = k / bays;
-    const a = (w0 + (w1 - w0) * f) / 2;
-    const y = y0 + hgt * f;
-    return [V(a, y, z + a), V(-a, y, z + a), V(-a, y, z - a), V(a, y, z - a)];
-  };
-  for (let k = 0; k < bays; k++) {
-    const lo = ring(k);
-    const hi = ring(k + 1);
-    for (let i = 0; i < 4; i++) {
-      strut(g, lo[i]!, hi[i]!, 0.13, m);
-      strut(g, hi[i]!, hi[(i + 1) % 4]!, 0.07, m);
-      strut(g, lo[i]!, hi[(i + 1) % 4]!, 0.05, m);
-    }
-  }
-}
-
-/** Ship's boat on two chocks with a pair of davits outboard of it at davitX. */
-function boat(g: THREE.Object3D, x: number, y: number, z: number, len: number, davitX: number): void {
-  for (const dz of [-len * 0.25, len * 0.25]) box(g, 1.2, 0.5, 0.35, x, y + 0.25, z + dz, K.navyDark);
-  const b = lathe(g, [[0.01, -len / 2], [0.5, -len / 2 + 0.3], [0.8, -len / 2 + 1.3], [0.8, len / 2 - 1.6], [0.35, len / 2 - 0.25], [0.01, len / 2]], K.white, 10);
-  b.scale.y = 0.75;
-  b.position.set(x, y + 0.45 + 0.8 * 0.75, z);
-  const top = y + 2.6;
-  for (const dz of [-len * 0.35, len * 0.35]) {
-    cyl(g, 0.12, 2.6, davitX, y + 1.3, z + dz, K.navy);
-    box(g, Math.abs(davitX - x) + 0.2, 0.2, 0.2, (davitX + x) / 2, top, z + dz, K.navy);
-    cyl(g, 0.03, top - (y + 1.6), x, (top + y + 1.6) / 2, z + dz, K.black);
-  }
-}
-
-/**
- * Raised forecastle: lifts the deck by `rise` from z0 forward, with vertical topsides on the
- * hull's deck edge, a new deck and an aft bulkhead. Returns a Hull for the new deck.
- */
-function forecastle(g: THREE.Object3D, h: Hull, z0: number, rise: number): Hull {
-  const L = h.spec.len / 2;
-  const pos: number[] = [];
-  const idx: number[] = [];
-  const dpos: number[] = [];
-  const didx: number[] = [];
-  const zs: number[] = [];
-  for (let z = z0; z < L; z += 1) zs.push(z);
-  zs.push(L);
-  zs.forEach((z, i) => {
-    const y = h.deckAt(z);
-    const w = h.halfBeamAt(z, y);
-    pos.push(w, y - 0.05, z, w, y + rise, z, -w, y - 0.05, z, -w, y + rise, z);
-    dpos.push(-w * 0.995, y + rise + 0.02, z, w * 0.995, y + rise + 0.02, z);
-    if (i < zs.length - 1) {
-      const a = i * 4;
-      idx.push(a, a + 4, a + 1, a + 1, a + 4, a + 5, a + 2, a + 3, a + 6, a + 3, a + 7, a + 6);
-      didx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3);
-    }
-  });
-  // Aft bulkhead
-  const n = pos.length / 3;
-  const w0 = h.halfBeamAt(z0, h.deckAt(z0));
-  const y0 = h.deckAt(z0);
-  pos.push(-w0, y0 - 0.05, z0, w0, y0 - 0.05, z0, w0, y0 + rise, z0, -w0, y0 + rise, z0);
-  idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setIndex(idx);
-  geo.computeVertexNormals();
-  g.add(new THREE.Mesh(geo, WALL));
-  const dgeo = new THREE.BufferGeometry();
-  dgeo.setAttribute('position', new THREE.Float32BufferAttribute(dpos, 3));
-  dgeo.setIndex(didx);
-  dgeo.computeVertexNormals();
-  g.add(new THREE.Mesh(dgeo, K.deck));
-  return {
-    spec: h.spec,
-    deckAt: (z) => h.deckAt(z) + (z >= z0 ? rise : 0),
-    halfBeamAt: (z, y) => h.halfBeamAt(z, Math.min(y, h.deckAt(z))),
-  };
-}
 
 /** Frigate with variable-depth sonar (F-30), after the Leander class: 113 m, flush deck with strong sheer forward. */
-export function vdsFrigate(g: THREE.Group, east = false): void {
+export function vdsFrigate(g: THREE.Group): void {
   const L = 113;
   const B = 12.5;
-  const h = loftHull(g, { len: L, beam: B, freeboard: 5, draft: 4.5, sheerBow: 3.2, sheerStern: 0.3, rake: 7, flare: 0.12, fullness: 0.12, transom: 0.72, bilge: 0.45, colors: COLORS });
+  const h = loftHull(g, { len: L, beam: B, freeboard: 5, draft: 5.6, sheerBow: 3.2, sheerStern: 0.3, rake: 7, flare: 0.12, fullness: 0.12, transom: 0.72, bilge: 0.45, colors: COLORS });
   const N = K.navy;
   const D = K.navyDark;
   // Forecastle: V breakwater, capstans and the twin 4.5-inch gunhouse on its ring
@@ -319,21 +98,11 @@ export function vdsFrigate(g: THREE.Group, east = false): void {
   // Flight deck at 01 level over the after part, with markings and safety nets
   box(g, 11, yf - y0, 18.5, 0, (yf + y0) / 2, -37.75, N);
   box(g, 10.8, 0.04, 18.3, 0, yf + 0.02, -37.75, K.deck);
-  if (east) {
-    // Ostpakt patrol ship: no helicopter, two gun turrets on the after superstructure instead
-    for (const z of [-33, -42]) {
-      profileSolid(g, [[-2.2, 0], [2, 0], [2, 0.8], [1.2, 1.8], [-1.8, 1.9], [-2.2, 1.4]], 3.6, N).position.set(0, yf, z);
-      for (const sx of [-1, 1]) cyl(g, 0.12, 4.2, sx * 0.55, yf + 1.2, z + 3.6, D).rotation.x = Math.PI / 2;
-    }
-    // Two angled quadruple anti-ship missile boxes abreast the after house, raised toward the bow
-    for (const sx of [-1, 1]) box(g, 2.2, 1.6, 6.5, sx * 3.1, r1 + 0.9, -9.5, D).rotation.x = -0.18;
-  } else {
-    box(g, 0.3, 0.03, 16, 0, yf + 0.05, -37.75, MARK);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.4, 32), MARK);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(0, yf + 0.06, -38.5);
-    g.add(ring);
-  }
+  box(g, 0.3, 0.03, 16, 0, yf + 0.05, -37.75, MARK);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3.1, 3.4, 32), MARK);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(0, yf + 0.06, -38.5);
+  g.add(ring);
   for (const sx of [-1, 1]) box(g, 1, 0.05, 18.5, sx * 5.95, yf - 0.1, -37.75, K.black).rotation.z = sx * -0.2;
   // Quarterdeck: VDS winch, A-frame gantry and the yellow towed body in its cradle
   const yq = base(h, -56, -47.5);
@@ -354,24 +123,9 @@ export function vdsFrigate(g: THREE.Group, east = false): void {
   strut(g, V(0, yfish + 0.5, -54.6), V(0, at - 0.3, -54.6), 0.05, K.black);
   railing(g, h, -56, -47.5);
   railing(g, h, -28, 52);
-  hullNumber(g, h, east ? '711' : 'F 230', 44, h.deckAt(44) - 2.8, 2.6);
+  hullNumber(g, h, 'F 230', 44, h.deckAt(44) - 2.8, 2.6);
   navLights(g, L, B, mt + 5.6, 19, h.deckAt(19));
   wake(g, 165, B, L / 2, -L / 2);
-}
-
-/** RBU-6000 style ASW rocket launcher: pedestal, cradle and a ring of 12 barrels, trained ahead. */
-function rbu(g: THREE.Object3D, x: number, y: number, z: number): void {
-  cyl(g, 0.65, 0.6, x, y + 0.3, z, K.navyDark);
-  for (const sx of [-1, 1]) box(g, 0.15, 1.1, 0.9, x + sx * 0.68, y + 1.05, z, K.navyDark);
-  const b = new THREE.Group();
-  b.position.set(x, y + 1.35, z);
-  b.rotation.x = -0.55;
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    const t = add(b, new THREE.CylinderGeometry(0.11, 0.11, 1.8, 6, 1, true), K.navy, Math.cos(a) * 0.5, Math.sin(a) * 0.5, 0.1);
-    t.rotation.x = Math.PI / 2;
-  }
-  g.add(b);
 }
 
 /** ASW corvette (K-7), after the Soviet Grisha class: 72 m with a raised forecastle. */

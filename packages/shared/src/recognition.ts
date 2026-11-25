@@ -30,7 +30,7 @@ export const RECOG: Record<ClassId, RecogEntry> = {
   ssn: { length: 102, beam: 15.2, mast: 10, group: 'submarine', cues: 'Großer runder Rumpf, langer niedriger Turm weit vorn, Wulst (Gondel) auf dem Seitenruder' },
   ssk: { length: 74, beam: 13.8, mast: 12, group: 'submarine', cues: 'Gedrungener Rumpf, Flutschlitze im Oberdeck, hoher Turm mittschiffs mit Sehrohren' },
   ssa: { length: 61, beam: 9, mast: 8.5, group: 'submarine', cues: 'Schlank, Turm mit Tiefenrudern, X-Ruder achtern, kaum Aufbauten' },
-  ssc: { length: 49, beam: 7, mast: 8, group: 'submarine', cues: 'Sehr klein, niedriger Turm, kurzer Rumpf, fast ganz unter Wasser' },
+  ssc: { length: 49, beam: 7, mast: 7, group: 'submarine', cues: 'Sehr klein, niedriger Turm, kurzer Rumpf, fast ganz unter Wasser' },
   tanker: { length: 240, beam: 40.8, mast: 31, group: 'neutral', cues: 'Riesig und flach, Rohrleitungen und Laufsteg auf dem Deck, Aufbau ganz achtern' },
   container: { length: 200, beam: 33, mast: 34, group: 'neutral', cues: 'Containerstapel in Reihen über das ganze Deck, Brücke achtern oder auf drei Vierteln' },
   faehre: { length: 150, beam: 27.6, mast: 31, group: 'neutral', cues: 'Hoher kastenförmiger Aufbau über fast die ganze Länge, viele Fensterreihen, Heckklappe' },
@@ -40,7 +40,7 @@ export const RECOG: Record<ClassId, RecogEntry> = {
 };
 
 /** Surfaced submarines: hull depth below the waterline as built in the models (m). */
-const SUB_DRAUGHT: Partial<Record<ClassId, number>> = { ssw: 5.8, ssn: 7.8, ssk: 6.6, ssa: 4.1, ssc: 3.8 };
+const SUB_DRAUGHT: Partial<Record<ClassId, number>> = { ssw: 6.1, ssn: 7.8, ssk: 6.6, ssa: 4.1, ssc: 5.1 };
 
 /** Draught below the waterline (m): the class draught, for surfaced submarines the model's hull depth. */
 export function recogDraught(cls: ClassId): number {

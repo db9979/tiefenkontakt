@@ -51,7 +51,7 @@ function wings(k: Kit, h: Hull, y: number, zFront: number, c: number): void {
 
 /** Thin painted overlay on the deck between z0 and z1 (tanker red, teak), following the sheer. */
 export function deckPaint(k: Kit, h: Hull, z0: number, z1: number, inset: number, c: number): void {
-  loftBlock(k, h, z0, z1, inset, (z) => h.deckAt(z) - 0.05, (z) => h.deckAt(z) + 0.06, c, c, 16);
+  loftBlock(k, h, z0, z1, inset, (z) => h.deckAt(z) - 0.05, (z) => h.deckAt(z) + 0.12, c, c, 16);
 }
 
 /** Polyline of round bar following the deck at height dy above it, at x, from z0 to z1. */
@@ -72,9 +72,9 @@ export function tanker(g: THREE.Group, lk: Look): void {
   const len = 240;
   const beam = 40;
   const h = loftHull(g, hullFor(lk, {
-    len, beam, freeboard: 6, draft: 14, sheerBow: 2, sheerStern: 0.3, rake: 4, flare: 0.02, fullness: 0.95, transom: 0.55, bilge: 1,
+    len, beam, freeboard: 6, draft: 19, sheerBow: 2, sheerStern: 0.3, rake: 4, flare: 0.02, fullness: 0.95, transom: 0.55, bilge: 1,
     bulb: true, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.8, 1.4],
-  }, 8, r() < 0.2 ? C.white : undefined));
+  }, 3.8, r() < 0.2 ? C.white : undefined));
   const k = new Kit(g);
   deckPaint(k, h, -84, 104, 0.4, deckC);
   // Forecastle with bulwark, windlass and a short foremast
@@ -118,7 +118,7 @@ export function tanker(g: THREE.Group, lk: Look): void {
   pole(k, 0, tops[5]! + 0.25, -90, 7, 0.3, C.dark, [0.55, 0.8], 4);
   radar(g, k, 0, tops[5]! + 0.25, -87.3, 4);
   k.done();
-  shipName(g, h, pick(r, ['PETRO ATLAS', 'OCEAN REGENT', 'NORDIC SUN', 'GULF PIONEER', 'AEGEAN SPIRIT', 'STOLT EAGLE', 'ESSO BERLIN', 'TEXACO NORGE', 'BP ENDEAVOUR', 'SHELL MARINER']), 110, h.deckAt(110) + 1.2, 2);
+  shipName(g, h, pick(r, ['PETRO ATLAS', 'OCEAN REGENT', 'NORDIC SUN', 'GULF PIONEER', 'AEGEAN SPIRIT', 'SEA EAGLE', 'BERLIN FJORD', 'NORGE TRADER', 'ENDEAVOUR STAR', 'MARINER SPIRIT']), 110, h.deckAt(110) + 1.2, 2);
   smoke(g, top[0], top[1] + 0.6, top[2], 8);
   navLights(g, len, beam, tops[5]! + 7, -90, h.deckAt(0));
   wake(g, 320, beam, len / 2, -len / 2);
@@ -156,9 +156,9 @@ export function containerShip(g: THREE.Group, lk: Look): void {
   const len = 200;
   const beam = 30;
   const h = loftHull(g, hullFor(lk, {
-    len, beam, freeboard: 8, draft: 9.5, sheerBow: 3, sheerStern: 0.5, rake: 8, flare: 0.1, fullness: 0.4, transom: 0.8, bilge: 0.7,
+    len, beam, freeboard: 8, draft: 10.5, sheerBow: 3, sheerStern: 0.5, rake: 8, flare: 0.1, fullness: 0.4, transom: 0.8, bilge: 0.7,
     bulb: true, colors: { top: hullC, boot: 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.6, 1.0],
-  }, 4, r() < 0.3 ? C.white : undefined));
+  }, 3.4, r() < 0.3 ? C.white : undefined));
   // In ballast she carries few boxes, fully loaded the stacks stand higher
   const load = lk.ballast > 0 ? -2 : r() < 0.4 ? 1 : 0;
   const k = new Kit(g);
@@ -182,7 +182,7 @@ export function containerShip(g: THREE.Group, lk: Look): void {
   pole(k, 0, tops[6]! + 0.25, -46, 6, 0.28, C.dark, [0.6], 3.6);
   radar(g, k, 0, tops[6]! + 0.25, -43.3, 3.6);
   k.done();
-  shipName(g, h, pick(r, ['ATLANTIC CROWN', 'BISCAY BAY', 'HANSE EXPRESS', 'NORTH SEA LINK', 'CARIBIA', 'OOCL FAITH', 'NEDLLOYD DELFT', 'ACT 3', 'MANCHESTER CHALLENGE']), 92, h.deckAt(92) + 1.0, 1.8);
+  shipName(g, h, pick(r, ['ATLANTIC CROWN', 'BISCAY BAY', 'HANSE EXPRESS', 'NORTH SEA LINK', 'CARIBIA', 'ORIENT FAITH', 'DELFT EXPRESS', 'CELTIC TRADER', 'MERSEY CHALLENGE']), 92, h.deckAt(92) + 1.0, 1.8);
   smoke(g, top[0], top[1] + 0.6, top[2], 6);
   navLights(g, len, beam, tops[6]! + 6, -46, h.deckAt(0));
   wake(g, 280, beam, len / 2, -len / 2);
@@ -292,7 +292,7 @@ export function tug(g: THREE.Group, lk: Look): void {
   const len = 34;
   const beam = 10;
   const h = loftHull(g, {
-    len, beam, freeboard: 2.4, draft: 3.8, sheerBow: 2.6, sheerStern: 0.3, rake: 2, flare: 0.14, fullness: 0.35, transom: 0.7, bilge: 0.55,
+    len, beam, freeboard: 2.4, draft: 4.6, sheerBow: 2.6, sheerStern: 0.3, rake: 2, flare: 0.14, fullness: 0.35, transom: 0.7, bilge: 0.55,
     colors: { top: hullC, boot: hullC === 0x7a2a22 ? C.dark : 0x7a2a22, bottom: 0x5a2a24 }, boot: [-0.4, 0.5], rust: lk.rust, seed: lk.seed,
   });
   const k = new Kit(g);
