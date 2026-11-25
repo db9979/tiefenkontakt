@@ -92,6 +92,12 @@ ${fig(figLayer(), 'Abb. 3 · Schallausbreitung an der Sprungschicht.')}
 <p>In tiefem Wasser biegen sich Strahlen in großer Tiefe wieder nach oben und kommen in etwa 55 km Entfernung an die Oberfläche zurück.
 Dort hört man laute Schiffe plötzlich wieder, dazwischen ist Stille.</p>
 ${fig(figCz(), 'Abb. 4 · Konvergenzzonen in der Grönland-Lücke.')}
+<h2>Reichweitenvorhersage</h2>
+<p>Im Horchraum des Boots und am Sonar der Fregatte zeigt die aufklappbare <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
+nach unten die Tiefe. <b>Grün</b> ist, wo man ein typisches Ziel hört (Boot: Geleitfahrzeug mit 15 kn, blass ein Frachter mit 9 kn; Fregatte: Diesel-U-Boot mit 5 kn
+auf Batterie), <b>rot schraffiert</b>, wo der Gegner einen selbst hört. Beim Boot ist die Tiefe die eigene: Man sieht, wie es unter der Schicht stiller wird.
+Bei der Fregatte ist es die Tiefe des Boots. Die Vorhersage rechnet mit eigener Fahrt, Seegang, Wassertiefe und der gemessenen Schicht. Ohne Messung steht
+dort <b>SCHICHT UNBEKANNT · NUR GROBE SCHÄTZUNG</b>. Schwund, Maskierung und Gelände rechnet sie nicht mit.</p>
 <h2>Flachwasser</h2>
 <p>Im Schelfmeer und im Fjord ist das Wasser 100–300 m tief. Der Boden schluckt Schall mit jeder Reflexion, die Schicht ist schwach und
 <b>Nachhall</b> (Echos von Boden und Oberfläche) überdeckt das Aktivsonar. Ein CW-Puls findet dort langsame Ziele kaum, ein <b>LFM-Puls</b>
