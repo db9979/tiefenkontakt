@@ -24,7 +24,12 @@ export const SUPPORT_TONS_SHARE = 0.5;
 export interface MatchResult {
   winner: 'west' | 'east';
   reason: string;
+  /** How clear the result was (shown as Sieg / Knapper Sieg / Unentschieden …; ratings use only the winner). */
+  band?: ResultBand;
 }
+
+/** klar: a clear result; knapp: close; remis: the loser was within a hair (a draw in all but the rules). */
+export type ResultBand = 'klar' | 'knapp' | 'remis';
 
 export function computeScore(w: World): Score {
   const merchants = w.ships.filter(isConvoyShip);
@@ -45,8 +50,55 @@ export function computeScore(w: World): Score {
   };
 }
 
-/** Win conditions; undefined while the match continues. */
+/** Win conditions; undefined while the match continues. A decided result carries its band. */
 export function evaluate(w: World, timeLimitS: number, mission = 'groenland'): MatchResult | undefined {
+  const r = decide(w, timeLimitS, mission);
+  return r && { ...r, band: resultBand(w, timeLimitS, mission, r) };
+}
+
+/**
+ * How close a result was, from the margin on the deciding measure: convoy tonnage against the
+ * mark that decided it (in merchants), the boats' losses, the strait line, held contact, hull.
+ */
+export function resultBand(w: World, timeLimitS: number, mission: string, r: MatchResult): ResultBand {
+  const subs = w.ships.filter((s) => s.team === 'east' && CLASSES[s.cls].submarine);
+  const subsLost = subs.length ? subs.filter((s) => !s.alive).length / subs.length : 0;
+  const timeUp = w.time >= timeLimitS;
+  if (mission === 'duell') {
+    if (!timeUp) return 'klar';
+    const hull = (team: string) => w.ships.filter((s) => s.team === team && s.alive).reduce((a, s) => a + s.hp / CLASSES[s.cls].hp, 0);
+    const d = Math.abs(hull('west') - hull('east'));
+    return d < 0.25 ? 'remis' : d < 0.6 ? 'knapp' : 'klar';
+  }
+  if (mission === 'meerenge') {
+    if (r.winner === 'east') return w.time > timeLimitS * 0.9 || subsLost >= 0.5 ? 'knapp' : 'klar';
+    // The escorts held: how close did a boat come to the exit line?
+    const exit = w.env.exitY ?? Infinity;
+    const best = Math.max(...subs.map((s) => s.pos.y));
+    return timeUp && exit - best < 1000 ? 'remis' : timeUp && exit - best < 3000 ? 'knapp' : 'klar';
+  }
+  if (mission === 'fuehlung') {
+    const share = (w.env.shadowS ?? 0) / shadowGoalS(timeLimitS);
+    return r.winner === 'east' ? (subsLost >= 0.5 ? 'knapp' : 'klar') : share >= 0.8 ? 'remis' : share >= 0.5 ? 'knapp' : 'klar';
+  }
+  if (mission === 'aufklaerung') {
+    if (r.winner === 'east') return subsLost >= 0.5 ? 'knapp' : 'klar';
+    return w.env.reportAt !== undefined ? 'knapp' : 'klar';
+  }
+  // Convoy and harbour: tonnage in merchants against the mark that decided
+  const sc = computeScore(w);
+  const n = Math.max(1, w.ships.filter(isConvoyShip).length);
+  const counted = sc.totalTons > 0 ? (sc.countedTons / sc.totalTons) * n : 0;
+  if (timeUp && !subs.every((s) => !s.alive)) {
+    const d = Math.abs(counted - 0.3 * n);
+    return d < 1 ? 'remis' : d < 2 ? 'knapp' : 'klar';
+  }
+  if (r.winner === 'east') return subsLost >= 0.5 ? 'knapp' : 'klar';
+  // The escorts won early (convoy in port, or the pack sunk): close if the pack got near its mark
+  return counted >= 0.3 * n ? 'knapp' : 'klar';
+}
+
+function decide(w: World, timeLimitS: number, mission: string): MatchResult | undefined {
   if (mission === 'duell') return duel(w, timeLimitS);
   if (mission === 'fuehlung' || mission === 'meerenge' || mission === 'aufklaerung') return special(w, timeLimitS, mission);
   const sc = computeScore(w);

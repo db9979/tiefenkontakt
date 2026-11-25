@@ -465,6 +465,8 @@ export interface Debrief {
   setup?: MatchSetup;
   /** Asked for after the own ship sank while the match still runs: no result yet, truth cut off minutes ago. */
   provisional?: boolean;
+  /** How clear the result was: klar, knapp (close) or remis (a draw in all but the rules). */
+  band?: 'klar' | 'knapp' | 'remis';
 }
 
 export interface PlayerStats {
@@ -489,6 +491,13 @@ export interface PlayerStats {
   mineKills?: number;
   /** Torpedo attacks on this ship it lived through to the end (badges). */
   attacksSurvived?: number;
+  /** Debrief grade: warhead hits scored, contacts classified right, enemy units held in the book,
+   * sim seconds until an enemy first held this ship, share of convoy merchants afloat (escorts). */
+  hits?: number;
+  classified?: number;
+  held?: number;
+  undetectedS?: number;
+  merchantsSafe?: number;
 }
 
 export interface Habits {
@@ -511,7 +520,7 @@ export type ServerMsg =
   | { t: 'phone_look'; bearing: number; elev: number; mag: number; glass: boolean }
   | { t: 'phone_select'; label: string }
   | { t: 'phone_photo' }
-  | { t: 'end'; winner: Exclude<Team, 'neutral'>; reason: string }
+  | { t: 'end'; winner: Exclude<Team, 'neutral'>; reason: string; band?: 'klar' | 'knapp' | 'remis' }
   | { t: 'debrief'; d: Debrief }
   /** Spectators get the truth picture, delayed so it can't be used to help a team. */
   | { t: 'spectate'; d: Debrief; delayS: number }
