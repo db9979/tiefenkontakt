@@ -22,6 +22,7 @@ import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
 import { mountFastForward, mountSunkPanel } from '../widgets/pacing.js';
 import { debriefOverlay } from './debrief.js';
+import { bandLabel } from './debrief-grade.js';
 import { helpOverlay } from './help.js';
 import { radioLog } from '../widgets/radio-log.js';
 import { isKey, stationKey } from '../widgets/keys.js';
@@ -171,6 +172,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const sunkPanel = mountSunkPanel((d) => debriefOverlay(d, onExit));
   document.body.appendChild(sunkPanel.el);
   let endShown = false;
+  let endBand: 'klar' | 'knapp' | 'remis' | undefined;
 
   const unlock = () => audio.unlock();
   window.addEventListener('pointerdown', unlock);
@@ -281,7 +283,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const won = store.ended.winner === s.own.team;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     const ov = h(`<div class="overlay"><div class="panel" style="text-align:center;padding:24px 40px">
-      <div class="title ${won ? '' : 'red'}">${won ? 'SIEG' : 'NIEDERLAGE'}</div>
+      <div class="title ${won || endBand === 'remis' ? '' : 'red'}">${bandLabel(won, endBand)}</div>
       <div style="margin:10px 0">${esc(store.ended.reason)}</div>
       <div class="dim">VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} % · DAUER ${clock(s.time)}</div>
       <div class="steps" style="margin-top:16px;justify-content:center"><button id="debrief" class="on">Nachbesprechung</button><button id="exit">Zur Lobby</button></div></div></div>`);
@@ -401,6 +403,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       setTimeout(() => (store.lastError = store.lastError === m.msg ? '' : store.lastError), 4000);
     } else if (m.t === 'end') {
       store.ended = { winner: m.winner, reason: m.reason };
+      endBand = m.band;
       perfReport.end();
       showEnd();
     } else if (m.t === 'debrief') {

@@ -10,8 +10,17 @@ import { drawSymbol } from '../widgets/symbols.js';
 import { chartToScreen, northUpGrid, panDelta, screenDir } from '../widgets/chart-frame.js';
 import { setNorthRegion } from '../north.js';
 import { shareBlock, wireShare } from '../widgets/replay-share.js';
+import { bandLabel, bandNote, gradePanel, tmaQuality } from './debrief-grade.js';
 
 const SPEEDS = [30, 120, 480];
+
+/** "KNAPPER SIEG · WESTBUND SIEGT": the band from the player's side, then who won under the rules. */
+function resultLine(d: Debrief, shared: boolean): string {
+  const side = `${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT`;
+  const own = d.stats.find((s) => s.playerId === store.playerId);
+  if (shared || !own) return d.band === 'remis' ? `UNENTSCHIEDEN · ${side} KNAPP` : d.band === 'knapp' ? `${side} KNAPP` : side;
+  return d.band === 'remis' ? 'UNENTSCHIEDEN' : `${bandLabel(own.won, d.band)} · ${side}`;
+}
 
 function teamColor(team: string, player: boolean): string {
   if (team === 'east') return player ? '#f09595' : '#a35f5f';
@@ -51,7 +60,8 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
     <div style="min-width:0;overflow:auto">
       ${live ? '<div class="hd"><span>Zuschauer</span><span class="amber">LIVE · VERZÖGERT</span></div><div class="dim">DU SIEHST DIE WAHRE LAGE MIT EINIGEN MINUTEN VERZÖGERUNG, DAMIT NIEMAND SEINEM TEAM HELFEN KANN.</div>'
         : d.provisional ? '<div class="hd"><span>Zwischenstand</span><span class="amber">PARTIE LÄUFT NOCH</span></div><div class="dim">DIE LAGE ENDET EINIGE MINUTEN VOR JETZT, DAMIT NIEMAND SEINEM TEAM HELFEN KANN. „ZUR LOBBY“ VERLÄSST DIE PARTIE.</div>'
-        : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${d.winner === 'west' ? 'WESTBUND' : 'OSTPAKT'} SIEGT</span></div>`}
+        : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${resultLine(d, shared)}</span></div>${!shared && bandNote(d.band, d.winner) ? `<div class="dim">${bandNote(d.band, d.winner)}</div>` : ''}`}
+      ${mine && !d.provisional ? gradePanel(d, store.playerId, store.snap ? tmaQuality(d, store.snap.own.team, store.solutions.values()) : undefined) : ''}
       ${mine ? debriefTips(d.stats.find((s) => s.playerId === store.playerId)) : ''}
       ${mine ? photoStrip(d, store.playerId) : ''}
       ${mine ? '<div id="db-fb"></div>' : ''}
