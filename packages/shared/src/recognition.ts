@@ -1,4 +1,4 @@
-import type { ClassId } from './classes.js';
+import { CLASSES, type ClassId } from './classes.js';
 import type { ClassChoice } from './signatures.js';
 
 /**
@@ -37,6 +37,54 @@ export const RECOG: Record<ClassId, RecogEntry> = {
   fischer: { length: 42, beam: 11.2, mast: 17, group: 'neutral', cues: 'Klein, Aufbau vorn, Heckaufschleppe und Galgen achtern, Masten mit Ladegeschirr' },
   schlepper: { length: 35, beam: 12.2, mast: 14, group: 'neutral', cues: 'Kurz und breit, hoher Aufbau vorn, langes flaches Achterdeck mit Schlepphaken' },
   yacht: { length: 13, beam: 4.2, mast: 17, group: 'neutral', cues: 'Winzig, ein Mast mit Segeln, kaum Freibord' },
+};
+
+/** Surfaced submarines: hull depth below the waterline as built in the models (m). */
+const SUB_DRAUGHT: Partial<Record<ClassId, number>> = { ssw: 5.8, ssn: 7.8, ssk: 6.6, ssa: 4.1, ssc: 3.8 };
+
+/** Draught below the waterline (m): the class draught, for surfaced submarines the model's hull depth. */
+export function recogDraught(cls: ClassId): number {
+  return SUB_DRAUGHT[cls] ?? CLASSES[cls].draft;
+}
+
+/** Lookalikes: for each class one or two classes it is easily taken for, and the cue that tells them apart. */
+export const CONFUSION: Record<ClassId, [ClassId, string][]> = {
+  ffg: [['ffv', 'F-30 ist kürzer, trägt den VDS-Kran am Heck und hat keinen Hangar'], ['ffk', 'Wachschiff: Starter auf der Back, schräge Flugkörperstarter mittschiffs, zwei Türme achtern, kein Landedeck']],
+  ffv: [['ffg', 'F-12 ist länger (136 m), Hangar und Landedeck achtern, höherer Gittermast'], ['ffk', 'Wachschiff: schräge Vierfachstarter mittschiffs, zwei Geschütztürme achtern']],
+  kor: [['ffk', 'Wachschiff: fast doppelt so lang, Türme achtern'], ['fischer', 'Trawler: Galgen und Heckaufschleppe, keine Waffen; die Korvette liegt lang und niedrig']],
+  ffk: [['ffv', 'F-30: ein Schornstein, VDS-Kran am Heck, keine Seeziel-Starter'], ['ffg', 'F-12: hoher Gittermast, Hangar und Landedeck achtern']],
+  merchant: [['container', 'Containerschiff: viel größer, Stapel statt Ladebäume, Brücke achtern'], ['faehre', 'Fähre: hoher Kastenaufbau über fast die ganze Länge']],
+  ssw: [['ssn', 'Projekt 9: runder, dicker Rumpf, Turm weit vorn, Gondel auf dem Seitenruder'], ['ssa', 'Projekt 6: viel kleiner (61 m), X-Ruder achtern']],
+  ssn: [['ssw', 'S-14: schlanker, schmaler Turm mit Tiefenrudern, keine Gondel'], ['ssk', 'Projekt 4: kürzer und gedrungen, Flutschlitze, Turm mittschiffs']],
+  ssk: [['ssn', 'Projekt 9: viel länger, Turm weit vorn, Gondel auf dem Seitenruder'], ['ssa', 'Projekt 6: schlanker, X-Ruder, kaum Flutschlitze']],
+  ssa: [['ssc', 'Projekt 2: noch kürzer (49 m), niedriger Turm, fast ganz unter Wasser'], ['ssk', 'Projekt 4: breiter und gedrungener, Flutschlitze im Oberdeck']],
+  ssc: [['ssa', 'Projekt 6: länger (61 m), Tiefenruder am Turm, X-Ruder'], ['yacht', 'Segelyacht: hoher Mast mit Segeln, kein Turm']],
+  tanker: [['container', 'Containerschiff: Stapel an Deck, schlanker'], ['merchant', 'Frachter: halb so lang, Ladebäume, Brücke mittschiffs']],
+  container: [['tanker', 'Tanker: flach, Rohrleitungen statt Stapel'], ['faehre', 'Fähre: geschlossener Kastenaufbau mit Fensterreihen']],
+  faehre: [['container', 'Containerschiff: offene Stapel, Brücke achtern'], ['merchant', 'Frachter: kleiner, Ladebäume, niedriger Aufbau']],
+  fischer: [['schlepper', 'Schlepper: kürzer und breiter, Schlepphaken, kein Galgen'], ['kor', 'Korvette: länger und flacher, Waffen vorn und achtern']],
+  schlepper: [['fischer', 'Trawler: länger, Galgen und Heckaufschleppe achtern']],
+  yacht: [['ssc', 'Küsten-U-Boot: kein Mast mit Segeln, nur ein niedriger Turm'], ['fischer', 'Trawler: viel größer, Aufbau und Ladegeschirr statt Segel']],
+};
+
+/** One short tactical hint per class for the threat page (German). */
+export const THREAT_HINT: Record<ClassId, string> = {
+  ffg: 'Hat einen Hubschrauber mit Tauchsonar – unter der Schicht bleiben und die Masten unten halten.',
+  ffv: 'Der VDS hört unter der Schicht – Tiefe allein schützt nicht. Bei hoher Fahrt ist er eingeholt.',
+  kor: 'Wasserbomben wirken nur direkt über dem Boot – Abstand halten; ihr Schleppsonar ist kurz.',
+  ffk: 'Laut und schnell, mit VDS und Raketen gegen U-Boote; seine Seezielflugkörper treffen das größte Echo.',
+  merchant: 'Unbewaffnet, aber die Sicherung ist nah – nach dem Schuss tief gehen und Fahrt wechseln.',
+  ssw: 'Sehr leise mit langem Schleppsonar – nie lange mit hoher Fahrt geradeaus laufen.',
+  ssn: 'Schnell und ausdauernd mit vielen Torpedos; bei hoher Fahrt laut und dann gut zu orten.',
+  ssk: 'Auf Batterie fast lautlos; schnorchelnd laut und mit Mast im Radar – dann zuschlagen.',
+  ssa: 'Mit AIP lange leise unter Wasser; der 400-Hz-Ton verrät es.',
+  ssc: 'Klein und leise, acht Rohre ohne Nachladen, oft mit Minen – Engstellen meiden.',
+  tanker: 'Neutral – nicht angreifen. Das laute Stampfen überdeckt leise Kontakte in der Nähe.',
+  container: 'Neutral – nicht angreifen. Ein großes Echo, das Suchköpfe ablenken kann.',
+  faehre: 'Neutral, viele Menschen an Bord – auf keinen Fall angreifen.',
+  fischer: 'Neutral – nicht angreifen. Lärm und Netze: ein gutes Versteck für ein U-Boot in der Nähe.',
+  schlepper: 'Neutral – nicht angreifen. Laut je Knoten, leicht für ein Kriegsschiff gehalten.',
+  yacht: 'Neutral und harmlos – nicht angreifen.',
 };
 
 /** Order of the book: escorts, convoy, boats (surfaced), neutral traffic. */

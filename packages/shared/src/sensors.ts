@@ -91,6 +91,7 @@ export function fading(key: string, t: number): number {
 const RADAR_RANGE = 22 * NM;
 const RADAR_MAST_RANGE = 6 * NM;
 const ESM_RANGE = 40 * NM;
+export { RADAR_RANGE, RADAR_MAST_RANGE };
 
 export interface SensorContext {
   ships: readonly Ship[];
@@ -341,6 +342,9 @@ export function horizonRange(eyeHeight: number, targetHeight: number): number {
   return 2.08 * (Math.sqrt(eyeHeight) + Math.sqrt(targetHeight)) * NM;
 }
 
+/** How far a submarine's mast radar finds ships: its horizon. */
+export const SUB_RADAR_RANGE = Math.min(RADAR_RANGE, horizonRange(SUB_RADAR_ANTENNA_M, SHIP_TOP_M));
+
 function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   // Night cuts visual range sharply (darkened ships, no moon assumed)
   const light = ctx.env.light ?? 1;
@@ -367,7 +371,7 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   const low = CLASSES[obs.cls].submarine;
   const antenna = low ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M;
   // From a submarine's mast the horizon limits the range to ships, and masts are lost in the waves sooner
-  const shipRange = low ? Math.min(RADAR_RANGE, horizonRange(antenna, SHIP_TOP_M)) : RADAR_RANGE;
+  const shipRange = low ? SUB_RADAR_RANGE : RADAR_RANGE;
   const mastRange = low ? RADAR_MAST_RANGE * 0.6 : RADAR_MAST_RANGE;
   for (const tgt of ctx.ships) {
     if (tgt === obs || !tgt.alive) continue;

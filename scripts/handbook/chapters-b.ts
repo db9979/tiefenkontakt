@@ -31,6 +31,13 @@ ${pair(shot('ui-u-feuer.jpg', 'Bild 5 · Feuerleitung: Lagebild, TMA und Torpedo
 <li><b>Lenken:</b> Solange der Draht hält (eigene Fahrt bis 12 kn, bis 18 km), mit ◀ ▶ nachsteuern, bis „ZIEL ERFASST“ erscheint.</li>
 <li><b>Absetzen:</b> Rohrfluten und Abschuss sind weit hörbar. Abdrehen, tief gehen, unter die Schicht.</li>
 </ol>
+<div class="box"><h4>Erkennungsheft</h4><p>„Erkennung“ am Sehrohr (und auf der Brücke der Fregatte) öffnet das Heft mit allen Klassen. Jede Seite hat drei Reiter:
+<b>Sicht</b> zeigt Seite, Draufsicht und Bug, alle Schiffe in einem gemeinsamen Maßstab und alle U-Boote in einem eigenen –
+so lassen sich Größen direkt vergleichen. Eingetragen sind Höhengitter, Wasserlinie, Länge, Tiefgang und die Masthöhe, mit der das
+Stadimeter rechnet; „Vergleich“ legt den Umriss einer zweiten Klasse darüber. Darunter stehen die Klassen, mit denen man sie leicht
+verwechselt, und woran man sie unterscheidet. <b>Akustik</b> zeigt Flügelzahl, Drehzahl je Knoten, die Schmalbandlinien bis 500 Hz
+(gelb: nur beim Schnorcheln) und wie die Klasse klingt. <b>Bedrohung</b> listet Waffen und Sensoren mit ihrer Reichweite und einen
+taktischen Hinweis. Alle Werte kommen aus der Simulation. „Klasse zuweisen“ ordnet die Klasse dem gewählten Sichtkontakt zu.</p></div>
 ${fig(figTma(), 'Abb. 8 · Zielbewegungsanalyse (TMA) mit zwei Schenkeln.')}
 <h2>Antrieb, Luft und Boot</h2>
 <table class="grid">

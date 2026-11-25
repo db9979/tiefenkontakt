@@ -5,18 +5,31 @@ import { CONVOY_TYPES, type ConvoyType } from './sea3d/convoy-types.js';
 
 /**
  * Silhouettes for the recognition book, rendered once from the real 3D models: side (bow to
- * the right), bow-on and top view, only what shows above the waterline, flat grey-green on
- * the console background. One short-lived WebGL context renders all of them; the images
- * are cached as data URLs and kept in localStorage per build, so later visits skip the
- * rendering altogether.
+ * the right), bow-on and top view, flat grey-green on the console background. Each picture is
+ * cropped to the model in a known frame in metres (RecogMeta), so the book can lay every class
+ * out at one common scale; side and bow come as two halves, above and below the waterline. One
+ * short-lived WebGL context renders all of them; the images are cached as data URLs and kept
+ * in localStorage per build, so later visits skip the rendering altogether.
  */
 
 export type RecogView = 'side' | 'bow' | 'top';
-export const VIEW_SIZE: Record<RecogView, [number, number]> = { side: [300, 96], bow: [120, 96], top: [300, 70] };
+/** Picture parts: the views above water, and side and bow below the waterline. */
+export type RecogPart = RecogView | 'sideU' | 'bowU';
+
+/** The model's extent (m, waterline y = 0, bow +z) and the margin around it in every picture. */
+export interface RecogMeta {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+  pad: number;
+}
 
 /** Build id from vite (a new build may change the models, so old pictures are dropped). */
 declare const __BUILD_ID__: string;
-const STORE = `tk_recog_${typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'}`;
+const STORE = `tk_recog_v2_${typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'}`;
 const cache = new Map<string, string>(load());
 
 function load(): [string, string][] {
@@ -52,8 +65,13 @@ function clean(g: THREE.Group): void {
   for (const o of drop) o.removeFromParent();
 }
 
-export function recogImage(cls: ClassId, view: RecogView): string | undefined {
-  return cache.get(`${cls}|${view}`);
+export function recogImage(cls: ClassId, part: RecogPart): string | undefined {
+  return cache.get(`${cls}|${part}`);
+}
+
+export function recogMeta(cls: ClassId): RecogMeta | undefined {
+  const m = cache.get(`${cls}|meta`);
+  return m ? (JSON.parse(m) as RecogMeta) : undefined;
 }
 
 /** Side view of one convoy type (the convoy page shows them all). */
@@ -61,15 +79,17 @@ export function convoyImage(type: ConvoyType): string | undefined {
   return cache.get(`merchant~${type}|side`);
 }
 
+const PAD = 0.5;
+
 /** Render every missing silhouette of these classes (synchronously, a few ms each). */
 export function renderRecog(classes: ClassId[]): void {
-  // Every class in three views; the convoy types in side view only
-  const todo: { key: string; build: () => THREE.Group; views: RecogView[] }[] = classes
-    .filter((c) => !cache.has(`${c}|side`))
-    .map((c) => ({ key: c, build: () => shipModel(c), views: ['side', 'bow', 'top'] }));
+  // Every class in all parts; the convoy types in side view only
+  const todo: { key: string; build: () => THREE.Group; parts: RecogPart[] }[] = classes
+    .filter((c) => !cache.has(`${c}|meta`))
+    .map((c) => ({ key: c, build: () => shipModel(c), parts: ['side', 'sideU', 'bow', 'bowU', 'top'] }));
   if (classes.includes('merchant')) {
     for (const [type] of CONVOY_TYPES) {
-      if (!cache.has(`merchant~${type}|side`)) todo.push({ key: `merchant~${type}`, build: () => convoyModel(type), views: ['side'] });
+      if (!cache.has(`merchant~${type}|side`)) todo.push({ key: `merchant~${type}`, build: () => convoyModel(type), parts: ['side'] });
     }
   }
   if (!todo.length) return;
@@ -80,11 +100,12 @@ export function renderRecog(classes: ClassId[]): void {
   } catch {
     return;
   }
-  renderer.setPixelRatio(2);
+  renderer.setPixelRatio(1);
   renderer.localClippingEnabled = true;
   renderer.setClearColor(0x000000, 0);
-  const water = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.05);
-  const mat = new THREE.MeshLambertMaterial({ color: 0xa9c2ba, clippingPlanes: [water], side: THREE.DoubleSide });
+  const above = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.05);
+  const below = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0.05);
+  const mat = new THREE.MeshLambertMaterial({ color: 0xa9c2ba, clippingPlanes: [above], side: THREE.DoubleSide });
   const scene = new THREE.Scene();
   scene.overrideMaterial = mat;
   scene.add(new THREE.HemisphereLight(0xffffff, 0x404848, 1.7));
@@ -96,34 +117,50 @@ export function renderRecog(classes: ClassId[]): void {
     clean(g);
     scene.add(g);
     const box = new THREE.Box3().setFromObject(g);
-    const top = Math.max(2, box.max.y);
-    const len = box.max.z - box.min.z;
-    const beam = box.max.x - box.min.x;
-    const midZ = (box.max.z + box.min.z) / 2;
-    for (const view of item.views) {
-      const [w, h] = VIEW_SIZE[view];
-      renderer.setSize(w, h, false);
-      // Ortho frame: the object fills the picture with a margin, waterline at 11 % from the bottom
-      const needH = (top * 1.1) / 0.89 / 2;
-      const halfH = view === 'top' ? Math.max(len * 0.54 * (h / w), beam * 0.6) : Math.max((view === 'bow' ? beam * 0.65 : len * 0.54) * (h / w), needH);
-      const halfW = (halfH * w) / h;
-      const cam = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, 2000);
-      const cy = halfH * 0.78;
-      if (view === 'side') {
-        cam.position.set(-600, cy, midZ);
-        cam.lookAt(0, cy, midZ);
-      } else if (view === 'bow') {
-        cam.position.set(0, cy, 600);
-        cam.lookAt(0, cy, 0);
+    const meta: RecogMeta = { minX: box.min.x, maxX: box.max.x, minY: Math.min(0, box.min.y), maxY: Math.max(1, box.max.y), minZ: box.min.z, maxZ: box.max.z, pad: PAD };
+    const len = meta.maxZ - meta.minZ;
+    // Pixels per metre: about 560 px for the length, sharp enough when the book shrinks it
+    const ppm = Math.min(14, Math.max(2, 560 / Math.max(1, len)));
+    const zL = meta.minZ - PAD;
+    const zR = meta.maxZ + PAD;
+    const xL = meta.minX - PAD;
+    const xR = meta.maxX + PAD;
+    const yT = meta.maxY + PAD;
+    const yB = meta.minY - PAD;
+    for (const part of item.parts) {
+      if ((part === 'sideU' || part === 'bowU') && meta.minY > -0.3) continue;
+      const under = part === 'sideU' || part === 'bowU';
+      mat.clippingPlanes = [under ? below : above];
+      const [top, bottom] = under ? [0, yB] : [yT, 0];
+      let cam: THREE.OrthographicCamera;
+      let w: number;
+      let h: number;
+      if (part === 'side' || part === 'sideU') {
+        // From port looking to starboard: +z (bow) to the right
+        cam = new THREE.OrthographicCamera(zL, zR, top, bottom, 0.1, 2000);
+        cam.position.set(-600, 0, 0);
+        cam.lookAt(0, 0, 0);
+        [w, h] = [(zR - zL) * ppm, (top - bottom) * ppm];
+      } else if (part === 'bow' || part === 'bowU') {
+        // From ahead: +x to the right
+        cam = new THREE.OrthographicCamera(xL, xR, top, bottom, 0.1, 2000);
+        cam.position.set(0, 0, 600);
+        cam.lookAt(0, 0, 0);
+        [w, h] = [(xR - xL) * ppm * 2, (top - bottom) * ppm * 2];
       } else {
+        // From above, bow to the right, starboard (+x) up
+        cam = new THREE.OrthographicCamera(zL, zR, xR, xL, 0.1, 2000);
         cam.up.set(1, 0, 0);
-        cam.position.set(0, 600, midZ);
-        cam.lookAt(0, 0, midZ);
+        cam.position.set(0, 600, 0);
+        cam.lookAt(0, 0, 0);
+        [w, h] = [(zR - zL) * ppm, (xR - xL) * ppm];
       }
+      renderer.setSize(Math.max(2, Math.round(w)), Math.max(2, Math.round(h)), false);
       cam.updateProjectionMatrix();
       renderer.render(scene, cam);
-      cache.set(`${item.key}|${view}`, canvas.toDataURL('image/png'));
+      cache.set(`${item.key}|${part}`, canvas.toDataURL('image/png'));
     }
+    if (!item.key.includes('~')) cache.set(`${item.key}|meta`, JSON.stringify(meta));
     scene.remove(g);
     g.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
   }

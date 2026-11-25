@@ -95,6 +95,8 @@ const ALERT_CLOSE = 1000;
 /** Heavyweight snake search: ±25° around the search course, one swing every ~38 s. */
 const SNAKE_DEG = 25;
 const SNAKE_PERIOD_S = 6;
+/** For the recognition book's threat page (ranges as the simulation uses them). */
+export { SPEC as TORPEDO_SPECS, ROCKET_MAX_RANGE, WIRE_MAX_RANGE, DC_LETHAL };
 
 
 export function createWeaponsState(ships: Ship[]): WeaponsState {
