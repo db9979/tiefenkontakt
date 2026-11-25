@@ -23,6 +23,7 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
     </div>
     <div id="cp-sub">
       <div class="row"><span class="dim">LUFT</span><span id="cp-air"></span></div>
+      <div class="row" id="cp-store-row" title="Vorrat an Atemkalk (bindet CO₂) und Sauerstoffkerzen: die Besatzung setzt sie selbst ein, wenn die Luft schlecht wird"><span class="dim">ATEMKALK · O₂-KERZEN</span><span id="cp-store"></span></div>
       <div class="row"><span class="dim">TRIMM · PRESSLUFT</span><span id="cp-trim"></span></div>
       <div class="row"><span class="dim">FÜHRUNG (VLF)</span><span id="cp-cmd"></span></div>
       <div class="row"><span class="dim">KOPPELORT</span><span id="cp-nav"></span></div>
@@ -79,8 +80,10 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
         const a = o.air;
         const bad = a && (a.co2 > BAD_CO2 || a.o2 < BAD_O2);
         setHtml(q('#cp-air'), a
-          ? `<span class="${bad ? 'red' : a.co2 > 2 ? 'amber' : ''}">CO₂ ${dec(a.co2)} % · O₂ ${dec(a.o2)} %</span> <span class="dim">· ${a.scrubbers}/${a.candles}</span>`
+          ? `<span class="${bad ? 'red' : a.co2 > 2 ? 'amber' : ''}">CO₂ ${dec(a.co2)} % · O₂ ${dec(a.o2)} %</span>`
           : '<span class="dim">REAKTOR · UNBEGRENZT</span>');
+        q('#cp-store-row').style.display = a ? '' : 'none';
+        if (a) setHtml(q('#cp-store'), `<span class="${a.scrubbers === 0 ? 'red' : ''}">${a.scrubbers}</span> · <span class="${a.candles === 0 ? 'red' : ''}">${a.candles}</span>`);
         const trim = o.trim ?? 0;
         setHtml(q('#cp-trim'), `<span class="${Math.abs(trim) > 0.2 ? 'amber' : ''}">${Math.abs(trim) < 0.05 ? 'AUSGETRIMMT' : `${trim > 0 ? '+' : '−'}${dec(Math.abs(trim))} T`}</span> · ${'●'.repeat(o.hpAir ?? 3)}${'○'.repeat(Math.max(0, 3 - (o.hpAir ?? 3)))}${o.blowing ? ' <span class="red blink">ANBLASEN</span>' : ''}`);
         const cmd = o.command;
@@ -89,7 +92,7 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
           : cmd.nextS > 0 ? `<span class="dim">IN ${clock(cmd.nextS)}</span>`
           : `<span class="${cmd.via ? 'amber' : 'red blink'}">${cmd.via ? `EMPFANG ${Math.round(cmd.progress * 100)} % · ${cmd.via === 'vlf' ? 'VLF' : 'BOJE'}` : 'SENDET · ZU TIEF ODER ZU SCHNELL'}</span>`);
         setHtml(q('#cp-nav'), o.navUncertainty !== undefined
-          ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM</span> <span class="dim">· ${o.nav?.lastFix ? `FIX: ${({ land: 'LAND', sat: 'SATELLIT', stars: 'STERNE', sounding: 'ECHOLOT' } as const)[o.nav.lastFix]}` : 'KOPPELORT'}</span>`
+          ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">± ${dec(o.navUncertainty / NM)} SM</span>${o.nav?.lastFix ? ` <span class="dim">· FIX: ${({ land: 'LAND', sat: 'SATELLIT', stars: 'STERNE', sounding: 'ECHOLOT' } as const)[o.nav.lastFix]}</span>` : ''}`
           : '<span>FIX</span>');
         el.querySelector('[data-cp="buoyant"]')!.classList.toggle('on', !!o.buoyAntenna);
       }
