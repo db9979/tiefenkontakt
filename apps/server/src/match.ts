@@ -2,7 +2,6 @@ import {
   CLASSES,
   SIM_DT,
   SEA_TIME_FACTOR,
-  isAtPeriscopeDepth,
   mastExposed,
   mastRaised,
   shipById,
@@ -12,21 +11,18 @@ import {
   type ClassChoice,
   type Debrief,
   type MatchSetup,
-  type FriendlyView,
-  type SavedWorld,
   restoreWorld,
   saveWorld,
   type ClassId,
   type MatchLobby,
   type MatchSummary,
   type PlayerSlot,
-  type ServerMsg,
   type Ship,
   type World,
   type Habits,
 } from '@tk/shared';
-import { BotCrew, type BotState, type SavedCrew } from './bots/index.js';
-import { Recorder, type RecorderState } from './recorder.js';
+import { BotCrew } from './bots/index.js';
+import { Recorder } from './recorder.js';
 import { buildLesson, lessonResult } from './lessons.js';
 import { learnFrom } from './learning.js';
 import { applyCommand, type GameCommand } from './input.js';
@@ -36,22 +32,13 @@ import { DEFAULT_SETTINGS, allowedClasses, buildScenario, fixSeaTime, isMixedCla
 import { resolveLobby } from './variation.js';
 import { buildBriefing } from './briefing.js';
 import { metrics } from './metrics.js';
-import { radioToTeam, spectateView } from './match-io.js';
-import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
+import { radioToTeam, spectateView, type Conn, type SavedMatch } from './match-io.js';
 
-export interface Conn {
-  playerId: string;
-  callsign: string;
-  send(msg: ServerMsg): void;
-  /** Close the transport (e.g. when the same player connects again elsewhere; 4001 = banned). */
-  close?(reason: string, code?: number): void;
-  /** Client address, for bans. */
-  ip?: string;
-  /** Naval rank of an account (shown in the lobby). */
-  rank?: string;
-  /** Elo rating (guests 1000). */
-  rating?: number;
-}
+export type { Conn, SavedMatch } from './match-io.js';
+import { buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
+import { FF_TICK_BUDGET_MS, FastForward } from './fast-forward.js';
+import { SANDBOX_MAX_SCALE } from './sandbox.js';
+import { boardTeammate } from './crew-transfer.js';
 
 export const MAX_PER_TEAM = 6;
 const SPECTATE_EVERY = 30; // ticks (3 s)
@@ -60,22 +47,6 @@ export const SPECTATE_DELAY = 240;
 const SNAP_EVERY = 1; // ticks -> 10 Hz (clients also extrapolate between snapshots)
 
 type Side = 'west' | 'east';
-
-export interface SavedMatch {
-  v: 1;
-  id: string;
-  name: string;
-  seed: number;
-  slots: PlayerSlot[];
-  settings: ScenarioSettings;
-  world: SavedWorld;
-  eventCursor: number;
-  tickCount: number;
-  bots: SavedCrew | BotState[];
-  recorder?: RecorderState;
-  classes: [string, [string, ClassChoice][]][];
-  extras: [string, Omit<PlayerExtras, 'reports'> & { reports: [string, FriendlyView][] }][];
-}
 
 export class Match {
   readonly id: string;
@@ -96,6 +67,12 @@ export class Match {
   /** Classification decisions per datalink group, keyed by hidden target id. */
   private classes = new Map<string, Map<string, ClassChoice>>();
   private tickCount = 0;
+  /** "Zeitraffer bis Ereignis" (not in the sandbox: it has its own time controls). */
+  readonly ff = new FastForward({
+    voters: () => this.settings.sandbox ? [] : this.slots.filter((s) => !s.bot && this.shipOf(s.playerId)?.alive).map((s) => s.playerId),
+    shipOf: (id: string) => this.shipOf(id),
+    world: () => this.world,
+  });
   private timer?: ReturnType<typeof setInterval>;
   /** The seed came from a rematch and is shown in the lobby. */
   private fixedSeed = false;
@@ -291,6 +268,8 @@ export class Match {
   /** Join a teammate's ship as crew (or leave the crew with null). */
   setCrew(playerId: string, captainId: string | null): string | undefined {
     const slot = this.slots.find((s) => s.playerId === playerId);
+    // Own ship sunk while the match runs: go aboard a living teammate's ship
+    if (slot && this.state === 'running' && captainId !== null) return this.boarded(boardTeammate(this.slots, slot, captainId, (id) => this.shipOf(id)), playerId);
     if (!slot || this.state !== 'lobby') return 'Nicht in der Lobby';
     if (captainId === null) {
       slot.crewOf = undefined;
@@ -304,6 +283,14 @@ export class Match {
     slot.ready = false;
     this.broadcastLobby();
     return undefined;
+  }
+
+  /** After boarding: a complete snapshot of the new ship, and everyone sees the crew list. */
+  private boarded(err: string | undefined, playerId: string): string | undefined {
+    const x = this.extras.get(playerId);
+    if (!err && x) Object.assign(x, { histSent: undefined, evSent: undefined, briefed: true });
+    if (!err) this.broadcastLobby();
+    return err;
   }
 
   pickClass(playerId: string, cls: PlayableClass): string | undefined {
@@ -425,6 +412,7 @@ export class Match {
     const x = this.extras.get(playerId);
     if (x) {
       x.alerts.push(a);
+      if (this.world) this.ff.alert(playerId, a.kind, this.world.time);
       if (x.alerts.length > 40) {
         x.alerts.shift();
         x.alertsDropped = (x.alertsDropped ?? 0) + 1;
@@ -443,12 +431,19 @@ export class Match {
     if (!w || this.state !== 'running') return;
     // Paused while no human is connected (reload, lost link, server restart)
     if (this.conns.size === 0) return;
-    for (let i = 0; i < this.settings.timeScale; i++) {
+    // Steps per tick: the lobby's scale or the 6× fast-forward, capped like the sandbox; the
+    // fast-forward also yields when a tick gets too long (a busy server just runs it slower)
+    const steps = Math.min(SANDBOX_MAX_SCALE, this.ff.scale(this.settings.timeScale));
+    const t0 = performance.now();
+    for (let i = 0; i < steps; i++) {
+      if (this.ff.on && i > 0 && performance.now() - t0 > FF_TICK_BUDGET_MS) break;
       stepWorld(w);
       this.recorder.step(w);
       this.bots.step(w);
       this.processEvents(w);
     }
+    this.ff.check();
+    for (const x of this.extras.values()) x.timeScale = this.ff.scale(this.settings.timeScale);
     for (const s of this.slots) {
       const x = this.extras.get(s.playerId);
       const ship = this.shipOf(s.playerId);
@@ -472,6 +467,7 @@ export class Match {
           snap.full = full;
           snap.crew = this.aboard(ship.id).map((a) => a.callsign);
           snap.lesson = this.settings.lesson;
+          if (!this.settings.sandbox) snap.ff = this.ff.view(s.playerId);
           if (!x.briefed && !this.settings.lesson) {
             snap.briefing = buildBriefing(w, ship, this.settings, Math.random);
             x.briefed = true;

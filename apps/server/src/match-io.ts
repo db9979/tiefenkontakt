@@ -1,6 +1,39 @@
-import { KN, type PlayerSlot, type Ship, type World } from '@tk/shared';
-import type { Recorder } from './recorder.js';
+import { KN, type ClassChoice, type FriendlyView, type PlayerSlot, type SavedWorld, type ServerMsg, type Ship, type World } from '@tk/shared';
+import type { SavedCrew, BotState } from './bots/index.js';
+import type { Recorder, RecorderState } from './recorder.js';
+import type { ScenarioSettings } from './scenario.js';
 import type { PlayerExtras } from './snapshot.js';
+
+export interface Conn {
+  playerId: string;
+  callsign: string;
+  send(msg: ServerMsg): void;
+  /** Close the transport (e.g. when the same player connects again elsewhere; 4001 = banned). */
+  close?(reason: string, code?: number): void;
+  /** Client address, for bans. */
+  ip?: string;
+  /** Naval rank of an account (shown in the lobby). */
+  rank?: string;
+  /** Elo rating (guests 1000). */
+  rating?: number;
+}
+
+export interface SavedMatch {
+  v: 1;
+  id: string;
+  name: string;
+  seed: number;
+  slots: PlayerSlot[];
+  settings: ScenarioSettings;
+  world: SavedWorld;
+  eventCursor: number;
+  tickCount: number;
+  bots: SavedCrew | BotState[];
+  recorder?: RecorderState;
+  classes: [string, [string, ClassChoice][]][];
+  extras: [string, Omit<PlayerExtras, 'reports'> & { reports: [string, FriendlyView][] }][];
+}
+
 
 /**
  * Pieces of Match that only move data out to the players: the delayed spectator view and the
