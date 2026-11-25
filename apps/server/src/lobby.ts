@@ -340,7 +340,7 @@ export class Lobby {
         return void conn.send({ t: 'error', msg: e ?? 'Meldung an die Moderation gesendet' });
       }
       case 'station':
-        return void m.setStation(conn.playerId, msg.index);
+        return void m.setStation(conn.playerId, msg.id);
       case 'lesson_done':
         if (m.settings.lesson === 'klassifizieren' || m.settings.lesson === 'tma') this.onLessonDone?.(conn.playerId, m.settings.lesson);
         return;

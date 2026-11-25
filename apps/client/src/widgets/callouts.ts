@@ -1,4 +1,4 @@
-import { CLASSES, angleDiff, isDangerEmitter, type AlertView, type Snapshot } from '@tk/shared';
+import { CLASSES, angleDiff, isDangerEmitter, type AlertView, type Snapshot, type StationId } from '@tk/shared';
 import { announce } from '../a11y.js';
 import { audio } from '../audio.js';
 import { lang } from '../i18n/index.js';
@@ -16,7 +16,8 @@ export interface LogEntry {
   text: string;
   level: 'info' | 'warn' | 'alarm';
   label?: string;
-  station?: number;
+  /** Station that deals with it (a click in the log goes there). */
+  station?: StationId;
 }
 
 const en = lang === 'en';
@@ -103,7 +104,7 @@ export class Callouts {
       return;
     }
     const sub = CLASSES[s.own.cls].submarine;
-    const sonar = sub ? 0 : 1;
+    const sonar: StationId = sub ? 'horch' : 'sonar';
     // New contacts (own sensors only; datalink tracks are not "our" reports)
     for (const c of s.contacts) {
       if (this.known.has(c.label) || c.via !== 'own') continue;
@@ -121,11 +122,11 @@ export class Callouts {
       const b = a.bearing !== undefined ? digits(a.bearing) : '';
       if (a.kind === 'torpedo') {
         const text = store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}` : a.text;
-        this.report(s, { level: 'alarm', text, station: sub ? 3 : 2 }, en ? `Torpedo in the water! Bearing ${b}!` : `Torpedo im Wasser! Peilung ${b}!`);
+        this.report(s, { level: 'alarm', text, station: sub ? 'feuerleitung' : 'waffen' }, en ? `Torpedo in the water! Bearing ${b}!` : `Torpedo im Wasser! Peilung ${b}!`);
       } else if (a.kind === 'sighting') {
-        this.report(s, { level: 'warn', text: a.text, label: a.label, station: sub ? undefined : 4 }, sightingCall(a, s.own.heading));
+        this.report(s, { level: 'warn', text: a.text, label: a.label, station: sub ? 'sehrohr' : 'bruecke' }, sightingCall(a, s.own.heading));
       } else if (a.kind === 'command') {
-        this.report(s, { level: 'info', text: a.text, station: 3 }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
+        this.report(s, { level: 'info', text: a.text, station: sub ? 'zentrale' : undefined }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
       } else if (a.kind === 'boat') {
         const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND|WASSEREINBRUCH|^FEUER (IM|IN|GREIFT)|MUNITION|AUFTRIEB|SINKT|SACKT/.test(a.text);
         this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined }, boatCall(a.text));
@@ -158,7 +159,7 @@ export class Callouts {
     if (this.depthPending !== undefined && Math.abs(o.depth - this.depthPending) < 1.5) {
       const d = Math.round(this.depthPending);
       this.depthPending = undefined;
-      this.report(s, { level: 'info', text: L(`Tiefe ${d} m erreicht`, `Depth ${d} m reached`), station: sub ? 3 : undefined }, en ? `Depth ${d} metres.` : `${d} Meter eingesteuert.`);
+      this.report(s, { level: 'info', text: L(`Tiefe ${d} m erreicht`, `Depth ${d} m reached`), station: sub ? 'zentrale' : undefined }, en ? `Depth ${d} metres.` : `${d} Meter eingesteuert.`);
     }
     if (Math.abs(o.order.heading - po.order.heading) > 0.5) this.coursePending = o.order.heading;
     if (this.coursePending !== undefined && Math.abs(((o.heading - this.coursePending + 540) % 360) - 180) < 1.5) {
@@ -169,8 +170,8 @@ export class Callouts {
     // Own torpedoes
     for (const t of s.torpedoes) {
       const was = p.torpedoes.find((x) => x.id === t.id);
-      if (was && !was.homing && t.homing) this.report(s, { level: 'info', text: L(`${t.id} hat Ziel erfasst`, `${t.id} has acquired`), station: 2 }, en ? `Torpedo has acquired.` : `Torpedo hat Ziel erfasst.`);
-      if (was?.wire && !t.wire) this.report(s, { level: 'warn', text: L(`${t.id}: Draht gerissen`, `${t.id}: wire cut`), station: 2 }, en ? 'Wire cut.' : 'Draht gerissen.');
+      if (was && !was.homing && t.homing) this.report(s, { level: 'info', text: L(`${t.id} hat Ziel erfasst`, `${t.id} has acquired`), station: sub ? 'feuerleitung' : 'waffen' }, en ? `Torpedo has acquired.` : `Torpedo hat Ziel erfasst.`);
+      if (was?.wire && !t.wire) this.report(s, { level: 'warn', text: L(`${t.id}: Draht gerissen`, `${t.id}: wire cut`), station: sub ? 'feuerleitung' : 'waffen' }, en ? 'Wire cut.' : 'Draht gerissen.');
     }
     if (!p.own.towedReady && o.towedReady && o.towedLength > 0) {
       this.report(s, { level: 'info', text: L('Schleppsonar klar', 'Towed array steady'), station: sonar }, en ? 'Towed array is steady.' : 'Schleppsonar klar.');
@@ -178,13 +179,13 @@ export class Callouts {
     // Exposure and endurance warnings, once each
     if (o.mastUp && o.mastUpSince !== undefined && s.time - o.mastUpSince > 60 && !this.spokenMast) {
       this.spokenMast = true;
-      this.report(s, { level: 'warn', text: L('Mast seit einer Minute oben', 'Mast up for one minute'), station: 1 }, en ? 'Mast up for one minute.' : 'Mast seit einer Minute oben.');
+      this.report(s, { level: 'warn', text: L('Mast seit einer Minute oben', 'Mast up for one minute'), station: 'sehrohr' }, en ? 'Mast up for one minute.' : 'Mast seit einer Minute oben.');
     }
     if (!o.mastUp) this.spokenMast = false;
     const cap = CLASSES[o.cls].battery?.capacityKnH;
     if (cap && o.battery !== undefined && o.battery / cap < 0.25 && !this.spokenBattery) {
       this.spokenBattery = true;
-      this.report(s, { level: 'warn', text: L('Batterie unter 25 %', 'Battery below 25 %'), station: 3 }, en ? 'Battery below twenty-five percent.' : 'Batterie unter fünfundzwanzig Prozent.');
+      this.report(s, { level: 'warn', text: L('Batterie unter 25 %', 'Battery below 25 %'), station: 'zentrale' }, en ? 'Battery below twenty-five percent.' : 'Batterie unter fünfundzwanzig Prozent.');
     }
     // Radio from teammates
     for (const r of s.radio.filter((x) => x.from !== o.name && x.time > p.time)) {

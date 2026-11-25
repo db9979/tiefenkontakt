@@ -1,8 +1,7 @@
-import { CLASSES, fogAt, hasHelicopter, iceCover, type ServerMsg, type Snapshot } from '@tk/shared';
+import { CLASSES, fogAt, iceCover, type ServerMsg, type Snapshot, type StationId } from '@tk/shared';
 import { audio } from '../audio.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { diveEngineStation } from '../stations/sub/dive-engine.js';
 import { fireControlStation } from '../stations/sub/fire-control.js';
 import { periscopeStation } from '../stations/sub/periscope.js';
 import { bridgeStation } from '../stations/frigate/bridge.js';
@@ -12,10 +11,6 @@ import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
-import { frigateOrtungStation } from '../stations/frigate/ortung.js';
-import { flightStation } from '../stations/frigate/flug.js';
-import { subOrtungStation } from '../stations/sub/ortung.js';
-import { torpedoRoomStation } from '../stations/sub/torpedoraum.js';
 import { CLASS_LABEL, clock, esc, h, mastState, tdeg3 } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
@@ -26,6 +21,8 @@ import { bandLabel } from './debrief-grade.js';
 import { helpOverlay } from './help.js';
 import { radioLog } from '../widgets/radio-log.js';
 import { isKey, stationKey } from '../widgets/keys.js';
+import { crashDive, decoy, mastDown, singlePing } from '../widgets/emergency.js';
+import { noteContacts } from '../widgets/contact-list.js';
 import { bindSortable, filterChips, getFilters } from '../widgets/sortable.js';
 import { hitCam } from '../widgets/hit-cam.js';
 import { crewPanel } from '../widgets/crew-panel.js';
@@ -44,9 +41,11 @@ import { mountSandbox } from '../widgets/sandbox-panel.js';
 import { ordersPanel } from '../widgets/orders-panel.js';
 import { applyDisplayPrefs, settingsMenu } from '../widgets/settings-menu.js';
 import { resetPhotoCounter } from '../widgets/photo.js';
-import { FRIGATE_STATIONS, SUB_STATIONS, frigateStation, subStation } from '../stations/titles.js';
+import { STATION_TITLE, stationIds } from '../stations/titles.js';
 
 export interface Station {
+  /** Stable id (crew seats, hints, the event log and tutorials refer to it). */
+  id: StationId;
   title: string;
   el: HTMLElement;
   /** Called every animation frame. */
@@ -194,13 +193,13 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   const tabs = q('#tabs');
   const helm = mountHelm(q('#helm'));
   const sandbox = mountSandbox(el);
-  const assistant = mountAssistant(q('.station-wrap'), (i) => i < stations.length && show(i));
+  const assistant = mountAssistant(q('.station-wrap'), (id) => go(id));
   const banner = document.createElement('div');
   banner.className = 'banner blink';
   // A torpedo warning is a way to the countermeasure: click jumps to the decoys
-  // (submarine: torpedo room; frigate: towed decoy on the weapons station)
-  let bannerGo: number | undefined;
-  banner.addEventListener('click', () => bannerGo !== undefined && bannerGo < stations.length && show(bannerGo));
+  // (submarine: fire control; frigate: towed decoy on the weapons station)
+  let bannerGo: StationId | undefined;
+  banner.addEventListener('click', () => bannerGo !== undefined && go(bannerGo));
   // Top bar: "Zeitraffer bis Ereignis" with its ×6 tag; own ship sunk: crew / watch / debrief
   const fastFwd = mountFastForward();
   q('#clock').before(fastFwd.el);
@@ -259,26 +258,27 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const entry = row ? callouts.log[Number(row.dataset.log)] : undefined;
     if (!entry) return;
     if (entry.label) store.selected = entry.label;
-    if (entry.station !== undefined && entry.station < stations.length) show(entry.station);
+    if (entry.station !== undefined) go(entry.station);
   });
 
   function build(): void {
     const sub = store.snap && CLASSES[store.snap.own.cls].submarine;
     if (store.snap?.lesson) {
-      tutorial = mountTutorial(store.snap.lesson);
+      tutorial = mountTutorial(store.snap.lesson, (id) => go(id));
       q('.side').prepend(tutorial.el);
     }
     const view3d = sub ? periscopeStation() : bridgeStation();
-    // The first five keep their numbers (tutorials, hints and crew stations refer to them); new ones follow
-    const own = store.snap?.own.cls;
+    // Submarine 4, frigate 5 (panel decision): in the order of stations/titles.ts
     stations = sub
-      ? [subSonarStation(), view3d, fireControlStation(), diveEngineStation(), centralStation(), subOrtungStation(), torpedoRoomStation()]
-      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d, frigateOrtungStation(), ...(own && hasHelicopter(own) ? [flightStation()] : [])];
+      ? [subSonarStation(), view3d, fireControlStation(), centralStation()]
+      : [opsCenterStation(), frigateSonarStation(), weaponsStation(), radarEsmStation(), view3d];
     views3d = new Set([view3d]);
     // Hints, tutorials and help find stations through stations/titles.ts: say so when the two drift apart
-    const expect: readonly string[] = sub ? SUB_STATIONS : FRIGATE_STATIONS;
-    if (stations.some((st, i) => st.title !== expect[i])) console.warn('Stationsliste weicht von stations/titles.ts ab', stations.map((st) => st.title));
-    tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
+    const expect = stationIds(!!sub);
+    if (stations.length !== expect.length || stations.some((st, i) => st.id !== expect[i] || st.title !== STATION_TITLE[st.id])) {
+      console.warn('Stationsliste weicht von stations/titles.ts ab', stations.map((st) => st.id));
+    }
+    tabs.innerHTML = stations.map((s, i) => `<button data-i="${i}" data-station="${s.id}" title="Taste ${i + 1}">${i + 1} · ${s.title}</button>`).join('');
     tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.onclick = () => show(Number(b.dataset.i))));
     q('#quick').innerHTML = (sub ? ['Konvoi gesichtet', 'Greife an', 'Werde gejagt', 'Position'] : ['Kontakt', 'Torpedo im Wasser', 'Suche Sektor', 'Position'])
       .map((t) => `<button data-r="${t}" title="Schnellmeldung senden">${t}</button>`).join('');
@@ -297,10 +297,18 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     closeMenu();
     if (i !== current) stations[current]?.hide?.();
     current = i;
-    net.send({ t: 'station', index: i });
+    net.send({ t: 'station', id: stations[i]!.id });
     stationEl.replaceChildren(stations[i]!.el);
     tabs.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
     stations[i]?.snap?.();
+  }
+
+  /** Open a station by id (hints, the event log, tutorials, the torpedo banner); false when this side has none. */
+  function go(id: StationId): boolean {
+    const i = stations.findIndex((st) => st.id === id);
+    if (i < 0) return false;
+    show(i);
+    return true;
   }
 
   const sendRadio = () => {
@@ -338,7 +346,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   }
 
   /** Make the banner a link to a station (the stylesheet keeps banners click-through otherwise). */
-  function setBannerGo(i: number | undefined): void {
+  function setBannerGo(i: StationId | undefined): void {
     bannerGo = i;
     banner.style.pointerEvents = i === undefined ? '' : 'auto';
     banner.style.cursor = i === undefined ? '' : 'pointer';
@@ -394,7 +402,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       banner.textContent = store.realism === 'profi'
         ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${tdeg3(torp.bearing ?? 0)}`
         : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
-      setBannerGo(sub ? subStation('Torpedoraum') : frigateStation('Waffen'));
+      setBannerGo(sub ? 'feuerleitung' : 'waffen');
       if (!banner.isConnected) document.body.appendChild(banner);
     } else banner.remove();
     fastFwd.update(s);
@@ -411,6 +419,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     uiAt = performance.now();
     const s = store.snap;
     if (!s) return;
+    noteContacts(s);
     for (const st of stations) st.collect?.();
     stations[current]?.snap?.();
     helm.update();
@@ -419,7 +428,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     // Crew: show who mans which station
     if (s.crew.length > 1) {
       tabs.querySelectorAll<HTMLButtonElement>('button').forEach((b, j) => {
-        const who = (s.stations ?? []).filter((x) => x.station === j).map((x) => x.callsign);
+        const who = (s.stations ?? []).filter((x) => x.station === stations[j]?.id).map((x) => x.callsign);
         const t = `${j + 1} · ${stations[j]?.title ?? ''}${who.length ? ` (${who.join(', ')})` : ''}`;
         if (b.textContent !== t) b.textContent = t;
       });
@@ -478,9 +487,32 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       audio.setMuted(!audio.muted);
       return renderMute();
     }
+    if (emergencyKey(e)) return;
     if (stations[current]?.key?.(e)) return;
     helm.key(e);
   };
+  /**
+   * Emergency keys (E3), from any station: decoy, crash dive, mast in, fire (submarine);
+   * ping, rocket, decoy (frigate). Fire and rocket open their station and press the guarded
+   * button there, so the fire guard still asks on a weak solution or a friend near the target.
+   */
+  function emergencyKey(e: KeyboardEvent): boolean {
+    const s = store.snap;
+    if (!s || !s.own.alive) return false;
+    const sub = CLASSES[s.own.cls].submarine;
+    const press = (id: StationId, sel: string) => {
+      if (go(id)) stationEl.querySelector<HTMLButtonElement>(sel)?.click();
+    };
+    if (isKey(e, 'decoy')) decoy();
+    else if (sub && isKey(e, 'crashDive')) crashDive();
+    else if (sub && isKey(e, 'mastDown')) mastDown();
+    else if (sub && isKey(e, 'fire')) press('feuerleitung', '#fire');
+    else if (!sub && isKey(e, 'ping')) singlePing();
+    else if (!sub && isKey(e, 'rocket')) press('waffen', '#rocket');
+    else return false;
+    e.preventDefault();
+    return true;
+  }
   window.addEventListener('keydown', onKey, { signal });
   // Gamepad: same helm orders as mouse and keyboard; LB/RB cycle stations, Start ⚙, Back help
   const unPad = setPadTarget({

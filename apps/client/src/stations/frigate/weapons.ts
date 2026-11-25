@@ -10,6 +10,7 @@ import { lastFix } from '../../widgets/contact-pos.js';
 import { Plot } from '../../widgets/plot.js';
 import { samAction } from '../../widgets/airdef-panel.js';
 import { buoyAction, courseAction, mpaAction, rocketAction, ssmAction } from '../../widgets/actions.js';
+import { keycap } from '../../widgets/keys.js';
 
 /** Best current aim point for the selected contact: fresh range, else TMA solution. */
 function aim(): { bearing: number; range: number; source: string } | undefined {
@@ -27,33 +28,38 @@ function aim(): { bearing: number; range: number; source: string } | undefined {
 }
 
 export function weaponsStation(): Station {
-  const el = h(`<div class="cols">
-    <div style="display:flex;flex-direction:column;gap:8px">
+  // Left: the target, then the weapons as a 2×2 grid of cards (rocket, tubes, ahead-thrower,
+  // torpedo defence; the anti-ship missile as a fifth card where fitted). Right: a small target
+  // chart and the contact list.
+  const el = h(`<div class="st two">
+    <div class="st-col scroll">
       <div class="panel"><div class="hd"><span>Waffenleitstand · Ziel</span><span id="src" class="dim"></span></div><div id="target"></div></div>
-      <div class="panel"><div class="hd"><span>U-Jagd-Rakete</span><span id="rk"></span></div>
-        <div class="dim">TRÄGT EINEN LEICHTGEWICHTSTORPEDO 1,8–18 KM WEIT, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. DER TORPEDO SUCHT AKTIV IM KREIS, ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div>
-        <div style="display:flex;gap:4px;margin-top:6px"><button id="rocket" class="fire" style="flex:1">Rakete auf Ziel</button></div>
-      </div>
-      <div class="panel"><div class="hd"><span>Torpedorohre</span><span id="tb"></span></div>
-        <div class="row"><span class="dim">SUCHTIEFE</span><span id="tdep"></span></div>
-        <button id="tube" class="fire" style="width:100%;margin-top:6px">Torpedo auf Zielpeilung</button>
-      </div>
-      <div class="panel"><div class="hd"><span>Wasserbombenwerfer</span><span id="dcn"></span></div>
-        <div class="dim">ZIEL 400–800 M VORAUS AUF EIGENEM KURS</div>
-        <div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div>
-        <div style="display:flex;gap:4px">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}" class="fire">${d} m</button>`).join('')}</div>
-      </div>
-      <div class="panel"><div class="hd"><span>Torpedoabwehr</span></div>
-        <button id="decoy" class="warn">Täuschkörper-Schleppe</button>
-      </div>
-      <div id="ssmp" class="panel" style="display:none"><div class="hd"><span>Seezielflugkörper</span><span id="ssmn"></span></div>
-        <div class="dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div>
-        <div style="display:flex;gap:4px;margin-top:6px"><button id="ssm" class="fire" style="flex:1">FK auf Ziel</button></div>
+      <div class="wgrid">
+        <div class="panel wcard"><div class="hd"><span>U-Jagd-Rakete</span><span id="rk" class="dim"></span></div>
+          <div class="wbody dim">LEICHTGEWICHTSTORPEDO 1,8–18 KM, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div>
+          <button id="rocket" class="fire">Rakete auf Ziel${keycap('rocket')}</button>
+        </div>
+        <div class="panel wcard"><div class="hd"><span>Torpedorohre</span><span id="tb" class="dim"></span></div>
+          <div class="wbody"><div class="row"><span class="dim">SUCHTIEFE</span><span id="tdep"></span></div></div>
+          <button id="tube" class="fire">Torpedo auf Zielpeilung</button>
+        </div>
+        <div class="panel wcard"><div class="hd"><span>Wasserbombenwerfer</span><span id="dcn" class="dim"></span></div>
+          <div class="wbody"><div class="dim">ZIEL 400–800 M VORAUS AUF EIGENEM KURS</div><div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div></div>
+          <span class="seg wide">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}" class="fire">${d} m</button>`).join('')}</span>
+        </div>
+        <div class="panel wcard"><div class="hd"><span>Torpedoabwehr</span><span id="dec-st" class="dim"></span></div>
+          <div class="wbody dim">NIXIE-SCHLEPPE: LOCKT ANLAUFENDE TORPEDOS, RAUSCHT ABER IM EIGENEN SONAR. HÖCHSTENS 25 KN.</div>
+          <button id="decoy" class="warn">Täuschkörper-Schleppe${keycap('decoy')}</button>
+        </div>
+        <div id="ssmp" class="panel wcard span2" style="display:none"><div class="hd"><span>Seezielflugkörper</span><span id="ssmn" class="dim"></span></div>
+          <div class="wbody dim">SEA-SKIMMER 6–40 KM, CA. 290 M/S. SUCHKOPF ÖFFNET 9 KM VOR DEM ZIELPUNKT UND NIMMT DAS GRÖSSTE ECHO IM KEGEL · AUCH NEUTRALE.</div>
+          <button id="ssm" class="fire">FK auf Ziel</button>
+        </div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="st-col">
       <div class="panel"><div class="hd"><span>Zielkarte</span><span class="dim">RECHTSKLICK = RAKETE HIERHER</span></div><canvas id="plot"></canvas></div>
-      <div class="panel"><div class="hd"><span>Kontakte</span></div><div id="list"></div></div>
+      <div class="panel grow listpanel"><div class="hd"><span>Kontakte</span></div><div id="list" class="scroll"></div></div>
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
@@ -91,6 +97,7 @@ export function weaponsStation(): Station {
   plot.scale = 30;
 
   return {
+    id: 'waffen',
     title: 'Waffen',
     el,
     snap() {
@@ -119,6 +126,7 @@ export function weaponsStation(): Station {
         : inField ? '<span>IM WURFFELD</span>'
         : `<span class="amber">${km(a.range)} · ${tdeg1(a.bearing)}° · BUG AUF DAS ZIEL, 400–800 M</span>`);
       btnState(q('#decoy'), { on: l.towedDecoy });
+      q('#dec-st').textContent = l.towedDecoy ? 'AUSGEBRACHT' : 'EINGEHOLT';
       btnState(q('#rocket'), l.rockets ? { label: String(l.rockets) } : { label: 'LEER', tone: 'empty' });
       btnState(q('#tube'), tubeTag(l.tubes));
       if (fk) btnState(q('#ssm'), !fk.left ? { label: 'LEER', tone: 'empty' } : fk.readyInS ? { label: `LÄDT ${fk.readyInS} S`, tone: 'busy' } : { label: `${fk.left} BEREIT` });
@@ -126,7 +134,8 @@ export function weaponsStation(): Station {
       renderContactList(q('#list'));
     },
     frame() {
-      plot.draw(Math.max(260, window.innerHeight - 380));
+      // The target chart is an inset: big enough to aim, the list gets the rest
+      plot.draw(Math.max(200, Math.min(320, Math.round(el.clientHeight * 0.42))));
     },
   };
 }

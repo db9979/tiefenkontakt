@@ -22,6 +22,8 @@ import {
   type Ship,
   type World,
   type Habits,
+  type StationId,
+  legacyStation,
 } from '@tk/shared';
 import { BotCrew } from './bots/index.js';
 import { Recorder } from './recorder.js';
@@ -50,6 +52,22 @@ export const SPECTATE_DELAY = 240;
 const SANDBOX_SURE_STEPS = 4;
 
 type Side = 'west' | 'east';
+
+/**
+ * Matches saved before stations had ids kept the tab number (0–6) of the old seven-tab lists.
+ * Map it by the ship's side: a crew member's ship is the captain's.
+ */
+export function migrateSlotStations(slots: PlayerSlot[]): PlayerSlot[] {
+  for (const slot of slots) {
+    const old = slot.station as unknown;
+    if (typeof old !== 'number') continue;
+    const cls = (slot.crewOf ? slots.find((x) => x.playerId === slot.crewOf)?.cls : undefined) ?? slot.cls;
+    const id = legacyStation(old, !!CLASSES[cls]?.submarine);
+    if (id) slot.station = id;
+    else delete slot.station;
+  }
+  return slots;
+}
 
 export class Match {
   /** Wall-clock budget per tick for sandbox steps past the sure ones (tests lift it for determinism). */
@@ -97,7 +115,7 @@ export class Match {
 
   static restore(d: SavedMatch): Match {
     const m = new Match(d.id, d.name, d.seed);
-    m.slots = d.slots;
+    m.slots = migrateSlotStations(d.slots);
     // Saved before the lobby limit meant real minutes: those ran 3 sea minutes per lobby minute
     m.settings = d.settings.seaMin === undefined ? { ...d.settings, seaMin: d.settings.timeLimitMin * SEA_TIME_FACTOR } : d.settings;
     m.world = restoreWorld(d.world);
@@ -252,9 +270,9 @@ export class Match {
   }
 
   /** The station a player mans (shown to everyone aboard). */
-  setStation(playerId: string, index: number): void {
+  setStation(playerId: string, id: StationId): void {
     const slot = this.slots.find((s) => s.playerId === playerId);
-    if (slot) slot.station = index;
+    if (slot) slot.station = id;
   }
 
   addSpectator(conn: Conn): string | undefined {

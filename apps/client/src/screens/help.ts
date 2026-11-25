@@ -1,35 +1,42 @@
 import { h } from '../widgets/format.js';
-import { keysEditor } from '../widgets/keys.js';
-import { FRIGATE_STATIONS, SUB_STATIONS, type FrigateStation, type SubStation } from '../stations/titles.js';
+import { FRIGATE_STATION_IDS, SUB_STATION_IDS, type FrigateStationId, type SubStationId } from '@tk/shared';
+import { stationLabel } from '../stations/titles.js';
+import { currentKeys, keyName, keysEditor } from '../widgets/keys.js';
 
 /** What each station is for, in the order of play. The numbered rows come from the station list. */
-const SUB_HOWTO: Record<SubStation, string> = {
-  Horchraum: 'Langsam und tief fahren. Kontakte im Wasserfall anklicken und mit LOFAR/DEMON klassifizieren. Mit „Mithören“ hörst du die Schrauben.',
-  Sehrohr: 'Nur auf Sehrohrtiefe und langsam: Mast ausfahren, Ziele ansehen, Klasse zuweisen, Entfernung mit dem Stadimeter. Kurz halten: Radar findet den Mast.',
-  Feuerleitung: 'Kontakt wählen und einen Kurswechsel fahren (ein „Schenkel“), dann „Auto-TMA“ oder den gelben Lösungskreis ziehen, bis die Güte über 60 % liegt. „Lösung übernehmen“ und „Feuer“, den Torpedo über den Draht mit ◀ ▶ nachsteuern.',
-  Tauchstand: 'Tiefe, Trimm, Batterie und Schnorchel. Ist die Batterie knapp und es ruhig, auf Sehrohrtiefe schnorcheln.',
-  Zentrale: 'Der Platz des Kommandanten: Koppeltisch mit Kontakten und Zeichnungen, Tiefe, Schicht, Batterie und Mast auf einen Blick, das Funkbuch des Rudels und die häufigsten Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot).',
-  Ortung: 'Wer uns jagt (Bedrohung mit Ausweichvorschlag), Radarwarner, Echolot und das Aktivsonar: es gibt die Entfernung, verrät das Boot aber weit hinaus.',
-  Torpedoraum: 'Rohre laden, Minen und Täuschkörper. Bei einem Torpedo: Täuschkörper ausstoßen, volle Fahrt und durch die Sprungschicht.',
+const SUB_HOWTO: Record<SubStationId, string> = {
+  horch: 'Langsam und tief fahren. Kontakte im Wasserfall anklicken und mit LOFAR/DEMON klassifizieren. Reiter „Bedrohung“: wer uns anpingt, mit Ausweichvorschlag; Reiter „Aktiv“: ein Einzelping gibt die Entfernung, verrät das Boot aber weit hinaus.',
+  sehrohr: 'Nur auf Sehrohrtiefe und unter 10 kn: Mast ausfahren, Ziele ansehen, Klasse zuweisen, Entfernung mit dem Stadimeter. Der Radarwarner hört nur mit Mast oben. Kurz halten: Radar findet den Mast.',
+  feuerleitung: 'Kontakt wählen und einen Kurswechsel fahren, dann „Auto-TMA“ oder den gelben Lösungskreis ziehen, bis die Güte über 60 % liegt. „Lösung übernehmen“ und „Feuer“ (Salve und Fächer wählbar), den Torpedo am Draht mit ◀ ▶ nachsteuern. Die Rohrbank zeigt Ladung und Nachladen, darunter die Täuschkörper.',
+  zentrale: 'Der Platz des Kommandanten: Koppeltisch und Tiefenprofil (Klick = Tiefe), Kacheln für Tiefe, Trimm, Batterie und Schnorchel, die häufigsten Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot, Schnorcheln), Navigation mit Echolot, Tiefenalarme und Minen.',
 };
-const FRIGATE_HOWTO: Record<FrigateStation, string> = {
-  OPZ: 'Lagekarte mit allen Kontakten. Rechtsklick vor den Konvoi wirft eine Sonarboje; „Konvoi umleiten“ versetzt den Geleitzug vom U-Boot weg.',
-  Sonar: 'Schleppsonar ausbringen (lang = unter der Sprungschicht). Nach jeder Kursänderung 60 s stabilisieren.',
-  Waffen: 'Kontakt wählen, dann „Rakete auf Ziel“ oder Rechtsklick auf die Karte und „U-Jagd-Rakete hierher“. Bei einem Torpedo: Täuschkörper-Schleppe ausbringen und abdrehen.',
-  'Radar/ESM': 'Radar findet aufgetauchte Boote und Masten, ESM peilt fremde Radare und Funk (rot gestrichelt auf der Karte).',
-  Brücke: 'Ausguck und Fernglas: Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen mit eigenen Augen. Nachts und bei Seegang kaum Sicht.',
-  Ortung: 'Aktivsonar (CW/LFM) liefert die Entfernung, verrät dich aber. BT misst die Sprungschicht, das VDS horcht darunter.',
-  Flug: 'Nur mit Bordhubschrauber: Sonarbojen, Tauchsonar, MAD-Suche und Torpedoangriff auf den gewählten Kontakt.',
+const FRIGATE_HOWTO: Record<FrigateStationId, string> = {
+  opz: 'Lagekarte mit allen Kontakten, darüber der Stand aller U-Jagd-Mittel. Rechtsklick vor den Konvoi wirft eine Sonarboje. Reiter: Kontakte, Verband (Konvoi umleiten), Hubschrauber (Aufträge zum gewählten Kontakt).',
+  sonar: 'Rumpf- und Schleppsonar übereinander. Schleppsonar ausbringen (lang = unter der Sprungschicht), nach jeder Kursänderung stabilisieren. Reiter „Aktiv“: Einzelping, CW/LFM; „VDS/BT“: Sprungschicht messen, Tiefensonar, Minenmeiden.',
+  waffen: 'Kontakt wählen, dann „Rakete auf Ziel“ oder Rechtsklick auf die Karte und „U-Jagd-Rakete hierher“. Rohre, Werfer und Täuschkörper-Schleppe als Karten daneben.',
+  radar: 'Radar findet aufgetauchte Boote und Masten. ESM-Peilungen erscheinen als rote Striche am Rand des Radarschirms und in der Liste. Daneben die Luftabwehr.',
+  bruecke: 'Ausguck und Fernglas: Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen mit eigenen Augen. Nachts und bei Seegang kaum Sicht.',
 };
 
-/** Numbered how-to rows (number = station key), then the survival rule. */
+/** Emergency keys of a side, as "T Täuschkörper · X Alarmtauchen". */
+function emergencyKeys(submarine: boolean): string {
+  const k = currentKeys();
+  const list: [keyof typeof k, string][] = submarine
+    ? [['decoy', 'Täuschkörper'], ['crashDive', 'Alarmtauchen'], ['mastDown', 'Mast ein'], ['fire', 'Feuer']]
+    : [['ping', 'Einzelping'], ['rocket', 'Rakete'], ['decoy', 'Täuschkörper']];
+  return list.map(([a, l]) => `<kbd class="kcap">${keyName(k[a])}</kbd> ${l}`).join(' · ');
+}
+
+/** Numbered how-to rows (number = station key), then the emergency keys and the survival rule. */
 function howtoRows(submarine: boolean): string {
-  const row = (i: number, title: string, text: string) => `<tr><td>${i + 1} · ${title}</td><td>${text}</td></tr>`;
-  return submarine
-    ? SUB_STATIONS.map((t, i) => row(i, t, SUB_HOWTO[t])).join('') +
-        '<tr><td>Überleben</td><td>Funk geht nur mit Mast und wird angepeilt. Bei einem Torpedo: Täuschkörper, volle Fahrt und durch die Sprungschicht.</td></tr>'
-    : FRIGATE_STATIONS.map((t, i) => row(i, t, FRIGATE_HOWTO[t])).join('') +
-        '<tr><td>Schützen</td><td>Bleib zwischen U-Boot und Konvoi. Bei einem Torpedo: Täuschkörper-Schleppe und abdrehen.</td></tr>';
+  const row = (label: string, text: string) => `<tr><td>${label}</td><td>${text}</td></tr>`;
+  return (submarine
+    ? SUB_STATION_IDS.map((id) => row(stationLabel(id), SUB_HOWTO[id])).join('')
+    : FRIGATE_STATION_IDS.map((id) => row(stationLabel(id), FRIGATE_HOWTO[id])).join('')) +
+    row('Notfall', `${emergencyKeys(submarine)}. Die Tasten wirken auf jeder Station; Feuer und Rakete gehen über den Sicherheitsknopf ihrer Station.`) +
+    (submarine
+      ? row('Überleben', 'Funk geht nur mit Mast und wird angepeilt. Bei einem Torpedo: Täuschkörper, volle Fahrt und durch die Sprungschicht.')
+      : row('Schützen', 'Bleib zwischen U-Boot und Konvoi. Bei einem Torpedo: Täuschkörper-Schleppe und abdrehen.'));
 }
 
 /** Controls and a short how-to; mouse first, keyboard as shortcut. */
@@ -65,7 +72,7 @@ export function helpOverlay(submarine: boolean): void {
       <tr><td>Täuschkörper</td><td>Ein schwerer Torpedo durchläuft ihn, erkennt die Täuschung und sucht neu: abdrehen und Tiefe wechseln. Leichte U-Jagd-Torpedos verbrauchen sich daran.</td></tr>
       <tr><td>Abstrahlung</td><td>Schiffe sind von achtern am lautesten und von vorn am leisesten; querab gibt das stärkste Aktiv-Echo. Torpedos im toten Winkel achtern hört man erst spät.</td></tr>
       <tr><td>Transienten</td><td>Rohrfluten und Abschuss sind weit hörbar und warnen vor einem Schuss.</td></tr>
-      <tr><td>Hubschrauber</td><td>Rechtsklick auf die Karte (Fregatte): Sonarboje flach oder tief abwerfen. Bojen peilen von ihrer Position aus.</td></tr>
+      <tr><td>Hubschrauber</td><td>Rechtsklick auf die Karte oder Reiter „Hubschrauber“ in der OPZ (Fregatte): Sonarboje, Tauchsonar, MAD, Angriff; die Tiefe folgt der gemessenen Schicht. Bojen peilen von ihrer Position aus.</td></tr>
       <tr><td>Schäden</td><td>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Klick in der Schadensabwehr legt die Reparatur-Priorität fest.</td></tr>
       <tr><td>Besatzung</td><td>In der Lobby bei einem Teamkameraden „Mitfahren“: ihr bedient gemeinsam ein Schiff.</td></tr>
       <tr><td>KI</td><td>Ein Team ohne Spieler wird von der KI übernommen; du kannst also allein spielen.</td></tr>

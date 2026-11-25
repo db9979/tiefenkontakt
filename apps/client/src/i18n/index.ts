@@ -10,6 +10,7 @@ import { EN_RECOG, EN_RECOG_PHRASES } from './en-recog.js';
 import { EN_WEAPONS, EN_WEAPONS_PHRASES } from './en-weapons.js';
 import { EN_PACING, EN_PACING_PHRASES } from './en-pacing.js';
 import { EN_HELO, EN_HELO_PHRASES } from './en-helo.js';
+import { EN_STATIONS, EN_STATIONS_PHRASES } from './en-stations.js';
 
 /**
  * Language switch. The UI is written in German; for English, rendered text nodes and
@@ -22,9 +23,9 @@ import { EN_HELO, EN_HELO_PHRASES } from './en-helo.js';
 export type Lang = 'de' | 'en';
 export const lang: Lang = (localStorage.getItem('tk_lang') as Lang | null) ?? (navigator.language.startsWith('de') ? 'de' : 'en');
 
-const dict = new Map<string, string>([...EN_RECOG, ...EN_UI, ...EN_HELP, ...EN_MORE, ...EN_UX, ...EN_TUTORIAL, ...EN_RANKS, ...EN_RANGE, ...EN_WEAPONS, ...EN_PACING, ...EN_HELO]);
+const dict = new Map<string, string>([...EN_STATIONS, ...EN_RECOG, ...EN_UI, ...EN_HELP, ...EN_MORE, ...EN_UX, ...EN_TUTORIAL, ...EN_RANKS, ...EN_RANGE, ...EN_WEAPONS, ...EN_PACING, ...EN_HELO]);
 const canvasDict = new Map<string, string>(EN_CANVAS);
-const PHRASES = [...EN_HELO_PHRASES, ...EN_WEAPONS_PHRASES, ...EN_PACING_PHRASES, ...EN_RECOG_PHRASES, ...EN_RANGE_PHRASES, ...EN_RANKS_PHRASES, ...EN_DAMAGE_PHRASES, ...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
+const PHRASES = [...EN_STATIONS_PHRASES, ...EN_HELO_PHRASES, ...EN_WEAPONS_PHRASES, ...EN_PACING_PHRASES, ...EN_RECOG_PHRASES, ...EN_RANGE_PHRASES, ...EN_RANKS_PHRASES, ...EN_DAMAGE_PHRASES, ...EN_UX_PHRASES, ...EN_PHRASES, ...EN_MORE_PHRASES];
 const memo = new Map<string, string>();
 
 /** Translate one string for the current language (German passes through). */

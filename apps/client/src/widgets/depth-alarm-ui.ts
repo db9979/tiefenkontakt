@@ -45,7 +45,7 @@ class DepthAlarms {
       const text = `${t(alarmLabel(r.kind, r.level))} · ${this.figure(r.kind)}`;
       audio.depthAlarm(r.level === 2);
       announce(text, r.level === 2 ? 'alarm' : 'warn');
-      callouts.log.push({ time: s.time, text, level: r.level === 2 ? 'alarm' : 'warn', station: 3 });
+      callouts.log.push({ time: s.time, text, level: r.level === 2 ? 'alarm' : 'warn', station: 'zentrale' });
       if (callouts.log.length > 80) callouts.log.shift();
     }
     this.render();

@@ -10,7 +10,8 @@ import { subRadarPanel } from '../../widgets/sub-radar-panel.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
-import { isKey } from '../../widgets/keys.js';
+import { isKey, keycap } from '../../widgets/keys.js';
+import { fillBox } from '../../widgets/fill.js';
 import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { SkySearch } from '../../widgets/sky-search.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
@@ -70,23 +71,33 @@ function silhouette(ctx: CanvasRenderingContext2D, x: number, size: number, cls:
 }
 
 export function periscopeStation(): Station {
-  const el = h(`<div class="cols">
-    <div class="panel"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
-      <div style="position:relative"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep" style="position:relative"></canvas></div>
-      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-        <button id="up">Mast ausfahren</button><button id="zoom" title="Vergrößerung 1,5× (Rundblick), 6× und 12× (Beobachten, Entfernung)">Vergr 6×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Seegang und Bootsbewegung still (Taste G)">Stab</button>
-        <button id="peri">Auf Sehrohrtiefe</button>
-        <button id="left" title="Sehrohr nach links drehen">◀</button><button id="right" title="Sehrohr nach rechts drehen">▶</button>
-        <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button>
-        <button id="elup" title="Sehrohrprisma anheben (Himmel)">▲</button><button id="eldn" title="Sehrohrprisma absenken">▼</button>
-        <button id="sky" title="Prisma anheben und einmal rundum nach Flugzeugen suchen">Himmel absuchen</button>
-        <button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Sehrohrfoto (wird in der Nachbesprechung bewertet)">Foto</button><button id="radar" class="warn" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button>
-        <span class="kbd" style="align-self:center">ZIEHEN DREHT UND HEBT · KLICK WÄHLT</span>
+  // Layout: the optic fills the left column; on the right the mast block (state, radar warner,
+  // mast radar) above the readings. Buttons in groups: mast, optic, record.
+  const el = h(`<div class="st two">
+    <div class="st-col">
+      <div class="panel grow"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
+        <div class="fill" id="view-box"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep"></canvas></div>
+        <div class="btnrows">
+          <div class="btngroup"><button id="up" class="primary"><span id="up-t">Mast ausfahren</span>${keycap('mastDown')}</button><button id="peri">Auf Sehrohrtiefe</button></div>
+          <div class="btngroup"><button id="zoom" title="Vergrößerung 1,5× (Rundblick), 6× und 12× (Beobachten, Entfernung)">Vergr 6×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Seegang und Bootsbewegung still (Taste G)">Stab</button>
+            <span class="seg"><button id="left" title="Sehrohr nach links drehen">◀</button><button id="right" title="Sehrohr nach rechts drehen">▶</button><button id="elup" title="Sehrohrprisma anheben (Himmel)">▲</button><button id="eldn" title="Sehrohrprisma absenken">▼</button></span>
+            <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button><button id="sky" title="Prisma anheben und einmal rundum nach Flugzeugen suchen">Himmel absuchen</button></div>
+          <div class="btngroup"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Sehrohrfoto (wird in der Nachbesprechung bewertet)">Foto</button></div>
+        </div>
+        <div class="hint">ZIEHEN DREHT UND HEBT · KLICK WÄHLT</div>
       </div>
     </div>
-    <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
+    <div class="st-col scroll">
+      <div class="panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
+        <div id="mast-rows"></div>
+        <div id="esm"></div>
+        <div class="btnrow"><button id="radar" class="warn" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button></div>
+      </div>
+      <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
+    </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
+  const box = fillBox(el.querySelector<HTMLElement>('#view-box')!, 300, 760);
   // three.js is loaded only when the periscope is used (falls back to 2D without WebGL2) and freed 20 s after leaving
   const g3 = new LazyGl<Periscope3D>(el.querySelector<HTMLCanvasElement>('#gl')!, (c) =>
     import('../../widgets/periscope3d.js').then((m) => (m.Periscope3D.supported() ? new m.Periscope3D(c) : undefined)));
@@ -205,6 +216,7 @@ export function periscopeStation(): Station {
   }
 
   return {
+    id: 'sehrohr',
     title: 'Sehrohr',
     el,
     key(e) {
@@ -236,7 +248,7 @@ export function periscopeStation(): Station {
       const o = s.own;
       const atDepth = o.depth <= PERISCOPE_DEPTH + 0.5;
       const up = el.querySelector<HTMLButtonElement>('#up')!;
-      up.textContent = o.mastUp ? 'Mast einfahren' : 'Mast ausfahren';
+      el.querySelector('#up-t')!.textContent = o.mastUp ? 'Mast einfahren' : 'Mast ausfahren';
       const ms = mastState(o);
       btnState(up, mastBtn(ms, o.mastUp, !atDepth, !!o.mastPending));
       // Radar: on the air only with the mast fully up; how long it has been sending
@@ -270,15 +282,21 @@ export function periscopeStation(): Station {
         <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>
         <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${skyNow.text}</span></div>
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
-        <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>
-        ${periscopeEsmRows(s)}
+        <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>`);
+      // Mast block: how long it has been up and what the radar warner hears (only with the mast up)
+      setHtml(el.querySelector('#mast-rows')!, `
+        <div class="row"><span class="dim">MAST</span><span class="${ms.moving || o.mastUp ? 'amber' : ''}">${ms.moving ? `FÄHRT ${ms.moving === 'aus' ? 'AUS' : 'EIN'} ${Math.round(ms.ext * 100)} %` : o.mastUp ? `OBEN ${since.toFixed(0)} S · SICHTBAR UND PEILBAR` : 'EINGEFAHREN'}${o.snorkel ? ' · SCHNORCHELT' : ''}</span></div>
         ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`);
+      el.querySelector('#esm-st')!.textContent = ms.raised ? 'HÖRT RADARE' : 'NUR MIT MAST OBEN';
+      const esmRows = ms.raised ? periscopeEsmRows(s) : '';
+      setHtml(el.querySelector('#esm')!, esmRows || `<div class="dim">${ms.raised ? 'KEIN RADAR ZU HÖREN' : 'MAST UNTEN – AUF SEHROHRTIEFE GEHEN UND MAST AUSFAHREN'}</div>`);
     },
     hide() {
       g3.freeLater();
     },
     dispose() {
       g3.dispose();
+      box.dispose();
     },
     frame() {
       radarScope.frame();
@@ -286,7 +304,7 @@ export function periscopeStation(): Station {
       if (store.snap && mastState(store.snap.own).ext > 0) g3.ensure();
       const s = store.snap;
       // The optic fills the station height (within reason) instead of a fixed strip
-      const H = Math.max(320, Math.min(680, window.innerHeight - 290));
+      const H = box.h;
       const ctx = fitCanvas(view, H);
       const w = view.clientWidth;
       const nowMs = performance.now();

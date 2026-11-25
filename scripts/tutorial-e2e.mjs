@@ -113,6 +113,8 @@ async function untilDone(tab, lesson, n, timeoutMs, what) {
 }
 
 const station = (tab, re) => tab.click('#tabs button', re);
+/** Open a tab of a tabbed station panel (Horchraum, Sonar, OPZ): contacts, analysis, active, group … */
+const paneTab = (tab, id) => tab.click(`#station [data-ptab="${id}"]`);
 const simTime = (tab) => tab.ev(`__tk.store.snap?.time ?? 0`);
 /** Click the helm compass at a course (the compass is a circle around its upper part). */
 async function compass(tab, heading) {
@@ -169,6 +171,7 @@ async function feindfahrt(tab) {
   await tab.click('#h-steps button[data-s="1"]');
   await untilDone(tab, L, 2, 20_000, 'creep speed');
   await station(tab, /Horchraum|Sonar/);
+  await paneTab(tab, 'list');
   const label = await waitFor('contact', () => tab.ev(`__tk.store.snap?.contacts.find((c) => c.sensors.includes('hull'))?.label`), 60_000);
   await tab.click(`#station [data-c="${label}"]`);
   await untilDone(tab, L, 3, 20_000, `contact ${label} selected`);
@@ -252,22 +255,25 @@ async function geleitfahrt(tab) {
     };
     return s.contacts.find((c) => c.sensors.includes('towed') && s.time - c.lastSeen < 10 && !isMerchant(c))?.label;
   })()`), 240_000, 1000);
+  await paneTab(tab, 'list');
   await tab.click(`#station [data-c="${label}"]`);
   await untilDone(tab, L, 5, 20_000, `contact ${label} selected`);
   // The contact list re-renders while clicking: make sure the class goes to the contact we found
   await tab.ev(`__tk.store.selected = ${JSON.stringify(label)}; true`);
+  await paneTab(tab, 'ana');
   await tab.click('#station [data-cls="submarine"]');
   await untilDone(tab, L, 6, 20_000, 'classified as submarine');
   const wrong = await tab.ev(`__tk.store.snap.contacts.filter((c) => c.assigned === 'submarine' && c.label !== ${JSON.stringify(label)}).map((c) => c.label)`);
   if (wrong.length) throw new Error(`classified the wrong contact (${wrong.join(', ')} instead of ${label})`);
   await station(tab, /OPZ/);
+  await paneTab(tab, 'group');
   await tab.click('[data-detour="3000"]');
   await untilDone(tab, L, 7, 20_000, 'convoy diverted');
   await station(tab, /Sonar/);
+  await paneTab(tab, 'active');
   await tab.click('[data-pulse="lfm"]');
-  await tab.click('#ping');
+  await tab.click('#as-one');
   await untilDone(tab, L, 8, 120_000, 'range from the LFM ping');
-  await tab.click('#ping');
   await station(tab, /Waffen/);
   await waitFor('sub selected', () => tab.ev(`__tk.store.selectedContact()?.assigned === 'submarine' || (__tk.store.selected = __tk.store.snap.contacts.find((c) => c.assigned === 'submarine')?.label, false)`), 10_000);
   await tab.click('#rocket');
@@ -284,9 +290,9 @@ async function geleitfahrt(tab) {
     log(L, `rocket ${shot} missed (no hit after 240 s): ping again, another rocket`);
     const rockets = await tab.ev(`__tk.store.snap.own.loadout.rockets`);
     await station(tab, /Sonar/);
-    await tab.click('#ping');
+    await paneTab(tab, 'active');
+    await tab.click('#as-one');
     await waitFor('fresh ping fix', () => tab.ev(`(() => { const s = __tk.store.snap; const c = s.contacts.find((x) => x.assigned === 'submarine'); return !!c && c.sensors.includes('active') && c.range !== undefined && s.time - c.lastSeen < 10; })()`), 120_000, 500);
-    if (await tab.ev(`!!__tk.store.snap.own.activeSonar`)) await tab.click('#ping');
     await station(tab, /Waffen/);
     await waitFor('sub selected', () => tab.ev(`__tk.store.selectedContact()?.assigned === 'submarine' || (__tk.store.selected = __tk.store.snap.contacts.find((c) => c.assigned === 'submarine')?.label, false)`), 10_000);
     await tab.click('#rocket');

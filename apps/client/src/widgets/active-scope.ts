@@ -5,6 +5,7 @@ import { trueDeg } from '../north.js';
 import { btnState } from './btn-state.js';
 import { COL, deg3, esc, fitCanvas, FONT, h, km, setHtml } from './format.js';
 import { simNow } from './smooth.js';
+import { keycap } from './keys.js';
 
 /** Speed of sound for the display (m/s); the ring shows the two-way travel, so it runs at half. */
 const C_WATER = 1500;
@@ -22,12 +23,12 @@ interface Echo { b: number; r: number; ping: number; label: string; doppler?: nu
  * pinging, CW/LFM, the range scale (which sets the ping interval), the countdown to the next
  * ping and a table of the returns. A boat sends one ping by default; continuous is a toggle.
  */
-export function activeScope(opts: { height?: number; compact?: boolean } = {}): { el: HTMLElement; frame(): void; snap(): void } {
+export function activeScope(opts: { height?: number | (() => number); compact?: boolean; pingKey?: boolean } = {}): { el: HTMLElement; frame(): void; snap(): void } {
   const compact = !!opts.compact;
   const el = h(`<div class="panel">
     <div class="hd"><span>Aktivsonar</span><span id="as-st" class="dim"></span></div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
-      <button id="as-one" class="warn" title="Ein einzelner Ping: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Einzelping</button>
+      <button id="as-one" class="warn" title="Ein einzelner Ping: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Einzelping${opts.pingKey ? keycap('ping') : ''}</button>
       <button id="as-ping" title="Dauerpingen im Takt des Messbereichs: jeder hört dich weit hinaus">Dauer</button>
       <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
       <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
@@ -95,7 +96,7 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
       if (!s) return;
       const now = simNow();
       const o = s.own;
-      const H = opts.height ?? 300;
+      const H = (typeof opts.height === 'function' ? opts.height() : opts.height) ?? 300;
       const ctx = fitCanvas(canvas, H);
       const w = canvas.clientWidth;
       const cx = w / 2, cy = H / 2, R = H / 2 - 18;
