@@ -1,4 +1,4 @@
-import { NM, angleDiff, headingVec } from '@tk/shared';
+import { NM, angleDiff, esmReach, headingVec } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
@@ -14,8 +14,8 @@ import { esmRow, esmTone } from '../../widgets/esm-text.js';
 const RPM = 24;
 // 48 SM: air search – aircraft at height show far beyond the surface horizon
 const RANGES = [3, 6, 12, 24, 48] as const;
-/** How far an enemy ESM receiver hears this radar (sensors.ts ESM_RANGE). */
-const ESM_HEARS_NM = 40;
+/** How far a boat's radar warner on its mast (3 m) hears this radar (20 m): 1.35 × radio horizon (sensors.ts). */
+const ESM_HEARS_NM = Math.round(esmReach(3, 20) / NM);
 
 /** Radar room: phosphor PPI with range scales, radar status and an ESM bearing rose. */
 export function radarEsmStation(): Station {
@@ -148,7 +148,7 @@ export function radarEsmStation(): Station {
         <div class="row"><span class="dim">ECHOS</span><span>${radar.length} · DAVON EIGENE ${friends.length}</span></div>
         <div class="row"><span class="dim">SEEGANG-STÖRUNG</span><span>${['GERING', 'GERING', 'MÄSSIG', 'MÄSSIG', 'STARK', 'STARK', 'SEHR STARK'][s.env.seaState] ?? '—'}${s.env.rain ? ' · REGEN' : ''}</span></div>
         <div class="row"><span class="dim">GEGNER-ESM HÖRT UNS</span><span class="${on ? 'amber' : 'dim'}">${on ? `BIS ${ESM_HEARS_NM} SM` : '—'}</span></div>
-        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? 'Jede U-Boot-Funkpeilantenne in 40 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.' : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`);
+        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? `Jede U-Boot-Funkpeilantenne in ${ESM_HEARS_NM} SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.` : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`);
       setHtml(tracksEl, radar.length
         ? radar.map((c) => {
           const fr = friends.includes(c);

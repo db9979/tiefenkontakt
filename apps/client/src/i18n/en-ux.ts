@@ -17,7 +17,10 @@ export const EN_UX: [string, string][] = [
   ['ECHOS', 'ECHOES'], ['SEEGANG-STÖRUNG', 'SEA CLUTTER'], ['GERING', 'LOW'], ['STARK', 'HEAVY'], ['SEHR STARK', 'VERY HEAVY'], ['GEGNER-ESM HÖRT UNS', 'ENEMY ESM HEARS US'],
   ['● ABSTRAHLUNG', '● EMITTING'], ['○ STILL', '○ SILENT'], ['STANDBY · SENDER AUS', 'STANDBY · TRANSMITTER OFF'], ['ESM HÖRT WEITER MIT', 'ESM KEEPS LISTENING'],
   ['RADAR AUS · KEINE SPUREN', 'RADAR OFF · NO TRACKS'], ['KEINE FUNKPEILUNGEN · ALLES STILL', 'NO INTERCEPTS · ALL QUIET'],
-  ['Jede U-Boot-Funkpeilantenne in 40 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.', 'Every submarine DF antenna within 40 NM is taking our bearing now. Radar shows snorkels and periscopes only at short range.'],
+  ['Jede U-Boot-Funkpeilantenne in 19 SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.', 'Every submarine DF antenna within 19 NM is taking our bearing now. Radar shows snorkels and periscopes only at short range.'],
+  ['Einzelping', 'Single ping'], ['Dauer', 'Continuous'], ['EINZELPING · GEHT RAUS', 'SINGLE PING · GOING OUT'], ['AKTIVSONAR AUS – EINZELPING FÜR EINE ENTFERNUNG', 'ACTIVE SONAR OFF – SINGLE PING FOR A RANGE'],
+  ['Ein einzelner Ping: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus', 'One single ping: range and bearing, but gives the own ship away far out'],
+  ['Dauerpingen im Takt des Messbereichs: jeder hört dich weit hinaus', 'Continuous pinging at the range scale\'s rate: everyone hears you far out'],
   ['Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.', 'Without radar the frigate stays silent. Switch on briefly, take the picture, switch off again.'],
   ['Grafik', 'Graphics'], ['Niedrig', 'Low'], ['Mittel', 'Medium'], ['Hoch', 'High'], ['Auto · Mittel', 'Auto · Medium'], ['Auto · Hoch', 'Auto · High'], ['Auto · Niedrig', 'Auto · Low'],
   ['Auto: auf Handys und kleinen Rechnern sparsamer (Akku, Wärme)', 'Auto: lighter on phones and small machines (battery, heat)'],
@@ -112,6 +115,12 @@ export const EN_UX: [string, string][] = [
 // The strait goal names the strait's true direction (briefing.ts, compassStem)
 const STEMS: [string, string][] = [['Nord', 'north'], ['Nordost', 'north-east'], ['Ost', 'east'], ['Südost', 'south-east'], ['Süd', 'south'], ['Südwest', 'south-west'], ['West', 'west'], ['Nordwest', 'north-west']];
 export const EN_UX_PHRASES: [RegExp, string][] = [
+  [/^SENDET ALLE (\d+) S · JEDER HÖRT DICH WEIT HINAUS$/, 'TRANSMITTING EVERY $1 S · EVERYONE HEARS YOU FAR OUT'], [/^IN (\d+) S$/, 'IN $1 S'], [/^RING ([\d,]+) KM$/, 'RING $1 KM'],
+  [/^Messbereich (\d+) km: Echos von weiter draußen kommen zu spät · ein Ping alle (\d+) s$/, 'Range scale $1 km: echoes from further out come too late · one ping every $2 s'],
+  [/^SEEAUFKLÄRER · RADARKONTAKT SCHNORCHEL · PLANQUADRAT (\w+)$/, 'PATROL AIRCRAFT · RADAR CONTACT SNORKEL · GRID $1'],
+  [/^SEEAUFKLÄRER · RADARKONTAKT SEHROHR · PLANQUADRAT (\w+)$/, 'PATROL AIRCRAFT · RADAR CONTACT PERISCOPE · GRID $1'],
+  [/^BORDHUBSCHRAUBER · RADARKONTAKT SCHNORCHEL · PLANQUADRAT (\w+)$/, 'HELICOPTER · RADAR CONTACT SNORKEL · GRID $1'],
+  [/^BORDHUBSCHRAUBER · RADARKONTAKT SEHROHR · PLANQUADRAT (\w+)$/, 'HELICOPTER · RADAR CONTACT PERISCOPE · GRID $1'],
   [/^VORAUS (\d+) MIN$/, 'LEAD $1 MIN'], [/^Route ab Wegpunkt (\d+) fahren$/, 'Follow route from waypoint $1'], [/^Wegpunkt (\d+) löschen$/, 'Delete waypoint $1'],
   [/^WP (\d+): Fahrt (\d+) kn$/, 'WP $1: speed $2 kn'], [/^WP (\d+): Fahrt beibehalten$/, 'WP $1: keep speed'], [/^WP (\d+): Tiefe (\d+) m$/, 'WP $1: depth $2 m'], [/^WP (\d+): Tiefe beibehalten$/, 'WP $1: keep depth'],
   [/^LÄDT (\d+) S$/, 'LOADING $1 S'], [/^SENDET (\d+) S$/, 'TRANSMITTING $1 S'], [/^WASSER (\d+) %$/, 'WATER $1 %'], [/^SCHADEN (\d+) %$/, 'DAMAGE $1 %'], [/^(\d+) % · SINKT BALD$/, '$1 % · SINKING SOON'], [/^NÄCHSTER IN (\d+) S$/, 'NEXT IN $1 S'], [/^VORRAT (\d+) TORPEDOS$/, 'STOCK $1 TORPEDOES'], [/^ROHR (\d+)$/, 'TUBE $1'], [/^LÄDT · (\d+) S$/, 'LOADING · $1 S'], [/^GÜTE (\d+) %$/, 'QUALITY $1 %'], [/^(.+) – NOCHMAL$/, '$1 – AGAIN'], [/^RING ([\d,]+) SM$/, 'RING $1 NM'], [/^BEREIT IN (\d+) MIN$/, 'READY IN $1 MIN'], [/^BEREIT · (\d+) BOJEN$/, 'READY · $1 BUOYS'], [/^MITTEL (\d+) S$/, 'AVG $1 S'], [/^PING VOR (\d+|—) S · VERRÄT DICH$/, 'PING $1 S AGO · GIVES YOU AWAY'], [/^(\d+) SM · (CW|LFM)$/, '$1 NM · $2'], [/^(\d+) SM \/ RING$/, '$1 NM / RING'], [/^EIGENER TORPEDO · LÄUFT$/, 'OWN TORPEDO · RUNNING'], [/^EIGENER TORPEDO · ZIEL ERFASST$/, 'OWN TORPEDO · TARGET ACQUIRED'], [/^Mastradar · (\d+) SM$/, 'Mast radar · $1 NM'], [/^(\d+)\/(\d+) BEREIT$/, '$1/$2 READY'], [/^(\d+) BEREIT$/, '$1 READY'], [/^AUS (\d+) M$/, 'OUT $1 M'], [/^EIN (\d+) M$/, 'IN $1 M'],
