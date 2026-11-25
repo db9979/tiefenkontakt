@@ -56,8 +56,8 @@ export const FIRST_ESCORT_STEPS: { title: string; sequential: true; steps: Step[
       done: (s) => (s.own.convoyOffset ?? 0) !== 0 || s.radio.some((r) => r.from === s.own.name),
     },
     {
-      where: '2 · Sonar · Entfernung',
-      text: 'Passiv gibt es nur die Peilung. Wähle „LFM“ (genaue Entfernung) und schalte „Aktiv-Ping“ ein. Sobald der Kontakt eine Entfernung hat, den Ping wieder aus: er verrät die Fregatte. Liegt das U-Boot achteraus, erst darauf zudrehen (achtern ist das Rumpfsonar taub).',
+      where: '6 · Ortung · Entfernung',
+      text: 'Passiv gibt es nur die Peilung. Station Ortung: wähle „LFM“ (genaue Entfernung) und schalte „Aktivsonar“ ein. Sobald der Kontakt eine Entfernung hat, den Ping wieder aus: er verrät die Fregatte. Liegt das U-Boot achteraus, erst darauf zudrehen (achtern ist das Rumpfsonar taub).',
       done: (s) => !!sub(s)?.sensors.includes('active') && sub(s)?.range !== undefined,
     },
     {
