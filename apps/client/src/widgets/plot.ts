@@ -64,7 +64,12 @@ export class Plot {
     tools.style.cssText = 'position:absolute;top:6px;right:6px;display:flex;flex-direction:column;gap:3px';
     tools.innerHTML = `<button title="Hineinzoomen">+</button><button title="Herauszoomen">−</button><button title="Auf eigenes Schiff zentrieren">◎</button><button class="lines-btn" title="Peillinien: alle / nur Auswahl / aus"></button>`;
     const [zin, zout, ctr, lines] = [...tools.querySelectorAll('button')];
-    const showLines = () => (lines!.textContent = { alle: '╱╱', auswahl: '╱', aus: '·' }[linesMode()]);
+    const showLines = () => {
+      const m = linesMode();
+      lines!.textContent = { alle: '╱╱', auswahl: '╱', aus: '·' }[m];
+      lines!.title = `Peillinien: ${{ alle: 'ALLE KONTAKTE', auswahl: 'NUR GEWÄHLTER KONTAKT', aus: 'AUS' }[m]} · Klick schaltet weiter`;
+      lines!.classList.toggle('warn', m === 'aus');
+    };
     lines!.onclick = () => {
       const order: LinesMode[] = ['auswahl', 'alle', 'aus'];
       localStorage.setItem('tk_lines', order[(order.indexOf(linesMode()) + 1) % order.length]!);
@@ -343,6 +348,7 @@ export class Plot {
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'left';
     let foot = `RASTER ${(step / NM).toFixed(0)} SM · RECHTSKLICK: AKTIONEN`;
+    if (linesMode() === 'aus' && store.selected) foot = `PEILLINIEN AUS (KNOPF · RECHTS OBEN) · ${foot}`;
     if (this.mouse) {
       const wp = this.toWorld(this.mouse);
       foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))} · ` + foot;

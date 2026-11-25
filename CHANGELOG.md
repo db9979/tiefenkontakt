@@ -27,6 +27,10 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   (`npx tsx scripts/handbook/recog-pdf.ts` baut es neu).
 - **Schelf ausgeglichen:** Die U-Boote warten 12 statt 10 km abseits der Route. KI-Arena je 12 Partien, Grund / Ost
   gemischt / West gemischt / beide gemischt: vorher 4:8, 11:1, 2:10, 2:10, jetzt 5:7, 7:5, 6:6, 4:8.
+- **Jagd-U-Boot zurückhaltender:** Es schießt erst ab 7,5 km und abwechselnd zwei und einen Torpedo. Beide Seiten gemischt
+  in der KI-Arena (60 Partien, alle fünf Missionen) 42:18 -> 38:22, West gemischt unverändert 29:31.
+- **Peillinien-Schalter deutlicher:** Der Knopf rechts oben auf der Karte leuchtet amber, wenn die Peillinien aus sind,
+  nennt im Tooltip seinen Zustand, und die Karte zeigt bei gewähltem Kontakt „PEILLINIEN AUS“.
 - **Weniger ESM-Meldungen:** Dasselbe Radar auf derselben Peilung kommt nur neu, stärker, näherkommend oder nach zwei
   Minuten wieder ins Meldungsprotokoll (Flugzeug- und Feuerleitradar nach 30 s).
 - **Zeitraffer voreingestellt auf Echtzeit:** 2× und 3× bleiben in der Lobby wählbar.

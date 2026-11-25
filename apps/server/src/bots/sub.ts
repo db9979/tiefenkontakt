@@ -195,12 +195,14 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const rad = (target.bearing * Math.PI) / 180;
   const aimAt = range !== undefined ? { x: s.pos.x + Math.sin(rad) * range, y: s.pos.y + Math.cos(rad) * range } : undefined;
   const fouled = guard && !!aimAt && w.ships.some((x) => x.alive && x.id !== s.id && (x.team === s.team || x.team === 'neutral') && distance(x.pos, aimAt) < GUARD_CLEAR_M);
-  if (range !== undefined && range < 8000 && !fouled && now - m.lastShot > SHOT_COOLDOWN) {
+  if (range !== undefined && range < (guard ? GUARD_FIRE_M : 8000) && !fouled && now - m.lastShot > SHOT_COOLDOWN) {
     // Long passive shots run slow: quieter, and the seeker hears more without flow noise
     const runKn = !duel && range > 4000 ? 30 : 40;
     const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
     let fired = 0;
-    for (let i = 0; i < k.salvo; i++) {
+    // A guarding boat alternates two and one torpedo (arena, both sides mixed: always two 42:18, always one 18:42, alternating 38:22)
+    const salvo = guard ? ((m.guardShots = (m.guardShots ?? 0) + 1) % 2 === 1 ? 2 : 1) : k.salvo;
+    for (let i = 0; i < salvo; i++) {
       const spread = k.salvo > 1 ? (i === 0 ? -3 : 3) : 0;
       const r = fireTorpedo(w, s, { heading: wrap360(aim + spread), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn });
       if (typeof r !== 'string') fired++;
@@ -216,6 +218,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
 
 /** A guarding boat's torpedo needs this much water free of friends and neutrals around its target (m). */
 const GUARD_CLEAR_M = 3000;
+/** A guarding boat holds its first shot until the target is this close (m). */
+const GUARD_FIRE_M = 7500;
 
 function headingTo(s: Ship, r: { x: number; y: number; b: number }): number {
   // Steer for a point 12 km down the reported bearing from where it was reported

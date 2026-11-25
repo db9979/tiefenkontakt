@@ -34,6 +34,8 @@ export const SKILL = {
 } as const;
 
 export interface BotMemory {
+  /** Hunter-killer boat: shots fired (alternates salvo size). */
+  guardShots?: number;
   shipId: string;
   passive?: boolean;
   nextThink: number;
