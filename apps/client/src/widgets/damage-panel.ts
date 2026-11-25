@@ -3,15 +3,37 @@ import { fitCanvas, setHtml } from './format.js';
 import { CLASSES, SYSTEMS, compartmentLayout, type CompartmentView, type ShipSystem, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { cellAt, drawCutaway, sysTags, type CutawayGeom } from './cutaway.js';
+import { cellAt, compColour, cutawayBg, drawCutaway, sysTags, type CutawayGeom } from './cutaway.js';
 
-const LABEL: Record<ShipSystem, string> = { antrieb: 'ANTRIEB', sonar: 'SONAR', waffen: 'WAFFEN', leck: 'WASSER IM SCHIFF' };
+const LABEL: Record<ShipSystem, string> = { antrieb: 'ANTRIEB', sonar: 'SONAR', waffen: 'WAFFEN', leck: 'WASSER' };
 const EFFECT: Record<ShipSystem, string> = {
   antrieb: 'Höchstfahrt sinkt', sonar: 'Eigenlärm im Rumpfsonar steigt', waffen: 'Nachladen dauert länger, ab 90 % Ausfall',
-  leck: 'Anteil der Reserveverdrängung, der vollgelaufen ist: bei 100 % sinkt das Schiff',
+  leck: 'Vollgelaufener Anteil der Reserveverdrängung: bei 100 % sinkt das Schiff',
 };
+const TAG_NAME: Record<string, string> = { A: 'Antrieb', S: 'Sonar', W: 'Waffen', B: 'Batterie', M: 'Magazin' };
+
 /** Cutaway height follows the panel width (the ship is long and low). */
-const cutH = (w: number) => Math.round(Math.max(110, Math.min(200, w * 0.5)));
+const cutH = (w: number) => Math.round(Math.max(96, Math.min(170, w * 0.36)));
+
+const CSS = `<style>
+.dp-strip{display:flex;flex-wrap:wrap;gap:3px 10px;margin:5px 0 4px;font-size:0.9167rem}
+.dp-strip b{font-weight:normal;color:var(--dim);margin-right:3px}
+.dp-tbl{display:grid;grid-template-columns:14px minmax(0,1fr) 52px 30px;align-items:center;column-gap:5px;font-size:0.9167rem}
+.dp-tbl>div{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0;border-top:1px solid var(--line)}
+.dp-tbl .h{color:var(--dim);font-size:0.75rem;border-top:none;padding:0 0 1px}
+.dp-row{cursor:pointer}
+.dp-sel{background:rgba(250,199,117,0.12)}
+html[data-theme='light'] .dp-sel{background:#fbf0d6}
+.dp-bar{position:relative;height:9px;background:var(--track);border-radius:1px}
+.dp-bar>i{position:absolute;left:0;top:0;bottom:0;display:block}
+.dp-bar>span{position:absolute;right:2px;top:-3px;font-size:0.6667rem;line-height:15px;color:var(--g2)}
+.dp-fl{display:inline-block;width:14px;text-align:center;font-weight:bold}
+.dp-act{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0 0;padding:4px;border:1px solid var(--line2);border-radius:3px;font-size:0.8333rem}
+.dp-act>span{flex:1 1 100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dp-act button{flex:1 1 0;padding:2px 4px;min-height:0;font-size:0.75rem;white-space:nowrap}
+.dp-sys{display:grid;grid-template-columns:62px minmax(0,1fr) 34px;align-items:center;column-gap:6px;font-size:0.9167rem}
+.dp-sys>div{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0}
+</style>`;
 
 let selected: number | undefined;
 let geom: CutawayGeom | undefined;
@@ -30,9 +52,12 @@ function animate(canvas: HTMLCanvasElement): void {
     if (!canvas.isConnected) return;
     raf = requestAnimationFrame(tick);
     if (!s || !canvas.offsetParent) return;
-    const H = cutH(canvas.clientWidth || 300);
+    const w = canvas.clientWidth || 300;
+    const H = cutH(w);
     const ctx = fitCanvas(canvas, H);
-    geom = drawCutaway(ctx, canvas.clientWidth || 300, H, {
+    const bg = cutawayBg();
+    if (canvas.style.background !== bg) canvas.style.background = bg;
+    geom = drawCutaway(ctx, w, H, {
       cls: s.own.cls, comps: compsOf(s), wreck: s.own.wreck, dcAt: s.own.dcAt, selected, t: (performance.now() - t0) / 1000,
     });
   };
@@ -40,13 +65,14 @@ function animate(canvas: HTMLCanvasElement): void {
 }
 
 function build(el: HTMLElement): void {
-  el.innerHTML = `<div class="hd"><span>Schadensabwehr</span><span id="dp-hp"></span></div>
-    <canvas id="dp-cut" class="keep" style="width:100%;cursor:pointer;display:block;background:#06100e;border-radius:3px" title="Klick: Abteilung wählen, Schadenstrupp dorthin"></canvas>
-    <div id="dp-state" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:4px;margin:6px 0"></div>
-    <div class="dim" style="margin-top:4px;font-size:0.8333rem">ABTEILUNGEN · A ANTRIEB · S SONAR · W WAFFEN · B BATTERIE · M MAGAZIN</div>
-    <div id="dp-comps"></div>
-    <div class="dim" style="margin-top:8px">SYSTEME · KLICK = REPARATUR ZUERST</div>
-    <div id="dp-sys"></div>`;
+  el.style.overflowX = 'hidden';
+  el.innerHTML = `${CSS}<div class="hd"><span>Schadensabwehr</span><span id="dp-hp"></span></div>
+    <canvas id="dp-cut" class="keep" style="width:100%;cursor:pointer;display:block;border-radius:3px;border:1px solid var(--line)" title="Klick: Abteilung wählen, Schadenstrupp dorthin"></canvas>
+    <div id="dp-state" class="dp-strip"></div>
+    <div id="dp-comps" class="dp-tbl"></div>
+    <div id="dp-act" class="dp-act"></div>
+    <div class="dim" style="margin:8px 0 2px;font-size:0.75rem">SYSTEME · KLICK = REPARATUR ZUERST</div>
+    <div id="dp-sys" class="dp-sys"></div>`;
   const cut = el.querySelector<HTMLCanvasElement>('#dp-cut')!;
   cut.addEventListener('click', (e) => {
     const s = store.snap;
@@ -77,7 +103,10 @@ function build(el: HTMLElement): void {
   animate(cut);
 }
 
-/** Damage control: cutaway of the compartments, bulkhead buttons, system bars (click = repair priority). */
+const bar = (v: number, colour: string, text = `${Math.round(v * 100)}`) =>
+  `<div class="dp-bar"><i style="width:${Math.round(Math.min(1, v) * 100)}%;background:${colour}"></i>${v > 0.005 ? `<span>${text}</span>` : ''}</div>`;
+
+/** Damage control: cutaway of the compartments, one line per compartment, system bars (click = repair priority). */
 export function renderDamage(el: HTMLElement): void {
   const s = store.snap;
   if (!s) return;
@@ -90,43 +119,56 @@ export function renderDamage(el: HTMLElement): void {
   const layout = compartmentLayout(o.cls);
   if (selected !== undefined && selected >= comps.length) selected = undefined;
   const hp = Math.max(0, (100 * o.hp) / CLASSES[o.cls].hp);
-  const list = o.wreck && Math.abs(o.wreck.list) >= 1 ? ` · SCHLAGSEITE ${Math.abs(o.wreck.list).toFixed(0)}°` : '';
-  setHtml(el.querySelector('#dp-hp')!, `<span class="${hp < 50 ? 'red' : 'dim'}">ZUSTAND ${hp.toFixed(0)} %${list}</span>`);
-  const at = o.dcAt;
+  setHtml(el.querySelector('#dp-hp')!, `<span class="${hp < 50 ? 'red' : hp < 80 ? 'amber' : 'dim'}">${hp.toFixed(0)} %</span>`);
   const w = o.wreck;
-  const gauge = (label: string, value: string, bad: boolean) => `<div style="border:1px solid var(--line);padding:3px 5px"><div class="dim" style="font-size:0.75rem">${label}</div><div class="${bad ? 'red' : ''}">${value}</div></div>`;
+  const list = w?.list ?? 0;
+  const trim = w?.trim ?? 0;
   const water = Math.round(o.damage.leck * 100);
+  const burning = comps.filter((c) => c.fire > 0.02).length;
+  const val = (label: string, v: string, cls = '') => `<span><b>${label}</b><span class="${cls}">${v}</span></span>`;
   setHtml(el.querySelector('#dp-state')!, [
-    gauge('ZUSTAND', `${hp.toFixed(0)} %`, hp < 50),
-    gauge('SCHLAGSEITE', `${Math.abs(w?.list ?? 0).toFixed(0)}° ${(w?.list ?? 0) > 0.5 ? 'STB' : (w?.list ?? 0) < -0.5 ? 'BB' : ''}`, Math.abs(w?.list ?? 0) > 10),
-    gauge('TRIMM', `${Math.abs(w?.trim ?? 0).toFixed(1)}° ${(w?.trim ?? 0) > 0.2 ? 'BUGLASTIG' : (w?.trim ?? 0) < -0.2 ? 'HECKLASTIG' : ''}`, Math.abs(w?.trim ?? 0) > 3),
-    gauge('WASSER IM SCHIFF', `${water} %${water > 70 ? ' · SINKT BALD' : ''}`, water > 50),
+    val('SCHLAGSEITE', `${Math.abs(list).toFixed(0)}°${list > 0.5 ? ' STB' : list < -0.5 ? ' BB' : ''}`, Math.abs(list) > 10 ? 'red' : Math.abs(list) > 3 ? 'amber' : ''),
+    val('TRIMM', `${Math.abs(trim).toFixed(1)}°${trim > 0.2 ? ' BUG' : trim < -0.2 ? ' HECK' : ''}`, Math.abs(trim) > 3 ? 'red' : Math.abs(trim) > 1 ? 'amber' : ''),
+    val('WASSER', `${water} %${water > 70 ? ' SINKT' : ''}`, water > 50 ? 'red' : water > 15 ? 'amber' : ''),
+    burning ? val('BRAND', `${burning} ABT.`, 'red') : '',
   ].join(''));
-  const cell = (v: number, warnAt: number, txt: string) => (v > 0.01 ? `<span class="${v >= warnAt ? 'red' : 'amber'}">${txt}</span>` : '<span class="dim">–</span>');
-  setHtml(el.querySelector('#dp-comps')!, comps.map((c, i) => {
+  const at = o.dcAt;
+  const head = '<div class="h">#</div><div class="h">ABTEILUNG</div><div class="h">WASSER</div><div class="h">LAGE</div>';
+  const pick = selected ?? at ?? 0;
+  setHtml(el.querySelector('#dp-comps')!, head + comps.map((c, i) => {
     const spec = layout[i]!;
-    const sel = i === selected;
-    const tags = sysTags(spec).join(' ');
-    const chips = [
-      c.flood > 0.01 ? `<span class="${c.flood >= 0.4 ? 'red' : 'amber'}">WASSER ${Math.round(c.flood * 100)} %</span>` : '',
-      c.fire > 0.01 ? `<span class="red">${c.fire > 0.5 ? 'BRAND' : 'FEUER'}</span>` : '',
-      c.leak > 0.01 ? `<span class="${c.leak >= 0.5 ? 'red' : 'amber'}">LECK ${c.leak > 0.5 ? 'GROSS' : 'KLEIN'}</span>` : '',
-      c.dmg > 0.05 ? `<span class="${c.dmg >= 0.5 ? 'red' : 'amber'}">SCHADEN ${Math.round(c.dmg * 100)} %</span>` : '',
-    ].filter(Boolean).join(' · ') || '<span class="dim">KLAR</span>';
-    return `<div class="clickable ${sel ? 'selrow' : ''}" data-crow="${i}" style="border-top:1px solid var(--line);padding:3px 0">
-      <div class="row" style="align-items:center"><span><b>${i + 1}</b> ${spec.name.toUpperCase()} <span class="dim">${tags}</span>${i === at ? ' <span class="green">◆ TRUPP</span>' : ''}${c.sealed ? ' <span class="amber">ABGESCHOTTET</span>' : ''}</span>
-        <span style="white-space:nowrap"><button data-cact="party" data-ci="${i}" ${c.sealed || i === at ? 'disabled' : ''} title="Den Schadenstrupp hierher: Lecks dichten, lenzen, Brand löschen, reparieren" style="padding:0 5px;min-height:0">Trupp</button><button data-cact="seal" data-ci="${i}" class="warn" title="${c.sealed ? 'Schott öffnen: der Trupp kann wieder hinein' : 'Schotten schließen: kein Wasser und kein Feuer gehen weiter, aber ihre Stationen und Systeme fallen aus'}" style="padding:0 5px;min-height:0">${c.sealed ? 'Öffnen' : 'Schott'}</button></span></div>
-      <div style="font-size:0.8333rem">${chips}</div>
-    </div>`;
+    const cls = `dp-row${i === pick ? ' dp-sel' : ''}`;
+    const tags = sysTags(spec);
+    const flags = [
+      c.fire > 0.02 ? `<span class="dp-fl" style="color:${compColour({ flood: 0, leak: 0, dmg: 0, fire: 1 })}" title="Brand ${Math.round(c.fire * 100)} %">F</span>` : '',
+      c.leak > 0.01 ? `<span class="dp-fl ${c.leak >= 0.5 ? 'red' : 'amber'}" title="Leck ${c.leak > 0.5 ? 'groß' : 'klein'}">L</span>` : '',
+      c.dmg > 0.05 ? `<span class="dp-fl ${c.dmg >= 0.5 ? 'red' : 'amber'}" title="Schaden ${Math.round(c.dmg * 100)} %">S</span>` : '',
+    ].join('') || '<span class="dim">–</span>';
+    const name = `${i === at ? '<span style="color:var(--g)">◆</span>' : ''}${c.sealed ? '<span class="amber">▮</span>' : ''}${spec.name.toUpperCase()}${tags.length ? ` <span class="dim">${tags.join('')}</span>` : ''}`;
+    const row = `data-crow="${i}" class="${cls}"`;
+    return `<div ${row} style="color:${compColour(c)};font-weight:bold">${i + 1}</div><div ${row} title="${spec.name}${tags.length ? ` · ${tags.map((t) => TAG_NAME[t]).join(', ')}` : ''}">${name}</div><div ${row}>${bar(c.flood, c.flood >= 0.4 ? 'var(--red)' : 'var(--blue)')}</div><div ${row}>${flags}</div>`;
   }).join(''));
+  // Orders for the picked compartment
+  const pc = comps[pick];
+  const ps = layout[pick];
+  if (pc && ps) {
+    const state = [
+      pc.flood > 0.01 ? `WASSER ${Math.round(pc.flood * 100)} %` : '',
+      pc.fire > 0.02 ? 'BRAND' : '',
+      pc.leak > 0.01 ? `LECK ${pc.leak > 0.5 ? 'GROSS' : 'KLEIN'}` : '',
+      pc.dmg > 0.05 ? `SCHADEN ${Math.round(pc.dmg * 100)} %` : '',
+      pc.sealed ? 'ABGESCHOTTET' : '',
+    ].filter(Boolean).join(' · ') || 'KLAR';
+    setHtml(el.querySelector('#dp-act')!, `<span><b style="color:${compColour(pc)}">${pick + 1}</b> ${ps.name.toUpperCase()} <span class="dim">${state}</span></span>
+      <button data-cact="party" data-ci="${pick}" class="${pick === at ? 'on' : ''}" ${pc.sealed || pick === at ? 'disabled' : ''} title="Schadenstrupp hierher: Lecks dichten, lenzen, Brand löschen, reparieren">${pick === at ? 'TRUPP IST HIER' : 'TRUPP HIERHER'}</button>
+      <button data-cact="seal" data-ci="${pick}" class="warn" title="${pc.sealed ? 'Schott öffnen: der Trupp kann wieder hinein' : 'Schotten schließen: Wasser und Feuer gehen nicht weiter, aber Stationen und Systeme darin fallen aus'}">${pc.sealed ? 'SCHOTT ÖFFNEN' : 'ABSCHOTTEN'}</button>`);
+  }
   const d = o.damage;
   setHtml(el.querySelector('#dp-sys')!, SYSTEMS.map((k) => {
     const v = d[k];
     const prio = o.repair === k;
-    return `<div class="row clickable ${prio ? 'selrow' : ''}" data-sys="${k}" title="${EFFECT[k]} · Klick: Reparatur-Priorität">
-      <span>${prio ? '▸ ' : ''}${LABEL[k]}</span>
-      <span style="flex:1;margin:0 8px;background:var(--track);height:8px;align-self:center"><span style="display:block;height:8px;width:${Math.round(v * 100)}%;background:${v > 0.6 ? 'var(--red)' : v > 0.25 ? 'var(--amber)' : 'var(--g)'}"></span></span>
-      <span>${Math.round(v * 100)} %</span></div>
-      ${v > 0.05 ? `<div class="dim" style="font-size:0.75rem;margin:-2px 0 4px">${EFFECT[k]}</div>` : ''}`;
+    const col = v > 0.6 ? 'var(--red)' : v > 0.25 ? 'var(--amber)' : 'var(--g)';
+    const attrs = `data-sys="${k}" class="clickable${prio ? ' selrow' : ''}" title="${EFFECT[k]} · Klick: Reparatur zuerst"`;
+    return `<div ${attrs}>${prio ? '▸' : ''}${LABEL[k]}</div><div ${attrs}>${bar(v, col, '')}</div><div ${attrs} style="text-align:right">${Math.round(v * 100)} %</div>`;
   }).join(''));
 }
