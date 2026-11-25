@@ -15,6 +15,7 @@ import { ChartMarks, drawHavens, drawLanes } from './chart-marks.js';
 import { DepthChart } from './plot-depth.js';
 import { chartToScreen, chartToWorld, northUpGrid, panDelta, screenDir } from './chart-frame.js';
 import { trueDeg } from '../north.js';
+import { esmPlotLabel } from './esm-text.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -418,7 +419,7 @@ export class Plot {
         const lb = headingVec(cur ?? c.bearing);
         const me = ownNow();
         const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
-        ctx.fillText(c.label, lp.x + 4, lp.y - 4);
+        ctx.fillText(c.sensors.includes('esm') ? esmPlotLabel(c.label, c.emitter) : c.label, lp.x + 4, lp.y - 4);
       }
       const fix = lastFix(c, s);
       if (fix) {

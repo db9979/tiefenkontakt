@@ -9,6 +9,7 @@ import { fromNorthUp, trueDeg } from '../../north.js';
 import { onTap } from '../../widgets/touch.js';
 import { samAction } from '../../widgets/airdef-panel.js';
 import { openMenu } from '../../widgets/menu.js';
+import { esmRow, esmTone } from '../../widgets/esm-text.js';
 
 const RPM = 24;
 // 48 SM: air search – aircraft at height show far beyond the surface horizon
@@ -152,9 +153,12 @@ export function radarEsmStation(): Station {
         : `<div class="dim">${on ? 'KEINE SPUREN' : 'RADAR AUS · KEINE SPUREN'}</div>`);
       const esm = s.contacts.filter((c) => c.sensors.includes('esm')).sort((a, b) => b.lastSeen - a.lastSeen);
       const airEsm = (s.planes ?? []).filter((p) => p.via.includes('esm'));
-      const airRows = airEsm.map((p) => `<div class="row red"><span>✈ FLUGZEUGRADAR</span><span>${tdeg3(p.bearing)}°</span><span class="dim">JETZT</span></div>`).join('');
+      const airRows = airEsm.map((p) => esmRow('✈', p.bearing, 'JETZT', p.emitter, p.esmLvl, p.esmTrend, 'red')).join('');
       setHtml(el.querySelector('#esm')!, airRows + (esm.length
-        ? esm.map((c) => `<div class="row ${s.time - c.lastSeen < 60 ? 'red' : 'dim'}"><span>${esc(c.label)}</span><span>${tdeg3(c.bearing)}°</span><span class="dim">VOR ${Math.round(s.time - c.lastSeen)} S</span></div>`).join('')
+        ? esm.map((c) => {
+          const fresh = s.time - c.lastSeen < 60;
+          return esmRow(c.label, c.bearing, `VOR ${Math.round(s.time - c.lastSeen)} S`, c.emitter, fresh ? c.esmLvl : undefined, fresh ? c.esmTrend : undefined, fresh ? esmTone(c.emitter) : 'dim');
+        }).join('')
         : airRows ? '' : '<div class="dim">KEINE FUNKPEILUNGEN · ALLES STILL</div>'));
     },
     frame() {

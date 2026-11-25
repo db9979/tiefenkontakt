@@ -25,6 +25,7 @@ import type { Ship } from './entities.js';
 import { isAtPeriscopeDepth, mastExposed, mastRaised } from './entities.js';
 import { KN, NM, angleDiff, bearing, dbSum, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import type { Rng } from './rng.js';
+import { esmLevel, esmTrend, shipEmitter } from './emitters.js';
 import { ICE_MASK_DB, iceCover, inSquall, sightPenalty } from './met.js';
 
 export type SensorKind = 'hull' | 'towed' | 'active' | 'intercept' | 'periscope' | 'radar' | 'esm' | 'buoy' | 'visual' | 'mad';
@@ -55,6 +56,10 @@ export interface Detection {
   /** Where the measurement was taken if not at the observer (sonobuoy position). */
   originX?: number;
   originY?: number;
+  /** ESM: intercepted emitter (emitters.ts), signal strength 0..2 and its trend. */
+  emitter?: string;
+  esmLvl?: 0 | 1 | 2;
+  esmTrend?: -1 | 0 | 1;
 }
 
 /** A non-ship noise source (running torpedo) that passive sonar can hear. */
@@ -372,16 +377,27 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   }
 }
 
-/** ESM: anyone with an antenna above water hears active radars (bearing only). */
-function esm(obs: Ship, ctx: SensorContext, out: Detection[]): void {
+/** Ships guiding a missile right now: their fire-control radar is on the air. */
+function guiding(ctx: SensorContext): Set<string> {
+  const ids = new Set<string>();
+  for (const m of ctx.env.airdef?.sams ?? []) if (!m.done) ids.add(m.ownerId);
+  for (const m of ctx.env.ssm?.missiles ?? []) if (!m.done) ids.add(m.ownerId);
+  return ids;
+}
+
+/** ESM: anyone with an antenna above water hears active radars (bearing, emitter, strength). */
+function esm(obs: Ship, ctx: SensorContext, out: Detection[], fc: Set<string>): void {
   for (const emitter of ctx.ships) {
     if (emitter === obs || !emitter.alive || !emitter.radarOn) continue;
-    if (distance(obs.pos, emitter.pos) > ESM_RANGE) continue;
+    const range = distance(obs.pos, emitter.pos);
+    if (range > ESM_RANGE) continue;
     // Radar waves travel in straight lines: no intercept from behind a mountain
     if (!lineOfSight(ctx.env.seabed, obs.pos, CLASSES[obs.cls].submarine ? 3 : RADAR_ANTENNA_M, emitter.pos, RADAR_ANTENNA_M)) continue;
     out.push({
       observerId: obs.id, targetId: emitter.id, sensor: 'esm', time: ctx.time,
       bearing: wrap360(bearing(obs.pos, emitter.pos) + ctx.rng.gauss(0, 2)), se: 10,
+      emitter: shipEmitter(emitter.cls, fc.has(emitter.id)), esmLvl: esmLevel(range, ESM_RANGE),
+      esmTrend: esmTrend(obs.pos, obs.heading, obs.speed, emitter.pos, emitter.heading, emitter.speed),
     });
   }
 }
@@ -393,6 +409,7 @@ function hasAntennaUp(s: Ship): boolean {
 /** Run one sensor cycle for all ships. Pings fire when their interval elapsed. */
 export function runSensors(ctx: SensorContext): Detection[] {
   const out: Detection[] = [];
+  const fc = guiding(ctx);
   for (const obs of ctx.ships) {
     if (!obs.alive || obs.cls === 'merchant') continue;
     for (const tgt of ctx.ships) {
@@ -410,7 +427,7 @@ export function runSensors(ctx: SensorContext): Detection[] {
         out.push({ observerId: obs.id, targetId: v.targetId, sensor: 'visual', time: ctx.time, bearing: v.bearing, range: v.range, se: 20, sighting: v.sighting });
       }
     }
-    if (hasAntennaUp(obs)) esm(obs, ctx, out);
+    if (hasAntennaUp(obs)) esm(obs, ctx, out, fc);
   }
   return out;
 }

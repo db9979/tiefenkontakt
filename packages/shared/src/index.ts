@@ -14,6 +14,7 @@ export * from './incidents.js';
 export * from './traffic.js';
 export * from './voice.js';
 export * from './airspace.js';
+export * from './emitters.js';
 export * from './airdef.js';
 export * from './antiship.js';
 export * from './mines.js';

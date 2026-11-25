@@ -50,6 +50,10 @@ export interface ContactTrack {
   /** Set when the latest bearing was measured away from the own ship (sonobuoy position). */
   originX?: number;
   originY?: number;
+  /** ESM: last intercepted radar (emitters.ts), its strength 0..2 and trend. */
+  emitter?: string;
+  esmLvl?: number;
+  esmTrend?: number;
   history: BearingSample[];
 }
 
@@ -129,6 +133,11 @@ export class ContactBook {
     }
     if (!tr.sensors.includes(d.sensor)) tr.sensors.push(d.sensor);
     if (d.classified) tr.classified = d.classified;
+    if (d.emitter) {
+      tr.emitter = d.emitter;
+      tr.esmLvl = d.esmLvl;
+      tr.esmTrend = d.esmTrend;
+    }
     if (d.sensor === 'periscope') tr.lit = d.lit;
     if (d.sighting) {
       if (tr.sightedAt === undefined || d.time - tr.sightedAt > 60) tr.sightingSince = d.time;

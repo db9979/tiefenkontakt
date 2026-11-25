@@ -15,6 +15,8 @@ import {
   type World,
   isConvoyShip,
   trueDeg3,
+  esmDangerText,
+  esmIntercept,
 } from '@tk/shared';
 
 import { airdefAlerts } from './airdef-events.js';
@@ -119,10 +121,15 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
     if (d.time !== w.time || (d.sensor !== 'intercept' && d.sensor !== 'esm')) continue;
     const kind = d.sensor === 'intercept' ? 'ping' : 'esm';
     const b = trueDeg3(w, d.bearing);
+    // ESM: "ESM PEILUNG 252 · SEEFALKE-2 · FREGATTE? (OBERFLÄCHENSUCHE) · STARK, STEIGEND", danger cue last
+    const obs = d.emitter ? shipById(w, d.observerId) : undefined;
+    const danger = d.emitter ? esmDangerText(d.emitter, !!obs && CLASSES[obs.cls].submarine) : undefined;
+    const em = d.emitter ? ` · ${esmIntercept(d.emitter, d.esmLvl, d.esmTrend)}${danger ? ` · ${danger}` : ''}` : '';
     for (const slot of ctx.aboard(d.observerId)) {
       ctx.alert(slot.playerId, {
         time: d.time, kind, bearing: d.bearing, level: Math.round(d.se), source: d.source,
-        text: kind === 'ping' ? `${d.source === 'dip' ? 'TAUCHSONAR' : 'AKTIVSONAR'} PEILUNG ${b}` : `ESM PEILUNG ${b}`,
+        ...(d.emitter ? { emitter: d.emitter, esmLvl: d.esmLvl, esmTrend: d.esmTrend } : {}),
+        text: kind === 'ping' ? `${d.source === 'dip' ? 'TAUCHSONAR' : 'AKTIVSONAR'} PEILUNG ${b}` : `ESM PEILUNG ${b}${em}`,
       });
     }
   }

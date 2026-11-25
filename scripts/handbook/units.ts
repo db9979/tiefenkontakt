@@ -1,4 +1,4 @@
-import { BIO_KINDS, BIO_SOURCE, CLASSES, SIGNATURES, createLoadout, type BioKind, type ClassId } from '@tk/shared';
+import { BIO_KINDS, BIO_SOURCE, CLASSES, EMITTERS, SIGNATURES, candidateNames, createLoadout, type BioKind, type ClassId } from '@tk/shared';
 
 /**
  * Unit reference cards for the handbook, generated from the game's own class tables so the
@@ -187,4 +187,11 @@ export function unitTable(): string {
     };
     return `<tr><td>${k.name}</td><td>${fmt(k.tonnage)}</td><td>${k.maxSpeedKn}</td><td>${k.submarine ? `${k.maxDepth} m` : '—'}</td><td>${k.slBase} dB</td><td>${strengths[id]}</td></tr>`;
   }).join('')}</table><p class="small">* Quellpegel bei Marschfahrt (${'U-Boote 4–5 kn, Überwasserschiffe 15 kn'}). Je 6 dB weniger halbiert etwa die Entfernung, auf die man gehört wird.</p>`;
+}
+
+/** ESM emitter library: every radar the receivers can name, from the game's own table. */
+export function emitterTable(): string {
+  const thr = { nav: 'Navigation', surface: 'Oberflächensuche', air: 'Luftsuche', aircraft: 'Flugzeugradar', fire: 'Feuerleitung' } as const;
+  return `<table class="grid"><tr><th>Sender</th><th>Band</th><th>Umlauf</th><th>Art</th><th>Wahrscheinlich</th><th>Möglich</th></tr>${Object.values(EMITTERS).map((e) =>
+    `<tr><td><b>${e.id}</b></td><td>${e.band}</td><td>${e.rotationS ? `${e.rotationS} s` : '—'}</td><td>${thr[e.threat]}</td><td>${e.likely}${e.carriers.length > 1 ? '?' : ''}</td><td>${candidateNames(e.id)}</td></tr>`).join('')}</table>`;
 }

@@ -13,6 +13,7 @@ import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, tdeg1, tde
 import { SkySearch } from '../../widgets/sky-search.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
+import { periscopeEsmRows } from '../../widgets/esm-text.js';
 
 interface Wave {
   x: number;
@@ -220,7 +221,6 @@ export function periscopeStation(): Station {
       const mast = el.querySelector<HTMLElement>('#mast')!;
       mast.className = ms.moving ? 'amber blink' : o.mastUp ? (since > 20 ? 'red' : 'amber') : 'dim';
       mast.textContent = ms.moving ? `MAST FÄHRT ${ms.moving === 'aus' ? 'AUS' : 'EIN'} · ${Math.round(ms.ext * 100)} %` : o.mastUp ? `MAST OBEN ${since.toFixed(0)} S` : atDepth ? 'MAST UNTEN' : `TIEFE ${o.depth.toFixed(0)} M · ZU TIEF`;
-      const esm = s.alerts.filter((a) => a.kind === 'esm' && s.time - a.time < 10);
       const skyNow = sky.readout(planeTargets(s, s.own, simNow()), simNow(), ms.raised);
       el.querySelector<HTMLButtonElement>('#foto')!.disabled = !ms.raised;
       btnState(el.querySelector<HTMLElement>('#sky'), sky.sweeping ? { on: true, label: 'SUCHT', tone: 'busy' } : { on: false, label: '' });
@@ -236,7 +236,7 @@ export function periscopeStation(): Station {
         <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${skyNow.text}</span></div>
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>
-        ${esm.map((a) => `<div class="row red blink"><span>ESM · RADAR</span><span>${tdeg3(a.bearing ?? 0)}°</span></div>`).join('')}
+        ${periscopeEsmRows(s)}
         ${o.mastUp && since > 20 ? '<div class="row amber"><span>EMPFEHLUNG</span><span>EINFAHREN</span></div>' : ''}`;
     },
     hide() {

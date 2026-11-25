@@ -58,7 +58,7 @@ export function drawAir(
       ctx.lineTo(origin.x + Math.cos(a) * len, origin.y + Math.sin(a) * len);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillText(`✈ RADAR ${String(Math.round(trueDeg(p.bearing)) % 360).padStart(3, '0')}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
+      ctx.fillText(`✈ ${p.emitter ?? 'RADAR'} ${String(Math.round(trueDeg(p.bearing)) % 360).padStart(3, '0')}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
       continue;
     }
     if (p.rough) {

@@ -1,4 +1,5 @@
 import { figTma } from './figures.js';
+import { emitterTable } from './units.js';
 
 /** Handbook chapters 5–7: the boat commander, the escort commander, classification. */
 
@@ -83,6 +84,9 @@ ${shot('ui-f-bruecke.jpg', 'Bild 11 · Brücke: Ausguck in 20 m Augenhöhe.')}
 <tr><td>BT-Sonde</td><td>Misst die Sprungschicht. Ohne Messung kennt man ihre Tiefe nicht.</td></tr>
 <tr><td>Radar</td><td>Sieht Masten und Schnorchel auf einige Kilometer und Flugzeuge weit darüber hinaus, verrät aber die Fregatte an jedes U-Boot mit ESM. Taucht der feindliche Fernaufklärer auf, kennen die U-Boote bald die Lage des Konvois – Kurs ändern lohnt sich.</td></tr>
 </table>
+<h3>ESM: Wer sendet da?</h3>
+<p>Der ESM-Empfänger peilt nicht nur, er erkennt den Sender an Band, Umlaufzeit und Pulsbild. Eine Meldung lautet etwa „ESM 252° · SEEFALKE-2 · FREGATTE? (OBERFLÄCHENSUCHE) · STARK, STEIGEND“: Sender, wahrscheinlicher Träger, Art des Radars, Signalstärke und ob sie zunimmt (der Sender kommt näher). Ein Fragezeichen heißt: Mehrere Klassen tragen dasselbe Gerät – die F-12 und die F-30 klingen gleich, alle Handelsschiffe auch. Das ist ein Hinweis, keine Identifizierung. Flugzeugradare und Feuerleitradare erscheinen rot; im Sehrohr steht dann „FLUGZEUGRADAR – TAUCHEN“. Ein Feuerleitradar strahlt nur, solange das Schiff einen Flugkörper lenkt. Auf der Karte trägt die ESM-Peillinie den Sendernamen.</p>
+${emitterTable()}
 <h2>Hubschrauber und Seeaufklärer (F-12)</h2>
 <p>Rechtsklick auf die Karte öffnet die Luftmittel. Der Hubschrauber fliegt mit 120 kn bis 30 km weit und braucht nach jeder Landung 2 Minuten an Deck.</p>
 <table class="grid">
