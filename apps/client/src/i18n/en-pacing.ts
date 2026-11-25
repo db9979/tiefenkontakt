@@ -1,11 +1,72 @@
-/** German → English: match pacing (duration, fast-forward), lobby start row, sunk overlay, debrief grade. */
+/** German → English: match pacing (duration, fast-forward), lobby start rows, sunk panel, debrief grade and band. */
 export const EN_PACING: [string, string][] = [
+  // Lobby: duration and time scale
   ['EINSATZDAUER', 'DURATION'], ['ZEITRAFFER', 'TIME COMPRESSION'], ['ECHTZEIT', 'REAL TIME'],
   ['So lange dauert die Partie in echten Minuten; mit Zeitraffer vergeht auf See entsprechend mehr Zeit', 'How long the match lasts in real minutes; with time compression more time passes at sea'],
   ['Wie schnell die Zeit auf See läuft. Die echte Spieldauer bleibt gleich; mit Zeitraffer ist der Weg des Konvois länger und die Lage weiter auseinander', 'How fast time runs at sea. The real duration stays the same; with compression the convoy’s passage is longer and the forces start further apart'],
+  // Lobby: start rows
+  ['Neu hier?', 'New here?'], ['GEFÜHRTE ERSTE FAHRT · SCHRITT FÜR SCHRITT', 'GUIDED FIRST SORTIE · STEP BY STEP'],
+  ['→ U-Boot lernen', '→ Learn the submarine'], ['→ Fregatte lernen', '→ Learn the frigate'],
+  ['Tauchen, Horchen, Lösung, Torpedo', 'Diving, listening, solution, torpedo'], ['Schleppsonar, Boje, Ping, U-Jagd-Rakete', 'Towed array, buoy, ping, ASW rocket'],
+  ['Gegen KI spielen', 'Play against the AI'], ['ALLEIN · OHNE LOBBY · SOFORT LOS', 'ALONE · NO LOBBY · STRAIGHT IN'],
+  ['Zufällige Mission, Tageszeit, Wetter und Lage; die Gegner spielt die KI', 'Random mission, time of day, weather and situation; the AI plays the enemy'],
+  ['Als U-Boot', 'As submarine'], ['Als Geleitschutz', 'As escort'],
+  ['Mit anderen spielen', 'Play with others'], ['LOBBY · BIS ZU 6 GEGEN 6', 'LOBBY · UP TO 6 VS 6'],
+  ['Offener Partie beitreten', 'Join an open match'], ['Eigene Partie erstellen', 'Create your own match'],
+  ['Der offenen Partie mit den passendsten Mitspielern beitreten; gibt es keine, wird eine eröffnet', 'Join the open match with the best-matched players; if there is none, one is opened'],
+  ['EMPFOHLEN FÜR EINSTEIGER', 'RECOMMENDED FOR BEGINNERS'], ['ERWEITERT', 'ADVANCED'],
+  ['Seegebiet, Jahreszeit, Wetter, Seegang, Variation, Zeitraffer, KI und Übungsmodus', 'Sea area, season, weather, sea state, variation, time compression, AI and practice mode'],
+  ['DIENSTBUCH UND KAMPAGNE · NUR MIT KONTO: ERGEBNISSE, PUNKTE UND KAMPAGNE WERDEN GESPEICHERT', 'SERVICE RECORD AND CAMPAIGN · ACCOUNTS ONLY: RESULTS, POINTS AND CAMPAIGN ARE SAVED'],
+  // Fast-forward
+  ['⏩ Zeitraffer', '⏩ Fast-forward'], ['■ Zeitraffer aus', '■ Fast-forward off'],
+  ['Zeitraffer ×6 bis zum nächsten Ereignis: neuer Kontakt, Alarm, Ausbildungsschritt', 'Fast-forward ×6 until the next event: new contact, alarm, training step'],
+  ['Abstimmen: ×6 bis zum nächsten Ereignis, sobald alle an Bord eines Schiffes zugestimmt haben und niemand frischen Feindkontakt hat', 'Vote: ×6 until the next event, once everyone aboard a ship has agreed and nobody has a fresh hostile contact'],
+  ['Zeitraffer nur mit eigenem Schiff', 'Fast-forward only with a ship of your own'],
+  // Sunk
+  ['Eigenes Schiff gesunken', 'Own ship sunk'], ['WIE WEITER?', 'WHAT NEXT?'], ['Zuschauen (verzögert)', 'Watch (delayed)'],
+  ['Nachbesprechung jetzt', 'Debrief now'], ['Hier bleiben', 'Stay here'],
+  ['Die wahre Lage mit einigen Minuten Verzögerung, damit niemand seinem Team helfen kann', 'The true picture a few minutes late, so nobody can help their team'],
+  ['Nachbesprechung bis jetzt (verzögert) und die Partie verlassen', 'Debrief up to now (delayed) and leave the match'],
+  ['ALS BESATZUNG MITFAHREN · JEDE STATION BEDIENBAR', 'GO ALONG AS CREW · EVERY STATION CAN BE MANNED'],
+  ['KEIN SCHIFF EINES MITSPIELERS MEHR IN FAHRT', 'NO TEAMMATE’S SHIP LEFT AFLOAT'],
+  ['Nur nach dem Untergang des eigenen Schiffs', 'Only after your own ship has sunk'], ['Dieses Schiff kann niemanden aufnehmen', 'This ship cannot take anyone aboard'],
+  // Debrief
+  ['Zwischenstand', 'Interim'], ['PARTIE LÄUFT NOCH', 'MATCH STILL RUNNING'], ['Partie läuft noch', 'Match still running'],
+  ['DIE LAGE ENDET EINIGE MINUTEN VOR JETZT, DAMIT NIEMAND SEINEM TEAM HELFEN KANN. „ZUR LOBBY“ VERLÄSST DIE PARTIE.', 'THE PICTURE ENDS A FEW MINUTES AGO, SO NOBODY CAN HELP THEIR TEAM. “TO LOBBY” LEAVES THE MATCH.'],
+  ['KNAPPER SIEG', 'NARROW VICTORY'], ['KNAPPE NIEDERLAGE', 'NARROW DEFEAT'], ['UNENTSCHIEDEN', 'DRAW'],
+  ['WESTBUND SIEGT', 'WESTERN ALLIANCE WINS'], ['OSTPAKT SIEGT', 'EASTERN PACT WINS'],
+  ['Bewertung', 'Grade'], ['AUSGEZEICHNET', 'EXCELLENT'], ['GUT', 'GOOD'], ['BEFRIEDIGEND', 'SATISFACTORY'], ['AUSREICHEND', 'PASSABLE'], ['MANGELHAFT', 'POOR'],
+  ['KONTAKTE KLASSIFIZIERT', 'CONTACTS CLASSIFIED'], ['BESTE TMA-GÜTE', 'BEST TMA QUALITY'], ['UNENTDECKT', 'UNDETECTED'],
+  ['SCHÜSSE / TREFFER', 'SHOTS / HITS'], ['KONTAKTE GEHALTEN', 'CONTACTS HELD'], ['ANGRIFFE / TREFFER', 'ATTACKS / HITS'],
+  ['FRACHTER GESCHÜTZT', 'MERCHANTS PROTECTED'], ['ÜBERLEBT', 'SURVIVED'],
 ];
 
 export const EN_PACING_PHRASES: [RegExp, string][] = [
   [/ECHTZEIT · (\d+) MIN AUF SEE/, 'REAL TIME · $1 MIN AT SEA'], [/(\d)× · (\d+) MIN AUF SEE/, '$1× · $2 MIN AT SEA'],
   [/(\d+) MIN · ECHTZEIT/, '$1 MIN · REAL TIME'], [/(\d+) MIN AUF SEE · ZEITRAFFER (\d)×, (\d+) MIN ECHT/, '$1 MIN AT SEA · COMPRESSION $2×, $3 MIN REAL'],
+  [/^Stimme zurück \((\d+)\/(\d+)\)$/, 'Withdraw vote ($1/$2)'], [/^⏩ Zeitraffer\? \((\d+)\/(\d+)\)$/, '⏩ Fast-forward? ($1/$2)'],
+  [/^FRISCHER FEINDKONTAKT \((.+)\)$/, 'FRESH HOSTILE CONTACT ($1)'], [/^Kein Zeitraffer: (.+) hat frischen Feindkontakt$/, 'No fast-forward: $1 has a fresh hostile contact'],
+  // Why the fast-forward stopped (top bar)
+  [/^GESTOPPT: NEUER KONTAKT$/, 'STOPPED: NEW CONTACT'],
+  [/^GESTOPPT: TORPEDOALARM$/, 'STOPPED: TORPEDO ALARM'],
+  [/^GESTOPPT: ORTUNGSIMPULS$/, 'STOPPED: SONAR PING'],
+  [/^GESTOPPT: TREFFER$/, 'STOPPED: HIT'],
+  [/^GESTOPPT: SCHIFF GESUNKEN$/, 'STOPPED: SHIP SUNK'],
+  [/^GESTOPPT: RADARWARNUNG$/, 'STOPPED: RADAR WARNING'],
+  [/^GESTOPPT: SICHTUNG$/, 'STOPPED: SIGHTING'],
+  [/^GESTOPPT: MELDUNG AUS DEM BOOT$/, 'STOPPED: REPORT FROM THE BOAT'],
+  [/^GESTOPPT: GERÄUSCH$/, 'STOPPED: NOISE'],
+  [/^GESTOPPT: AUFSCHLAG$/, 'STOPPED: SPLASH'],
+  [/^GESTOPPT: FLASH-BEFEHL$/, 'STOPPED: FLASH ORDER'],
+  [/^GESTOPPT: AUSBILDUNGSSCHRITT ERLEDIGT$/, 'STOPPED: TRAINING STEP DONE'],
+  [/^GESTOPPT: ZEITRAFFER BEENDET$/, 'STOPPED: FAST-FORWARD ENDED'],
+  [/^GESTOPPT: NEUER MITSPIELER AN BORD$/, 'STOPPED: NEW PLAYER ABOARD'],
+  [/^GESTOPPT: KEIN EIGENES SCHIFF MEHR$/, 'STOPPED: NO OWN SHIP LEFT'],
+  [/^Mitfahren bei (.+)$/, 'Go aboard $1'],
+  [/WESTBUND SIEGT KNAPP$/, 'WESTERN ALLIANCE WINS NARROWLY'], [/OSTPAKT SIEGT KNAPP$/, 'EASTERN PACT WINS NARROWLY'],
+  [/^NACH DEN REGELN GEHT DIE PARTIE KNAPP AN DEN WESTBUND$/, 'UNDER THE RULES THE MATCH GOES NARROWLY TO THE WESTERN ALLIANCE'],
+  [/^NACH DEN REGELN GEHT DIE PARTIE KNAPP AN DEN OSTPAKT$/, 'UNDER THE RULES THE MATCH GOES NARROWLY TO THE EASTERN PACT'],
+  [/^Fühlung zum Konvoi halten: (\d+) Minuten Kontakt aus höchstens 12 km, dabei alle 15 Minuten die Lage funken\. Waffen sind gesperrt\.$/, 'Shadow the convoy: $1 minutes of contact from within 12 km, radioing a report every 15 minutes. Weapons are tight.'],
+  [/^Ein Geleitschiff auf höchstens 4 km im Sehrohr erkennen, per Funk melden und danach (\d+) Minuten entkommen\.$/, 'Identify an escort through the periscope at 4 km or less, report it by radio, then escape for $1 minutes.'],
+  [/^Fühlung (\d+) Minuten gehalten, der Konvoi ist gemeldet$/, 'Contact held for $1 minutes, the convoy is reported'],
 ];
