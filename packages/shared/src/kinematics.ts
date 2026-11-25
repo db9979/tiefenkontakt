@@ -12,6 +12,9 @@ export function asternMaxKn(cls: ClassId): number {
   return Math.min(8, Math.round(CLASSES[cls].maxSpeedKn * 0.4));
 }
 
+/** Above this speed the mast (periscope, ESM, radar) can't be raised: the water would bend or tear it (boat.ts lowers it). */
+export const MAST_MAX_KN = 10;
+
 /** Speed above which a snorkeling SSK floods the snorkel / can't charge. */
 export const SNORKEL_MAX_KN = 8;
 
@@ -75,7 +78,7 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     const atPd = s.depth <= PERISCOPE_DEPTH + 0.5;
     if (!atPd) s.mastUp = false;
     // A mast ordered on the way up goes up on arrival (unless the boat was sent deep again)
-    if (s.mastPending && atPd) {
+    if (s.mastPending && atPd && s.speed / KN <= MAST_MAX_KN) {
       s.mastUp = true;
       s.mastPending = false;
     }

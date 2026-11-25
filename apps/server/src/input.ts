@@ -4,6 +4,7 @@ import {
   setConvoyOffset,
   CLASSES,
   KN,
+  MAST_MAX_KN,
   PERISCOPE_DEPTH,
   dropDepthCharge,
   dropXbt,
@@ -181,6 +182,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
     case 'toggle':
       if (m.what === 'mast') {
         if (!spec.submarine) return 'Nur für U-Boote';
+        if (m.on && s.speed / KN > MAST_MAX_KN) return 'Mast und Sehrohr erst unter 10 kn';
         // Too deep: remember it, go to periscope depth, the mast follows on arrival
         if (m.on && !isAtPeriscopeDepth(s)) {
           s.mastPending = true;

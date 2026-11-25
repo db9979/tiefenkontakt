@@ -3,7 +3,7 @@ import { stepFixes } from './navfix.js';
 import { CLASSES } from './classes.js';
 import { BAD_CO2, BAD_O2, airOf, crewOf } from './crew.js';
 import { PERISCOPE_DEPTH, mastRaised, type Ship } from './entities.js';
-import { isSnorkeling } from './kinematics.js';
+import { MAST_MAX_KN, isSnorkeling } from './kinematics.js';
 import { compsOf } from './compartments.js';
 import { KN, NM, headingVec } from './math.js';
 import type { World } from './world.js';
@@ -159,6 +159,14 @@ function stepBoat(w: World, s: Ship, dt: number): void {
   }
 }
 
+/** Mast and periscope can't stand above MAST_MAX_KN: the crew lowers them and reports it. */
+function stepMastSpeed(w: World, s: Ship): void {
+  if (!CLASSES[s.cls].submarine || !s.mastUp || s.speed / KN <= MAST_MAX_KN + 0.05) return;
+  s.mastUp = false;
+  s.radarOn = false;
+  say(w, s, 'mast', 'MAST EINGEFAHREN · ÜBER 10 KN BRICHT ER AB');
+}
+
 /** Emergency blow: costs a bottle of high-pressure air, drives the boat up fast and loud. */
 export function emergencyBlow(w: World, s: Ship): true | string {
   if (!CLASSES[s.cls].submarine) return 'Nur für U-Boote';
@@ -212,6 +220,7 @@ export function boatSystem(w: World, dt: number): void {
     stepAir(w, s, dt);
     stepNav(w, s, dt);
     stepBoat(w, s, dt);
+    stepMastSpeed(w, s);
     stepMishaps(w, s, dt);
     stepKnuckles(w, s);
   }
