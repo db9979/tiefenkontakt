@@ -16,9 +16,16 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   STEIGEND“). Flugzeug- und Feuerleitradar sind rot („FLUGZEUGRADAR – TAUCHEN“). Gilt für Fregatten-ESM, Sehrohr und Lagebild.
 - **U-Boot-Radar am Mast:** Mit ganz ausgefahrenem Mast kann ein U-Boot kurz sein Radar einschalten und findet Schiffe bis
   zum nahen Horizont (etwa 14 sm). Jedes ESM peilt es dabei als U-Boot-Radar an; Mast einfahren oder Tauchen schaltet es ab.
+- **Erkennungsheft erweitert:** Silhouetten im gemeinsamen Maßstab (Schiffe und U-Boote je eigener) mit Höhenraster,
+  Wasserlinie, Länge, Tiefgang und Masthöhe fürs Stadimeter, dazu Draufsicht, Bugansicht und ein Vergleichsumriss.
+  Neue Reiter „Akustik“ (Blattzahl, Drehzahl, Schmalbandlinien als Balken, Klang) und „Bedrohung“ (Waffen und Sensoren
+  mit Reichweiten aus dem Spiel, ein taktischer Hinweis), außerdem „Verwechslungsgefahr“ mit Unterscheidungsmerkmal.
+  Auf dem Telefon in voller Breite.
 - **Zeitraffer voreingestellt auf Echtzeit:** 2× und 3× bleiben in der Lobby wählbar.
 
 ### Moderation
+- **Admin-Mails gestaltet:** Alle Mails an den Admin (Meldungen, Feedback, Fehlerberichte, Alarme, Berichte) kommen als
+  HTML im Konsolen-Look der Spieler-Mails, mit Datenblöcken und Links, plus Textfassung.
 - **Beendete Partien verwalten:** Das Moderationspanel listet die aufgezeichneten Partien (Zeit, Mission, Sieger, Dauer,
   Spieler und Endgrund, der jetzt mitgespeichert wird). Einzelne Partien lassen sich aus Balance, Rangliste und Dienstbuch
   nehmen. „Alles zurücksetzen“ löscht nach Eingabe von RESET alle Partie-Statistiken samt Wertung, Ausstiegen und
