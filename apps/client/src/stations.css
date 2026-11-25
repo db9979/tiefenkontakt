@@ -112,4 +112,7 @@
   .st .panel.grow { flex: none; }
   .fill { flex: none; height: 52vh; }
   .st .listpanel { max-height: none; }
+  /* Stacked: one page scroll, no scroll boxes inside it (tab panes and columns take their full height) */
+  .st-col.scroll, .st .panel.tabbed > .pane, .st .panel.grow.listpanel > .scroll { overflow: visible; flex: none; }
+  .st-col.scroll > .panel.grow { min-height: 0; }
 }
