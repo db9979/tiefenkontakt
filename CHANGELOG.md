@@ -17,6 +17,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   3D aus dem Dunst auf statt aufzuploppen, kein weißer Strich mehr in der 3D-Ansicht, Flugzeuge hinterlassen ein
   Radarecho, eigener Hubschrauber, Seeaufklärer und Torpedos als NATO-Symbole, „Klasse zuweisen“ als Knopf,
   Reichweitenvorhersage mit Klartext-Legende und Tauchgrenze, schwächere Schatten neben lauten Wasserfall-Spuren.
+- **Route plotten:** In der Zentrale des U-Boots und in der OPZ der Fregatte lassen sich bis zu 20 Wegpunkte auf die
+  Karte setzen, verschieben und löschen, je Wegpunkt wahlweise mit Fahrt und (U-Boot) Tiefe. Die Route zeigt
+  nummerierte Punkte, rechtweisenden Kurs und Entfernung je Schenkel. „Route fahren“ steuert den nächsten Wegpunkt
+  an, schaltet beim Erreichen weiter und geht bei einem Kursbefehl von Hand aus. Ein Vorausvektor („VORAUS N MIN“,
+  3–30 min) zeigt, wo das Schiff in N Minuten steht.
 - **Expertenpanel-Überarbeitung:** U-Boot- und Fregattenkapitän, Entwickler, Grafikdesigner und Spieletester haben
   das ganze Spiel geprüft und diskutiert; die folgenden Punkte sind ihr gemeinsamer Beschluss.
 - **Stationen zusammengelegt:** U-Boot 4 Stationen (Horchraum, Sehrohr mit Radarwarner, Feuerleitung mit Rohrbank,
