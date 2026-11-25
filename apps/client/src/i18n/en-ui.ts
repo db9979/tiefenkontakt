@@ -378,4 +378,10 @@ export const EN_UI: [string, string][] = [
   ['Kurz und breit, hoher Aufbau vorn, langes flaches Achterdeck mit Schlepphaken', 'Short and wide, tall superstructure forward, long flat afterdeck with towing hook'],
   ['Winzig, ein Mast mit Segeln, kaum Freibord', 'Tiny, one mast with sails, hardly any freeboard'],
   ['Sehrohr ist nicht ausgefahren', 'Periscope is not raised'],
+  ['Alarme', 'Alarms'], ['GRUND', 'BOTTOM'], ['GRUNDABSTAND', 'BOTTOM CLEARANCE'], ['GEFAHR', 'DANGER'], ['UNTER TIEFENGRENZE', 'BELOW DEPTH LIMIT'], ['TIEFENGRENZE', 'DEPTH LIMIT'],
+  ['KEIN ALARM', 'NO ALARM'], ['UNTER KIEL', 'UNDER KEEL'], ['Obergrenze', 'Upper limit'], ['Untergrenze', 'Lower limit'], ['Grund', 'Bottom'], ['Warnung', 'Warning'], ['Gefahr', 'Danger'],
+  ['Tiefenalarm', 'Depth alarm'], ['5 m weniger', '5 m less'], ['5 m mehr', '5 m more'],
+  ['Warnt, wenn das Boot flacher steigt (außer bei befohlener Sehrohrtiefe)', 'Warns when the boat rises above it (not when periscope depth is ordered)'],
+  ['Warnt, wenn das Boot tiefer sinkt', 'Warns when the boat sinks below it'],
+  ['Warnt bei weniger Wasser unter dem Kiel', 'Warns when there is less water under the keel'], ['Alarm bei weniger Wasser unter dem Kiel', 'Alarm when there is less water under the keel'],
 ];

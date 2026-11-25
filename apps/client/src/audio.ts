@@ -183,6 +183,25 @@ class Audio {
     o.stop(t + 1.2);
   }
 
+  /** Depth / ground-clearance alarm: two soft beeps for a warning, three sharp ones for danger. */
+  depthAlarm(danger: boolean): void {
+    if (!this.ctx || !this.master) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = danger ? 'square' : 'triangle';
+    o.frequency.value = danger ? 990 : 520;
+    g.gain.value = 0;
+    const n = danger ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      g.gain.setValueAtTime(danger ? 0.05 : 0.07, t + i * 0.22);
+      g.gain.setValueAtTime(0, t + i * 0.22 + 0.14);
+    }
+    o.connect(g).connect(this.out(0));
+    o.start(t);
+    o.stop(t + n * 0.22 + 0.05);
+  }
+
   /** Two-tone klaxon for an incoming torpedo. */
   torpedoAlarm(pan = 0): void {
     if (!this.ctx || !this.master) return;
