@@ -123,6 +123,8 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   }),
   z.object({ t: z.literal('training'), lesson: z.enum(['klassifizieren', 'tma', 'angriff', 'ujagd', 'feindfahrt', 'geleitfahrt']) }),
   z.object({ t: z.literal('crew'), captainId: z.string().max(64).nullable() }),
+  z.object({ t: z.literal('fastforward'), on: z.boolean() }),
+  z.object({ t: z.literal('debrief_now') }),
   z.object({ t: z.literal('repair'), system: z.enum(['antrieb', 'sonar', 'waffen', 'leck']) }),
   z.object({ t: z.literal('execute_order'), id: z.string().max(16) }),
   z.object({ t: z.literal('compartment'), index: z.number().int().min(0).max(9), action: z.enum(['priority', 'seal', 'open']) }),

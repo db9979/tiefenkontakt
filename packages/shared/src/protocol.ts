@@ -66,6 +66,10 @@ export type ClientMsg =
   | { t: 'compartment'; index: number; action: 'priority' | 'seal' | 'open' }
   | VoiceClientMsg
   | { t: 'crew'; captainId: string | null }
+  /** "Zeitraffer bis Ereignis": switch on (solo) or vote for it (multiplayer), or off. */
+  | { t: 'fastforward'; on: boolean }
+  /** Own ship sunk: the debrief so far (delayed like a spectator's view), then leave. */
+  | { t: 'debrief_now' }
   | { t: 'training'; lesson: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt' }
   | { t: 'lesson_done' }
   /** Tutorial checklist: the step the player is on now (drop-out statistics). */
@@ -122,6 +126,18 @@ export interface TruthView {
   torpedoes: { id: string; ownerId: string; x: number; y: number }[];
 }
 
+/** "Zeitraffer bis Ereignis": running, the votes so far (multiplayer), why it stopped last. */
+export interface FastForwardView {
+  on: boolean;
+  /** Players who voted / players who must (1 in a solo game: no vote needed). */
+  votes: number;
+  need: number;
+  mine: boolean;
+  /** Why it cannot start now (fresh hostile contact), or why it stopped (shown for a while). */
+  blocked?: string;
+  stopped?: string;
+}
+
 export interface PlayerSlot {
   playerId: string;
   callsign: string;
@@ -132,6 +148,8 @@ export interface PlayerSlot {
   bot?: boolean;
   /** Set when this player serves as crew on the captain's ship. */
   crewOf?: string;
+  /** Went aboard a teammate's ship after the own one sank: the statistics stay with the own ship. */
+  transferred?: boolean;
   /** Station the player mans (index into the ship's station tabs). */
   station?: number;
   /** Naval rank from the service record (accounts only). */
@@ -326,6 +344,8 @@ export interface Briefing {
   intel: string[];
   steps: string[];
   timeLimitMin: number; timeScale?: number;
+  /** Minutes at sea (lobby limit in real minutes × time scale); absent in old saves: limit × 3. */
+  seaMin?: number;
   timeOfDay: string;
   ship: string;
 }
@@ -347,6 +367,10 @@ export interface Snapshot {
   crew: string[];
   /** Who mans which station aboard. */
   stations?: { callsign: string; station: number }[];
+  /** "Zeitraffer bis Ereignis" state (absent in the sandbox, which has its own time controls). */
+  ff?: FastForwardView;
+  /** Own ship sunk: living teammates' ships with a human captain the player may go aboard. */
+  boardable?: { captainId: string; callsign: string; ship: string }[];
   /** Training lesson id when this is a lesson. */
   lesson?: 'klassifizieren' | 'tma' | 'angriff' | 'ujagd' | 'feindfahrt' | 'geleitfahrt';
   briefing?: Briefing;
@@ -448,6 +472,10 @@ export interface Debrief {
   photos?: import('./recognition.js').PhotoRecord[];
   /** Seed and lobby choices, for a rematch in the same situation (not for lessons or campaigns). */
   setup?: MatchSetup;
+  /** Asked for after the own ship sank while the match still runs: no result yet, truth cut off minutes ago. */
+  provisional?: boolean;
+  /** How clear the result was: klar, knapp (close) or remis (a draw in all but the rules). */
+  band?: 'klar' | 'knapp' | 'remis';
 }
 
 export interface PlayerStats {
@@ -472,6 +500,13 @@ export interface PlayerStats {
   mineKills?: number;
   /** Torpedo attacks on this ship it lived through to the end (badges). */
   attacksSurvived?: number;
+  /** Debrief grade: warhead hits scored, contacts classified right, enemy units held in the book,
+   * sim seconds until an enemy first held this ship, share of convoy merchants afloat (escorts). */
+  hits?: number;
+  classified?: number;
+  held?: number;
+  undetectedS?: number;
+  merchantsSafe?: number;
 }
 
 export interface Habits {
@@ -494,7 +529,7 @@ export type ServerMsg =
   | { t: 'phone_look'; bearing: number; elev: number; mag: number; glass: boolean }
   | { t: 'phone_select'; label: string }
   | { t: 'phone_photo' }
-  | { t: 'end'; winner: Exclude<Team, 'neutral'>; reason: string }
+  | { t: 'end'; winner: Exclude<Team, 'neutral'>; reason: string; band?: 'klar' | 'knapp' | 'remis' }
   | { t: 'debrief'; d: Debrief }
   /** Spectators get the truth picture, delayed so it can't be used to help a team. */
   | { t: 'spectate'; d: Debrief; delayS: number }

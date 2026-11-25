@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { choiceOfClass, type ClientMsg, type Debrief, type ServerMsg } from '@tk/shared';
 import { LESSONS, lessonSlot, type LessonId } from './lessons.js';
-import { MAX_PER_TEAM, Match, type Conn } from './match.js';
+import { MAX_PER_TEAM, Match, SPECTATE_DELAY, type Conn } from './match.js';
+import { provisionalDebrief } from './crew-transfer.js';
 import { VoiceHub } from './voice.js';
 import { SandboxHub } from './sandbox.js';
 import type { CampaignPlan } from './campaign-match.js';
@@ -153,7 +154,9 @@ export class Lobby {
     if (this.matches.size >= MAX_MATCHES) return 'Zu viele Partien';
     if (metrics.simLoad() > MAX_LOAD) return 'Der Server ist gerade ausgelastet, versuch es gleich noch einmal';
     const m = new Match(randomUUID().slice(0, 8), name);
-    if (lesson) Object.assign(m.settings, { lesson, fillBots: false, timeLimitMin: 30 });
+    // 50 real minutes at 1× (the old 30 lobby minutes ran 90 at sea): the attack lesson's target
+    // passes at about minute 32; "Zeitraffer bis Ereignis" shortens the waiting
+    if (lesson) Object.assign(m.settings, { lesson, fillBots: false, timeLimitMin: 50 });
     this.hook(m);
     this.matches.set(m.id, m);
     this.broadcastList();
@@ -339,6 +342,8 @@ export class Lobby {
         return;
       case 'lesson_step':
         if (m.settings.lesson) this.dropouts?.lessonStep(conn.playerId, msg.step);
+        // A finished tutorial step stops "Zeitraffer bis Ereignis"
+        if (m.world) m.ff.lessonStep(m.world.time);
         return;
       case 'settings': {
         const { t: _t, ...rest } = msg;
@@ -355,6 +360,14 @@ export class Lobby {
       case 'phone_link':
         // Answered in index.ts (phone.ts) before the lobby sees it
         return;
+      case 'fastforward':
+        return void err(m.ff.request(conn.playerId, msg.on));
+      case 'debrief_now': {
+        // Own ship sunk: the debrief so far, cut off like the spectators' view
+        if (!m.world || m.state !== 'running') return void err('Keine laufende Partie');
+        if (m.shipOf(conn.playerId)?.alive) return void err('Nur nach dem Untergang des eigenen Schiffs');
+        return void conn.send({ t: 'debrief', d: provisionalDebrief(m.recorder, m.world, m.slots, conn.playerId, SPECTATE_DELAY) });
+      }
       default:
         return void err(m.command(conn.playerId, msg));
     }

@@ -18,7 +18,8 @@ import {
   compassStem,
   batteryDrainPctH,
 } from '@tk/shared';
-import { MISSIONS, type ScenarioSettings } from './scenario.js';
+import { MISSIONS, seaMinutes, simTimeLimit, type ScenarioSettings } from './scenario.js';
+import { escapeS, shadowGoalS } from './rules.js';
 
 const km = (m: number) => `${Math.round(m / 1000)} km`;
 
@@ -58,9 +59,9 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   // Missions with goals beyond sinking (the strait runs along the route, game +y: named by its true direction)
   const to = compassStem(w, 0);
   const special: Record<string, [string, string]> = {
-    fuehlung: ['Fühlung zum Konvoi halten: 25 Minuten Kontakt aus höchstens 12 km, dabei alle 15 Minuten die Lage funken. Waffen sind gesperrt.', 'Die Fühlung der U-Boote abschütteln, bis die Zeit abläuft.'],
+    fuehlung: [`Fühlung zum Konvoi halten: ${Math.round(shadowGoalS(simTimeLimit(settings)) / 60)} Minuten Kontakt aus höchstens 12 km, dabei alle 15 Minuten die Lage funken. Waffen sind gesperrt.`, 'Die Fühlung der U-Boote abschütteln, bis die Zeit abläuft.'],
     meerenge: [`Durch die Enge nach ${to}en durchbrechen: ein Boot muss das ${to}ende erreichen.`, `Die Enge halten: kein U-Boot darf nach ${to}en durch.`],
-    aufklaerung: ['Ein Geleitschiff auf höchstens 4 km im Sehrohr erkennen, per Funk melden und danach 20 Minuten entkommen.', 'Keine Feindmeldung zulassen: U-Boote abdrängen oder versenken.'],
+    aufklaerung: [`Ein Geleitschiff auf höchstens 4 km im Sehrohr erkennen, per Funk melden und danach ${Math.round(escapeS(simTimeLimit(settings)) / 60)} Minuten entkommen.`, 'Keine Feindmeldung zulassen: U-Boote abdrängen oder versenken.'],
   };
   const sp = special[settings.mission];
   if (sp) goal = sub ? sp[0] : sp[1];
@@ -94,6 +95,6 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
         : ['Schleppsonar ausbringen und die Flanke des Konvois sichern', 'Kontakte klassifizieren und über Datalink an die Fregatte melden', 'Entfernung per Ping oder Kreuzpeilung, dann U-Jagd-Rakete oder Wasserbomben'];
   return {
     title: m.title, info: m.info, goal, intel, steps,
-    timeLimitMin: settings.timeLimitMin, timeScale: settings.timeScale, timeOfDay: settings.timeOfDay, ship: `${CLASSES[ship.cls].name} ${ship.name}`,
+    timeLimitMin: settings.timeLimitMin, timeScale: settings.timeScale, seaMin: seaMinutes(settings), timeOfDay: settings.timeOfDay, ship: `${CLASSES[ship.cls].name} ${ship.name}`,
   };
 }

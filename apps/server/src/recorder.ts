@@ -1,5 +1,7 @@
 import { CLASSES, KN, NM, mastExposed, orderResults, type ClassId, type Debrief, type PhotoRecord, type Habits, type PlayerSlot, type PlayerStats, type World } from '@tk/shared';
 import type { MatchResult } from './rules.js';
+import { classGroupKey } from './snapshot.js';
+import { emptySamples, gradeFigures, sampleContacts, type ContactSamples } from './debrief-grade.js';
 
 const FRAME_EVERY = 15; // sim s
 
@@ -17,6 +19,8 @@ export interface RecorderState {
   mastSince?: Record<string, number>;
   /** Exact classes assigned from the recognition book, per classification group and target id. */
   ident?: Record<string, Record<string, ClassId>>;
+  /** Contacts held and being held, for the debrief grade (debrief-grade.ts). */
+  contacts?: ContactSamples;
 }
 
 function habitsOf(h?: [number, number, number, number, number]): Habits | undefined {
@@ -48,6 +52,7 @@ export class Recorder {
     }
     if (w.time - this.s.lastFrame < FRAME_EVERY) return;
     this.s.lastFrame = w.time;
+    sampleContacts(w, (this.s.contacts ??= emptySamples()), FRAME_EVERY);
     const r = (v: number) => Math.round(v);
     this.s.frames.push([r(w.time), w.ships.map((x) => [x.id, r(x.pos.x), r(x.pos.y), r(x.heading), x.alive ? 1 : 0])]);
     this.s.torpedoes.push([r(w.time), (w.weapons?.torpedoes ?? []).map((t) => [t.id, r(t.pos.x), r(t.pos.y)])]);
@@ -82,7 +87,8 @@ export class Recorder {
     }
     const orders = orderResults(w);
     const stats: PlayerStats[] = slots.map((p) => {
-      const shipId = `p_${p.crewOf ?? p.playerId}`;
+      // A player who went aboard a teammate after sinking keeps the own ship's figures
+      const shipId = `p_${p.transferred ? p.playerId : p.crewOf ?? p.playerId}`;
       const ship = w.ships.find((x) => x.id === shipId);
       const mine = (what: string) => events.filter((e) => e.kind === 'shot' && e.shipId === shipId && e.what === what).length;
       const kills = events.filter((e) => e.kind === 'sunk' && e.byId === shipId);
@@ -106,6 +112,7 @@ export class Recorder {
         habits: habitsOf(this.s.habits?.[shipId]),
         orderPoints: orders.list.some((o) => o.team === p.team) ? orders.points[p.team] : undefined,
         ...feats(w, shipId, kills, !!ship?.alive),
+        ...gradeFigures(w, this.s.contacts, shipId, ship ? this.s.ident?.[classGroupKey(ship)] : undefined),
       };
     });
     return {
@@ -116,6 +123,7 @@ export class Recorder {
       stats,
       winner: result.winner,
       reason: result.reason,
+      band: result.band,
       duration: Math.round(w.time),
       region: w.env.seabed?.region,
       orders: orders.list.length ? orders.list : undefined,

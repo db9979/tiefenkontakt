@@ -1,4 +1,11 @@
 import { SEA_TIME_FACTOR, type Briefing } from '@tk/shared';
+
+/** "40 MIN · ECHTZEIT" or "120 MIN AUF SEE · ZEITRAFFER 3×, 40 MIN ECHT" (old briefings: 3 sea minutes per lobby minute). */
+export function duration(b: Pick<Briefing, 'timeLimitMin' | 'timeScale' | 'seaMin'>): string {
+  const sea = b.seaMin ?? b.timeLimitMin * SEA_TIME_FACTOR;
+  const scale = b.timeScale ?? 1;
+  return scale === 1 ? `${sea} MIN · ECHTZEIT` : `${sea} MIN AUF SEE · ZEITRAFFER ${scale}×, ${Math.round(sea / scale)} MIN ECHT`;
+}
 import { store } from '../store.js';
 import { esc, h } from './format.js';
 
@@ -16,7 +23,7 @@ export function showBriefing(b: Briefing, force = false): void {
     <div class="brief-grid">
       <div><div class="brief-k">AUFTRAG</div><div class="brief-goal">${esc(b.goal)}</div></div>
       <div><div class="brief-k">EIGENES SCHIFF</div><div>${esc(b.ship)}</div>
-        <div class="dim">${esc(TOD[b.timeOfDay] ?? b.timeOfDay)} · ${b.timeLimitMin * SEA_TIME_FACTOR} MIN AUF SEE${(b.timeScale ?? SEA_TIME_FACTOR) !== 1 ? ` · ZEITRAFFER ${b.timeScale ?? SEA_TIME_FACTOR}×, ${Math.round((b.timeLimitMin * SEA_TIME_FACTOR) / (b.timeScale ?? SEA_TIME_FACTOR))} MIN ECHT` : ' · ECHTZEIT'}</div></div>
+        <div class="dim">${esc(TOD[b.timeOfDay] ?? b.timeOfDay)} · ${duration(b)}</div></div>
     </div>
     <div class="brief-k">LAGE</div>
     ${b.intel.map((i) => `<div class="brief-line">▸ ${esc(i)}</div>`).join('')}
