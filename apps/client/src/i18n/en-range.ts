@@ -4,9 +4,10 @@ const NAMES: [string, string][] = [['FREGATTE', 'FRIGATE'], ['FRACHTER', 'FREIGH
 
 export const EN_RANGE: [string, string][] = [
   ['REICHWEITENVORHERSAGE', 'RANGE PREDICTION'], ['SCHICHT UNBEKANNT', 'LAYER UNKNOWN'], ['NUR GROBE SCHÄTZUNG', 'ROUGH ESTIMATE ONLY'],
-  ['Y = EIGENE TIEFE', 'Y = OWN DEPTH'], ['Y = TIEFE DES BOOTS', "Y = BOAT'S DEPTH"], ['EIGENES SCHIFF', 'OWN SHIP'],
+  ['Y = EIGENE TIEFE', 'Y = OWN DEPTH'], ['SENKRECHT: EIGENE TIEFE', 'VERTICAL: OWN DEPTH'], ['SENKRECHT: TIEFE DES U-BOOTS', "VERTICAL: SUBMARINE'S DEPTH"], ['WAAGERECHT: ENTFERNUNG', 'HORIZONTAL: RANGE'], ['Y = TIEFE DES BOOTS', "Y = BOAT'S DEPTH"], ['EIGENES SCHIFF', 'OWN SHIP'],
   ...NAMES.flatMap(([de, en]): [string, string][] => [
     [`GRÜN = ${de}`, `GREEN = ${en}`], [`BLASSGRÜN = ${de}`, `PALE GREEN = ${en}`], [`ROT = ${de} HÖRT UNS`, `RED = ${en} HEARS US`],
+    [`GRÜN: HIER HÖREN WIR ${de}`, `GREEN: HERE WE HEAR A ${en}`], [`BLASSGRÜN: HIER HÖREN WIR ${de}`, `PALE GREEN: HERE WE HEAR A ${en}`], [`ROT: HIER HÖRT ${de} UNS`, `RED: HERE THE ${en} HEARS US`],
   ]),
 ];
 
@@ -16,5 +17,5 @@ export const EN_RANGE_PHRASES: [RegExp, string][] = [
   ...NAMES.map(([de, en]): [RegExp, string] => [new RegExp(`\\b${de}(?= BIS ~| \\d+–\\d+ KM JE NACH TIEFE)`, 'g'), en]),
   [/ BIS ~(\d+) KM/g, ' TO ~$1 KM'], [/ KM JE NACH TIEFE/g, ' KM BY DEPTH'], [/\bKONVERGENZZONE (\d)/g, 'CONVERGENCE ZONE $1'],
   [/· HÖREN ([+\-\d—])/g, '· WE HEAR $1'], [/· GEHÖRT ([+\-\d—])/g, '· THEY HEAR $1'],
-  [/^EIGENE TIEFE (\d+) M$/, 'OWN DEPTH $1 M'], [/^SCHICHT (\d+) M$/, 'LAYER $1 M'], [/^GRUND (\d+) M$/, 'BOTTOM $1 M'],
+  [/^EIGENE TIEFE (\d+) M$/, 'OWN DEPTH $1 M'], [/^SCHICHT (\d+) M$/, 'LAYER $1 M'], [/^GRUND (\d+) M$/, 'BOTTOM $1 M'], [/^TAUCHGRENZE (EIGENES BOOT|U-BOOT) · GRUND (\d+) M$/, 'DIVING LIMIT · BOTTOM $2 M'],
 ];

@@ -51,9 +51,10 @@ export function rangePanel(): { el: HTMLElement; update(s: Snapshot): void } {
       });
       setText(el.querySelector('#rp-cond')!, `· ${Math.round(o.speedKn)} KN · SEEGANG ${s.env.seaState}`);
       setText(el.querySelector('#rp-sum')!, predictionSummary(pred));
-      const ref = pred.refs.map((r, k) => `${k ? 'BLASSGRÜN' : 'GRÜN'} = ${r.name}`).join(' · ');
+      // Plain words: what each colour means and what the axes are
+      const ref = pred.refs.map((r, k) => `${k ? 'BLASSGRÜN' : 'GRÜN'}: HIER HÖREN WIR ${r.name}`).join(' · ');
       setText(el.querySelector('#rp-note')!, (pred.layerKnown ? '' : 'SCHICHT UNBEKANNT · NUR GROBE SCHÄTZUNG · ') +
-        `${ref} · ROT = ${pred.enemy.name} HÖRT UNS${pred.axis === 'own' ? ' · Y = EIGENE TIEFE' : ' · Y = TIEFE DES BOOTS'}`);
+        `${ref} · ROT: HIER HÖRT ${pred.enemy.name} UNS · ${pred.axis === 'own' ? 'SENKRECHT: EIGENE TIEFE' : 'SENKRECHT: TIEFE DES U-BOOTS'} · WAAGERECHT: ENTFERNUNG`);
       draw(cv, pred, ownDepth);
     },
   };
@@ -120,6 +121,9 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
   ctx.textAlign = 'right';
   const stepM = p.maxDepth > 200 ? 100 : 50;
   for (let d = 0; d <= p.maxDepth; d += stepM) ctx.fillText(`${d}`, g.l - 4, y(d) + 4);
+  // Axis title: the depth of the boat in the picture, in metres
+  ctx.textAlign = 'left';
+  ctx.fillText('M', 2, g.t + 4);
   // Layer
   if (p.layerKnown && (p.layerDepth ?? 0) > 0 && p.layerDepth! < p.maxDepth) {
     ctx.strokeStyle = COL.amber;
