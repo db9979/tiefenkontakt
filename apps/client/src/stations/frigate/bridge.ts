@@ -11,6 +11,8 @@ import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
 import { CLASS_LABEL, fitCanvas, h, km, setHtml, tdeg3 } from '../../widgets/format.js';
+import { LazyGl } from '../../widgets/lazy-gl.js';
+import { onRelease } from '../../widgets/touch.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
@@ -39,24 +41,10 @@ export function bridgeStation(): Station {
     <div class="panel"><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
-  let glCanvas = el.querySelector<HTMLCanvasElement>('#gl')!;
-  let gl: Periscope3D | undefined;
-  let failed = localStorage.getItem('tk_3d') === '0';
-  let loading = false;
-  let freeTimer: ReturnType<typeof setTimeout> | undefined;
   /** The 3D scene is created on first view and freed 20 s after the player leaves the bridge. */
-  const ensureGl = () => {
-    clearTimeout(freeTimer);
-    if (gl || loading || failed) return;
-    loading = true;
-    import('../../widgets/periscope3d.js')
-      .then((m) => {
-        loading = false;
-        if (m.Periscope3D.supported()) gl = new m.Periscope3D(glCanvas, { eye: 20, own: store.snap?.own.cls === 'kor' || store.snap?.own.cls === 'ffv' ? store.snap.own.cls : store.snap?.own.cls === 'ffk' ? 'ffv' : 'ffg' });
-        else failed = true;
-      })
-      .catch(() => (failed = true));
-  };
+  const ownCls = () => (store.snap?.own.cls === 'kor' || store.snap?.own.cls === 'ffv' ? store.snap.own.cls : store.snap?.own.cls === 'ffk' ? 'ffv' : 'ffg');
+  const g3 = new LazyGl<Periscope3D>(el.querySelector<HTMLCanvasElement>('#gl')!, (c) =>
+    import('../../widgets/periscope3d.js').then((m) => (m.Periscope3D.supported() ? new m.Periscope3D(c, { eye: 20, own: ownCls() }) : undefined)));
 
   /** Look direction relative to the bow, so the view turns with the ship like a real bridge wing. */
   let relTarget = 0;
@@ -157,7 +145,11 @@ export function bridgeStation(): Station {
   view.style.cursor = 'move';
   view.style.touchAction = 'none';
   let downX = 0;
-  view.addEventListener('pointerdown', (e) => ((dragX = downX = e.clientX), (dragY = e.clientY)));
+  view.addEventListener('pointerdown', (e) => {
+    dragX = downX = e.clientX;
+    dragY = e.clientY;
+    onRelease(e, () => (dragX = undefined));
+  });
   // A click (no drag) on a sighting selects that contact, e.g. to assign its class
   view.addEventListener('click', (e) => {
     const s = store.snap;
@@ -168,7 +160,6 @@ export function bridgeStation(): Station {
     const hit = s.contacts.filter((c) => c.sighting && Math.abs(angleDiff(c.bearing, b)) < f / 12).sort((x, y) => Math.abs(angleDiff(x.bearing, b)) - Math.abs(angleDiff(y.bearing, b)))[0];
     if (hit) store.selected = hit.label;
   });
-  window.addEventListener('pointerup', () => (dragX = undefined));
   view.addEventListener('pointermove', (e) => {
     if (dragX === undefined) return;
     const dx = e.clientX - dragX;
@@ -247,18 +238,13 @@ export function bridgeStation(): Station {
         <div class="dim" style="margin-top:8px;line-height:1.5">Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas.</div>`);
     },
     hide() {
-      freeTimer = setTimeout(() => {
-        if (!gl) return;
-        gl.dispose();
-        gl = undefined;
-        // A context that was given up cannot be reused: start the next scene on a fresh canvas
-        const fresh = glCanvas.cloneNode() as HTMLCanvasElement;
-        glCanvas.replaceWith(fresh);
-        glCanvas = fresh;
-      }, 20_000);
+      g3.freeLater();
+    },
+    dispose() {
+      g3.dispose();
     },
     frame() {
-      ensureGl();
+      g3.ensure();
       const s = store.snap;
       H = Math.max(320, Math.min(680, window.innerHeight - 290));
       const ctx = fitCanvas(view, H);
@@ -282,8 +268,9 @@ export function bridgeStation(): Station {
       const look = (heading + rel + 360) % 360;
       const f = fov();
       el.querySelector('#b-brg')!.textContent = `BLICK ${tdeg3(look)}° · ${rel === 0 ? 'VORAUS' : `${Math.abs(Math.round(rel))}° ${rel > 0 ? 'STB' : 'BB'}`}`;
+      const gl = g3.scene;
       const live = !!gl && !!s;
-      glCanvas.style.visibility = live ? 'visible' : 'hidden';
+      g3.canvas.style.visibility = live ? 'visible' : 'hidden';
       const tg = live ? targets() : [];
       // Following an aircraft: bearing and elevation of the plane, else the normal look over the sea
       const followed = airTrack ? tg.find((x) => x.label === airTrack) : undefined;
@@ -306,7 +293,7 @@ export function bridgeStation(): Station {
         ctx.fillStyle = '#6f8a78';
         ctx.font = '12px ui-monospace, monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(failed ? 'KEINE 3D-GRAFIK (WEBGL2) · MELDUNGEN RECHTS' : 'LADE …', w / 2, H / 2);
+        ctx.fillText(g3.off ? 'KEINE 3D-GRAFIK (WEBGL2) · MELDUNGEN RECHTS' : 'LADE …', w / 2, H / 2);
         return;
       }
       // Sighting markers in view
@@ -384,7 +371,7 @@ export function bridgeStation(): Station {
       if (photoReq) {
         photoReq = false;
         const vfov = (2 * Math.atan(Math.tan((f * Math.PI) / 360) * (H / w)) * 180) / Math.PI;
-        snapPhoto({ layers: [glCanvas, view], crop: { x: 0, y: 0, w, h: H }, bearing: look, fov: f, vfov, pitch, label: store.selected });
+        snapPhoto({ layers: [g3.canvas, view], crop: { x: 0, y: 0, w, h: H }, bearing: look, fov: f, vfov, pitch, label: store.selected });
         flashAt = nowMs;
       }
       shutterFlash(ctx, 0, 0, w, H, nowMs - flashAt);
