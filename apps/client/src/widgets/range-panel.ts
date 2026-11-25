@@ -140,6 +140,11 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'right';
     ctx.fillText(`GRUND ${Math.round(p.bottom)} M`, g.l + g.w - 4, g.t + g.h - 5);
+  } else {
+    // The section ends at the deepest the boat can go; say so, and where the bottom really is
+    ctx.fillStyle = COL.dim;
+    ctx.textAlign = 'right';
+    ctx.fillText(`TAUCHGRENZE ${p.axis === 'own' ? 'EIGENES BOOT' : 'U-BOOT'} · GRUND ${Math.round(p.bottom)} M`, g.l + g.w - 4, g.t + g.h - 5);
   }
   // Own depth marker (boats: the row we are on; ships: own hull at the surface)
   ctx.fillStyle = COL.g2;

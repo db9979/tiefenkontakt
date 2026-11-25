@@ -72,6 +72,8 @@ export function migrateSlotStations(slots: PlayerSlot[]): PlayerSlot[] {
 export class Match {
   /** Wall-clock budget per tick for sandbox steps past the sure ones (tests lift it for determinism). */
   static sandboxBudgetMs = 40;
+  /** Same for the 6× fast-forward. */
+  static ffBudgetMs = FF_TICK_BUDGET_MS;
   readonly id: string;
   readonly name: string;
   state: 'lobby' | 'running' | 'ended' = 'lobby';
@@ -462,7 +464,7 @@ export class Match {
     for (let i = 0; i < steps; i++) {
       const spent = performance.now() - t0;
       if (this.settings.sandbox && i >= SANDBOX_SURE_STEPS && spent > Match.sandboxBudgetMs) break;
-      if (this.ff.on && i > 0 && spent > FF_TICK_BUDGET_MS) break;
+      if (this.ff.on && i > 0 && spent > Match.ffBudgetMs) break;
       stepWorld(w);
       this.recorder.step(w);
       this.bots.step(w);

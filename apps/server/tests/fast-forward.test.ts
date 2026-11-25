@@ -3,7 +3,10 @@ import { FAST_FORWARD_SCALE, type ServerMsg, type Ship, type Snapshot, type Worl
 import { FastForward } from '../src/fast-forward.js';
 import { parseClientMsg } from '../src/input.js';
 import { Lobby } from '../src/lobby.js';
-import type { Conn } from '../src/match.js';
+import { Match, type Conn } from '../src/match.js';
+
+// Steps are checked one for one: no wall-clock budget under a loaded test run
+Match.ffBudgetMs = Infinity;
 
 function fakeConn(id: string): Conn & { inbox: ServerMsg[] } {
   const inbox: ServerMsg[] = [];
