@@ -188,13 +188,13 @@ export class SonarVoice {
     this.tgt.g.gain.setTargetAtTime(machine ? sig : 0, t, k);
     // Range: far contacts are dull (high frequencies absorbed), close ones bright and harsh
     const range = hh.rangeM ?? 8000;
-    this.tgt.lp.frequency.setTargetAtTime(Math.max(250, 5000 * Math.exp(-range / 9000)), t, k);
+    this.tgt.lp.frequency.setTargetAtTime(Math.max(220, 2600 * Math.exp(-range / 9000)), t, k);
     this.tgt.pan.pan.setTargetAtTime(hh.rel !== undefined ? Math.sin((hh.rel * Math.PI) / 180) * 0.85 : 0, t, k);
     // The screw: blade-rate thump, shaft-rate swell
     const blade = hh.bladeHz && hh.bladeHz > 0.3 ? hh.bladeHz : undefined;
     this.tgt.blade.frequency.setTargetAtTime(blade ?? 0.01, t, k);
     // Inverted sawtooth: each blade passing is a sharp thump that dies away (not a swell that cuts off)
-    this.tgt.bladeDepth.gain.setTargetAtTime(blade ? -0.45 : 0, t, k);
+    this.tgt.bladeDepth.gain.setTargetAtTime(blade ? -0.7 : 0, t, k);
     this.tgt.shaft.frequency.setTargetAtTime(hh.shaftHz && hh.shaftHz > 0.2 ? hh.shaftHz : 0.01, t, k);
     this.tgt.shaftDepth.gain.setTargetAtTime(hh.shaftHz ? 0.15 : 0, t, k);
     this.cav.gain.setTargetAtTime(machine && hh.cav ? sig * 1.2 : 0, t, k);
@@ -202,8 +202,9 @@ export class SonarVoice {
     const shift = hh.mode === 'ueberlagerung' ? 700 : 0;
     const [lo, hi] = hh.band;
     if (hh.mode === 'breitband') {
-      this.tgt.band.frequency.setTargetAtTime(900, t, k);
-      this.tgt.band.Q.setTargetAtTime(0.25, t, k);
+      // Ship noise is strongest low (100–500 Hz) and falls off above: no bump in the presence range
+      this.tgt.band.frequency.setTargetAtTime(320, t, k);
+      this.tgt.band.Q.setTargetAtTime(0.35, t, k);
     } else {
       const mid = Math.max(30, (lo + hi) / 2 + shift);
       this.tgt.band.frequency.setTargetAtTime(mid, t, k);
@@ -215,10 +216,10 @@ export class SonarVoice {
     this.tones.forEach((tone, i) => {
       const line = lines[i];
       if (!line || !has) return tone.g.gain.setTargetAtTime(0, t, 0.1);
-      // Low lines are inaudible on small speakers: in broadband they sound an octave or two up
       const hz = line.hz * dop + shift;
-      tone.o.frequency.setTargetAtTime(hh.mode === 'breitband' ? Math.max(hz, hz * (hz < 120 ? 4 : 1)) : hz, t, 0.1);
-      tone.g.gain.setTargetAtTime(Math.min(0.5, line.snr / 40) * (hh.mode === 'breitband' ? 0.25 : 0.5), t, 0.2);
+      // Broadband: the lines only colour the noise faintly (find them in LOFAR or heterodyne); filtered: clear
+      tone.o.frequency.setTargetAtTime(hz, t, 0.1);
+      tone.g.gain.setTargetAtTime(Math.min(0.5, line.snr / 40) * (hh.mode === 'breitband' ? 0.04 : 0.5), t, 0.2);
     });
     // Biology and torpedoes: their own voices
     const b = this.bio;
