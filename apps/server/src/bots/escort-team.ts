@@ -227,10 +227,11 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   const led = (s: Ship) => { const l = mems.get(s.id)?.lead; return !!l && now - l.t < 900; };
   const near = (s: Ship) => (center ? distance(s.pos, center) < PROSECUTE_MAX : true);
   const close = datumOk && (!center || distance(center, d!) < 12_000);
-  // Screen discipline: with three or more escorts one always stays; with two, both only on a close datum
-  // (a ship on a commanded station counts as the screen)
+  // Screen discipline: one escort always stays on the screen (a ship on a commanded station counts);
+  // a datum inside the close screen itself may take both of two (hunting it there is screening)
   const n = free.length;
-  const max = !center || stationed ? n : n >= 3 ? n - 1 : close ? n : Math.min(1, n);
+  const inner = datumOk && !!center && distance(center, d!) < CLOSE_SCREEN_R + 1500;
+  const max = !center || stationed ? n : n >= 3 ? n - 1 : inner ? n : Math.min(1, n);
   const key = (s: Ship) => (datumOk ? distance(s.pos, d!) : Number(!holds(s)));
   // The ship a heard torpedo runs at evades: she doesn't prosecute
   const evading = plan.heard && now - plan.heard.t < 180 ? plan.heard.victim : undefined;

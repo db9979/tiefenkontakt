@@ -153,7 +153,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Diesel boats recharge when it's quiet: snorkel with the mast up (the radar warner listens)
   const cap = CLASSES[s.cls].battery?.capacityKnH;
   const charge = cap && s.battery !== undefined ? s.battery / cap : 1;
-  if (cap && s.battery !== undefined && !CLASSES[s.cls].aipKn) {
+  if (cap && s.battery !== undefined) {
     if (charge < SNORKEL_START && !threatNear && !radarDown) m.snorkelUntil = now + 3600;
     if (now < m.snorkelUntil && !threatNear && !radarDown && charge < SNORKEL_STOP) {
       s.order.depth = PERISCOPE_DEPTH;
