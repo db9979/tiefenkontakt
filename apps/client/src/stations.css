@@ -1,0 +1,112 @@
+/*
+ * Station layouts (panel decision: submarine 4, frigate 5 stations). A station fills the height
+ * of the station area: its columns stretch, a `.panel.grow` takes what is left in its column and
+ * a `.fill` box inside it is the display (measured by widgets/fill.ts, the canvas placed inside
+ * so it never pushes the layout). Below 1150 px the columns stack and displays get a fixed height.
+ */
+.station:has(> .st) { overflow: hidden; }
+.st { display: grid; gap: var(--sp3); height: 100%; min-height: 0; }
+.st.two { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.st.opz { grid-template-columns: minmax(0, 68fr) minmax(0, 32fr); }
+.st.bridge { grid-template-columns: minmax(0, 1fr) 300px; }
+.st-col { display: flex; flex-direction: column; gap: var(--sp3); min-height: 0; min-width: 0; }
+.st-col.scroll, .pane.scroll, .scroll { overflow: auto; }
+.st .panel.grow { flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; }
+.st .panel { flex: none; }
+.fill { position: relative; flex: 1 1 0; min-height: 140px; overflow: hidden; }
+.fill > canvas { position: absolute; left: 0; top: 0; width: 100%; }
+/* The list under the fire-control plot: a third at most, it scrolls */
+.st .listpanel { max-height: 34%; overflow: auto; }
+.st .panel.grow.listpanel { max-height: none; }
+.st .panel.grow.listpanel > .scroll { flex: 1; min-height: 0; }
+
+/* Footer under a display: its own controls left, the how-to hint after them */
+.foot { display: flex; gap: var(--sp2) var(--sp3); align-items: center; flex-wrap: wrap; margin-top: var(--sp2); }
+.foot .hint { margin-top: 0; flex: 1 1 160px; }
+.btnrows { display: flex; flex-wrap: wrap; gap: var(--sp2) var(--sp4); margin-top: var(--sp2); }
+.btngroup { display: flex; flex-wrap: wrap; gap: var(--sp2); align-items: center; padding-right: var(--sp4); border-right: 1px solid var(--line); }
+.btngroup:last-child { border-right: 0; padding-right: 0; }
+.btnrow { display: flex; flex-wrap: wrap; gap: var(--sp2); margin: var(--sp2) 0; }
+.seg.wide { display: flex; margin: var(--sp2) 0; }
+.seg.wide > button { flex: 1; padding-left: 4px; padding-right: 4px; }
+.subhd { display: flex; justify-content: space-between; gap: var(--sp3); color: var(--g); text-transform: uppercase; letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--line); margin: var(--sp3) 0 var(--sp2); padding-bottom: 2px; font-size: var(--fs-cap); }
+
+/* Tabbed panel: segmented tabs as the header title, one pane at a time */
+.tabbed > .hd { overflow: visible; }
+.ptabs > button { padding: 2px 8px; min-height: 22px; font-size: var(--fs-cap); }
+.ptabs .cnt { display: inline-block; min-width: 12px; margin-left: 3px; padding: 0 3px; border-radius: 6px; line-height: 13px;
+  background: var(--c-attn); color: var(--bg); letter-spacing: 0; }
+.ptabs .cnt:empty { display: none; }
+.ptabs .cnt.alarm { background: var(--c-threat); color: var(--bg); }
+.st .panel.tabbed { display: flex; flex-direction: column; min-height: 0; }
+.st .panel.tabbed > .pane { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.st .panel.grow.tabbed > .pane { flex: 1 1 0; }
+.pane[hidden] { display: none !important; }
+.tabbed .pane > .panel { border: 0 !important; background: none !important; box-shadow: none !important; padding: 0; margin-bottom: var(--sp3); }
+
+/* Zentrale: four tiles with a big figure each */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp3); }
+.tile { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line2); border-radius: 4px; min-width: 0; }
+.tile[hidden] { display: none; }
+.tile .tl { font-size: var(--fs-cap); color: var(--dim); letter-spacing: 0.08em; }
+.tile > b { font-size: var(--fs-read); font-weight: 600; color: var(--g2); white-space: nowrap; }
+.tile > b.amber { color: var(--amber); } .tile > b.red { color: var(--red); }
+.tile > span:last-child { font-size: var(--fs-cap); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmdgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: var(--sp2); }
+
+/* Fire control: the tube bank, one cell per tube with its reload as a fill */
+.tubebank { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--sp2); margin-bottom: var(--sp3); }
+.tube { position: relative; display: flex; justify-content: space-between; gap: 4px; padding: 3px 6px; border: 1px solid var(--line2); border-radius: 3px; overflow: hidden; font-size: var(--fs-cap); }
+.tube > i { position: absolute; left: 0; top: 0; bottom: 0; opacity: 0.25; pointer-events: none; }
+.tube > span, .tube > b { position: relative; }
+.tube > b { font-weight: 600; }
+.tube.ok { border-color: var(--g); } .tube.ok > i { background: var(--g); } .tube.ok > b { color: var(--g); }
+.tube.busy > i { background: var(--amber); } .tube.busy > b { color: var(--amber); }
+.tube.empty > b { color: var(--dim); }
+
+/* OPZ: the ASW strip above the chart */
+.aswstrip { display: flex; flex-wrap: wrap; gap: var(--sp2); flex: none; }
+.aswchip { padding: 3px 8px; border: 1px solid var(--line2); border-radius: 3px; background: var(--panel); font-size: var(--fs-cap); letter-spacing: 0.04em; white-space: nowrap; }
+.aswchip.amber { border-color: var(--amber-line); }
+
+/* Weapons: 2 × 2 weapon cards (a fifth spans the row) */
+.wgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp3); }
+.wcard { display: flex; flex-direction: column; gap: var(--sp2); min-width: 0; }
+.wcard > button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-col.scroll { overflow-x: hidden; }
+.wcard .wbody { flex: 1; line-height: 1.4; font-size: var(--fs-cap); }
+.wcard.span2 { grid-column: span 2; }
+.wcard > button, .wcard > .seg { width: 100%; }
+
+/* Emergency key caps on their buttons (E3) */
+.kcap { display: inline-block; margin-left: 6px; padding: 0 4px; min-width: 14px; border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 3px;
+  font: 600 var(--fs-cap) ui-monospace, monospace; line-height: 1.25; text-align: center; opacity: 0.75; vertical-align: 1px; }
+.help .kcap { color: var(--amber); opacity: 1; margin: 0 2px 0 0; }
+
+/* Contact list (E6): one look everywhere */
+.clist .ctable { grid-template-columns: 74px minmax(0, 1.1fr) minmax(0, 0.8fr) 34px minmax(0, 1.4fr); }
+.clist.norange .ctable { grid-template-columns: 74px minmax(0, 1.2fr) 34px minmax(0, 1.7fr); }
+.clist .ctable > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clist .glyphs { letter-spacing: 0.1em; color: var(--c-data); }
+.clist .mute, .clist .mute .glyphs { color: var(--c-mute); }
+.newbadge { display: inline-block; margin-left: 3px; padding: 0 3px; border-radius: 2px; background: var(--c-attn); color: var(--bg); font-size: var(--fs-cap); font-weight: 600; letter-spacing: 0.04em; line-height: 1.3; }
+
+/* Tutorial (E2): one line to do, "Warum?" folded, the target control pulses twice in amber */
+.tut-do { margin: 2px 0 0 14px; }
+.tut-why { margin: 2px 0 0 14px; color: var(--dim); }
+.tut-why summary { cursor: pointer; color: var(--amber); font-size: var(--fs-cap); letter-spacing: 0.06em; text-transform: uppercase; }
+.tut-why > div { margin-top: 2px; line-height: 1.4; }
+.tut-acts { display: flex; justify-content: flex-end; gap: var(--sp2); margin-top: var(--sp2); }
+.tut-go:hover { color: var(--amber); }
+.tut-pulse { outline: 2px solid var(--amber) !important; outline-offset: 2px; animation: tut-pulse 0.8s ease-in-out 2; }
+@keyframes tut-pulse { 0%, 100% { outline-color: var(--amber); } 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .tut-pulse { animation: none; } }
+
+@media (max-width: 1150px) {
+  .station:has(> .st) { overflow: visible; }
+  .st, .st.two, .st.opz, .st.bridge { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .st .panel.grow { flex: none; }
+  .fill { flex: none; height: 52vh; }
+  .st .listpanel { max-height: none; }
+}
