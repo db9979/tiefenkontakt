@@ -16,6 +16,7 @@ import { DepthChart } from './plot-depth.js';
 import { chartToScreen, chartToWorld, northUpGrid, panDelta, screenDir } from './chart-frame.js';
 import { trueDeg } from '../north.js';
 import { esmPlotLabel } from './esm-text.js';
+import { RoutePlot } from './route-plot.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -23,6 +24,8 @@ export interface PlotOptions {
   esmLines: boolean;
   /** Extra right-click actions at a world position (course, weapons, ...). */
   actions?: (p: Vec2) => MenuItem[];
+  /** Own-ship chart: plot a route and let the helmsman run it (route-plot.ts). */
+  route?: boolean;
 }
 
 type Drag =
@@ -93,6 +96,7 @@ export class Plot {
       tools.appendChild(b);
     }
     this.el.appendChild(tools);
+    if (opts.route) this.route = new RoutePlot(this.el, canvas, (p) => this.toScreen(p));
 
     canvas.style.cursor = 'crosshair';
     touchable(canvas, (f) => (this.scale = Math.min(MAX_SCALE, Math.max(5, this.scale * f))));
@@ -175,12 +179,12 @@ export class Plot {
   private down(e: MouseEvent): void {
     if (e.button !== 0) return;
     const m = this.local(e);
-    if (this.marks.down(this.toWorld(m), this.scale)) return;
+    if (this.marks.down(this.toWorld(m), this.scale) || this.route?.down(m, this.toWorld(m))) return;
     this.drag = this.hitSolution(m) ?? { kind: 'pan', x: e.clientX, y: e.clientY, px: this.pan.x, py: this.pan.y, moved: false };
   }
 
   private up(e: MouseEvent): void {
-    if (this.marks.up()) return;
+    if (this.marks.up() || this.route?.up()) return;
     const d = this.drag;
     this.drag = undefined;
     if (d?.kind === 'pan' && !d.moved && e.target === this.canvas) {
@@ -192,7 +196,7 @@ export class Plot {
   private move(e: MouseEvent): void {
     const m = this.local(e);
     this.mouse = m;
-    if (this.marks.move(this.toWorld(m))) return;
+    if (this.marks.move(this.toWorld(m)) || this.route?.move(this.toWorld(m))) return;
     const s = store.snap;
     const d = this.drag;
     if (!d) {
@@ -249,7 +253,7 @@ export class Plot {
         },
       });
     }
-    items.push(...(this.opts.actions?.(wp) ?? []));
+    items.push(...(this.opts.actions?.(wp) ?? []), ...(this.route?.menu(m, wp) ?? []));
     items.push({ label: 'Alle Zeichnungen löschen', run: () => this.marks.clear() });
     items.push({ label: 'Karte hier zentrieren', run: () => (this.pan = { x: wp.x - s.own.x, y: wp.y - s.own.y }) });
     openMenu(e.clientX, e.clientY, items, `${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))}`);
@@ -345,6 +349,7 @@ export class Plot {
 
     drawLanes(ctx, P, s.env.seabed?.region); drawHavens(ctx, P, s);
     this.marks.draw(ctx, P, this.scale);
+    this.route?.draw(ctx, s);
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'left';
     let foot = `RASTER ${(step / NM).toFixed(0)} SM · RECHTSKLICK: AKTIONEN`;
@@ -358,6 +363,7 @@ export class Plot {
 
   private depth = new DepthChart();
   private marks = new ChartMarks();
+  private route?: RoutePlot;
 
   private lineFilters = new Map<string, { f: BearingRangeFilter; last: number }>();
 

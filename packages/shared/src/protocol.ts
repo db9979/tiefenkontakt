@@ -25,7 +25,7 @@ export type ClientMsg =
   | { t: 'leave' }
   | { t: 'pick_class'; cls: Exclude<ClassId, 'merchant' | NeutralClass> }
   | { t: 'ready'; ready: boolean }
-  | { t: 'order'; heading?: number; speedKn?: number; depth?: number }
+  | { t: 'order'; heading?: number; speedKn?: number; depth?: number } | { t: 'route'; wps?: import('./route.js').Waypoint[]; idx?: number; active?: boolean }
   /** silent = "Ruhe im Boot", battle = Gefechtsstationen, buoyant = Schleppantenne (receive-only). */
   | { t: 'toggle'; what: 'mast' | 'snorkel' | 'radar' | 'active' | 'decoy' | 'silent' | 'battle' | 'buoyant' | 'vds' | 'mineavoid' | 'sounding'; on: boolean }
   | { t: 'blow' }
@@ -195,7 +195,7 @@ export interface OwnShipView {
   depth: number;
   heading: number;
   speedKn: number;
-  order: { heading: number; speedKn: number; depth: number };
+  order: { heading: number; speedKn: number; depth: number }; route?: import('./route.js').ShipRoute;
   alive: boolean;
   hp: number;
   battery?: number;

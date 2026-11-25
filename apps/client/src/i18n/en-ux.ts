@@ -101,11 +101,19 @@ export const EN_UX: [string, string][] = [
   ['ZIEHEN VERSCHIEBT · RAD ZOOMT · BLAU WESTBUND · ROT OSTPAKT', 'DRAG PANS · WHEEL ZOOMS · BLUE WESTERN BLOC · RED EASTERN PACT'],
   ['Wiederholung nicht gefunden oder abgelaufen', 'Replay not found or expired'], ['Keine beendete Partie von dir zum Teilen', 'No finished match of yours to share'],
   ['Zu viele Anfragen, versuch es später', 'Too many requests, try again later'], ['Aufzeichnung zu groß zum Teilen', 'Recording too large to share'],
+  // Plotted route and lead vector (route-plot.ts)
+  ['⚑ WEGPUNKTE', '⚑ WAYPOINTS'], ['ROUTE FAHREN', 'FOLLOW ROUTE'], ['VORAUS AUS', 'LEAD OFF'], ['Wegpunkt hier anhängen', 'Append waypoint here'],
+  ['Route fahren', 'Follow route'], ['Route anhalten', 'Stop following route'], ['Route löschen', 'Clear route'], ['Keine Wegpunkte geplottet', 'No waypoints plotted'],
+  ['Wegpunkte setzen: Klick auf die Karte hängt einen an, Ziehen verschiebt, Rechtsklick auf einen Punkt für Fahrt, Tiefe, Löschen', 'Set waypoints: a click on the chart appends one, drag moves it, right-click a point for speed, depth, delete'],
+  ['Route fahren: der Rudergänger steuert Wegpunkt für Wegpunkt ab. Kurs von Hand schaltet ab', 'Follow route: the helmsman steers waypoint by waypoint. A course by hand switches it off'],
+  ['Vorausvektor: wo das Schiff in N Minuten steht (Klick schaltet die Dauer um)', 'Lead vector: where the ship will be in N minutes (click changes the time)'],
 ];
 
 // The strait goal names the strait's true direction (briefing.ts, compassStem)
 const STEMS: [string, string][] = [['Nord', 'north'], ['Nordost', 'north-east'], ['Ost', 'east'], ['Südost', 'south-east'], ['Süd', 'south'], ['Südwest', 'south-west'], ['West', 'west'], ['Nordwest', 'north-west']];
 export const EN_UX_PHRASES: [RegExp, string][] = [
+  [/^VORAUS (\d+) MIN$/, 'LEAD $1 MIN'], [/^Route ab Wegpunkt (\d+) fahren$/, 'Follow route from waypoint $1'], [/^Wegpunkt (\d+) löschen$/, 'Delete waypoint $1'],
+  [/^WP (\d+): Fahrt (\d+) kn$/, 'WP $1: speed $2 kn'], [/^WP (\d+): Fahrt beibehalten$/, 'WP $1: keep speed'], [/^WP (\d+): Tiefe (\d+) m$/, 'WP $1: depth $2 m'], [/^WP (\d+): Tiefe beibehalten$/, 'WP $1: keep depth'],
   [/^LÄDT (\d+) S$/, 'LOADING $1 S'], [/^SENDET (\d+) S$/, 'TRANSMITTING $1 S'], [/^Mastradar · (\d+) SM$/, 'Mast radar · $1 NM'], [/^(\d+)\/(\d+) BEREIT$/, '$1/$2 READY'], [/^(\d+) BEREIT$/, '$1 READY'], [/^AUS (\d+) M$/, 'OUT $1 M'], [/^EIN (\d+) M$/, 'IN $1 M'],
   ...STEMS.flatMap(([de, en]): [RegExp, string][] => [
     [new RegExp(`^Die Enge halten: kein U-Boot darf nach ${de}en durch\\.$`), `Hold the narrows: no submarine may get through to the ${en}.`],
