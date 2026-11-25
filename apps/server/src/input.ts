@@ -1,4 +1,5 @@
 import {
+  asternMaxKn,
   isEscort,
   setConvoyOffset,
   CLASSES,
@@ -71,7 +72,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('leave') }),
   z.object({ t: z.literal('pick_class'), cls: z.enum(['ssn', 'ssk', 'ssc', 'ssa', 'ssw', 'ffg', 'kor', 'ffv', 'ffk']) }),
   z.object({ t: z.literal('ready'), ready: z.boolean() }),
-  z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(0).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
+  z.object({ t: z.literal('order'), heading: deg.optional(), speedKn: z.number().finite().min(-10).max(40).optional(), depth: z.number().finite().min(0).max(700).optional() }),
   // Plotted route: waypoints in the game frame (m), each with an optional leg speed and depth
   z.object({
     t: z.literal('route'),
@@ -172,7 +173,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
         s.order.heading = m.heading % 360;
         disengageRoute(s);
       }
-      if (m.speedKn !== undefined) s.order.speedKn = Math.min(m.speedKn, spec.maxSpeedKn);
+      if (m.speedKn !== undefined) s.order.speedKn = Math.max(-asternMaxKn(s.cls), Math.min(m.speedKn, spec.maxSpeedKn));
       if (m.depth !== undefined && spec.submarine) s.order.depth = Math.min(m.depth, spec.maxDepth);
       return;
     case 'route':

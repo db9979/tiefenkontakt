@@ -194,7 +194,7 @@ export class RoutePlot {
   /** Where the ship is in N minutes: along the heading, or along the route while it runs it. */
   private drawLead(ctx: CanvasRenderingContext2D, s: Snapshot, me: { x: number; y: number; heading: number }, ahead: Waypoint[]): void {
     const min = leadMin();
-    const v = s.own.speedKn * KN;
+    const v = (s.own.sternway ? -1 : 1) * s.own.speedKn * KN;
     if (!min || v < 0.3) return;
     let left = v * min * 60;
     let at: Vec2 = { x: me.x, y: me.y };

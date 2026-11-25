@@ -195,6 +195,8 @@ export interface OwnShipView {
   depth: number;
   heading: number;
   speedKn: number;
+  /** Moving stern first; order.speedKn < 0 is an astern order. */
+  sternway?: boolean;
   order: { heading: number; speedKn: number; depth: number }; route?: import('./route.js').ShipRoute;
   alive: boolean;
   hp: number;

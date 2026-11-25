@@ -46,7 +46,7 @@ export const EN_UI: [string, string][] = [
   ['Sehrohr', 'Periscope'], ['Über Schicht', 'Above layer'], ['Unter Schicht', 'Below layer'], ['KAVITATION', 'CAVITATION'],
   ['Klicken oder ziehen, um den Kurs zu setzen', 'Click or drag to set the course'], ['Fahrt in Knoten', 'Speed in knots'],
   ['Knapp über der Sprungschicht', 'Just above the layer'], ['Unter der Sprungschicht: schwerer zu orten', 'Below the layer: harder to detect'],
-  ['Tiefe in Metern', 'Depth in metres'], ['Stopp', 'Stop'], ['Schleich', 'Creep'], ['Langsam', 'Slow'], ['Halbe', 'Half'], ['AK', 'Full'], ['Volle', 'Full'],
+  ['Tiefe in Metern', 'Depth in metres'], ['Stopp', 'Stop'], ['AK zurück', 'Full astern'], ['Halbe zurück', 'Half astern'], ['Langsam zurück', 'Slow astern'], ['SCHL', 'CREEP'], ['LANGS', 'SLOW'], ['HALBE', 'HALF'], ['STOPP', 'STOP'], ['ZURÜCK', 'ASTERN'], ['VORAUS', 'AHEAD'], ['Schleich', 'Creep'], ['Langsam', 'Slow'], ['Halbe', 'Half'], ['AK', 'Full'], ['Volle', 'Full'],
   ['Offene Partien', 'Open matches'], ['Keine offenen Partien. Erstelle eine.', 'No open matches. Create one.'], ['Westbund', 'Western Bloc'],
   ['Ostpakt', 'Eastern Pact'], ['Zuschauen', 'Watch'], ['Partie erstellen', 'Create match'], ['Schnelles Spiel', 'Quick match'],
   ['Ausbildung', 'Training'], ['EINZELSPIELER · MIT ANLEITUNG', 'SINGLE PLAYER · GUIDED'], ['1 · Horchen und Klassifizieren', '1 · Listening and classifying'],

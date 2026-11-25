@@ -22,7 +22,9 @@ export interface Ship {
   pos: Vec2;
   depth: number;
   heading: number;
-  speed: number; // m/s
+  speed: number; // m/s (magnitude)
+  /** Moving stern first (engines astern). */
+  sternway?: boolean;
   order: ShipOrder;
   alive: boolean;
   hp: number;

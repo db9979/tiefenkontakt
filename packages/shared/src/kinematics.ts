@@ -1,4 +1,4 @@
-import { CLASSES } from './classes.js';
+import { CLASSES, type ClassId } from './classes.js';
 import { speedFactor } from './damage.js';
 import type { Ship } from './entities.js';
 import { PERISCOPE_DEPTH, isAtPeriscopeDepth } from './entities.js';
@@ -6,6 +6,11 @@ import { PERISCOPE_DEPTH, isAtPeriscopeDepth } from './entities.js';
 /** Rise rate during an emergency blow (m/s). */
 const BLOW_RISE_MS = 3.5;
 import { KN, angleDiff, approach, clamp, headingVec, wrap360 } from './math.js';
+
+/** Most a ship makes astern (kn): about 40 % of her top speed, at most 8 kn. */
+export function asternMaxKn(cls: ClassId): number {
+  return Math.min(8, Math.round(CLASSES[cls].maxSpeedKn * 0.4));
+}
 
 /** Speed above which a snorkeling SSK floods the snorkel / can't charge. */
 export const SNORKEL_MAX_KN = 8;
@@ -28,13 +33,20 @@ export function stepShip(s: Ship, dt: number, now: number): void {
   // Speed: engines push up slowly, drag and astern power bring it down a bit quicker;
   // a hard turn bleeds speed (rudder and hull drag)
   const turnShare = Math.abs(s.yawRate ?? 0) / Math.max(0.1, spec.turnRateDeg);
-  const targetSpeed = clamp(s.order.speedKn, 0, maxKn) * KN * (1 - 0.25 * Math.min(1, turnShare));
-  s.speed = approach(s.speed, targetSpeed, (targetSpeed < s.speed ? 1.3 : 1) * spec.accel * dt);
+  // Astern: the engines reverse; she first loses her way, then gathers sternway (slowly, the
+  // screw works badly backwards). Speed stays a magnitude; `sternway` says which way she moves.
+  const wantKn = clamp(s.order.speedKn, -Math.min(maxKn, asternMaxKn(s.cls)), maxKn) * KN * (1 - 0.25 * Math.min(1, turnShare));
+  const now0 = s.sternway ? -s.speed : s.speed;
+  const braking = Math.abs(wantKn) < Math.abs(now0) || Math.sign(wantKn) !== Math.sign(now0);
+  const signed = approach(now0, wantKn, (braking ? 1.3 : wantKn < 0 ? 0.6 : 1) * spec.accel * dt);
+  s.sternway = signed < -1e-6;
+  s.speed = Math.abs(signed);
 
   // Turning: rate of turn = speed / turning radius (a slow ship turns slowly), with rudder lag;
   // the turn is eased off ahead of the ordered course so it doesn't overshoot
   const speedMs = s.speed;
-  const maxRate = speedMs < 0.15 ? 0 : Math.min(spec.turnRateDeg, ((speedMs / spec.turnRadius) * 180) / Math.PI);
+  // Going astern the rudder bites badly: half the rate of turn
+  const maxRate = speedMs < 0.15 ? 0 : Math.min(spec.turnRateDeg, ((speedMs / spec.turnRadius) * 180) / Math.PI) * (s.sternway ? 0.5 : 1);
   const yawAcc = Math.max(0.05, maxRate / 6); // about 6 s to full rate of turn
   // A jammed rudder holds whatever turn it had (incident)
   const diff = (s.rudderJamUntil ?? 0) > now ? Math.sign(s.yawRate ?? 0) * 90 : angleDiff(s.heading, s.order.heading);
@@ -90,8 +102,9 @@ export function stepShip(s: Ship, dt: number, now: number): void {
 
   // Position
   const v = headingVec(s.heading);
-  s.pos.x += v.x * s.speed * dt;
-  s.pos.y += v.y * s.speed * dt;
+  const way = s.sternway ? -s.speed : s.speed;
+  s.pos.x += v.x * way * dt;
+  s.pos.y += v.y * way * dt;
 
   stepBattery(s, dt);
 }

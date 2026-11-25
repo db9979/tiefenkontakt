@@ -6,9 +6,15 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
-- **Schadensabwehr neu gestaltet:** Schnittzeichnung mit der echten Schiffssilhouette, Decks und Spanten, nummerierten
-  Abteilungen und den Systemen darin (A/S/W/B/M nach Zustand gefärbt); darunter Zustand, Schlagseite, Trimm und Wasser im
-  Schiff, je Abteilung eine Zeile mit Wasser, Feuer, Leck und Schaden und den Knöpfen Trupp und Schott, Systeme mit Wirkung.
+- **Rückwärtsfahrt:** Fahrstufen achteraus (bis 40 % der Höchstfahrt, höchstens 8 kn). Das Schiff verliert erst die
+  Fahrt und nimmt dann langsam Fahrt achteraus auf; das Ruder wirkt rückwärts nur halb. Ein aufgelaufenes Schiff kann
+  sich achteraus freifahren, wenn hinter ihm tieferes Wasser ist.
+- **Ruderstand aufgewertet:** Kompass mit Gradskala, Sollkurs-Marke, Drehbogen bis zum befohlenen Kurs, eigenem Schiff
+  und Kielwasser; Instrumente für Kurs, Fahrt (voraus/zurück) und Ruderlage; Maschinentelegraf von „AK zurück“ bis
+  „AK voraus“ zum Anklicken, mit Hebel (befohlen) und Zeiger (gemachte Fahrt); Fahrtregler mit Rückwärtsbereich.
+- **Schadensabwehr neu gestaltet:** Schnittzeichnung aus dem 3D-Modell des Schiffs (über und unter Wasser), die
+  Abteilungen genau im Rumpf eingefärbt (Wasser, Brand, Schaden, Schotten), Farben für hellen und dunklen Modus, Trimm
+  und Absinken weich; Statuszeile, eine kompakte Zeile je Abteilung, Befehle für die gewählte Abteilung darunter.
 - **Küsten im 3D genau:** Das Gelände nahe am Schiff hat 100-m-Raster und die Uferlinie liegt genau bei Wassertiefe 0
   der Seekarte; vorher ragte die Küste bis zu 300 m ins Wasser und man schien über Land zu fahren.
 - **Auflaufen mit Folgen:** Wer mit Fahrt auf Grund läuft, bleibt sofort stehen und nimmt Schaden je nach Fahrt, am

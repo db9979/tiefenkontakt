@@ -27,7 +27,7 @@ export function ownNow(): { x: number; y: number; heading: number } {
   const maxTurn = 1.5 * dt;
   const heading = wrap360(s.own.heading + Math.max(-maxTurn, Math.min(maxTurn, turn)));
   const v = headingVec(wrap360(s.own.heading + angleDiff(s.own.heading, heading) / 2));
-  const d = s.own.speedKn * KN * dt;
+  const d = (s.own.sternway ? -1 : 1) * s.own.speedKn * KN * dt;
   return { x: s.own.x + v.x * d, y: s.own.y + v.y * d, heading };
 }
 

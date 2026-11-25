@@ -134,10 +134,13 @@ function checkGround(w: World, s: Ship): void {
     if (s.order.depth > s.depth) s.order.depth = s.depth;
   } else {
     if (sub) s.depth = s.order.depth = 0;
-    // She can work herself off, dead slow, where the water ahead is deeper; otherwise she sits fast
+    // She can work herself off, dead slow, where the water is deeper the way she is going
+    // (ahead, or astern with the engines going astern); otherwise she sits fast
     const v = headingVec(s.heading);
-    const ahead = depthAt(w.env.seabed, s.pos.x + v.x * 60, s.pos.y + v.y * 60);
-    if (ahead > bottom + 0.3) s.speed = Math.min(s.speed, 1);
+    const astern = s.order.speedKn < 0;
+    const way = astern ? -60 : 60;
+    const next = depthAt(w.env.seabed, s.pos.x + v.x * way, s.pos.y + v.y * way);
+    if (next > bottom + 0.3) s.speed = Math.min(s.speed, 1);
     else {
       s.order.speedKn = 0;
       s.speed = Math.min(s.speed, 0.3);
