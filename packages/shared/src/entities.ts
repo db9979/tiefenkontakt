@@ -30,6 +30,10 @@ export interface Ship {
   hp: number;
   /** Time (s) of last significant course change; towed arrays need to settle after turns. */
   lastTurnAt: number;
+  /** Settling time (s) the towed array needs after lastTurnAt (by the size of the alteration); unset = class value. */
+  towedSettle?: number;
+  /** Heading when the current turn began (unset while steady). */
+  turnFrom?: number;
   /** SSK battery in knot-hours. */
   battery?: number;
   snorkel: boolean; // ordered to snorkel (SSK, needs shallow depth)
@@ -96,6 +100,12 @@ export interface Ship {
   /** High-frequency mine-avoidance sonar (escorts): finds mines further ahead; too high in pitch to be heard far away. */
   mineAvoid?: boolean;
   lastPingAt: number;
+  /** Active sonar range scale (m: 4000 / 8000 / 16000); sets the ping interval. Unset = 8000. */
+  pingRange?: number;
+  /** A single ping ordered: goes out as soon as the last ping's interval has run. */
+  pingOnce?: boolean;
+  /** Nixie towed torpedo decoy streamed: its noise rides into the own sonars, and it limits speed. */
+  nixie?: boolean;
   /** Active pulse: CW (coarse range, Doppler) or LFM (precise range, beats reverberation). */
   pulse: 'cw' | 'lfm';
   /** Layer depth as measured by this ship (bathythermograph); undefined until measured. */

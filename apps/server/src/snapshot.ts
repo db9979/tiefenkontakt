@@ -41,6 +41,8 @@ import {
   nextSatPassIn,
   REGIONS,
   Rng,
+  pingInterval,
+  pingRangeOf,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
 
@@ -238,7 +240,7 @@ export function buildSnapshot(
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, sternway: own.sternway || undefined, order: { ...own.order }, route: own.route?.wps.length ? { wps: own.route.wps.map((p) => ({ ...p })), idx: own.route.idx, active: own.route.active } : undefined,
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
       snorkel: own.snorkel, mastUp: own.mastUp, mastPending: own.mastPending || undefined, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
-      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, mineAvoid: own.mineAvoid || undefined, mineAvoidRange: isEscort(own.cls) ? mineSearchRange(w, own) || undefined : undefined, convoyOffset: isEscort(own.cls) && w.convoy?.offset ? w.convoy.offset : undefined, towedReady: towedArrayReady(own, w.time),
+      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, pingRange: pingRangeOf(own), pingEvery: pingInterval(own), pingPending: own.pingOnce || undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, mineAvoid: own.mineAvoid || undefined, mineAvoidRange: isEscort(own.cls) ? mineSearchRange(w, own) || undefined : undefined, convoyOffset: isEscort(own.cls) && w.convoy?.offset ? w.convoy.offset : undefined, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
       comps: own.comps && compartmentView(own), dcComp: own.dcComp, dcAt: own.comps && dcTarget(own), wreck: wreckView(own),
       crew: own.crew && { ...own.crew, performance: Math.round(crewPerformance(own) * 100) / 100 },

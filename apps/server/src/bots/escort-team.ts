@@ -51,12 +51,22 @@ function isSub(t: ContactTrack, m?: BotMemory): boolean {
   return c === 'submarine';
 }
 
-/** Datum candidates from one escort's book: echoes and MAD (good), buoy cross-fixes, TMA. */
+/** A mast or snorkel painted by an own aircraft's radar (a radar fix measured away from the ship). */
+const airFix = (h: ContactTrack['history'][number]) => h.sensor === 'radar' && h.ox !== undefined && h.r !== undefined;
+
+/** Datum candidates from one escort's book: echoes and MAD (good), aircraft radar fixes, buoy cross-fixes, TMA. */
 function candidates(w: World, s: Ship, m: BotMemory | undefined): { p: Vec2; t: number; q: number }[] {
   const out: { p: Vec2; t: number; q: number }[] = [];
   const now = w.time;
   for (const t of w.books.get(s.id)?.tracks() ?? []) {
-    if (now - t.lastSeen > 120 || t.sensors.includes('esm') || !isSub(t, m) || isFriendly(w, s, t, m)) continue;
+    if (now - t.lastSeen > 120 || t.sensors.includes('esm') || isFriendly(w, s, t, m)) continue;
+    // An aircraft that paints a snorkel or periscope has seen a boat: a datum about 1 km off
+    const air = [...t.history].reverse().find((h) => airFix(h) && now - h.t < 120);
+    if (air) {
+      const v = headingVec(air.b);
+      out.push({ p: { x: air.ox! + v.x * air.r!, y: air.oy! + v.y * air.r! }, t: air.t, q: 70 });
+    }
+    if (!isSub(t, m)) continue;
     const echo = [...t.history].reverse().find((h) => (h.sensor === 'active' || h.sensor === 'mad') && h.r !== undefined && now - h.t < 120);
     if (echo) {
       const at = echo.ox !== undefined ? { x: echo.ox, y: echo.oy! } : m ? [...m.track].reverse().find((f) => f.t <= echo.t + 3) ?? s.pos : s.pos;

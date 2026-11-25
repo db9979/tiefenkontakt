@@ -45,6 +45,8 @@ export type ClientMsg =
   /** Periscope or bridge photo: where the camera looked; the server grades it from the truth. */
   | { t: 'photo'; id: string; bearing: number; fov: number; vfov: number; pitch: number; label?: string }
   | { t: 'pulse'; pulse: 'cw' | 'lfm' }
+  /** Active sonar: set the range scale (m; sets the ping interval) and/or send one single ping. */
+  | { t: 'ping'; range?: 4000 | 8000 | 16000; single?: boolean }
   | { t: 'bt' }
   | { t: 'buoy'; bearing: number; range: number; deep: boolean; active?: boolean }
   | { t: 'dip'; bearing: number; range: number; deep: boolean }
@@ -212,6 +214,10 @@ export interface OwnShipView {
   activeSonar: boolean;
   pulse: 'cw' | 'lfm';
   lastPingAt?: number;
+  /** Active range scale (m) and the seconds between pings it needs; a single ping waiting to go out. */
+  pingRange?: number;
+  pingEvery?: number;
+  pingPending?: boolean;
   towedLength: number;
   towedOrder?: number;
   vdsDepth?: number;

@@ -60,7 +60,6 @@ const SPECTATE_EVERY = 30; // ticks (3 s)
 export const SPECTATE_DELAY = 240;
 /** Sandbox sim steps always run per tick; more (up to the time scale) only within the budget. */
 const SANDBOX_SURE_STEPS = 4;
-const SANDBOX_TICK_BUDGET_MS = 40;
 
 type Side = 'west' | 'east';
 
@@ -81,6 +80,8 @@ export interface SavedMatch {
 }
 
 export class Match {
+  /** Wall-clock budget per tick for sandbox steps past the sure ones (tests lift it for determinism). */
+  static sandboxBudgetMs = 40;
   readonly id: string;
   readonly name: string;
   state: 'lobby' | 'running' | 'ended' = 'lobby';
@@ -438,7 +439,7 @@ export class Match {
     // Sandbox ×10: past the first steps only while the tick is cheap (one sandbox can't starve the server)
     const started = performance.now();
     for (let i = 0; i < this.settings.timeScale; i++) {
-      if (this.settings.sandbox && i >= SANDBOX_SURE_STEPS && performance.now() - started > SANDBOX_TICK_BUDGET_MS) break;
+      if (this.settings.sandbox && i >= SANDBOX_SURE_STEPS && performance.now() - started > Match.sandboxBudgetMs) break;
       stepWorld(w);
       this.recorder.step(w);
       this.bots.step(w);

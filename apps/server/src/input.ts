@@ -101,6 +101,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('lobby_chat'), text: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('report'), from: z.string().trim().min(1).max(40), reason: z.string().trim().min(1).max(200) }),
   z.object({ t: z.literal('pulse'), pulse: z.enum(['cw', 'lfm']) }),
+  z.object({ t: z.literal('ping'), range: z.union([z.literal(4000), z.literal(8000), z.literal(16_000)]).optional(), single: z.boolean().optional() }),
   z.object({ t: z.literal('bt') }),
   z.object({ t: z.literal('lesson_done') }),
   z.object({ t: z.literal('lesson_step'), step: z.number().int().min(0).max(50) }),
@@ -160,7 +161,7 @@ export function parseClientMsg(raw: string): ClientMsg | undefined {
 
 export type GameCommand = Extract<
   ClientMsg,
-  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
+  { t: 'order' | 'toggle' | 'towed' | 'fire' | 'steer' | 'rocket' | 'ssm' | 'dc' | 'noisemaker' | 'pulse' | 'ping' | 'bt' | 'buoy' | 'repair' | 'dip' | 'helotorp' | 'mpa' | 'blow' | 'mad' | 'execute_order' | 'compartment' | 'sam' | 'fighter' | 'mine' | 'convoy_detour' | 'route' }
 >;
 
 /** Apply an in-game command to the player's own ship. Returns an error text or undefined. */
@@ -252,6 +253,11 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       const r = dropDepthCharge(w, s, m.depth);
       return r === true ? undefined : r;
     }
+    case 'ping':
+      if (spec.hull.activeSl === undefined) return 'Kein Aktivsonar';
+      if (m.range !== undefined) s.pingRange = m.range;
+      if (m.single) s.pingOnce = true;
+      return;
     case 'pulse':
       if (spec.hull.activeSl === undefined) return 'Kein Aktivsonar';
       s.pulse = m.pulse;

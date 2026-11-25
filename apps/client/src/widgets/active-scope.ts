@@ -1,4 +1,4 @@
-import { CLASSES, NM, type Snapshot } from '@tk/shared';
+import { DEFAULT_PING_RANGE, PING_RANGES, pingInterval, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { trueDeg } from '../north.js';
@@ -8,9 +8,8 @@ import { simNow } from './smooth.js';
 
 /** Speed of sound for the display (m/s); the ring shows the two-way travel, so it runs at half. */
 const C_WATER = 1500;
-/** Seconds between pings (sensors.ts PING_INTERVAL). */
-const PING_EVERY = 30;
-const RANGES_NM = [2, 4, 6, 10] as const;
+/** Range scales (m): each sets the ping interval on the server (4 / 8 / 16 km → 6 / 11 / 22 s). */
+const RANGES_M = PING_RANGES;
 
 interface Echo { b: number; r: number; ping: number; label: string; doppler?: number }
 
@@ -19,19 +18,21 @@ interface Echo { b: number; r: number; ping: number; label: string; doppler?: nu
  * half the speed of sound (the echo has to come back); reverberation crackles close in and
  * dies away (more in shallow water); every return lights up at its bearing and range when the
  * ring reaches it and fades until the next ping, earlier pings as afterglow. CW returns are
- * coloured by Doppler (amber closing, blue opening). Beside it: ping on/off, CW/LFM, range,
- * the countdown to the next ping and a table of the returns.
+ * coloured by Doppler (amber closing, blue opening). Beside it: single ping, continuous
+ * pinging, CW/LFM, the range scale (which sets the ping interval), the countdown to the next
+ * ping and a table of the returns. A boat sends one ping by default; continuous is a toggle.
  */
 export function activeScope(opts: { height?: number; compact?: boolean } = {}): { el: HTMLElement; frame(): void; snap(): void } {
   const compact = !!opts.compact;
   const el = h(`<div class="panel">
     <div class="hd"><span>Aktivsonar</span><span id="as-st" class="dim"></span></div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
-      <button id="as-ping" class="warn" title="Aktivsonar: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Aktivsonar</button>
+      <button id="as-one" class="warn" title="Ein einzelner Ping: Entfernung und Peilung, verrät aber das eigene Schiff weit hinaus">Einzelping</button>
+      <button id="as-ping" title="Dauerpingen im Takt des Messbereichs: jeder hört dich weit hinaus">Dauer</button>
       <button data-pulse="cw" title="CW: grobe Entfernung, misst die Annäherung (Doppler)">CW</button>
       <button data-pulse="lfm" title="LFM: genaue Entfernung, findet auch langsame Ziele im Nachhall">LFM</button>
       <span style="flex:1"></span>
-      ${RANGES_NM.map((r) => `<button data-asr="${r}" title="Anzeigebereich ${r} SM">${r} SM</button>`).join('')}
+      ${RANGES_M.map((r) => `<button data-asr="${r}" title="Messbereich ${r / 1000} km: Echos von weiter draußen kommen zu spät · ein Ping alle ${pingInterval({ pingRange: r })} s">${r / 1000} KM</button>`).join('')}
     </div>
     <canvas id="as-ppi"></canvas>
     ${compact ? '' : '<div id="as-echoes" style="margin-top:6px"></div>'}
@@ -39,13 +40,11 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
   const canvas = el.querySelector<HTMLCanvasElement>('#as-ppi')!;
   const st = el.querySelector<HTMLElement>('#as-st')!;
   const echoes: Echo[] = [];
-  let rangeNm = Number(localStorage.getItem('tk_as_range') ?? 0) || 0;
+  el.querySelector<HTMLButtonElement>('#as-one')!.onclick = () => net.send({ t: 'ping', single: true });
   el.querySelector<HTMLButtonElement>('#as-ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
-  el.querySelectorAll<HTMLButtonElement>('[data-asr]').forEach((b) => (b.onclick = () => {
-    rangeNm = Number(b.dataset.asr);
-    localStorage.setItem('tk_as_range', String(rangeNm));
-  }));
+  // The range scale is the sonar's (server side): it sets how long the receiver listens, so the ping interval
+  el.querySelectorAll<HTMLButtonElement>('[data-asr]').forEach((b) => (b.onclick = () => net.send({ t: 'ping', range: Number(b.dataset.asr) as (typeof RANGES_M)[number] })));
 
   const collect = (s: Snapshot) => {
     const ping = s.own.lastPingAt;
@@ -59,7 +58,7 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
     for (let i = echoes.length - 1; i >= 0; i--) if (!pings.includes(echoes[i]!.ping)) echoes.splice(i, 1);
   };
 
-  const rangeM = (s: Snapshot) => (rangeNm || (CLASSES[s.own.cls].submarine ? 6 : 10)) * NM;
+  const rangeM = (s: Snapshot) => s.own.pingRange ?? DEFAULT_PING_RANGE;
 
   return {
     el,
@@ -69,13 +68,18 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
       collect(s);
       const o = s.own;
       const since = o.lastPingAt !== undefined ? s.time - o.lastPingAt : undefined;
+      const every = o.pingEvery ?? pingInterval({ pingRange: o.pingRange });
+      const left = since !== undefined ? Math.max(0, Math.ceil(every - since)) : 0;
       btnState(el.querySelector<HTMLElement>('#as-ping'), o.activeSonar
-        ? { on: true, label: since !== undefined ? `NÄCHSTER IN ${Math.max(0, Math.ceil(PING_EVERY - since))} S` : 'AN', tone: 'warn' } : { on: false });
+        ? { on: true, label: since !== undefined ? `NÄCHSTER IN ${left} S` : 'AN', tone: 'warn' } : { on: false });
+      // A single ping waits until the last one's echoes are back (the interval of the scale)
+      btnState(el.querySelector<HTMLElement>('#as-one'), o.pingPending ? { label: left > 0 ? `IN ${left} S` : '…', tone: 'busy' } : {});
       el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => b.classList.toggle('on', b.dataset.pulse === o.pulse));
-      const rNm = rangeM(s) / NM;
-      el.querySelectorAll<HTMLButtonElement>('[data-asr]').forEach((b) => b.classList.toggle('on', Number(b.dataset.asr) === rNm));
-      st.className = o.activeSonar ? 'amber' : 'dim';
-      st.textContent = o.activeSonar ? 'SENDET · JEDER HÖRT DICH WEIT HINAUS' : since !== undefined && since < 60 ? 'AUS · NACHHALL' : 'AUS · NUR HORCHEN';
+      const rM = rangeM(s);
+      el.querySelectorAll<HTMLButtonElement>('[data-asr]').forEach((b) => b.classList.toggle('on', Number(b.dataset.asr) === rM));
+      st.className = o.activeSonar || o.pingPending ? 'amber' : 'dim';
+      st.textContent = o.activeSonar ? `SENDET ALLE ${every} S · JEDER HÖRT DICH WEIT HINAUS` : o.pingPending ? 'EINZELPING · GEHT RAUS'
+        : since !== undefined && since < 60 ? 'AUS · NACHHALL' : 'AUS · NUR HORCHEN';
       if (compact) return;
       const last = echoes.filter((e) => e.ping === o.lastPingAt).sort((a, b) => a.r - b.r);
       setHtml(el.querySelector('#as-echoes')!, last.length
@@ -83,7 +87,7 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
           const dop = e.doppler === undefined || o.pulse === 'lfm' ? '—' : Math.abs(e.doppler) < 1 ? 'STEHT' : e.doppler > 0 ? `↓ ${e.doppler.toFixed(0)} KN NÄHERT` : `↑ ${(-e.doppler).toFixed(0)} KN ENTFERNT`;
           return `<div class="row clickable ${e.label === store.selected ? 'amber selrow' : ''}" data-c="${esc(e.label)}"><span>${esc(e.label)}</span><span>${deg3(e.b)}°</span><span>${km(e.r)}</span><span>${dop}</span></div>`;
         }).join('')
-        : `<div class="dim">${o.activeSonar ? 'NOCH KEIN ECHO IM LETZTEN PING' : 'AKTIVSONAR AUS – EINSCHALTEN FÜR ENTFERNUNGEN'}</div>`);
+        : `<div class="dim">${o.activeSonar || (since !== undefined && since < every * 2) ? 'NOCH KEIN ECHO IM LETZTEN PING' : 'AKTIVSONAR AUS – EINZELPING FÜR EINE ENTFERNUNG'}</div>`);
       el.querySelectorAll<HTMLElement>('#as-echoes [data-c]').forEach((r) => (r.onclick = () => (store.selected = r.dataset.c)));
     },
     frame() {
@@ -172,7 +176,7 @@ export function activeScope(opts: { height?: number; compact?: boolean } = {}): 
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(hd) * R * 0.25, cy - Math.cos(hd) * R * 0.25); ctx.stroke();
       ctx.textAlign = 'left';
       ctx.fillStyle = COL.dim;
-      ctx.fillText(`RING ${(rM / NM / 4).toLocaleString('de-DE')} SM`, 6, H - 6);
+      ctx.fillText(`RING ${(rM / 4000).toLocaleString('de-DE')} KM`, 6, H - 6);
       if (o.pulse === 'cw') {
         ctx.textAlign = 'right';
         ctx.fillText('AMBER NÄHERT · BLAU ENTFERNT', w - 6, H - 6);

@@ -12,6 +12,9 @@ export function asternMaxKn(cls: ClassId): number {
   return Math.min(8, Math.round(CLASSES[cls].maxSpeedKn * 0.4));
 }
 
+/** Most a ship makes with the Nixie towed decoy streamed (the tow cable and body). */
+export const NIXIE_MAX_KN = 25;
+
 /** Speed above which a snorkeling SSK floods the snorkel / can't charge. */
 export const SNORKEL_MAX_KN = 8;
 
@@ -29,6 +32,7 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     maxKn = 0;
   }
   if (isSnorkeling(s)) maxKn = Math.min(maxKn, SNORKEL_MAX_KN);
+  if (s.nixie) maxKn = Math.min(maxKn, NIXIE_MAX_KN);
 
   // Speed: engines push up slowly, drag and astern power bring it down a bit quicker;
   // a hard turn bleeds speed (rudder and hull drag)
@@ -58,7 +62,7 @@ export function stepShip(s: Ship, dt: number, now: number): void {
     s.heading = wrap360(s.order.heading);
     s.yawRate = 0;
   } else s.heading = wrap360(s.heading + step);
-  if (Math.abs(s.yawRate) > 0.05) s.lastTurnAt = now;
+  settleTowed(s, now, step);
 
   if (spec.submarine) {
     // Depth: planes give speed · sin(angle); trim and ballast a little more at any speed
@@ -107,6 +111,31 @@ export function stepShip(s: Ship, dt: number, now: number): void {
   s.pos.y += v.y * way * dt;
 
   stepBattery(s, dt);
+}
+
+/**
+ * Towed array settling: a small alteration (< 10°) leaves the array straight; up to 45° it needs
+ * a minute on the new course, a bigger turn two and a half. The clock runs from the end of the turn.
+ */
+export const SETTLE_SMALL_DEG = 10;
+export const SETTLE_LARGE_DEG = 45;
+export const SETTLE_MEDIUM_S = 60;
+export const SETTLE_LARGE_S = 150;
+
+function settleTowed(s: Ship, now: number, step: number): void {
+  if (Math.abs(s.yawRate ?? 0) <= 0.05) {
+    s.turnFrom = undefined;
+    return;
+  }
+  // Heading before this step's turn: where the alteration began
+  s.turnFrom ??= wrap360(s.heading - step);
+  const alt = Math.abs(angleDiff(s.turnFrom, s.heading));
+  if (alt < SETTLE_SMALL_DEG) return;
+  const need = alt > SETTLE_LARGE_DEG ? SETTLE_LARGE_S : SETTLE_MEDIUM_S;
+  // A new turn while the array still snakes from the last one keeps the longer wait
+  const unsettled = now - s.lastTurnAt < (s.towedSettle ?? 0);
+  s.towedSettle = unsettled ? Math.max(s.towedSettle ?? 0, need) : need;
+  s.lastTurnAt = now;
 }
 
 /** Snorkel fully up at periscope depth: diesels run, battery charges. */

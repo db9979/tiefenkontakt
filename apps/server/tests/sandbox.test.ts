@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { ServerMsg } from '@tk/shared';
 import { parseClientMsg } from '../src/input.js';
 import { Lobby } from '../src/lobby.js';
-import type { Conn } from '../src/match.js';
+import { Match, type Conn } from '../src/match.js';
+
+// Time controls are checked step for step: no wall-clock budget under a loaded test run
+Match.sandboxBudgetMs = Infinity;
 import { seriesStats, SeriesRunner } from '../src/series.js';
 import { ArenaGame, DEFAULT_ARENA } from '../src/arena.js';
 

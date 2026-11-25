@@ -186,11 +186,16 @@ export function sonarDepth(s: Ship): number {
   return (s.vdsDepth ?? 0) > 5 ? s.vdsDepth! : s.depth;
 }
 
+/** A streamed Nixie decoy is loud on purpose: it rides close behind the towed array and reaches the hull sonar too. */
+export const NIXIE_TOWED_DB = 12;
+export const NIXIE_HULL_DB = 5;
+
 export function hullSelfNoise(s: Ship): number {
   const h = CLASSES[s.cls].hull;
   const kn = Math.max(s.speed / KN, 1);
   let n = h.selfNoiseBase + 40 * Math.log10(kn / h.selfNoiseRefKn) + sonarPenaltyDb(s);
   if (isSnorkeling(s)) n += 15;
+  if (s.nixie) n += NIXIE_HULL_DB;
   return n;
 }
 
@@ -199,7 +204,7 @@ export function towedSelfNoise(s: Ship): number {
   if (!t) return Infinity;
   const kn = s.speed / KN;
   const overspeed = Math.max(0, kn - t.maxSpeedKn);
-  return t.selfNoise + overspeed * 6;
+  return t.selfNoise + overspeed * 6 + (s.nixie ? NIXIE_TOWED_DB : 0);
 }
 
 /** Noise in one beam of an array (ambient + self noise, reduced by the array gain). */

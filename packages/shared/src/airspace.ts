@@ -1,11 +1,14 @@
 import { aircraftPosition, type Sortie } from './aviation.js';
 import { fogAt, inSquall } from './met.js';
-import { CLASSES } from './classes.js';
+import { CLASSES, isEscort } from './classes.js';
 import { canCopy } from './command-radio.js';
 import { isConvoyShip, mastRaised, type Ship } from './entities.js';
 import { KN, angleDiff, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
-import type { World } from './world.js';
-import { aircraftEmitter, esmLevel, esmTrend } from './emitters.js';
+import { bookFor, type World } from './world.js';
+import { aircraftEmitter, emitterSpec, esmLevel, esmTrend } from './emitters.js';
+import { antennaTurned, exposedMast, mastDetectP, type Detection, type MastKind } from './sensors.js';
+import { lineOfSight } from './terrain.js';
+import { gridRef } from './orders.js';
 
 /**
  * Air traffic and aircraft as sensors see them. Civil airliners cross on airways high up,
@@ -181,10 +184,75 @@ export function allPlanes(w: World): Plane[] {
     out.push({
       id: `${mpa ? 'P' : 'H'}${s.shipId}-${Math.round(s.launchAt)}`, kind: mpa ? 'mpa' : 'helo', team: ship.team as 'west' | 'east',
       pos: p, alt: SORTIE_ALT[s.kind ?? 'buoy'] ?? 120, heading: moving ? bearing(p, next) : 0,
-      speedKn: moving ? distance(p, next) / 5 / KN : 0, radar: mpa,
+      speedKn: moving ? distance(p, next) / 5 / KN : 0, radar: sortieRadarOn(s as Sortie, w.time),
     });
   }
   return out;
+}
+
+/**
+ * A sortie's search radar is on the air: the patrol aircraft always, the helicopter in transit
+ * (not while it hovers to dip or flies its low MAD pattern).
+ */
+export function sortieRadarOn(s: Sortie, now: number): boolean {
+  if (s.kind === 'mpa') return true;
+  return !(s.hoverUntil !== undefined && now >= s.dropAt && now <= s.hoverUntil);
+}
+
+/**
+ * Aircraft search radar against masts: limit per aircraft and mast kind (m). Seen from above a
+ * snorkel's spray and exhaust stand out far better than a thin periscope.
+ */
+export const AIR_MAST_RADAR: Record<'mpa' | 'helo', Record<MastKind, number>> = {
+  mpa: { snorkel: 30_000, mast: 9_000 },
+  helo: { snorkel: 15_000, mast: 6_000 },
+};
+/** Position error of an aircraft radar fix, per axis (m): about 1 km off in all. */
+export const AIR_FIX_SD = 700;
+const AIR_ALERT_GAP_S = 120;
+const airAlertAt = new WeakMap<Sortie, Record<string, number>>();
+
+/**
+ * Once a second: every friendly aircraft with its radar on gets one look per antenna sweep at
+ * the exposed masts and snorkels of enemy boats. A paint goes over the datalink to every escort
+ * of the side as a fix from the aircraft (≈1 km error) and the crews are told.
+ */
+export function aircraftRadarSweep(w: World): void {
+  for (const s of w.air?.sorties ?? []) {
+    const owner = w.ships.find((x) => x.id === s.shipId);
+    if (!owner?.alive || !sortieRadarOn(s, w.time)) continue;
+    const p = aircraftPosition(s, w.time, owner);
+    if (!p) continue;
+    const kind = s.kind === 'mpa' ? 'mpa' : 'helo';
+    const rot = emitterSpec(aircraftEmitter(kind))?.rotationS ?? 4;
+    if (!antennaTurned(`${kind}${s.shipId}-${Math.round(s.launchAt)}`, rot, w.time)) continue;
+    const alt = SORTIE_ALT[s.kind ?? 'buoy'] ?? 120;
+    for (const sub of w.ships) {
+      if (!sub.alive || sub.team === owner.team || !CLASSES[sub.cls].submarine) continue;
+      const mk = exposedMast(sub);
+      if (!mk) continue;
+      const r = distance(p, sub.pos);
+      const pDet = mastDetectP(mk, r, w.env.seaState, AIR_MAST_RADAR[kind][mk]) * (inSquall(w.env.met, sub.pos) ? 0.25 : 1);
+      if (pDet <= 0 || w.rng.next() > pDet) continue;
+      if (!lineOfSight(w.env.seabed, p, alt, sub.pos, 3)) continue;
+      const fix = { x: sub.pos.x + w.rng.gauss(0, AIR_FIX_SD), y: sub.pos.y + w.rng.gauss(0, AIR_FIX_SD) };
+      const escorts = w.ships.filter((e) => e.alive && e.team === owner.team && (e === owner || isEscort(e.cls)));
+      for (const e of escorts) {
+        const det: Detection = {
+          observerId: e.id, targetId: sub.id, sensor: 'radar', time: w.time,
+          bearing: bearing(p, fix), range: Math.max(50, distance(p, fix)), se: 15, originX: p.x, originY: p.y,
+        };
+        w.lastDetections.push(det);
+        bookFor(w, e.id).ingest(det);
+      }
+      const seen = (airAlertAt.get(s) ?? {});
+      airAlertAt.set(s, seen);
+      if (w.time - (seen[sub.id] ?? -1e9) < AIR_ALERT_GAP_S) continue;
+      seen[sub.id] = w.time;
+      const text = `${kind === 'mpa' ? 'SEEAUFKLÄRER' : 'BORDHUBSCHRAUBER'} · RADARKONTAKT ${mk === 'snorkel' ? 'SCHNORCHEL' : 'SEHROHR'} · PLANQUADRAT ${gridRef(fix.x, fix.y)}`;
+      for (const e of escorts) w.events.push({ kind: 'boat', time: w.time, shipId: e.id, what: 'airradar', text });
+    }
+  }
 }
 
 /** Radar horizon (m) between an antenna and an aircraft at a height. */

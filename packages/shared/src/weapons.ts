@@ -203,6 +203,8 @@ export function setTowedDecoy(w: World, ship: Ship, on: boolean): void {
   const l = st.loadouts.get(ship.id);
   if (!l || !isEscort(ship.cls)) return;
   l.towedDecoy = on;
+  // Mirrored on the ship: its noise in the own sonars and the 25 kn tow limit (acoustics, kinematics)
+  ship.nixie = on || undefined;
   st.decoys = st.decoys.filter((d) => d.towedBy !== ship.id);
   if (on) st.decoys.push({ id: `D${st.nextId++}`, pos: { ...ship.pos }, depth: 5, sl: 155, expiresAt: Number.MAX_SAFE_INTEGER, towedBy: ship.id });
 }

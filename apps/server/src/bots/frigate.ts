@@ -108,6 +108,9 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   const prosecuting = task ? role !== 'screen' && (leadB !== undefined || !!datum) : leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
   const learned = w.env.adapt?.west;
   s.activeSonar = role === 'attacker' ? false : role === 'director' || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? 0.5 : 1);
+  // Range scale (sets the ping interval): the long search scale, shorter and faster as the contact closes
+  const near = target?.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : datum ? distance(s.pos, datum) : Infinity;
+  s.pingRange = near < 3000 ? 4000 : near < 7000 ? 8000 : 16_000;
   // Learned: boats that like periscope depth get radar sweeps a third of the time
   if (learned?.pd) s.radarOn = now % 600 < 200;
   // Raid warning (launch flash, ESM on the seeker): radar on for the air defence while rounds fly
