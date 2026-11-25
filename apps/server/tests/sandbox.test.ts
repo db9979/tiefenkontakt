@@ -41,7 +41,7 @@ describe('sandbox truth view', () => {
     }
     lobby.sandbox.push();
     expect(a.inbox.some((x) => x.t === 'sandbox')).toBe(false);
-    expect(m.settings.timeScale).toBe(3);
+    expect(m.settings.timeScale).toBe(1);
   });
 
   it('shows the truth only to players who switched it on, with time controls and spawning', () => {
@@ -52,7 +52,7 @@ describe('sandbox truth view', () => {
     const t = truths(a).pop();
     expect(t?.t === 'sandbox' && t.truth?.ships.some((s) => s.id === 'p_b1')).toBe(true);
     expect(truths(b)).toHaveLength(0);
-    expect(b.inbox.some((x) => x.t === 'sandbox' && x.scale === 3)).toBe(true);
+    expect(b.inbox.some((x) => x.t === 'sandbox' && x.scale === 1)).toBe(true);
     // Spawn a target 4 km north of the own ship and steer it
     const own = m.shipOf('a1')!;
     lobby.handle(a, { t: 'sandbox', op: 'spawn', cls: 'merchant', bearing: 0, range: 4000, heading: 90, speedKn: 8 });

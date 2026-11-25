@@ -131,7 +131,7 @@ export interface ScenarioSettings {
 }
 
 /** layerDepth 0 = random per match (80-170 m); nobody knows it until measured. */
-export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: SEA_TIME_FACTOR, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft', variation: 'leicht' };
+export const DEFAULT_SETTINGS: ScenarioSettings = { mission: 'groenland', timeOfDay: 'tag', timeScale: 1, layerDepth: 0, seaState: 3, timeLimitMin: 40, merchants: 8, fillBots: true, botSkill: 'normal', weather: 'wechselhaft', variation: 'leicht' };
 
 /** Convoy route length: sized so a 9 kn convoy needs most of the time limit. */
 export function routeLength(s: ScenarioSettings): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ServerMsg, Snapshot } from '@tk/shared';
+import { SEA_TIME_FACTOR, type ServerMsg, type Snapshot } from '@tk/shared';
 import { parseClientMsg } from '../src/input.js';
 import { ABANDON_MS, Lobby } from '../src/lobby.js';
 import type { Conn } from '../src/match.js';
@@ -86,7 +86,7 @@ describe('match lifecycle', () => {
 
   it('a running match ends with a winner', () => {
     const { m, west } = setup();
-    m.world!.time = m.settings.timeLimitMin * 60 * m.settings.timeScale;
+    m.world!.time = m.settings.timeLimitMin * 60 * SEA_TIME_FACTOR;
     m.tick();
     expect(m.state).toBe('ended');
     expect(west.inbox.some((x) => x.t === 'end')).toBe(true);
@@ -271,7 +271,7 @@ describe('debrief', () => {
     const { m, west, east } = setup();
     for (let i = 0; i < 60; i++) m.tick();
     expect(west.inbox.some((x) => x.t === 'debrief')).toBe(false);
-    m.world!.time = m.settings.timeLimitMin * 60 * m.settings.timeScale;
+    m.world!.time = m.settings.timeLimitMin * 60 * SEA_TIME_FACTOR;
     m.tick();
     const d = west.inbox.find((x) => x.t === 'debrief');
     expect(d && d.t === 'debrief' ? d.d.frames.length : 0).toBeGreaterThan(0);
@@ -351,6 +351,7 @@ describe('quick match, stations and spectators', () => {
     const fan = fakeConn('fan');
     lobby.connect(fan);
     lobby.resume(fan);
+    m.settings.timeScale = 3; // enough sea time for the spectator delay
     for (let i = 0; i < 1200; i++) m.tick();
     lobby.handle(fan, { t: 'spectate', matchId: m.id });
     const msg = fan.inbox.find((x) => x.t === 'spectate');

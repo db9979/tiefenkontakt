@@ -204,7 +204,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     sel('#s-tod').value = match.settings.timeOfDay;
     sel('#s-sea').value = String(match.settings.seaState);
     sel('#s-time').value = String(match.settings.timeLimitMin);
-    sel('#s-scale').value = String(match.settings.timeScale ?? SEA_TIME_FACTOR);
+    sel('#s-scale').value = String(match.settings.timeScale ?? 1);
     sel('#s-bots').value = match.settings.fillBots ? '1' : '0';
     sel('#s-skill').value = match.settings.botSkill ?? 'normal';
     sel('#s-wx').value = match.settings.weather ?? 'wechselhaft';
