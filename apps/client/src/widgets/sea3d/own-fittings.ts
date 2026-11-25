@@ -68,6 +68,7 @@ export function gunMount(k: Kit, y: number, z: number, w: number, twin: boolean)
   for (const sx of [-1, 1]) {
     k.box(0.04, 1.4, 0.75, sx * (side + 0.02), hy + 0.85, -1.6, C.hazeD, P.paint, g);
     k.tube(V(sx * (side - 0.45), hy + roof + 0.12, -2.6), V(sx * (side - 0.45), hy + roof + 0.12, -0.6), 0.025, C.hazeL, P.paint, 4, g);
+    for (const zz of [-2.5, -1.6, -0.7]) k.tube(V(sx * (side - 0.45), hy + roof, zz), V(sx * (side - 0.45), hy + roof + 0.13, zz), 0.02, C.hazeL, P.paint, 4, g);
   }
   // Roof: sight hoods with dark slits, hatch, vent; rear door and ladder rungs
   const ry = hy + roof;
@@ -76,6 +77,16 @@ export function gunMount(k: Kit, y: number, z: number, w: number, twin: boolean)
     k.box(0.36, 0.08, 0.02, sx * (twin ? 1.35 : 1.05), ry + 0.24, 0.17, C.dark, P.matte, g);
   }
   k.box(0.85, 0.07, 0.85, 0, ry + 0.035, -1.7, C.hazeL, P.paint, g);
+  // Roof plate seams, the mount captain's cupola with vision slits, lifting eyes at the corners
+  for (const zz of [-1.0, -2.3]) k.box(twin ? 3.9 : 3.2, 0.02, 0.05, 0, ry + 0.01, zz, C.hazeD, P.paint, g);
+  const cx = twin ? 1.2 : 0.95;
+  k.lathe([[0.42, 0], [0.42, 0.22], [0.36, 0.3], [0.01, 0.32]], cx, ry, -1.9, C.gun, P.paint, 12, g);
+  k.box(0.5, 0.05, 0.1, cx, ry + 0.18, -1.5, C.dark, P.matte, g);
+  for (const sx of [-1, 1]) for (const zz of [-2.6, 0]) {
+    const eye = k.torus(0.08, 0.02, C.hazeD, P.paint, 4, 8, Math.PI * 2, g);
+    eye.position.set(sx * (twin ? 1.75 : 1.45), ry + 0.08, zz);
+    eye.rotation.y = Math.PI / 2;
+  }
   k.cyl(0.13, 0.35, twin ? -1.2 : -0.9, ry, -2.4, C.gun, P.paint, 8, 0.13, g);
   k.lathe([[0.3, 0], [0.28, 0.08], [0.14, 0.17], [0.01, 0.19]], twin ? -1.2 : -0.9, ry + 0.35, -2.4, C.gun, P.paint, 10, g);
   const rz = twin ? -3.22 : -3.12;
