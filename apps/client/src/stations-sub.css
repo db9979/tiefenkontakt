@@ -96,3 +96,23 @@
   .sub-central .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .sub-central .panel.grow.tabbed { min-height: 0; }
 }
+
+/* ---- Sehrohr (U2): buttons in two grouped rows; readings, then mast and radar warner ---- */
+.sub-peri .btnrows + .btnrows { margin-top: var(--sp2); }
+.sub-peri .peri-esm { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: var(--sp3); align-items: start; margin-top: var(--sp2); }
+.sub-peri #esm-rose { display: block; width: 180px; }
+.sub-peri #esm { min-width: 0; font-size: var(--fs-cap); }
+.sub-peri #mast-panel .btnrow { margin-bottom: 0; }
+
+@media (max-width: 1150px) {
+  .sub-peri .fill { height: 50vh; }
+  /* Stacked: readings and the mast block side by side under the optic, the mast radar below them */
+  .sub-peri > .st-col:last-child { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .sub-peri > .st-col:last-child > .panel:nth-child(n + 3) { grid-column: span 2; }
+}
+@media (max-width: 640px) {
+  .sub-peri .peri-esm { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .sub-peri > .st-col:last-child { grid-template-columns: minmax(0, 1fr); }
+  .sub-peri > .st-col:last-child > .panel:nth-child(n + 3) { grid-column: auto; }
+  .sub-central .tiles { grid-template-columns: 1fr 1fr; }
+}

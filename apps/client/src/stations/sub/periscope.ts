@@ -18,6 +18,7 @@ import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
 import { periscopeEsmRows } from '../../widgets/esm-text.js';
 import { LazyGl } from '../../widgets/lazy-gl.js';
+import { drawEsmRose } from '../../widgets/esm-rose.js';
 import { onRelease } from '../../widgets/touch.js';
 
 /**
@@ -41,6 +42,9 @@ net.on((m) => {
   if (m.t === 'welcome') scopeSent = { key: '', at: -1e9 };
   else if (m.t === 'snap') reportScope();
 });
+
+/** Height of the radar warner's strobe rose (U2). */
+const ROSE_H = 180;
 
 interface Wave {
   x: number;
@@ -71,29 +75,32 @@ function silhouette(ctx: CanvasRenderingContext2D, x: number, size: number, cls:
 }
 
 export function periscopeStation(): Station {
-  // Layout: the optic fills the left column; on the right the mast block (state, radar warner,
-  // mast radar) above the readings. Buttons in groups: mast, optic, record.
-  const el = h(`<div class="st two">
+  // Layout: the optic fills the left column with its buttons in two grouped rows (mast and
+  // training, then optic and record). On the right the readings first, then the mast block with
+  // the radar warner's strobe rose and its intercepts, the mast radar's screen while it sends.
+  const el = h(`<div class="st two sub-peri">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Sehrohr · Angriffsoptik</span><span id="mast" class="dim"></span></div>
         <div class="fill" id="view-box"><canvas id="gl" class="gl" style="position:absolute;inset:0;width:100%;height:100%"></canvas><canvas id="view" class="keep"></canvas></div>
         <div class="btnrows">
           <div class="btngroup"><button id="up" class="primary"><span id="up-t">Mast ausfahren</span>${keycap('mastDown')}</button><button id="peri">Auf Sehrohrtiefe</button></div>
-          <div class="btngroup"><button id="zoom" title="Vergrößerung 1,5× (Rundblick), 6× und 12× (Beobachten, Entfernung)">Vergr 6×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Seegang und Bootsbewegung still (Taste G)">Stab</button>
-            <span class="seg"><button id="left" title="Sehrohr nach links drehen">◀</button><button id="right" title="Sehrohr nach rechts drehen">▶</button><button id="elup" title="Sehrohrprisma anheben (Himmel)">▲</button><button id="eldn" title="Sehrohrprisma absenken">▼</button></span>
-            <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button><button id="sky" title="Prisma anheben und einmal rundum nach Flugzeugen suchen">Himmel absuchen</button></div>
+          <div class="btngroup"><span class="seg"><button id="left" title="Sehrohr nach links drehen">◀</button><button id="right" title="Sehrohr nach rechts drehen">▶</button><button id="elup" title="Sehrohrprisma anheben (Himmel)">▲</button><button id="eldn" title="Sehrohrprisma absenken">▼</button></span>
+            <button id="totgt" title="Sehrohr auf gewählten Kontakt drehen">Auf Ziel</button><button id="sky" title="Prisma anheben und einmal rundum nach Flugzeugen suchen">Himmel</button></div>
+        </div>
+        <div class="btnrows">
+          <div class="btngroup"><button id="zoom" title="Vergrößerung 1,5× (Rundblick), 6× und 12× (Beobachten, Entfernung)">Vergr 6×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Seegang und Bootsbewegung still (Taste G)">Stab</button></div>
           <div class="btngroup"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Sehrohrfoto (wird in der Nachbesprechung bewertet)">Foto</button></div>
         </div>
         <div class="hint">ZIEHEN DREHT UND HEBT · KLICK WÄHLT</div>
       </div>
     </div>
     <div class="st-col scroll">
-      <div class="panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
+      <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
+      <div class="panel" id="mast-panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
         <div id="mast-rows"></div>
-        <div id="esm"></div>
+        <div class="peri-esm"><canvas id="esm-rose" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas><div id="esm"></div></div>
         <div class="btnrow"><button id="radar" class="warn" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button></div>
       </div>
-      <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
     </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
@@ -156,7 +163,8 @@ export function periscopeStation(): Station {
   el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
   el.querySelector('#foto')!.after(phoneButton());
   const radarScope = subRadarPanel();
-  el.querySelector('#data')!.closest('.panel')!.before(radarScope.el);
+  el.querySelector('#mast-panel')!.after(radarScope.el);
+  const rose = el.querySelector<HTMLCanvasElement>('#esm-rose')!;
   el.querySelector<HTMLButtonElement>('#totgt')!.onclick = () => {
     sky.level();
     const c = store.selectedContact();
@@ -300,6 +308,7 @@ export function periscopeStation(): Station {
     },
     frame() {
       radarScope.frame();
+      if (store.snap) drawEsmRose(rose, ROSE_H, store.snap, mastState(store.snap.own).raised);
       // Only build the 3D scene while the mast is up: below periscope depth there is nothing to see
       if (store.snap && mastState(store.snap.own).ext > 0) g3.ensure();
       const s = store.snap;
