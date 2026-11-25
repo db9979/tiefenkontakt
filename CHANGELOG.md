@@ -34,6 +34,7 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ### Moderation
 - **Admin-Mails gestaltet:** Alle Mails an den Admin (Meldungen, Feedback, Fehlerberichte, Alarme, Berichte) kommen als
   HTML im Konsolen-Look der Spieler-Mails, mit Datenblöcken und Links, plus Textfassung.
+  Feedback, Spielermeldungen und Client-Fehler gehen zusätzlich gebündelt als Mail an den Admin.
 - **Beendete Partien verwalten:** Das Moderationspanel listet die aufgezeichneten Partien (Zeit, Mission, Sieger, Dauer,
   Spieler und Endgrund, der jetzt mitgespeichert wird). Einzelne Partien lassen sich aus Balance, Rangliste und Dienstbuch
   nehmen. „Alles zurücksetzen“ löscht nach Eingabe von RESET alle Partie-Statistiken samt Wertung, Ausstiegen und
