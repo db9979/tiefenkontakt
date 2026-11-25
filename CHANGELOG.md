@@ -6,6 +6,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Eigenes Schiff, zweite Runde (mit dem Fregattenkapitän):** offene Brücke mit geschlossenem Schanzkleid (kein
+  Durchblick mehr), Nocks bis zur vollen Breite mit Peilaufsatz, Signallampen und Seitenlichtschirmen, Fensterfront mit
+  Klarsichtscheiben und Wischern, Flaggenkästen und Signalleinen; sichtbares Geschützrohr, Werfer auf Drehsockel mit
+  Abgasschild; Dreibeinmast mit Rah, Radaren und ESM, Schornstein mit Abgasrohren, Beiboote in Davits, Rettungsinseln,
+  Hangar mit Leitstand, Flugdeck mit Markierungen und Netzen, Schleppsonar-Winde und Flagge am Heck.
 - **Eigenes Schiff im Detail:** von der Brücke sieht man jetzt ein eigenes Nahmodell statt der Fernansicht:
   rutschfestes Deck mit Fugen, Abnutzung und Markierungen, Geschützturm mit Rohr, U-Jagd-Werfer bzw. Flugkörperbehälter,
   Ankerspill mit Ketten, Poller, Lüfter, Wellenbrecher, Reling mit Stützen, Flaggenstock und eine Ausguckplattform
