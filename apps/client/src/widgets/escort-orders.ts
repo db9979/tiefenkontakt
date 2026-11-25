@@ -1,4 +1,5 @@
 import { gridRef, type EscortCommandView, type Snapshot } from '@tk/shared';
+import { gameDeg, trueDeg } from '../north.js';
 import { net } from '../net.js';
 import { esc, h, setHtml } from './format.js';
 
@@ -50,6 +51,10 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
   const root = h(`<div class="escort-orders">
     <div data-conv>
       <div class="row"><span class="dim">KONVOI</span><span data-cstate></span></div>
+      <div class="row"><span class="dim">KURS BEFEHLEN</span><span class="seg">
+        <input data-crs type="number" min="0" max="359" step="5" placeholder="°" title="Neuer Generalkurs des Konvois (rechtweisend); auf der Karte: Rechtsklick → Konvoi-Kurs hierher" style="width:64px;text-align:right">
+        <button data-crs-go title="Den Konvoi auf diesen Kurs legen (gilt, bis er zurück auf die Route geschickt wird)">BEFEHLEN</button>
+        <button data-crs-route title="Konvoi zurück auf die geplante Route">ROUTE</button></span></div>
       <div class="row"><span class="dim">NOTWENDE 45° · 10 MIN</span><span class="seg">
         <button data-turn="-1" title="Notwende 45° nach Backbord, 10 Minuten halten, dann zurück auf die Route">◀ BB</button>
         <button data-turn="0" title="Keine Notwende: auf der Route">KURS</button>
@@ -70,6 +75,15 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
   el.appendChild(root);
   const send = net.send.bind(net);
   root.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) => (b.onclick = () => send({ t: 'convoy_order', order: 'turn', side: Number(b.dataset.turn) as -1 | 0 | 1 })));
+  const crsIn = root.querySelector<HTMLInputElement>('[data-crs]')!;
+  const orderCourse = () => {
+    const v = Number(crsIn.value);
+    if (crsIn.value === '' || !Number.isFinite(v)) return;
+    send({ t: 'convoy_order', order: 'course', course: gameDeg(((Math.round(v) % 360) + 360) % 360) });
+  };
+  root.querySelector<HTMLButtonElement>('[data-crs-go]')!.onclick = orderCourse;
+  crsIn.onkeydown = (e) => e.key === 'Enter' && orderCourse();
+  root.querySelector<HTMLButtonElement>('[data-crs-route]')!.onclick = () => send({ t: 'convoy_order', order: 'course' });
   root.querySelectorAll<HTMLButtonElement>('[data-zz]').forEach((b) => (b.onclick = () => send({ t: 'convoy_order', order: 'zigzag', on: b.dataset.zz === '1' })));
   root.querySelectorAll<HTMLButtonElement>('[data-spd]').forEach((b) => (b.onclick = () => send({ t: 'convoy_order', order: 'speed', adj: Number(b.dataset.spd) })));
   root.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));
@@ -98,7 +112,9 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
       const c = cmd.convoy;
       (root.querySelector('[data-conv]') as HTMLElement).style.display = c ? '' : 'none';
       if (c) {
-        root.querySelector('[data-cstate]')!.textContent = `${c.speedKn.toFixed(0)} KN${c.zigzag ? ' · ZICKZACK' : ''}${c.turn ? ` · NOTWENDE ${c.turn.side < 0 ? 'BB' : 'STB'} NOCH ${Math.ceil(c.turn.leftS / 60)} MIN` : ''}`;
+        root.querySelector('[data-cstate]')!.textContent = `${c.course !== undefined ? `KURS ${String(Math.round(trueDeg(c.course)) % 360).padStart(3, '0')}° · ` : 'AUF ROUTE · '}${c.speedKn.toFixed(0)} KN${c.zigzag ? ' · ZICKZACK' : ''}${c.turn ? ` · NOTWENDE ${c.turn.side < 0 ? 'BB' : 'STB'} NOCH ${Math.ceil(c.turn.leftS / 60)} MIN` : ''}`;
+        root.querySelector<HTMLButtonElement>('[data-crs-route]')!.classList.toggle('on', c.course === undefined);
+        if (c.course !== undefined && document.activeElement !== crsIn) crsIn.value = String(Math.round(trueDeg(c.course)) % 360);
         const side = c.turn?.side ?? 0;
         root.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) => b.classList.toggle('on', Number(b.dataset.turn) === side));
         root.querySelectorAll<HTMLButtonElement>('[data-zz]').forEach((b) => b.classList.toggle('on', (b.dataset.zz === '1') === c.zigzag));

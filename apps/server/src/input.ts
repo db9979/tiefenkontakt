@@ -99,7 +99,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
     rel: deg.optional(), range: z.number().finite().min(1000).max(20_000).optional(),
   }),
   z.object({
-    t: z.literal('convoy_order'), order: z.enum(['turn', 'zigzag', 'speed']),
+    t: z.literal('convoy_order'), order: z.enum(['turn', 'zigzag', 'speed', 'course']), course: deg.optional(),
     side: z.union([z.literal(-1), z.literal(0), z.literal(1)]).optional(), on: z.boolean().optional(), adj: z.number().int().min(-2).max(2).optional(),
   }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),

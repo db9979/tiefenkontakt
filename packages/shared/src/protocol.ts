@@ -28,6 +28,8 @@ export interface EscortCommandView {
     turn?: { side: -1 | 1; leftS: number };
     /** Sideways detour from the route (m, + starboard). */
     offset?: number;
+    /** Course ordered by the commander (game frame); absent = on the route. */
+    course?: number;
   };
   escorts: {
     id: string;
@@ -111,7 +113,7 @@ export type ClientMsg =
    */
   | { t: 'escort_task'; shipId: string; task: EscortCmdKind | 'cancel'; x?: number; y?: number; rel?: number; range?: number }
   /** Escort commander's convoy orders: emergency turn 45° (side −1 port, +1 starboard, 0 cancel), zigzag on/off, speed change (kn, ±2). */
-  | { t: 'convoy_order'; order: 'turn' | 'zigzag' | 'speed'; side?: -1 | 0 | 1; on?: boolean; adj?: number }
+  | { t: 'convoy_order'; order: 'turn' | 'zigzag' | 'speed' | 'course'; side?: -1 | 0 | 1; on?: boolean; adj?: number; /** order 'course': game-frame course, absent = back on the route */ course?: number }
   | { t: 'repair'; system: ShipSystem }
   /** Pass a FLASH order on (convoy turn) to the commodore. */
   | { t: 'execute_order'; id: string }

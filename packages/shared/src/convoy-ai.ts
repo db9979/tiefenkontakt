@@ -25,6 +25,8 @@ export interface ConvoyState {
   turn?: { course: number; until: number; side: -1 | 1 };
   /** Speed ordered by the escort commander relative to the route speed (kn, ±CONVOY_SPEED_ADJ_MAX). */
   speedAdj?: number;
+  /** Course ordered by the escort commander (game frame, deg): held (with zigzag about it) until he sends it back to the route. */
+  course?: number;
 }
 
 /** Emergency turn: how far (deg) and how long it is held before the convoy resumes its route (s). */
@@ -50,6 +52,12 @@ export function emergencyTurn(c: ConvoyState, side: -1 | 0 | 1, now: number): vo
   const wp = c.waypoints[c.wpIndex];
   const base = wp ? bearing(c.guide, legTarget(c, wp, c.waypoints[c.wpIndex - 1] ?? c.origin ?? c.guide)) : c.guideHeading;
   c.turn = { course: wrap360(base + EMERGENCY_TURN_DEG * side), until: now + EMERGENCY_TURN_S, side };
+}
+
+/** Course ordered by the escort commander; undefined sends the convoy back onto its route. Ends an emergency turn. */
+export function setConvoyCourse(c: ConvoyState, course: number | undefined): void {
+  c.course = course === undefined ? undefined : wrap360(Math.round(course));
+  c.turn = undefined;
 }
 
 /** Convoy speed change ordered by the escort commander, bounded to ±2 kn of the route speed. */
@@ -131,7 +139,8 @@ export function stepConvoy(c: ConvoyState, merchants: Ship[], dt: number, now: n
     const zig = c.zigzag ? (Math.floor(now / ZIG_PERIOD) % 2 === 0 ? ZIG_ANGLE : -ZIG_ANGLE) : 0;
     // An emergency turn holds its course (no zigzag) until it runs out
     if (c.turn && now >= c.turn.until) c.turn = undefined;
-    c.guideHeading = c.turn ? c.turn.course : wrap360(leg + zig);
+    // An ordered course replaces the route's leg; zigzag still swings about it
+    c.guideHeading = c.turn ? c.turn.course : wrap360((c.course ?? leg) + zig);
     const v = headingVec(c.guideHeading);
     const step = convoySpeedKn(c) * KN * dt;
     c.guide = { x: c.guide.x + v.x * step, y: c.guide.y + v.y * step };

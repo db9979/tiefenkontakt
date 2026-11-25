@@ -256,6 +256,24 @@ describe('C15 convoy orders', () => {
     expect(c.turn).toBeUndefined();
   });
 
+  it('an ordered course is held (no time limit) until the convoy is sent back to its route', () => {
+    const { w, cmdr } = setup(['ffg'], true);
+    const c = w.convoy!;
+    c.zigzag = false;
+    const ms = w.ships.filter((s) => s.cls === 'merchant');
+    expect(convoyOrder(w, cmdr, { t: 'convoy_order', order: 'course', course: 90 })).toBeUndefined();
+    for (let t = 0; t < 1500; t++) stepConvoy(c, ms, 1, t);
+    expect(Math.abs(c.guideHeading - 90)).toBeLessThan(1);
+    expect(escortCommandFor(w, cmdr)!.convoy!.course).toBe(90);
+    // Merchants follow: their ordered headings point roughly east
+    expect(ms.filter((m) => m.alive).every((m) => Math.abs(((m.order.heading - 90 + 540) % 360) - 180) < 50)).toBe(true);
+    convoyOrder(w, cmdr, { t: 'convoy_order', order: 'course' });
+    expect(c.course).toBeUndefined();
+    stepConvoy(c, ms, 1, 1501);
+    // Back toward the route (north), from east of it: west of north
+    expect(c.guideHeading > 270 || c.guideHeading < 1).toBe(true);
+  });
+
   it('zigzag on/off and speed ±2 kn (bounded); only the own escorts order', () => {
     const { w, cmdr, es } = setup(['ffg'], true);
     const c = w.convoy!;

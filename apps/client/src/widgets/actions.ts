@@ -114,10 +114,20 @@ if (typeof window !== 'undefined') window.addEventListener('pointerdown', (e) =>
 export function escortOrderActions(p: Vec2): MenuItem[] {
   const s = store.snap;
   const cmd = s?.command;
-  if (!s || !cmd?.escorts.length) return [];
+  if (!s || !cmd) return [];
   const x = Math.round(p.x);
   const y = Math.round(p.y);
-  return cmd.escorts.map((e) => ({
+  // Convoy course toward the clicked point, from the middle of the merchants afloat
+  const ms = s.friendlies.filter((f) => f.cls === 'merchant' && f.alive);
+  const convoyItems: MenuItem[] = cmd.convoy && ms.length ? [{
+    label: 'Konvoi-Kurs hierher',
+    run: () => {
+      const cx = ms.reduce((a, m) => a + m.x, 0) / ms.length;
+      const cy = ms.reduce((a, m) => a + m.y, 0) / ms.length;
+      net.send({ t: 'convoy_order', order: 'course', course: Math.round(((Math.atan2(x - cx, y - cy) * 180) / Math.PI + 360) % 360) });
+    },
+  }] : [];
+  return [...convoyItems, ...cmd.escorts.map((e) => ({
     label: `Auftrag an ${e.name} …`,
     run: () => {
       const items: MenuItem[] = [
@@ -130,5 +140,5 @@ export function escortOrderActions(p: Vec2): MenuItem[] {
       // Opened after the first menu has closed
       setTimeout(() => openMenu(lastPress.x, lastPress.y, items, `Auftrag an ${e.name}`), 0);
     },
-  }));
+  }))];
 }

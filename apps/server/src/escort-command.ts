@@ -7,7 +7,9 @@ import {
   hasHelicopter,
   isConvoyShip,
   isEscort,
+  setConvoyCourse,
   setConvoySpeedAdj,
+  trueDeg3,
   wrap360,
   type ClientMsg,
   type EscortCommandView,
@@ -99,6 +101,9 @@ export function convoyOrder(w: World, s: Ship, m: Extract<ClientMsg, { t: 'convo
     if (m.on === undefined) return 'Zickzack: an oder aus';
     c.zigzag = m.on;
     teamRadio(w, s, `KONVOI · ZICKZACK ${m.on ? 'AN' : 'AUS'}`);
+  } else if (m.order === 'course') {
+    setConvoyCourse(c, m.course);
+    teamRadio(w, s, m.course === undefined ? 'KONVOI · ZURÜCK AUF DIE ROUTE' : `KONVOI · NEUER KURS ${trueDeg3(w, m.course)}`);
   } else {
     if (m.adj === undefined) return 'Fahrt: Änderung angeben';
     setConvoySpeedAdj(c, m.adj);
@@ -117,6 +122,7 @@ export function escortCommandFor(w: World, own: Ship): EscortCommandView | undef
     ? {
         zigzag: c.zigzag, speedKn: Math.round(convoySpeedKn(c) * 10) / 10, adj: c.speedAdj ?? 0,
         ...(c.turn && c.turn.until > w.time ? { turn: { side: c.turn.side, leftS: Math.round(c.turn.until - w.time) } } : {}),
+        ...(c.course !== undefined ? { course: c.course } : {}),
         ...(c.offset ? { offset: c.offset } : {}),
       }
     : undefined;

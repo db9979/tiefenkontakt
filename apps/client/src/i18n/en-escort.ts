@@ -1,6 +1,7 @@
 /** English for the escort commander's panel (convoy orders, AI escort tasks) and its radio calls. */
 
 export const EN_ESCORT: [string, string][] = [
+  ['KURS BEFEHLEN', 'ORDER COURSE'], ['BEFEHLEN', 'ORDER'], ['AUF ROUTE · ', 'ON ROUTE · '], ['Konvoi-Kurs hierher', 'Convoy course to here'], ['Konvoi zurück auf die geplante Route', 'Convoy back onto the planned route'], ['Den Konvoi auf diesen Kurs legen (gilt, bis er zurück auf die Route geschickt wird)', 'Put the convoy on this course (until it is sent back to the route)'],
   ['Geleitführung · Konvoi und Aufträge', 'Escort command · convoy and tasks'],
   ['KONVOI', 'CONVOY'], ['NOTWENDE 45° · 10 MIN', 'EMERGENCY TURN 45° · 10 MIN'], ['◀ BB', '◀ PORT'], ['KURS', 'COURSE'], ['STB ▶', 'STBD ▶'],
   ['ZICKZACK', 'ZIGZAG'], ['AN', 'ON'], ['AUS', 'OFF'], ['FAHRT', 'SPEED'], ['−2 KN', '−2 KN'], ['+2 KN', '+2 KN'], ['ROUTE', 'ROUTE'],
