@@ -2,7 +2,7 @@
 export const EN_WIDGETS: [string, string][] = [
   // Contact list
   ['SENS', 'SENS'], ['PEGEL', 'LEVEL'], ['Signalpegel in dB · ALT: Sekunden seit der letzten Peilung', 'Signal level in dB · OLD: seconds since the last bearing'],
-  ['EIGENER TORPEDO', 'OWN TORPEDO'], ['ERFASST', 'ACQUIRED'], ['LÄUFT', 'RUNNING'],
+  ['EIGENER TORPEDO', 'OWN TORPEDO'], ['FREMDE', 'OTHERS'], ['Nur fremde Kontakte: eigene und verbündete Einheiten ausblenden', 'Others only: hide own and allied units'], ['ERFASST', 'ACQUIRED'], ['LÄUFT', 'RUNNING'],
   // Helm
   ['BEFOHLENE TIEFE', 'ORDERED DEPTH'], ['Befohlene Tiefe in Metern', 'Ordered depth in metres'], ['Befohlene Tiefe', 'Ordered depth'], ['Drehrate', 'Rate of turn'],
   ['Gemessene Sprungschicht', 'Measured layer'],

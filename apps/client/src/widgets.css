@@ -5,10 +5,12 @@
 .clist.norange .ctable { grid-template-columns: 74px minmax(0, 1.1fr) 40px minmax(0, 1.4fr) 72px; }
 .clist .ctable > span:nth-last-child(2) { text-align: left; }
 .clist .ctable > span:last-child { text-align: right; }
-/* Filter chips stay on one row (the count right); they shrink rather than wrap */
-.clist .chips { flex-wrap: nowrap; min-width: 0; }
-.clist .chips .chip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
-.clist .chips .chipcount { flex: 0 0 auto; white-space: nowrap; }
+/* Filter chips stay on one row (the count right), whole words; a column too narrow for them
+   scrolls the row sideways instead of leaving one chip alone on a second row */
+.clist .chips { flex-wrap: nowrap; min-width: 0; gap: 3px; overflow-x: auto; scrollbar-width: none; }
+.clist .chips::-webkit-scrollbar { display: none; }
+.clist .chips .chip { flex: 0 0 auto; white-space: nowrap; padding-left: 5px; padding-right: 5px; letter-spacing: 0.04em; }
+.clist .chips .chipcount { flex: 0 0 auto; white-space: nowrap; padding-left: 4px; }
 
 /* Waterfall display controls: one height with the other footer controls (24 px), no lone wraps */
 .wf-ctl { display: inline-flex; gap: 3px; align-items: stretch; white-space: nowrap; }

@@ -109,7 +109,8 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
   const sub = CLASSES[s.own.cls].submarine;
   const chips = filterChips(ID, [
     { key: 'fresh', label: 'AKTUELL', title: 'Nur Kontakte der letzten 30 s' },
-    { key: 'hostile', label: 'OHNE EIGENE', title: 'Eigene und verbündete Einheiten ausblenden' },
+    // Short, so all chips fit on one row in the narrow OPZ column (the tooltip says what it does)
+    { key: 'hostile', label: 'FREMDE', title: 'Nur fremde Kontakte: eigene und verbündete Einheiten ausblenden' },
     { key: 'g:sonar', label: 'SONAR' },
     ...(sub ? [] : [{ key: 'g:radar', label: 'RADAR' }]),
     { key: 'g:esm', label: 'ESM' },

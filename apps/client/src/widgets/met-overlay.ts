@@ -32,8 +32,14 @@ function forecast(ctx: CanvasRenderingContext2D, now: Vec2, then: Vec2, r: numbe
 
 function label(ctx: CanvasRenderingContext2D, p: Vec2, r: number, text: string, color: string): void {
   if (r < 14) return;
+  const y = p.y - Math.min(r * 0.6, 40);
+  // Not under the chart's tool buttons (top row, right column), where it would peek out half hidden
+  const cv = ctx.canvas as HTMLCanvasElement;
+  const w = cv.clientWidth || cv.width;
+  const tw = ctx.measureText(text).width;
+  if (y < 44 || p.x + tw / 2 > w - 46) return;
   ctx.fillStyle = color;
-  ctx.fillText(text, p.x, p.y - Math.min(r * 0.6, 40));
+  ctx.fillText(text, p.x, y);
 }
 
 /**
