@@ -23,6 +23,21 @@ export const EN_HELO: [string, string][] = [
   ['KEIN TORPEDO MEHR', 'NO TORPEDO LEFT'], ['SPERRGEBIET', 'RESTRICTED AREA'], ['KEIN ABWURF', 'NO DROP'],
   ['Auftragsliste voll', 'Task list full'], ['Kein Zielpunkt', 'No target point'], ['Auftrag nicht mehr in der Liste', 'Task no longer in the list'],
   ['Kein Auftrag gewählt', 'No task chosen'],
+  // Flight deck (flying course), dip cycle and buoy patterns
+  ['FLUGKURS STEUERN', 'STEER FLYING COURSE'], ['Den Kurs ans Ruder geben: Wind im Flugdeckbereich (30° beiderseits des Bugs)', 'Give the course to the helm: wind inside the deck envelope (30° either side of the bow)'],
+  ['SEEGANG ZU HOCH · KEIN START', 'SEA STATE TOO HIGH · NO LAUNCH'], ['SCHIFF DREHT · FLUGDECK ROT', 'SHIP TURNING · DECK RED'],
+  ['FLUGKURS LIEGT AN · ROTOREN LAUFEN', 'ON FLYING COURSE · ROTORS RUNNING'], ['FLUGKURS LIEGT AN · LANDEANFLUG', 'ON FLYING COURSE · ON APPROACH'],
+  ['NOTLANDUNG AUSSERHALB DER GRENZEN', 'EMERGENCY LANDING OUTSIDE LIMITS'], ['LANDEANFLUG', 'ON APPROACH'], ['LÄNGSSEITS · WARTET AUF FLUGKURS', 'ALONGSIDE · WAITING FOR FLYING COURSE'],
+  ['ROTOREN LAUFEN · START', 'ROTORS RUNNING · LAUNCH'], ['STARTBEREIT · WARTET AUF FLUGKURS', 'READY · WAITING FOR FLYING COURSE'],
+  ['MUSTER', 'PATTERN'], ['BOJEN', 'BUOYS'], ['LINIE', 'LINE'], ['SPERRE', 'BARRIER'], ['KREIS', 'CIRCLE'], ['KEIL', 'CHEVRON'], ['Bojen legen', 'Lay buoys'],
+  ['Bojen je Muster (Linie höchstens 6, Sperre und Kreis 8, Keil 7)', 'Buoys per pattern (line at most 6, barrier and circle 8, chevron 7)'],
+  ['Linie quer zur Sichtlinie, 2,5 km Abstand', 'Line across the line of sight, 2.5 km apart'],
+  ['Sperre: zwei versetzte Reihen quer zum Anmarschweg, die Lücken der einen deckt die andere', 'Barrier: two staggered rows across the approach, each covers the gaps of the other'],
+  ['Kreis um das Datum (1,5 nm Radius): das Boot kann nach keiner Seite unbemerkt ablaufen', 'Circle round the datum (1.5 nm radius): the boat cannot slip away to any side unheard'],
+  ['Keil vor einem schnellen Boot: Spitze voraus auf seinem Kurs (TMA), die Schenkel laufen zurück', 'Chevron ahead of a fast boat: apex ahead on its course (TMA), the arms trail back'],
+  ['Passive Bojen im gewählten Muster über dem Ziel, abwechselnd über und unter der Schicht', 'Passive buoys in the chosen pattern over the target, alternately above and below the layer'],
+  ['Je Tauchstelle etwa 4–5 min: einschweben, Dom fieren (4,5 m/s), über und unter der gemessenen Schicht pingen, Dom hieven, dann 4 km weiter in Suchrichtung (3 Tauchstellen)',
+    'About 4–5 min per dip: come to the hover, lower the dome (4.5 m/s), ping above and below the measured layer, raise the dome, then 4 km on in the search direction (3 dips)'],
 ];
 
 export const EN_HELO_PHRASES: [RegExp, string][] = [
@@ -38,5 +53,14 @@ export const EN_HELO_PHRASES: [RegExp, string][] = [
   [/^STARTVORBEREITUNG (\d+:\d\d)$/, 'LAUNCH PREPARATION $1'],
   [/ · NUR PEILUNG – PINGEN, TMA ODER KARTENPUNKT \(RECHTSKLICK\) · BOJENLINIE LÄNGS DER PEILUNG$/, ' · BEARING ONLY – PING, TMA OR MAP POINT (RIGHT-CLICK) · BUOY LINE ALONG THE BEARING'],
   [/^Außer Reichweite des Hubschraubers \((\d+) km\)$/, 'Out of helicopter range ($1 km)'],
-  [/Hubschrauber: Torpedo hier/, 'Helicopter: torpedo here'], [/ \(sofort\)$/, ' (at once)'],
+  [/Hubschrauber: Torpedo hier/, 'Helicopter: torpedo here'],
+  [/^Bojensperre hier \(zwei versetzte Reihen\)/, 'Buoy barrier here (two staggered rows)'], [/^Bojenkreis um diesen Punkt \(Datum, 1,5 nm\)/, 'Buoy circle round this point (datum, 1.5 nm)'],
+  [/^Bojenkeil hier \(Spitze zum eigenen Schiff\)/, 'Buoy chevron here (apex toward own ship)'], [/ \(sofort\)$/, ' (at once)'],
+  [/FLUGKURS NÖTIG · WIND (\d{3})° · KURS (\d{3})°/, 'FLYING COURSE NEEDED · WIND $1° · COURSE $2°'], [/ · LANDUNG WARTET$/, ' · LANDING WAITS'],
+  [/^FLUGKURS LIEGT AN · START /, 'ON FLYING COURSE · LAUNCH '], [/^FLUGKURS LIEGT AN · LANDUNG /, 'ON FLYING COURSE · LANDING '],
+  [/^SCHIFF DREHT · FLUGDECK ROT · START WARTET$/, 'SHIP TURNING · DECK RED · LAUNCH WAITS'], [/^SCHIFF DREHT · FLUGDECK ROT · LANDUNG WARTET$/, 'SHIP TURNING · DECK RED · LANDING WAITS'],
+  [/ · SCHWEBT · DOM (\d+) M$/, ' · HOVERING · DOME $1 M'],
+  [/BOJEN · LINIE · (\d+) BOJEN/, 'BUOYS · LINE · $1 BUOYS'], [/BOJEN · SPERRE · (\d+) BOJEN/, 'BUOYS · BARRIER · $1 BUOYS'],
+  [/BOJEN · KREIS · (\d+) BOJEN/, 'BUOYS · CIRCLE · $1 BUOYS'], [/BOJEN · KEIL · (\d+) BOJEN/, 'BUOYS · CHEVRON · $1 BUOYS'],
+  [/^SPERRE · (\d+\/\d+)/, 'BARRIER · $1'], [/^KREIS · (\d+\/\d+)/, 'CIRCLE · $1'], [/^KEIL · (\d+\/\d+)/, 'CHEVRON · $1'],
 ];

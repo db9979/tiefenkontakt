@@ -20,7 +20,6 @@ import {
   knownMines,
   steerClear,
   CLASSES,
-  isConvoyShip,
   angleDiff,
   dropDepthCharge,
   MORTAR_MAX,
@@ -30,6 +29,7 @@ import {
 import { STRAIT_GUARD_Y } from '../scenario.js';
 import { SKILL, isFriendly, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
 import { thinkStrike } from './strike.js';
+import { convoyEstimate } from './convoy-estimate.js';
 import { directorCourse, type EscortTask } from './escort-team.js';
 import { heloAttack, heloIdle, heloOnDipContact, heloProsecute, heloSearch } from './helo.js';
 import { wantMineAvoid } from './mine-cm.js';
@@ -160,12 +160,13 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     }
   } else if (!merchants.length && s.team === 'east') {
     // Ostpakt patrol ship: sweep ahead of its own wolfpack toward the convoy, drawing the escorts
-    // and hunting their boat; it keeps the pack's position from fleet command (truth for own boats)
+    // and hunting their boat; it keeps the pack's position from fleet command (truth for own boats),
+    // and the convoy only as its radar or the reconnaissance report places it (convoy-estimate.ts)
     const pack = w.ships.filter((x) => x.alive && x.team === s.team && CLASSES[x.cls].submarine);
-    const foe = w.ships.filter((x) => x.alive && isConvoyShip(x));
     const mid = (l: Ship[]) => ({ x: l.reduce((a, x) => a + x.pos.x, 0) / l.length, y: l.reduce((a, x) => a + x.pos.y, 0) / l.length });
     const home = pack.length ? mid(pack) : s.pos;
-    const toward = foe.length ? headingVec(bearing(home, mid(foe))) : headingVec(180);
+    const est = convoyEstimate(w, m, s, tracks);
+    const toward = est ? headingVec(bearing(home, est)) : headingVec(180);
     const station = { x: home.x + toward.x * 5000, y: home.y + toward.y * 5000 };
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
@@ -176,7 +177,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     s.order.speedKn = distance(s.pos, station) > 5000 ? 18 : 12;
   } else if (merchants.length) {
     // Screen ahead on a flank (escorts split left/right), weaving to clear the baffles
-    const ahead = w.convoy ? headingVec(w.convoy.guideHeading) : { x: 0, y: 1 };
+    const ahead = w.convoy ? headingVec(w.convoy.baseHeading ?? w.convoy.guideHeading) : { x: 0, y: 1 };
     const side = flankOf(w, s);
     const station = task?.station ?? { x: center.x + ahead.x * 4000 + ahead.y * side * 4000, y: center.y + ahead.y * 4000 - ahead.x * side * 4000 };
     // Fleet command's sector: the helicopter dips it when the ship stays with the convoy
@@ -203,10 +204,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   }
 
   // Missile-armed patrol ship: the strike on the convoy overrides the sweep (stand-off and fire)
-  if (!merchants.length && s.team === 'east') {
-    const foe = w.ships.filter((x) => x.alive && isConvoyShip(x));
-    thinkStrike(w, s, tracks, foe.length ? { x: foe.reduce((a, x) => a + x.pos.x, 0) / foe.length, y: foe.reduce((a, x) => a + x.pos.y, 0) / foe.length } : undefined);
-  }
+  if (!merchants.length && s.team === 'east') thinkStrike(w, s, tracks, convoyEstimate(w, m, s, tracks));
   // Mine-avoidance sonar wherever mines can lie, unless sprinting (it only hears up to 15 kn)
   s.mineAvoid = wantMineAvoid(w, s);
   // Known mines close ahead: turn clear of them (the escort sets them off like any hull)

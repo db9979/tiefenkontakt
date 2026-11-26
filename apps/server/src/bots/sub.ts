@@ -1,4 +1,5 @@
 import {
+  depthLimit,
   angleDiff,
   crewOf,
   mastRaised,
@@ -96,7 +97,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   if (now < m.evadeUntil) return;
 
   const bottom = depthAt(w.env.seabed, s.pos.x, s.pos.y);
-  const maxSafe = Math.max(25, Math.min(CLASSES[s.cls].maxDepth * 0.85, bottom - 30));
+  // A damaged hull dives less deep (boat.ts depthLimit)
+  const maxSafe = Math.max(25, Math.min(depthLimit(s) * 0.85, bottom - 30));
   const tracks = w.books.get(s.id)?.tracks() ?? [];
   const fresh = tracks.filter((t) => now - t.lastSeen < 15 && t.sensors.some((x) => x === 'hull' || x === 'towed'));
   // A ping heard from far away is a warning, not a threat; a loud one means the escort is close
@@ -318,7 +320,9 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   if (wait === undefined && range !== undefined && !fouled && envelope && now - m.lastShot > SHOT_COOLDOWN) {
     // Long passive shots run slow (quieter, the seeker hears more without flow noise); long active
     // shots transit at 30 kn and sprint at 40 once the seeker opens (heavyPreset, F17)
-    const mode = duel ? 'active' : 'passive';
+    // An SSN with wake homers takes a fast escort with one: it runs up the wake, the towed decoy doesn't fool it
+    const wakeShot = s.cls === 'ssn' && choice === 'warship' && (w.weapons?.loadouts.get(s.id)?.wake ?? 0) > 0 && (solved?.sol.speedKn ?? 0) > 15;
+    const mode = wakeShot ? 'wake' : duel ? 'active' : 'passive';
     const enableAfter = Math.max(800, range * 0.6);
     const plan = heavyPreset(range, mode);
     const runKn = twoSpeedMeanKn(plan.transitKn, plan.speedKn, enableAfter, range);

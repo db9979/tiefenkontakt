@@ -452,7 +452,8 @@ export class Plot {
       const fix = lastFix(c, s);
       const mode = linesMode();
       const wantLines = mode === 'alle' || (mode === 'auswahl' && sel);
-      if (wantLines && ((this.opts.bearingLines && c.via === 'own') || (isEsm && this.opts.esmLines))) {
+      // A mate's bearing line (datalink, from the reporting ship) when selected: crossing it with the own is the operator's act
+      if (wantLines && ((this.opts.bearingLines && (c.via === 'own' || sel)) || (isEsm && this.opts.esmLines))) {
         ctx.strokeStyle = strobe;
         // Selected: a stable fan, one line per minute of sim time over the last 10 minutes (bucketed by time, so it doesn't reshuffle)
         let bucket = -1;

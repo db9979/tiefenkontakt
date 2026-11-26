@@ -5,6 +5,8 @@ import { thinkAirDefense } from './airdef.js';
 import { sweepScope, thinkSub, type PackReport } from './sub.js';
 import { heardLaunchDatum, planSide, type EscortTask } from './escort-team.js';
 import { obeySub } from './orders-ai.js';
+import { steerFlyingCourse } from './helo.js';
+import { reconReport } from './convoy-estimate.js';
 
 export type { BotSkill } from './common.js';
 /** Kept for save files written before the AI rewrite. */
@@ -86,6 +88,8 @@ export class BotCrew {
       } else {
         thinkFrigate(w, m, ship, this.skill, this.tasks.get(ship.id));
         thinkAirDefense(w, m, ship, this.skill);
+        // The helicopter's launch or recovery needs a flying course (not while dodging a torpedo)
+        if (!m.passive && w.time >= m.evadeUntil) steerFlyingCourse(w, ship);
         // VDS frigates hunt with the body under the layer whenever they are slow enough
         const vds = CLASSES[ship.cls].vds;
         if (vds) {
@@ -137,6 +141,9 @@ export class BotCrew {
           // An escort that hears a tube flood or a launch keeps the line for the team's heard datum
           if (!sub && (e.what === 'flood' || e.what === 'launch')) m.launchHeard = { x: ship.pos.x, y: ship.pos.y, b, t: w.time };
         }
+      } else if (e.kind === 'recon' && !sub && ship.team === 'east') {
+        // The patrol ship gets the same report from fleet command, with its targeting error
+        m.convoyLine = reconReport(ship, e);
       } else if (e.kind === 'recon' && sub && ship.team === 'east') {
         // Air recon via fleet command: head for the reported convoy
         m.lead = { x: ship.pos.x, y: ship.pos.y, b: bearing(ship.pos, e), t: w.time };

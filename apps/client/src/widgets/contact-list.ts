@@ -151,10 +151,12 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       const brgTitle = [
         pair ? 'SCHLEPPSONAR: ZWEI SPIEGELPEILUNGEN, SEITE UNGEKLÄRT' : side && c.bearingAlt !== undefined ? `SEITE ${side === 'stb' ? 'STEUERBORD' : 'BACKBORD'}` : '',
         c.tas?.ghost ? 'MÖGLICHER GEIST (SPIEGELPEILUNG)' : '',
-        c.originX !== undefined ? 'PEILUNG VON DER SONARBOJE, NICHT VOM EIGENEN SCHIFF' : '',
+        c.via === 'datalink' ? `DATALINK: PEILUNG VOM MELDENDEN SCHIFF, NICHT VOM EIGENEN${c.linkAgeS !== undefined ? ` · MELDUNG ${c.linkAgeS} S ALT` : ''}`
+          : c.originX !== undefined ? 'PEILUNG VON DER SONARBOJE, NICHT VOM EIGENEN SCHIFF' : '',
       ].filter(Boolean).join(' · ');
       const cues = (c.tas?.ghost ? '<b class="red cue" title="Möglicher Geist: Spiegelpeilung des Schleppsonars">!</b>' : pair ? '<b class="amber cue" title="Seite ungeklärt (STB/BB?): Rumpfsonar oder Kursänderung klärt sie">?</b>' : '')
-        + (c.originX !== undefined ? '<b class="blue cue" title="Peilung von der Sonarboje, nicht vom eigenen Schiff">◆</b>' : '');
+        + (c.via === 'datalink' ? '<b class="blue cue" title="Datalink: Peilung vom meldenden Schiff, Meldung einige Sekunden alt; nicht zugeordnet = eigene Spur (Doppelspur möglich)">⇄</b>'
+          : c.originX !== undefined ? '<b class="blue cue" title="Peilung von der Sonarboje, nicht vom eigenen Schiff">◆</b>' : '');
       const what = whatOf(c, own);
       const whatTitle = own ? `EIGEN${nameOf(c) ? ' · ' + nameOf(c) : ''}` : nameOf(c) || 'UNKLASSIFIZIERT';
       const color = c.assigned === 'torpedo' ? 'red' : '';

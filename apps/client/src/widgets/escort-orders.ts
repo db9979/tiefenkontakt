@@ -60,9 +60,10 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
         <button data-turn="-1" title="Notwende 45° nach Backbord, 10 Minuten halten, dann zurück auf die Route">◀ BB</button>
         <button data-turn="0" title="Keine Notwende: auf der Route">KURS</button>
         <button data-turn="1" title="Notwende 45° nach Steuerbord, 10 Minuten halten, dann zurück auf die Route">STB ▶</button></span></div>
-      <div class="row"><span class="dim">ZICKZACK</span><span class="seg">
-        <button data-zz="1" title="Zickzack fahren (schwerer zu treffen, langsamer voran)">AN</button>
-        <button data-zz="0" title="Gerader Kurs auf der Route">AUS</button></span></div>
+      <div class="row"><span class="dim">ZICKZACK-PLAN</span><span class="seg">
+        <button data-zz="0" title="Gerader Kurs auf der Route">AUS</button>
+        ${[1, 2, 3, 4, 5, 6].map((n) => `<button data-zz="${n}" title="Zickzack-Plan ${n}">${n}</button>`).join('')}</span></div>
+      <div data-zz-st class="dim" style="margin:2px 0 4px;text-align:right"></div>
       <div class="row"><span class="dim">FAHRT</span><span class="seg">
         <button data-spd="-2" title="Konvoi 2 kn langsamer (leiser)">−2 KN</button>
         <button data-spd="0" title="Fahrt laut Route">ROUTE</button>
@@ -93,7 +94,7 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
   root.querySelector<HTMLButtonElement>('[data-crs-go]')!.onclick = orderCourse;
   crsIn.onkeydown = (e) => e.key === 'Enter' && orderCourse();
   root.querySelector<HTMLButtonElement>('[data-crs-route]')!.onclick = () => send({ t: 'convoy_order', order: 'course' });
-  root.querySelectorAll<HTMLButtonElement>('[data-zz]').forEach((b) => (b.onclick = () => send({ t: 'convoy_order', order: 'zigzag', on: b.dataset.zz === '1' })));
+  root.querySelectorAll<HTMLButtonElement>('[data-zz]').forEach((b) => (b.onclick = () => send({ t: 'convoy_order', order: 'zigzag', plan: Number(b.dataset.zz) })));
   root.querySelectorAll<HTMLButtonElement>('[data-spd]').forEach((b) => (b.onclick = () => send({ t: 'convoy_order', order: 'speed', adj: Number(b.dataset.spd) })));
   root.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));
   let last: Snapshot | undefined;
@@ -130,12 +131,20 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
         return;
       }
       if (c) {
-        root.querySelector('[data-cstate]')!.textContent = `${c.course !== undefined ? `KURS ${String(Math.round(trueDeg(c.course)) % 360).padStart(3, '0')}° · ` : 'AUF ROUTE · '}${c.speedKn.toFixed(0)} KN${c.zigzag ? ' · ZICKZACK' : ''}${c.turn ? ` · NOTWENDE ${c.turn.side < 0 ? 'BB' : 'STB'} NOCH ${Math.ceil(c.turn.leftS / 60)} MIN` : ''}`;
+        root.querySelector('[data-cstate]')!.textContent = `${c.course !== undefined ? `KURS ${String(Math.round(trueDeg(c.course)) % 360).padStart(3, '0')}° · ` : 'AUF ROUTE · '}${c.speedKn.toFixed(0)} KN${c.zigzag ? ` · ZICKZACK ${c.zigPlan ?? ''}`.trimEnd() : ''}${c.turn ? ` · NOTWENDE ${c.turn.side < 0 ? 'BB' : 'STB'} NOCH ${Math.ceil(c.turn.leftS / 60)} MIN` : ''}`;
         root.querySelector<HTMLButtonElement>('[data-crs-route]')!.classList.toggle('on', c.course === undefined);
         if (c.course !== undefined && document.activeElement !== crsIn) crsIn.value = String(Math.round(trueDeg(c.course)) % 360);
         const side = c.turn?.side ?? 0;
         root.querySelectorAll<HTMLButtonElement>('[data-turn]').forEach((b) => b.classList.toggle('on', Number(b.dataset.turn) === side));
-        root.querySelectorAll<HTMLButtonElement>('[data-zz]').forEach((b) => b.classList.toggle('on', (b.dataset.zz === '1') === c.zigzag));
+        const plan = c.zigzag ? c.zigPlan ?? 1 : 0;
+        root.querySelectorAll<HTMLButtonElement>('[data-zz]').forEach((b) => {
+          const n = Number(b.dataset.zz);
+          b.classList.toggle('on', n === plan);
+          const p = c.zigPlans?.find((x) => x.n === n);
+          if (p) b.title = `Zickzack-${p.name.replace('PLAN', 'Plan')}: ${p.text} · Fortschritt ${Math.round(p.advance * 100)} % der Fahrt (schwerer zu treffen, langsamer voran)`;
+        });
+        const cur = c.zigPlans?.find((x) => x.n === plan);
+        setText(root.querySelector<HTMLElement>('[data-zz-st]')!, cur ? `${cur.name} · ${cur.text} · VORAUS ${Math.round(cur.advance * 100)} %${c.zigLeftS !== undefined ? ` · NÄCHSTER SCHLAG ${Math.floor(c.zigLeftS / 60)}:${String(c.zigLeftS % 60).padStart(2, '0')}` : ''}` : 'AUS · GERADER KURS');
         root.querySelectorAll<HTMLButtonElement>('[data-spd]').forEach((b) => b.classList.toggle('on', Number(b.dataset.spd) === c.adj));
         const off = c.offset ?? 0;
         root.querySelector('[data-detour-st]')!.textContent = off ? `${(Math.abs(off) / 1000).toFixed(1).replace('.', ',')} KM ${off < 0 ? 'BB' : 'STB'}` : 'AUF ROUTE';

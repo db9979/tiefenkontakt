@@ -345,7 +345,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
     const cap = CLASSES[s.cls].battery?.capacityKnH;
     if (cap && s.battery !== undefined) s.battery = (startBatteryPct(() => w.rng.next(), settings.botSkill === 'leicht') / 100) * cap;
   }
-  if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, v.waypoints(route), convoyKn, sp);
+  if (merchants.length && mission !== 'hafen') w.convoy = createConvoy(merchants, v.waypoints(route), convoyKn, sp, seed);
   installWeapons(w);
   w.systems.push(mineSystem);
   installAir(w);

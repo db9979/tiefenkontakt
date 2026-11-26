@@ -8,10 +8,12 @@ import {
   CHOICE_MAX_KN,
   distance,
   rankClasses,
+  RECOG,
+  SIGNATURES,
   type ClassChoice,
+  type ClassId,
   type ContactTrack,
   type OwnFix,
-  isConvoyShip,
   type Ship,
   type TmaSolution,
   type World,
@@ -136,22 +138,43 @@ export function isFriendly(w: World, s: Ship, t: ContactTrack, m?: BotMemory): b
 export const NEUTRAL_RECOGNISE_S = 240;
 
 /**
- * Is this contact neutral traffic the captain should leave alone? Recognised from the contact
- * itself once there is a real cue: held for four minutes (steady independent course, no zigzag,
- * not in station), or seen through the periscope, on radar or by eye, or showing lights.
- * Before that, only a neutral alone on the bearing (no convoy ship near it) counts.
+ * Is this contact neutral traffic the captain should leave alone (F30)? Recognised from the
+ * contact itself, never from who it really is: a class seen by eye (periscope, lookout) tells the
+ * group at once; otherwise the sonar's class library must name a neutral type (tanker, container
+ * ship, ferry, trawler, tug, yacht) on the contact's own marks, confirmed by a real cue (radar,
+ * sight, lights) or by holding it four minutes (its own steady course, not in station).
  */
-export function isNeutral(w: World, s: Ship, t: ContactTrack, m?: BotMemory): boolean {
-  const id = w.books.get(s.id)?.targetIdOf(t.label);
-  const truth = id ? w.ships.find((x) => x.id === id) : undefined;
-  if (truth) {
-    if (truth.team !== 'neutral') return false;
-    const seen = t.sensors.some((k) => k === 'periscope' || k === 'radar' || k === 'visual') || t.lit !== undefined || t.sighting !== undefined;
-    if (seen || w.time - t.firstSeen >= NEUTRAL_RECOGNISE_S) return true;
+export function isNeutral(w: World, _s: Ship, t: ContactTrack, _m?: BotMemory): boolean {
+  if (t.classified) return RECOG[t.classified].group === 'neutral';
+  const ev = t.evidence;
+  if (!ev) return false;
+  const key = lineSetClass(ev.tonals);
+  const rec = key ? RECOG[key as ClassId] : undefined;
+  if (rec?.group !== 'neutral') return false;
+  const cue = t.sensors.some((k) => k === 'periscope' || k === 'radar' || k === 'visual') || t.lit !== undefined || t.sighting !== undefined;
+  return cue || w.time - t.firstSeen >= NEUTRAL_RECOGNISE_S;
+}
+
+/** Tonal match tolerance for the line set (Hz). */
+const LINE_MATCH_HZ = 1.5;
+
+/**
+ * The class whose tonal lines best explain the whole set of lines on the LOFAR gram (as the
+ * operator reads it: every line accounted for, the strong lines of the class present), not only
+ * the strongest one: a freighter's 37,5 Hz line or a tanker's 9 Hz firing rate tells them apart.
+ */
+export function lineSetClass(tonals: readonly { hz: number; snr: number }[]): string | undefined {
+  if (!tonals.length) return undefined;
+  let best: { key: string; score: number } | undefined;
+  for (const sig of Object.values(SIGNATURES)) {
+    const lines = [...sig.tonals, ...(sig.snorkelTonals ?? [])];
+    if (!lines.length) continue;
+    let score = 0;
+    for (const t of tonals) score += lines.some((l) => Math.abs(l.hz - t.hz) <= LINE_MATCH_HZ) ? 1 : -1;
+    for (const l of sig.tonals) if (l.level >= 6 && !tonals.some((t) => Math.abs(l.hz - t.hz) <= LINE_MATCH_HZ)) score -= 0.5;
+    if (!best || score > best.score) best = { key: sig.key, score };
   }
-  const line = m ? latestLine(t, m, s) : { origin: s.pos, b: t.bearing };
-  const on = (f: Ship) => f.alive && distance(line.origin, f.pos) > 50 && Math.abs(angleDiff(bearing(line.origin, f.pos), line.b)) < 3;
-  return w.ships.some((f) => f.team === 'neutral' && on(f)) && !w.ships.some((f) => isConvoyShip(f) && on(f));
+  return best && best.score > 0 ? best.key : undefined;
 }
 
 /** Majority vote over the contact's looks, so a slow merchant isn't taken for a submarine once. */

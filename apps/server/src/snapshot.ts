@@ -21,6 +21,7 @@ import {
   cavitationSpeedKn,
   sourceLevel,
   towedArrayReady,
+  towedGeometryDepth,
   type AlertView,
   type ContactTrack,
   type ClassChoice,
@@ -52,6 +53,7 @@ import {
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
 import { escortCommandFor } from './escort-command.js';
+import { correlate, linkedFriendly, logPositions, ownAt, pictureOf, reportedTrack, type Picture } from './datalink.js';
 
 export interface PlayerExtras {
   /** Briefing already delivered on this connection. */
@@ -68,6 +70,8 @@ export interface PlayerExtras {
   evSent?: Record<string, number>;
   alertsSent?: number;
   radioSent?: number;
+  /** Datalink: mate track labels merged into another track at the last snapshot (gate hysteresis). */
+  linkMerged?: Record<string, string>;
   /** Entries dropped from the front of the capped lists (to keep absolute counts). */
   alertsDropped?: number;
   radioDropped?: number;
@@ -193,10 +197,7 @@ export function buildSnapshot(
 ): Snapshot {
   const l = w.weapons?.loadouts.get(own.id);
   const contacts: Snapshot['contacts'] = [];
-  // Track correlation: each target appears once (own contact first, then the first mate's)
-  const seen = new Set<string>();
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
-    seen.add(tid);
     contacts.push({
       ...tr, evidence: newEvidence(x, tr.label, tr), history: [], via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: seenOptically(tr, w.time) ? wreckOf(w, tid) : undefined,
       ...periscopeView(tr, newSamples(x, tr.label, tr.history, 120), realism, w.time),
@@ -207,19 +208,36 @@ export function buildSnapshot(
   if (hasDatalink(own)) {
     // FOG OF WAR: the datalink carries surface ships only; a submarine is where it last radioed
     const mates = datalinkMates(w, own);
-    for (const m of mates) friendlies.push(friendlyOf(m, w.time));
+    logPositions(w, [own, ...mates]);
+    // Each mate as of its last report on the net, in its own (gridlocked) frame
+    for (const m of mates) friendlies.push(linkedFriendly(w, m, friendlyOf(m, w.time)));
     const linked = new Set(mates.map((m) => m.id));
     for (const r of x.reports.values()) if (!linked.has(r.id)) friendlies.push(r);
+    // Correlation by gate (datalink.ts), never by the target's identity: own tracks first, then each mate's in turn
+    const now = w.time;
+    // The own picture from the own book (samples without an origin were taken where the own ship was)
+    const picture: Picture[] = (w.books.get(own.id)?.tracks() ?? []).map((tr) => pictureOf(tr, now, ownAt(w, own)));
+    const was = (x.linkMerged ??= {});
+    const merged: Record<string, string> = {};
     mates.forEach((m, i) => {
-      for (const [tid, tr] of w.books.get(m.id)?.entries() ?? []) {
-        if (seen.has(tid)) continue;
-        seen.add(tid);
+      for (const [tid, raw] of w.books.get(m.id)?.entries() ?? []) {
+        const tr = reportedTrack(w, m, raw);
+        if (!tr) continue;
+        const label = `L${i + 1}-${raw.label}`;
+        const p = { ...pictureOf(tr, now, () => m.pos), label };
+        const into = correlate(p, picture, was[label]);
+        if (into) {
+          merged[label] = into;
+          continue;
+        }
+        picture.push(p);
         contacts.push({
-          ...tr, label: `L${i + 1}-${tr.label}`, evidence: newEvidence(x, `L${i + 1}-${tr.label}`, tr), history: [], via: 'datalink', assigned: classes?.get(tid), assignedCls: idents?.[tid],
-          ...periscopeView(tr, newSamples(x, `L${i + 1}-${tr.label}`, tr.history, 30), realism, w.time),
+          ...tr, label, evidence: newEvidence(x, label, tr), history: [], via: 'datalink', assigned: classes?.get(tid), assignedCls: idents?.[tid],
+          ...periscopeView(tr, newSamples(x, label, tr.history, 30), realism, w.time),
         });
       }
     });
+    x.linkMerged = merged;
   } else {
     friendlies.push(...x.reports.values());
   }
@@ -285,7 +303,7 @@ export function buildSnapshot(
       depth: own.depth, heading: own.heading, speedKn: own.speed / KN, sternway: own.sternway || undefined, order: { ...own.order }, route: own.route?.wps.length ? { wps: own.route.wps.map((p) => ({ ...p })), idx: own.route.idx, active: own.route.active } : undefined,
       alive: own.alive, hp: own.hp, battery: own.battery, batteryEnduranceS: batteryEndurance(own),
       snorkel: own.snorkel, mastUp: own.mastUp, mastPending: own.mastPending || undefined, mastExt: own.mastExt, snorkelExt: own.snorkelExt, mastUpSince: x.mastUpSince, radarOn: own.radarOn,
-      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, pingRange: pingRangeOf(own), pingEvery: pingInterval(own), pingPending: own.pingOnce || undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, mineAvoid: own.mineAvoid || undefined, mineAvoidRange: isEscort(own.cls) ? mineSearchRange(w, own) || undefined : undefined, convoyOffset: isEscort(own.cls) && w.convoy?.offset ? w.convoy.offset : undefined, towedReady: towedArrayReady(own, w.time),
+      activeSonar: own.activeSonar, pulse: own.pulse, lastPingAt: own.lastPingAt > 0 ? own.lastPingAt : undefined, pingRange: pingRangeOf(own), pingEvery: pingInterval(own), pingPending: own.pingOnce || undefined, towedLength: Math.round(own.towedLength), towedOrder: own.towedOrder, towedDepth: own.towedLength > 0 ? Math.round(towedGeometryDepth(own)) : undefined, vdsDepth: own.vdsDepth !== undefined ? Math.round(own.vdsDepth) : undefined, vdsOrder: own.vdsOrder, mineAvoid: own.mineAvoid || undefined, mineAvoidRange: isEscort(own.cls) ? mineSearchRange(w, own) || undefined : undefined, convoyOffset: isEscort(own.cls) && w.convoy?.offset ? w.convoy.offset : undefined, towedReady: towedArrayReady(own, w.time),
       damage: { ...(own.damage ?? emptyDamage()) }, repair: own.repair,
       comps: own.comps && compartmentView(own), dcComp: own.dcComp, dcAt: own.comps && dcTarget(own), wreck: wreckView(own),
       crew: own.crew && { ...own.crew, performance: Math.round(crewPerformance(own) * 100) / 100 },

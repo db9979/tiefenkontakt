@@ -22,6 +22,7 @@ import {
 import { classify, isFriendly, latestLine, votedPeek, type BotMemory } from './common.js';
 import { crossFix } from './frigate.js';
 import { leadDetour, sweepStation } from './mine-cm.js';
+import { aiZigzag } from './convoy-plan.js';
 
 /**
  * Escort teamwork. Once every few seconds the AI escorts of a side pool what their sensors
@@ -255,6 +256,8 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
     if (heardBy) hunters = [...hunters, heardBy];
   }
   plan.hunters = hunters.map((s) => s.id);
+  // The side's AI commander orders the convoy's zigzag plan (irregular under a threat)
+  aiZigzag(w, team, Math.max(d?.t ?? -1e9, plan.heard?.t ?? -1e9));
 
   // Hunter-killer pair: keep roles for a while; the director is the one with the best contact
   if (hunters.length >= 2 && datumOk) {
@@ -287,7 +290,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   // Screen: the others take stations on the threat axis (or ahead): one close, long arrays outside
   const screens = free.filter((s) => !tasks.has(s.id));
   if (center && screens.length) {
-    const ahead = w.convoy?.guideHeading ?? 0;
+    const ahead = w.convoy?.baseHeading ?? w.convoy?.guideHeading ?? 0;
     const threat = d && now - d.t < DATUM_MAX_AGE ? bearing(center, d) : undefined;
     const st = screenStations(center, threat ?? ahead, screens, !!w.convoy);
     // In mine water one screen sweeps the track close ahead with its mine-avoidance sonar (the
@@ -344,7 +347,7 @@ export function heardLaunchDatum(w: World, victim: Ship, alertBearing: number, m
 
 /** Where a commanded station lies now: bearing relative to the convoy's course and range from its centre. */
 export function cmdStation(w: World, c: EscortCmd, center: Vec2): Vec2 {
-  const v = headingVec((w.convoy?.guideHeading ?? 0) + (c.rel ?? 0));
+  const v = headingVec((w.convoy?.baseHeading ?? w.convoy?.guideHeading ?? 0) + (c.rel ?? 0));
   return { x: center.x + v.x * (c.r ?? CLOSE_SCREEN_R), y: center.y + v.y * (c.r ?? CLOSE_SCREEN_R) };
 }
 

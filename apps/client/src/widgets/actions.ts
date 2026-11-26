@@ -89,7 +89,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
   // Tasks go into the helicopter's queue (at the end, or at once in SOFORT mode of the helicopter panel)
   const op = heloMode();
   const now = op === 'now' ? ' (sofort)' : '';
-  const task = (kind: 'dip' | 'buoys' | 'mad' | 'attack', extra: { active?: boolean } = {}) => () => net.send({ t: 'helo', op, kind, bearing: b, range: d, ...extra });
+  const task = (kind: 'dip' | 'buoys' | 'mad' | 'attack', extra: { active?: boolean; pattern?: 'barrier' | 'circle' | 'chevron' } = {}) => () => net.send({ t: 'helo', op, kind, bearing: b, range: d, ...extra });
   // The submenu's title says "Hubschrauber": the lines name only the task
   const items: MenuItem[] = [
     { label: `Ziel für die Aufträge hier (${dist(s, d)})`, run: () => pickHeloPoint(p) },
@@ -97,6 +97,9 @@ export function buoyAction(p: Vec2): MenuItem[] {
     ...(hv.buoys + hv.magBuoys > 0 ? [
       { label: `Bojenlinie hier${now}`, run: task('buoys') },
       { label: 'Aktive Bojenlinie (DICASS) · pingt, verrät sich', run: task('buoys', { active: true }) },
+      { label: `Bojensperre hier (zwei versetzte Reihen)${now}`, run: task('buoys', { pattern: 'barrier' }) },
+      { label: `Bojenkreis um diesen Punkt (Datum, 1,5 nm)${now}`, run: task('buoys', { pattern: 'circle' }) },
+      { label: `Bojenkeil hier (Spitze zum eigenen Schiff)${now}`, run: task('buoys', { pattern: 'chevron' }) },
     ] : []),
     { label: `MAD-Suche hier (Kleeblatt, 6 min)${now}`, run: task('mad') },
     ...(hv.torps + hv.magTorps > 0 ? [{ label: `${warnNear(s, p)}Torpedo hier (${hv.torps})${now}`, danger: true, run: task('attack') }] : []),

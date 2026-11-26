@@ -9,7 +9,11 @@ import {
   isEscort,
   setConvoyCourse,
   setConvoySpeedAdj,
+  setZigPlan,
   trueDeg3,
+  zigNow,
+  zigPlanList,
+  zigPlanOf,
   wrap360,
   type ClientMsg,
   type EscortCommandView,
@@ -71,7 +75,7 @@ export function escortTask(w: World, s: Ship, m: Extract<ClientMsg, { t: 'escort
     if (m.x !== undefined && m.y !== undefined) {
       // A point on the chart: kept as bearing and range from the convoy, so it moves with it
       r = distance(center, { x: m.x, y: m.y });
-      rel = wrap360(bearing(center, { x: m.x, y: m.y }) - (w.convoy?.guideHeading ?? 0));
+      rel = wrap360(bearing(center, { x: m.x, y: m.y }) - (w.convoy?.baseHeading ?? w.convoy?.guideHeading ?? 0));
     }
     if (rel === undefined || r === undefined) return 'Station: Punkt oder Peilung und Abstand angeben';
     if (r < 1000 || r > 20_000) return 'Station 1–20 km vom Konvoi';
@@ -98,9 +102,11 @@ export function convoyOrder(w: World, s: Ship, m: Extract<ClientMsg, { t: 'convo
     emergencyTurn(c, m.side, w.time);
     teamRadio(w, s, m.side ? `KONVOI · NOTWENDE 45° ${m.side < 0 ? 'BACKBORD' : 'STEUERBORD'} · 10 MIN` : 'KONVOI · NOTWENDE AUFGEHOBEN · ZURÜCK AUF ROUTE');
   } else if (m.order === 'zigzag') {
-    if (m.on === undefined) return 'Zickzack: an oder aus';
-    c.zigzag = m.on;
-    teamRadio(w, s, `KONVOI · ZICKZACK ${m.on ? 'AN' : 'AUS'}`);
+    if (m.on === undefined && m.plan === undefined) return 'Zickzack: Plan oder aus';
+    // A plan number picks the diagram; the older on/off keeps the plan last steamed (or the match's default)
+    setZigPlan(c, m.plan ?? (m.on ? c.zigPlan ?? zigPlanOf({ ...c, zigzag: true }) : 0), w.time);
+    const n = zigPlanOf(c);
+    teamRadio(w, s, n ? `KONVOI · ZICKZACK PLAN ${n}` : 'KONVOI · ZICKZACK AUS');
   } else if (m.order === 'course') {
     setConvoyCourse(c, m.course);
     teamRadio(w, s, m.course === undefined ? 'KONVOI · ZURÜCK AUF DIE ROUTE' : `KONVOI · NEUER KURS ${trueDeg3(w, m.course)}`);
@@ -120,7 +126,7 @@ export function escortCommandFor(w: World, own: Ship): EscortCommandView | undef
   const c = w.convoy;
   const convoy = c && w.ships.some((x) => isConvoyShip(x) && x.team === own.team)
     ? {
-        zigzag: c.zigzag, speedKn: Math.round(convoySpeedKn(c) * 10) / 10, adj: c.speedAdj ?? 0,
+        zigzag: c.zigzag, zigPlan: zigPlanOf(c), zigLeftS: c.zigzag ? Math.round(zigNow(c, w.time).leftS) : undefined, zigPlans: zigPlanList(c), speedKn: Math.round(convoySpeedKn(c) * 10) / 10, adj: c.speedAdj ?? 0,
         ...(c.turn && c.turn.until > w.time ? { turn: { side: c.turn.side, leftS: Math.round(c.turn.until - w.time) } } : {}),
         ...(c.course !== undefined ? { course: c.course } : {}),
         ...(c.offset ? { offset: c.offset } : {}),
