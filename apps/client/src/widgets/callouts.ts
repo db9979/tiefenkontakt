@@ -26,12 +26,12 @@ export interface LogEntry {
   keep?: boolean;
   /** Folded row (groupLog): how many alike reports it stands for. */
   count?: number;
-  /** FLASH, command signals, torpedo and air alarms: shown whole, never cut to two lines (N7). */
+  /** FLASH, command signals, torpedo and air alarms and the crew's reports on the own boat (head valve, broach, hull): shown whole, never cut to two lines (N7). */
   whole?: boolean;
 }
 
 /** Alert kinds whose log row is never clamped (N7). */
-const WHOLE_KINDS = new Set<string>(['flash', 'command', 'torpedo', 'air']);
+const WHOLE_KINDS = new Set<string>(['flash', 'command', 'torpedo', 'air', 'boat']);
 
 
 const en = lang === 'en';
@@ -144,7 +144,7 @@ export class Callouts {
         this.report(s, { level: 'info', text: a.text, station: sub ? 'zentrale' : undefined, keep: true, whole: true }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
       } else if (a.kind === 'boat') {
         const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND|WASSEREINBRUCH|^FEUER (IM|IN|GREIFT)|MUNITION|AUFTRIEB|SINKT|SACKT/.test(a.text);
-        this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined }, boatCall(a.text));
+        this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined, whole: true }, boatCall(a.text));
       } else if (a.kind === 'ping') {
         // A pinger on the same bearing every 30 s: report it once, again when it gets louder or after 2 minutes
         if (!this.pings.report({ time: a.time, bearing: a.bearing, emitter: 'PING', esmLvl: Math.floor((a.level ?? 0) / 10) }, false)) continue;

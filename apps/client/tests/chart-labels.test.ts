@@ -125,6 +125,18 @@ describe('datalink correlation holds (F6)', () => {
     expect(contacts.map((c) => c.label).filter((l) => fr.isFriendlyContact({ ...contacts.find((c) => c.label === l)!, bearing: l === 'S21' ? 0.1 : contacts.find((c) => c.label === l)!.bearing } as never, s2))).toEqual(['S20', 'L1-S4']);
   });
 
+  it('a mate track is never the reporting mate itself (it sits at the track origin)', () => {
+    // Mate corvette 300 m off its own reported origin (gridlock): any bearing used to line up with it
+    const s = {
+      time: 4000, own: { x: -11_000, y: 0 }, contacts: [],
+      friendlies: [{ id: 'k1', cls: 'kor', alive: true, x: 200, y: 220, reportedAt: 4000, speedKn: 12, heading: 0 }],
+    } as unknown as Snapshot;
+    const mate = { label: 'L9-S9', bearing: 30, sensors: ['hull' as const, 'towed' as const], via: 'datalink' as const, originX: 0, originY: 0 };
+    expect(fr.isFriendlyContact(mate, s)).toBe(false);
+    // The own ship's track of that corvette still is EIGEN
+    expect(fr.isFriendlyContact({ label: 'S30', bearing: 89, sensors: ['hull'], via: 'own' }, s)).toBe(true);
+  });
+
   it('measures a sonobuoy bearing from the buoy (N2)', () => {
     // Friend 10 km north of a buoy that lies 10 km east: 000° from the buoy, 045° from the own ship
     const s = snap(2000, 10_000);

@@ -24,7 +24,8 @@ html[data-theme='light'] .st.opz .aswchip.amber { background: rgba(154, 88, 0, 0
 /* Sonar: array length in the towed panel's header, one display popover for both waterfalls (F2) */
 /* The length buttons keep their full width; only the status before them gives way */
 .hd-r { display: flex; align-items: center; gap: var(--sp2); }
-.hd-r > #ts { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Array state and depth on a line of its own under the header: in the header it was cut to "11…" */
+.st.fsonar .tow-st { font-size: var(--fs-cap); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: -2px 0 4px; min-height: 1.2em; }
 .hd-r > .seg { flex: none; }
 .hdseg > button { padding: 0 6px; min-height: 20px; font-size: var(--fs-cap); }
 /* Footer: ANZEIGE ▾ looks like the buttons beside it (26 px), the side state as text, the how-to on its own line */

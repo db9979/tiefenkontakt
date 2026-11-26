@@ -98,7 +98,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
       { label: `Bojenlinie hier${now}`, run: task('buoys') },
       { label: 'Aktive Bojenlinie (DICASS) · pingt, verrät sich', run: task('buoys', { active: true }) },
       { label: `Bojensperre hier (zwei versetzte Reihen)${now}`, run: task('buoys', { pattern: 'barrier' }) },
-      { label: `Bojenkreis um diesen Punkt (Datum, 1,5 nm)${now}`, run: task('buoys', { pattern: 'circle' }) },
+      { label: `Bojenkreis um diesen Punkt (Datum, 1,5 sm)${now}`, run: task('buoys', { pattern: 'circle' }) },
       { label: `Bojenkeil hier (Spitze zum eigenen Schiff)${now}`, run: task('buoys', { pattern: 'chevron' }) },
     ] : []),
     { label: `MAD-Suche hier (Kleeblatt, 6 min)${now}`, run: task('mad') },

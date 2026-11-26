@@ -63,7 +63,7 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
       <div class="row"><span class="dim">ZICKZACK-PLAN</span><span class="seg">
         <button data-zz="0" title="Gerader Kurs auf der Route">AUS</button>
         ${[1, 2, 3, 4, 5, 6].map((n) => `<button data-zz="${n}" title="Zickzack-Plan ${n}">${n}</button>`).join('')}</span></div>
-      <div data-zz-st class="dim" style="margin:2px 0 4px;text-align:right"></div>
+      <div data-zz-st class="dim" style="margin:2px 0 4px;text-align:right;text-wrap:balance"></div>
       <div class="row"><span class="dim">FAHRT</span><span class="seg">
         <button data-spd="-2" title="Konvoi 2 kn langsamer (leiser)">−2 KN</button>
         <button data-spd="0" title="Fahrt laut Route">ROUTE</button>

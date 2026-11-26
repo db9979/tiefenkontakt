@@ -33,7 +33,7 @@ export const PATTERN_NAME: Record<BuoyPattern, string> = { line: 'LINIE', barrie
 const PATTERN_TITLE: Record<BuoyPattern, string> = {
   line: 'Linie quer zur Sichtlinie, 2,5 km Abstand',
   barrier: 'Sperre: zwei versetzte Reihen quer zum Anmarschweg, die Lücken der einen deckt die andere',
-  circle: 'Kreis um das Datum (1,5 nm Radius): das Boot kann nach keiner Seite unbemerkt ablaufen',
+  circle: 'Kreis um das Datum (1,5 sm Radius): das Boot kann nach keiner Seite unbemerkt ablaufen',
   chevron: 'Keil vor einem schnellen Boot: Spitze voraus auf seinem Kurs (TMA), die Schenkel laufen zurück',
 };
 let pattern: BuoyPattern = 'line';
@@ -72,11 +72,20 @@ function aim(s: Snapshot): { p: Vec2; label?: string; what: string } | undefined
 export const BEARING_LINE_RANGE = 8000;
 
 /** A selected contact with only a bearing (no fix, no TMA solution): its label and bearing. */
-function bearingOnly(s: Snapshot): { label: string; bearing: number } | undefined {
+function bearingOnly(s: Snapshot): { label: string; bearing: number; origin?: Vec2 } | undefined {
   const c = store.selectedContact();
   if (!c || contactPoint(s)) return undefined;
   if (picked && pickedAt >= lastSelect) return undefined;
-  return { label: c.label, bearing: c.bearing };
+  // A buoy's or a datalink mate's bearing runs from where it was measured, not from the own ship
+  return { label: c.label, bearing: c.bearing, ...(c.originX !== undefined && c.originY !== undefined ? { origin: { x: c.originX, y: c.originY } } : {}) };
+}
+
+/** Centre of a buoy line laid along a bearing-only contact's line (own ship → bearing and range). */
+export function bearingLineCentre(own: Vec2, b: { bearing: number; origin?: Vec2 }): { bearing: number; range: number } {
+  if (!b.origin) return { bearing: b.bearing, range: BEARING_LINE_RANGE };
+  const v = headingVec(b.bearing);
+  const p = { x: b.origin.x + v.x * BEARING_LINE_RANGE, y: b.origin.y + v.y * BEARING_LINE_RANGE };
+  return { bearing: bearing(own, p), range: distance(own, p) };
 }
 let lastSelect = 0;
 let lastLabel: string | undefined;
@@ -116,7 +125,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
     if (!a) {
       // Bearing only: the buoy line goes out along the bearing, centred at a guessed range
       const b = kind === 'buoys' ? bearingOnly(s) : undefined;
-      if (b) net.send({ t: 'helo', op: mode, kind, bearing: b.bearing, range: BEARING_LINE_RANGE, axis: b.bearing, label: b.label, ...extra });
+      if (b) net.send({ t: 'helo', op: mode, kind, ...bearingLineCentre(s.own, b), axis: b.bearing, label: b.label, ...extra });
       return;
     }
     // A chevron goes ahead of the boat on its TMA course (apex 3 km ahead), else it points at the own ship

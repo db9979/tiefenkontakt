@@ -78,6 +78,9 @@
   min-height: 30px; border-bottom: 1px solid var(--line); }
 .sub-fc .fc-grid > label > input, .sub-fc .fc-grid > label > select { width: 100%; min-width: 0; box-sizing: border-box; height: 26px; padding: 2px 6px; text-align: right; text-align-last: right; }
 .sub-fc .fc-grid .u { color: var(--dim); font-size: var(--fs-cap); }
+/* MODUS takes the width its longest choice needs ("KIELWASSER (3)" was cut in the 84 px column) */
+.sub-fc .fc-grid > label:has(> #t-mode) { grid-template-columns: minmax(0, 1fr) auto 18px; }
+.sub-fc .fc-grid > label > #t-mode { width: auto; min-width: 84px; }
 .sub-fc .fc-grid > .lbl { display: flex; align-items: center; gap: var(--sp3); min-height: 30px; border-bottom: 1px solid var(--line); }
 .sub-fc .fc-grid > .lbl > .dim:first-child { min-width: 0; flex: 0 0 auto; }
 .sub-fc .fc-grid > .span2 { grid-column: span 2; }
