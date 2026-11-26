@@ -5,6 +5,8 @@ import { lang } from '../i18n/index.js';
 import { store } from '../store.js';
 import { EsmThrottle } from './esm-throttle.js';
 import { tdeg3 } from './format.js';
+import { isFriendlyContact } from './friendly.js';
+import { pushLog } from './log-group.js';
 
 /**
  * Crew reports: watches successive snapshots and announces what changed, spoken with the
@@ -20,7 +22,12 @@ export interface LogEntry {
   station?: StationId;
   /** New-contact report: bursts of these are listed as one line (groupLog). */
   group?: 'contact';
+  /** Orders and signals from command: kept when the log is full (pings and the like go first). */
+  keep?: boolean;
+  /** Folded row (groupLog): how many alike reports it stands for. */
+  count?: number;
 }
+
 
 const en = lang === 'en';
 const L = (de: string, enText: string) => (en ? enText : de);
@@ -88,8 +95,7 @@ export class Callouts {
   private spokenBattery = false;
 
   private report(s: Snapshot, e: Omit<LogEntry, 'time'>, spoken: string): void {
-    this.log.push({ ...e, time: s.time });
-    if (this.log.length > 80) this.log.shift();
+    pushLog(this.log, { ...e, time: s.time });
     if (e.level !== 'alarm') audio.chime(e.level === 'warn' ? 'warn' : 'info');
     say(spoken, e.level === 'alarm');
     announce(e.text, e.level);
@@ -102,7 +108,7 @@ export class Callouts {
     if (!p || s.full) {
       for (const c of s.contacts) this.known.add(c.label);
       // After a reconnect the recent alerts arrive at once: list them, don't speak them
-      for (const a of s.alerts) if (!p || a.time > p.time) this.log.push({ time: a.time, text: a.text, level: LEVEL[a.kind] ?? 'info' });
+      for (const a of s.alerts) if (!p || a.time > p.time) pushLog(this.log, { time: a.time, text: a.text, level: LEVEL[a.kind] ?? 'info', keep: a.kind === 'command' || a.kind === 'flash' });
       return;
     }
     const sub = CLASSES[s.own.cls].submarine;
@@ -116,19 +122,21 @@ export class Callouts {
         continue;
       }
       this.known.add(c.label);
-      this.report(s, { level: 'info', text: L(`Neuer Kontakt ${c.label}, Peilung ${deg3(c.bearing)}`, `New contact ${c.label}, bearing ${deg3(c.bearing)}`), label: c.label, station: sonar, group: 'contact' },
+      // Own and allied ships the datalink already accounts for are no news (F7)
+      if (isFriendlyContact(c, s)) continue;
+      this.report(s, { level: 'info', text: L(`Neuer Kontakt ${c.label}, Peilung ${deg3(c.bearing)}°`, `New contact ${c.label}, bearing ${deg3(c.bearing)}°`), label: c.label, station: sonar, group: 'contact' },
         en ? `New contact ${c.label}, bearing ${digits(c.bearing)}` : `Neuer Kontakt ${c.label}, Peilung ${digits(c.bearing)}`);
     }
     // Server alerts that are new in this snapshot
     for (const a of s.alerts.filter((x) => x.time > p.time)) {
       const b = a.bearing !== undefined ? digits(a.bearing) : '';
       if (a.kind === 'torpedo') {
-        const text = store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}` : a.text;
+        const text = store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}°` : a.text;
         this.report(s, { level: 'alarm', text, station: sub ? 'feuerleitung' : 'waffen' }, en ? `Torpedo in the water! Bearing ${b}!` : `Torpedo im Wasser! Peilung ${b}!`);
       } else if (a.kind === 'sighting') {
         this.report(s, { level: 'warn', text: a.text, label: a.label, station: sub ? 'sehrohr' : 'bruecke' }, sightingCall(a, s.own.heading));
       } else if (a.kind === 'command') {
-        this.report(s, { level: 'info', text: a.text, station: sub ? 'zentrale' : undefined }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
+        this.report(s, { level: 'info', text: a.text, station: sub ? 'zentrale' : undefined, keep: true }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
       } else if (a.kind === 'boat') {
         const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND|WASSEREINBRUCH|^FEUER (IM|IN|GREIFT)|MUNITION|AUFTRIEB|SINKT|SACKT/.test(a.text);
         this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined }, boatCall(a.text));
@@ -147,7 +155,7 @@ export class Callouts {
         this.report(s, { level: 'warn', text: a.text }, en ? `Radar intercept, bearing ${b}.` : `Radarpeilung, Peilung ${b}.`);
       } else if (a.kind === 'sunk' || a.kind === 'flash') {
         // FLASH orders: the orders panel sounds the teletype alarm and speaks
-        this.log.push({ time: a.time, text: a.text, level: 'alarm' });
+        pushLog(this.log, { time: a.time, text: a.text, level: 'alarm', keep: true });
       }
     }
     const o = s.own;
@@ -167,7 +175,7 @@ export class Callouts {
     if (this.coursePending !== undefined && Math.abs(((o.heading - this.coursePending + 540) % 360) - 180) < 1.5) {
       const c = this.coursePending;
       this.coursePending = undefined;
-      this.report(s, { level: 'info', text: L(`Kurs ${deg3(c)} liegt an`, `Steady on ${deg3(c)}`) }, en ? `Steady on course ${digits(c)}.` : `Kurs ${digits(c)} liegt an.`);
+      this.report(s, { level: 'info', text: L(`Kurs ${deg3(c)}° liegt an`, `Steady on ${deg3(c)}°`) }, en ? `Steady on course ${digits(c)}.` : `Kurs ${digits(c)} liegt an.`);
     }
     // Own torpedoes
     for (const t of s.torpedoes) {

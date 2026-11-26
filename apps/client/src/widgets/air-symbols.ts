@@ -1,4 +1,4 @@
-import type { PlaneView, Snapshot } from '@tk/shared';
+import { bearing, type PlaneView, type Snapshot } from '@tk/shared';
 import { drawMines, drawMissiles, drawSsm } from './airdef-symbols.js';
 import { northOff, trueDeg } from '../north.js';
 import { FONT, LW } from './format.js';
@@ -11,7 +11,7 @@ import { chartLabel } from './canvas-text.js';
  */
 
 const COLORS = { friend: '#85b7eb', hostile: '#f09595', neutral: '#9fe1cb', unknown: '#fac775' } as const;
-const NAME: Record<PlaneView['kind'], string> = { airliner: 'VERKEHR', light: 'KLEINFLZ', recon: 'AUFKL', mpa: 'SEEAUFKL', helo: 'HUBSCHR' };
+const NAME: Record<PlaneView['kind'], string> = { airliner: 'VERKEHR', light: 'KLEINFLZ', recon: 'AUFKL', mpa: 'SEEAUFKL', helo: 'HUBSCHR.' };
 
 export function airSymbol(ctx: CanvasRenderingContext2D, x: number, y: number, side: PlaneView['side'], r = 7): void {
   ctx.beginPath();
@@ -56,6 +56,7 @@ export function airIcon(ctx: CanvasRenderingContext2D, x: number, y: number, rot
 export function drawAir(
   ctx: CanvasRenderingContext2D, s: Snapshot, toScreen: (x: number, y: number) => { x: number; y: number } | undefined,
   origin: { x: number; y: number }, len: number, only?: (p: PlaneView) => boolean,
+  unit: 'km' | 'sm' = 'sm',
 ): void {
   ctx.save();
   ctx.lineWidth = LW.bearing;
@@ -75,7 +76,7 @@ export function drawAir(
       ctx.lineTo(origin.x + Math.cos(a) * len, origin.y + Math.sin(a) * len);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillText(`✈ ${p.emitter ?? 'RADAR'} ${String(Math.round(trueDeg(p.bearing)) % 360).padStart(3, '0')}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
+      ctx.fillText(`✈ ${p.emitter ?? 'RADAR'} ${brg(p.bearing)}`, origin.x + Math.cos(a) * len * 0.82 + 4, origin.y + Math.sin(a) * len * 0.82);
       continue;
     }
     if (p.rough) {
@@ -89,8 +90,10 @@ export function drawAir(
       ctx.setLineDash([]);
       airSymbol(ctx, q.x, q.y, p.side);
       airIcon(ctx, q.x, q.y, p.kind === 'helo');
-      const km = Math.hypot(ex - s.own.x, ey - s.own.y) / 1000;
-      airLabel(ctx, `${NAME[p.kind]} SICHT ~${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} KM ${(p.alt ?? 0) > 1500 ? 'HOCH' : 'TIEF'}`, q.x + 9, q.y - 6);
+      // In the display's own unit (radar scope: SM, chart: KM), with the bearing; height only low or high
+      const d = Math.hypot(ex - s.own.x, ey - s.own.y) / (unit === 'sm' ? 1852 : 1000);
+      const br = brg(bearing(s.own, { x: p.x, y: p.y }));
+      airLabel(ctx, `${NAME[p.kind]} ${br} ~${d < 10 ? d.toFixed(1).replace('.', ',') : Math.round(d)} ${unit === 'sm' ? 'SM' : 'KM'} · ${(p.alt ?? 0) > 1500 ? 'HOCH' : 'NIEDRIG'}`, q.x + 9, q.y - 6);
       continue;
     }
     const q = toScreen(p.x, p.y);
@@ -105,8 +108,8 @@ export function drawAir(
       ctx.lineTo(q.x + Math.cos(a) * l, q.y + Math.sin(a) * l);
       ctx.stroke();
     }
-    const alt = p.alt !== undefined ? (p.alt >= 1000 ? `${(p.alt / 1000).toFixed(1).replace('.', ',')} KM` : `${Math.round(p.alt / 10) * 10} M`) : '';
-    airLabel(ctx, `${NAME[p.kind]} ${alt}`, q.x + 9, q.y - 6);
+    // Height in metres with its word (F19/F34: "10,3 KM" read as a range on the radar scope)
+    airLabel(ctx, p.alt !== undefined ? `${NAME[p.kind]} ${altText(p.alt)} HÖHE` : NAME[p.kind], q.x + 9, q.y - 6);
   }
   ctx.restore();
   // Missiles in flight everywhere; mines only on the plot (not the radar scope)
@@ -121,6 +124,15 @@ export function drawAir(
  */
 function airLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
   chartLabel(ctx, text, x, y, 18);
+}
+
+/** True bearing of a game-frame direction: three digits and the degree sign. */
+const brg = (game: number): string => `${String(Math.round(((trueDeg(game) % 360) + 360) % 360) % 360).padStart(3, '0')}°`;
+
+/** Aircraft height: metres, to 10 m low down, to 100 m higher, thousands with a point ("10.300 M"). */
+export function altText(m: number): string {
+  const r = m < 1000 ? Math.round(m / 10) * 10 : Math.round(m / 100) * 100;
+  return `${String(r).replace(/\B(?=(\d{3})+$)/g, '.')} M`;
 }
 
 /** A steady number in [0, 1) per aircraft, so the guessed range does not jump every second. */

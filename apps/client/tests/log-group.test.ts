@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupLog, labelRange } from '../src/widgets/log-group.js';
+import { LOG_MAX, groupLog, labelRange, pushLog, shape } from '../src/widgets/log-group.js';
 import type { LogEntry } from '../src/widgets/callouts.js';
 
 const contact = (time: number, label: string): LogEntry => ({ time, label, level: 'info', text: `Neuer Kontakt ${label}, Peilung 100`, group: 'contact' });
@@ -16,5 +16,19 @@ describe('message list grouping', () => {
     expect(rows.map((r) => r.e.text)).toEqual(['6 neue Kontakte (S1–S6)', 'ESM PEILUNG 331', 'Neuer Kontakt E1, Peilung 100']);
     expect(rows[0]!.i).toBe(5);
     expect(groupLog([contact(0, 'S1'), contact(30, 'S2')].map((e, i) => ({ e, i }))).length).toBe(2);
+  });
+  it('folds a flood of the same report into one row with a count (S28)', () => {
+    const dc = (time: number, b: string): LogEntry => ({ time, level: 'warn', text: `WASSERBOMBE · PEILUNG ${b}°` });
+    const log = [dc(10, '087'), dc(10, '089'), dc(11, '091'), dc(11, '093'), { time: 12, level: 'info' as const, text: 'FÜHRUNG · BEFEHL' }, dc(60, '120')];
+    const rows = groupLog(log.map((e, i) => ({ e, i })));
+    expect(rows.map((r) => [r.e.count, r.e.text])).toEqual([[4, 'WASSERBOMBE · PEILUNG 093°'], [undefined, 'FÜHRUNG · BEFEHL'], [undefined, 'WASSERBOMBE · PEILUNG 120°']]);
+    expect(rows[0]!.i).toBe(3);
+    expect(shape('PEILUNG 087° · 2,5 KM')).toBe('PEILUNG # · # KM');
+  });
+  it('a full log drops routine reports before command traffic (S28)', () => {
+    const log: LogEntry[] = [{ time: 0, level: 'info', text: 'BEFEHL', keep: true }];
+    for (let i = 1; i <= LOG_MAX + 5; i++) pushLog(log, { time: i, level: 'warn', text: 'AKTIVSONAR PEILUNG 100°' });
+    expect(log.length).toBe(LOG_MAX);
+    expect(log[0]!.text).toBe('BEFEHL');
   });
 });

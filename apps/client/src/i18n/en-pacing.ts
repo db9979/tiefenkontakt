@@ -61,6 +61,12 @@ export const EN_PACING_PHRASES: [RegExp, string][] = [
   [/^FRISCHER FEINDKONTAKT \((.+)\)$/, 'FRESH HOSTILE CONTACT ($1)'], [/^Kein Zeitraffer: (.+) hat frischen Feindkontakt$/, 'No fast-forward: $1 has a fresh hostile contact'],
   // Why the fast-forward stopped (top bar)
   [/^GESTOPPT: NEUER KONTAKT$/, 'STOPPED: NEW CONTACT'],
+  // With the bearing of what stopped it (S29)
+  [/^GESTOPPT: TORPEDOALARM (\d{3}°)$/, 'STOPPED: TORPEDO ALARM $1'], [/^GESTOPPT: ORTUNGSIMPULS (\d{3}°)$/, 'STOPPED: SONAR PING $1'],
+  [/^GESTOPPT: TREFFER (\d{3}°)$/, 'STOPPED: HIT $1'], [/^GESTOPPT: RADARWARNUNG (\d{3}°)$/, 'STOPPED: RADAR WARNING $1'],
+  [/^GESTOPPT: SICHTUNG (\d{3}°)$/, 'STOPPED: SIGHTING $1'], [/^GESTOPPT: GERÄUSCH (\d{3}°)$/, 'STOPPED: NOISE $1'],
+  [/^GESTOPPT: AUFSCHLAG (\d{3}°)$/, 'STOPPED: SPLASH $1'], [/^GESTOPPT: MELDUNG AUS DEM BOOT (\d{3}°)$/, 'STOPPED: REPORT FROM THE BOAT $1'],
+  [/^GESTOPPT: FLASH-BEFEHL (\d{3}°)$/, 'STOPPED: FLASH ORDER $1'], [/^GESTOPPT: SCHIFF GESUNKEN (\d{3}°)$/, 'STOPPED: SHIP SUNK $1'],
   [/^GESTOPPT: TORPEDOALARM$/, 'STOPPED: TORPEDO ALARM'],
   [/^GESTOPPT: ORTUNGSIMPULS$/, 'STOPPED: SONAR PING'],
   [/^GESTOPPT: TREFFER$/, 'STOPPED: HIT'],

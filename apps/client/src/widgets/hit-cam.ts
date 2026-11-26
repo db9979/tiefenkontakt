@@ -99,8 +99,8 @@ export function hitCam(root: HTMLElement): { snap(s: Snapshot): void; frame(s: S
         ensureGl(mode);
         box.style.display = '';
         box.querySelector('#hc-t')!.textContent = mode === 'under'
-          ? L(`TREFFER GEHÖRT · PEILUNG ${tdeg3(a.bearing)} · REKONSTRUKTION`, `HIT HEARD · BEARING ${tdeg3(a.bearing)} · RECONSTRUCTION`)
-          : L(`AUSGUCK · TREFFER PEILUNG ${tdeg3(a.bearing)} · CA. ${km(range)}`, `LOOKOUT · HIT BEARING ${tdeg3(a.bearing)} · ABOUT ${km(range)}`);
+          ? L(`TREFFER GEHÖRT · PEILUNG ${tdeg3(a.bearing)}° · REKONSTRUKTION`, `HIT HEARD · BEARING ${tdeg3(a.bearing)}° · RECONSTRUCTION`)
+          : L(`AUSGUCK · TREFFER PEILUNG ${tdeg3(a.bearing)}° · CA. ${km(range)}`, `LOOKOUT · HIT BEARING ${tdeg3(a.bearing)}° · ABOUT ${km(range)}`);
       }
     },
     frame(s) {

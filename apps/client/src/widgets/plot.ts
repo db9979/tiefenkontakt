@@ -4,21 +4,24 @@ import { airIcon, airSymbol, drawAir } from './air-symbols.js';
 import { drawMineSector } from './airdef-symbols.js';
 import { drawMet } from './met-overlay.js';
 import { COL, FONT, deg3, fitCanvas, km } from './format.js';
-import { isFriendlyContact } from './friendly.js';
+import { affiliationOf, isFriendlyContact } from './friendly.js';
 import { lastFix } from './contact-pos.js';
-import { BearingRangeFilter, moverNow, ownNow, simNow } from './smooth.js';
+import { BearingRangeFilter, ownNow, simNow } from './smooth.js';
 import { onRelease, touchable } from './touch.js';
 import { openMenu, type MenuItem } from './menu.js';
-import { drawEllipse, drawNavUncertainty, drawSymbol, drawWake, type Affiliation } from './symbols.js';
+import { drawEllipse, drawSymbol } from './symbols.js';
 import { drawOrderMarks } from './order-marks.js';
 import { drawConvoyDangerRing } from './convoy-ring.js';
 import { ChartMarks, drawHavens, drawLanes } from './chart-marks.js';
 import { DepthChart } from './plot-depth.js';
 import { chartToScreen, chartToWorld, northUpGrid, panDelta, screenDir } from './chart-frame.js';
 import { trueDeg } from '../north.js';
-import { esmPlotLabel } from './esm-text.js';
+import { esmPlotLabel, esmTone } from './esm-text.js';
 import { RoutePlot } from './route-plot.js';
 import { chartLabel } from './canvas-text.js';
+import { LabelLayer, PRIO, symbolBox } from './plot-labels.js';
+import { AFF_COL, drawFriendlies, drawNavError, selRing } from './plot-marks.js';
+import { linesMode, plotTools } from './plot-tools.js';
 
 export interface PlotOptions {
   bearingLines: boolean;
@@ -41,12 +44,6 @@ type Drag =
   | { kind: 'sol'; label: string }
   | { kind: 'vec'; label: string };
 
-type LinesMode = 'alle' | 'auswahl' | 'aus';
-/** Bearing lines on the plot: all contacts, only the selected one (default), or none. */
-const linesMode = (): LinesMode => {
-  const v = localStorage.getItem('tk_lines');
-  return v === 'alle' || v === 'aus' ? v : 'auswahl';
-};
 /** Bearing fan of the selected contact: the last 10 minutes, at most this many lines. */
 const FAN_WINDOW_S = 600;
 const FAN_MAX = 10;
@@ -64,6 +61,8 @@ export class Plot {
   private drag?: Drag;
   private mouse?: { x: number; y: number };
   private height = 400;
+  private tools!: HTMLElement;
+  private labels: LabelLayer;
   /** Weather overlay shown (toolbar ☁). */
   weather = true;
   readonly el: HTMLElement;
@@ -73,57 +72,25 @@ export class Plot {
     this.el.style.position = 'relative';
     canvas.replaceWith(this.el);
     this.el.appendChild(canvas);
-    const tools = document.createElement('div');
-    tools.style.cssText = 'position:absolute;top:6px;right:6px;display:flex;flex-direction:column;gap:3px';
-    tools.innerHTML = `<button title="Hineinzoomen">+</button><button title="Herauszoomen">−</button><button title="Auf eigenes Schiff zentrieren">◎</button><button class="lines-btn" title="Peillinien: alle / nur Auswahl / aus"></button>`;
-    const [zin, zout, ctr, lines] = [...tools.querySelectorAll('button')];
-    const showLines = () => {
-      const m = linesMode();
-      lines!.textContent = { alle: '╱╱', auswahl: '╱', aus: '·' }[m];
-      lines!.title = `Peillinien: ${{ alle: 'ALLE KONTAKTE', auswahl: 'NUR GEWÄHLTER KONTAKT', aus: 'AUS' }[m]} · Klick schaltet weiter`;
-      lines!.classList.toggle('warn', m === 'aus');
-    };
-    lines!.onclick = () => {
-      const order: LinesMode[] = ['auswahl', 'alle', 'aus'];
-      localStorage.setItem('tk_lines', order[(order.indexOf(linesMode()) + 1) % order.length]!);
-      showLines();
-    };
-    showLines();
-    zin!.onclick = () => (this.scale = Math.max(5, this.scale / 1.4));
-    zout!.onclick = () => (this.scale = Math.min(MAX_SCALE, this.scale * 1.4));
-    ctr!.onclick = () => (this.pan = { x: 0, y: 0 });
-    // Plotting tools: mark, line, circle, eraser (click again to put the pencil down)
-    for (const [tool, icon, title] of [['mark', '✕', 'Markierung setzen'], ['line', '⟋', 'Linie ziehen (Peilung und Länge)'], ['circle', '◯', 'Kreis ziehen (Radius)'], ['erase', '⌫', 'Zeichnung wegklicken']] as const) {
-      const b = document.createElement('button');
-      b.textContent = icon;
-      b.title = title;
-      b.dataset.tool = tool;
-      b.onclick = () => {
-        this.marks.tool = this.marks.tool === tool ? undefined : tool;
-        tools.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((x) => x.classList.toggle('on', x.dataset.tool === this.marks.tool));
-        canvas.style.cursor = this.marks.tool ? 'cell' : 'crosshair';
-      };
-      tools.appendChild(b);
-    }
     // Weather overlay on/off (stored per chart kind: navigation or fire control)
     const wxKey = `tk_wx_${opts.route ? 'nav' : 'fc'}`;
     const wxStored = localStorage.getItem(wxKey);
     this.weather = wxStored === null ? (opts.weather ?? !!opts.route) : wxStored === '1';
-    const wx = document.createElement('button');
-    wx.textContent = '☁';
-    const showWx = () => {
-      wx.classList.toggle('on', this.weather);
-      wx.title = `Wetter (Nebel, Eis, Schauer): ${this.weather ? 'AN' : 'AUS'} · Klick schaltet um`;
-    };
-    wx.onclick = () => {
-      this.weather = !this.weather;
-      localStorage.setItem(wxKey, this.weather ? '1' : '0');
-      showWx();
-    };
-    showWx();
-    tools.appendChild(wx);
+    const plot = this;
+    const tools = plotTools(canvas, {
+      zoom: (f) => (this.scale = Math.min(MAX_SCALE, Math.max(5, this.scale * f))),
+      centre: () => (this.pan = { x: 0, y: 0 }),
+      toggleTool: (t) => (this.marks.tool = this.marks.tool === t ? undefined : t),
+      get weather() { return plot.weather; },
+      setWeather: (on) => {
+        this.weather = on;
+        localStorage.setItem(wxKey, on ? '1' : '0');
+      },
+    });
+    this.tools = tools;
     this.el.appendChild(tools);
     if (opts.route) this.route = new RoutePlot(this.el, canvas, (p) => this.toScreen(p));
+    this.labels = new LabelLayer(canvas.getContext('2d')!);
 
     canvas.style.cursor = 'crosshair';
     touchable(canvas, (f) => (this.scale = Math.min(MAX_SCALE, Math.max(5, this.scale * f))));
@@ -296,11 +263,23 @@ export class Plot {
     const w = this.canvas.clientWidth;
     ctx.fillStyle = COL.bg;
     ctx.fillRect(0, 0, w, height);
+    // Narrow chart (phone): the tool column folds to zoom and ⋯
+    this.tools.classList.toggle('compact', w < 420);
     if (!s) return;
     const P = (p: Vec2) => this.toScreen(p);
     const c = this.center();
+    const L = this.labels;
+    L.begin();
+    // Labels keep clear of the buttons over the chart (tools, route bar)
+    for (const el of this.el.children) {
+      const b = el as HTMLElement;
+      if (b === this.canvas || !b.offsetWidth || !b.offsetHeight) continue;
+      L.avoid({ x: b.offsetLeft - 2, y: b.offsetTop - 2, w: b.offsetWidth + 4, h: b.offsetHeight + 4 });
+    }
 
+    L.prio = PRIO.depth;
     this.depth.draw(ctx, s.env.seabed, this.center(), this.scale, w, height);
+    L.prio = PRIO.met;
     if (this.weather && !(CLASSES[s.own.cls].submarine && s.own.depth > 20)) drawMet(ctx, s.env.met, P, this.scale);
     const step = this.scale > 150 ? 10 * NM : this.scale > 60 ? 5 * NM : this.scale > 25 ? 2 * NM : NM;
     ctx.strokeStyle = COL.grid;
@@ -318,6 +297,7 @@ export class Plot {
     });
     ctx.stroke();
 
+    L.prio = PRIO.own;
     for (const b of s.air?.buoys ?? []) {
       const p = P(b);
       ctx.strokeStyle = COL.blue;
@@ -334,6 +314,7 @@ export class Plot {
       ctx.fillStyle = COL.blue;
       airSymbol(ctx, p.x, p.y, 'friend', 8);
       airIcon(ctx, p.x, p.y, hp.kind !== 'mpa', 8);
+      L.avoid(symbolBox(p.x, p.y, 8));
       if (hp.hovering && hp.kind !== 'mad') {
         ctx.setLineDash([2, 4]);
         ctx.beginPath(); ctx.arc(p.x, p.y, 12_000 / this.scale, 0, 7); ctx.stroke();
@@ -342,30 +323,37 @@ export class Plot {
       ctx.fillStyle = COL.blue;
       ctx.fillText(hp.kind === 'mpa' ? 'SEEFERNAUFKL.' : hp.kind === 'mad' ? 'MAD-SUCHE' : hp.hovering ? 'TAUCHSONAR' : 'HUBSCHR.', p.x + 8, p.y + 14); // below: the contact it works carries its label above
     }
+    L.prio = PRIO.contact;
     this.drawContacts(ctx, s, P, w, height);
+    L.prio = PRIO.own;
     if (this.opts.showConvoy) drawConvoyDangerRing(ctx, s, P, this.scale);
-    this.drawFriendlies(ctx, s, P);
+    drawFriendlies(ctx, s, P, this.opts.showConvoy);
+    L.prio = PRIO.order;
     drawOrderMarks(ctx, s, P, this.scale);
     // Aircraft with a position (datalink, radar, eye) and ESM strobes on aircraft radars
     const meA = P(ownNow());
     // The own side's helicopter and patrol aircraft are drawn above with their task: not a second time as air contacts
     const ownAir = s.air?.helos ?? [];
+    L.prio = PRIO.air;
     drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120, (pl) => !(pl.side === 'friend' && (pl.kind === 'helo' || pl.kind === 'mpa') && pl.x !== undefined
-      && ownAir.some((hp) => Math.hypot(hp.x - pl.x!, hp.y - pl.y!) < 600)));
+      && ownAir.some((hp) => Math.hypot(hp.x - pl.x!, hp.y - pl.y!) < 600)), 'km');
     drawMineSector(ctx, s, meA, this.scale);
 
+    L.prio = PRIO.contact;
     for (const t of s.torpedoes) {
       const p = P(t);
       const v = screenDir(t.heading);
-      // Own torpedo: APP-6 friendly subsurface frame with a T, blue (red is for threats), amber when selected
-      ctx.fillStyle = ctx.strokeStyle = t.id === store.selected ? COL.amber : COL.blue;
-      drawSymbol(ctx, p.x, p.y, 'friend', 'subsurface', 5);
+      // Own torpedo: APP-6 friendly subsurface frame with a T, blue (red is for threats), light ring when selected
+      ctx.fillStyle = ctx.strokeStyle = COL.blue;
+      drawSymbol(ctx, p.x, p.y, 'friend', 'subsurface', 5, t.id === store.selected);
+      L.avoid(symbolBox(p.x, p.y, 6));
       ctx.save();
       ctx.font = FONT.tick;
       ctx.textAlign = 'center';
-      ctx.fillText('T', p.x, p.y + 2);
+      L.direct(() => ctx.fillText('T', p.x, p.y + 2));
       ctx.restore();
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + v.x * 14, p.y + v.y * 14); ctx.stroke();
+      if (t.id === store.selected) selRing(ctx, p.x, p.y, 9);
       ctx.fillText(`${t.id}${t.homing ? ' ZIEL' : ''}`, p.x + 6, p.y - 6);
     }
 
@@ -385,23 +373,33 @@ export class Plot {
     const ownSub = CLASSES[s.own.cls].submarine && s.own.depth > 1;
     drawSymbol(ctx, o.x, o.y, 'friend', ownSub ? 'subsurface' : 'surface', 8, true);
     ctx.beginPath(); ctx.arc(o.x, o.y, 1.8, 0, 7); ctx.fill();
-    if (s.own.navUncertainty !== undefined) drawNavUncertainty(ctx, o, s.own.navUncertainty / this.scale, s.own.navUncertainty);
+    L.avoid(symbolBox(o.x, o.y, 11));
+    L.prio = PRIO.own;
+    if (s.own.navUncertainty !== undefined) drawNavError(ctx, o, s.own.navUncertainty / this.scale, s.own.navUncertainty);
+    ctx.strokeStyle = COL.blue;
+    ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + v.x * 26, o.y + v.y * 26); ctx.stroke();
     ctx.lineWidth = 1;
 
+    L.prio = PRIO.lanes;
     drawLanes(ctx, P, s.env.seabed?.region, [o]); drawHavens(ctx, P, s);
+    L.prio = PRIO.marks;
     this.marks.draw(ctx, P, this.scale);
+    L.prio = PRIO.own;
     this.route?.draw(ctx, s);
-    ctx.fillStyle = COL.dim;
-    ctx.textAlign = 'left';
     // Only the scale (and the mouse readout) in the chart: how-to lives in the footer hint below it
+    ctx.font = '11px ui-monospace, monospace';
     let foot = `RASTER ${(step / NM).toFixed(0)} SM`;
     if (this.mouse) {
       const wp = this.toWorld(this.mouse);
       foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))} · ` + foot;
     }
-    // On a plate (the legend's plate reaches down here, a longer mouse readout gets its own)
     const fw = ctx.measureText(foot).width;
+    L.avoid({ x: 2, y: height - 22, w: fw + 12, h: 20 });
+    L.flush(w, height);
+    ctx.fillStyle = COL.dim;
+    ctx.textAlign = 'left';
+    // On a plate (the legend's plate reaches down here, a longer mouse readout gets its own)
     ctx.save();
     ctx.fillStyle = 'rgba(6,14,16,0.72)';
     ctx.fillRect(4, height - 20, fw + 8, 16);
@@ -428,18 +426,25 @@ export class Plot {
 
   private drawContacts(ctx: CanvasRenderingContext2D, s: Snapshot, P: (p: Vec2) => Vec2, w: number, hgt: number): void {
     const far = Math.hypot(w, hgt) * this.scale;
+    const L = this.labels;
     for (const c of s.contacts) {
       const sel = c.label === store.selected;
       const friendly = isFriendlyContact(c, s);
       if (friendly && !sel) continue;
       const stale = s.time - c.lastSeen > 30;
-      const color = c.label.startsWith('E') || c.label.includes('-E') ? COL.red : sel ? COL.amber : COL.g;
+      // APP-6 (F5): the colour says friend, hostile, neutral or unknown from the assigned class;
+      // the ESM tone goes on the strobe only
+      const aff = affiliationOf(c, friendly);
+      const color = AFF_COL[aff];
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       const isEsm = c.sensors.includes('esm') && c.sensors.length === 1;
+      const strobe = isEsm ? ({ red: COL.red, amber: COL.amber, dim: COL.dim } as const)[esmTone(c.emitter)] : color;
+      const fix = lastFix(c, s);
       const mode = linesMode();
       const wantLines = mode === 'alle' || (mode === 'auswahl' && sel);
       if (wantLines && ((this.opts.bearingLines && c.via === 'own') || (isEsm && this.opts.esmLines))) {
+        ctx.strokeStyle = strobe;
         // Selected: a stable fan, one line per minute of sim time over the last 10 minutes (bucketed by time, so it doesn't reshuffle)
         let bucket = -1;
         const step = FAN_WINDOW_S / FAN_MAX;
@@ -453,9 +458,11 @@ export class Plot {
           const v = headingVec(cur);
           const a = P(me);
           const end = P({ x: me.x + v.x * far, y: me.y + v.y * far });
-          ctx.globalAlpha = stale ? 0.25 : 0.75;
+          ctx.globalAlpha = stale ? 0.25 : sel ? 0.9 : 0.75;
+          ctx.lineWidth = sel ? 1.6 : 1;
           ctx.setLineDash(isEsm ? [6, 4] : [4, 3]);
           ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+          ctx.lineWidth = 1;
         }
         const hist = sel ? fan : smoothable ? [] : c.history.slice(-1);
         for (const hs of hist) {
@@ -475,17 +482,20 @@ export class Plot {
         }
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
-        if (!hist.length && cur === undefined) continue;
-        const lb = headingVec(cur ?? c.bearing);
-        const me = ownNow();
-        const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
-        chartLabel(ctx, c.sensors.includes('esm') ? esmPlotLabel(c.label, c.emitter) : c.label, lp.x + 4, lp.y - 4, 8);
+        ctx.strokeStyle = color;
+        // The label at the line's end only when there is no fix to carry it (F29: it was drawn twice)
+        if ((hist.length || cur !== undefined) && !fix) {
+          const lb = headingVec(cur ?? c.bearing);
+          const me = ownNow();
+          const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
+          chartLabel(ctx, c.sensors.includes('esm') ? esmPlotLabel(c.label, c.emitter) : c.label, lp.x + 4, lp.y - 4, 8);
+        }
       }
-      const fix = lastFix(c, s);
       if (fix) {
         const p = P(fix.pos);
-        const aff: Affiliation = friendly ? 'friend' : c.assigned && c.assigned !== 'unknown' && c.assigned !== 'bio' ? 'hostile' : 'unknown';
         drawSymbol(ctx, p.x, p.y, aff, c.assigned === 'submarine' || c.assigned === 'torpedo' ? 'subsurface' : 'surface', 6, sel);
+        if (sel) selRing(ctx, p.x, p.y, 11);
+        L.avoid(symbolBox(p.x, p.y, 7));
         chartLabel(ctx, c.label, p.x + 9, p.y - 6, 18);
       }
       const sol = store.solutions.get(c.label);
@@ -505,7 +515,10 @@ export class Plot {
         ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
         ctx.beginPath(); ctx.arc(tip.x, tip.y, 3, 0, 7); ctx.fill();
         ctx.lineWidth = 1;
+        L.avoid(symbolBox(p.x, p.y, 8));
+        L.prio = PRIO.order;
         ctx.fillText(`${c.label} ${deg3(trueDeg(sol.course))}° ${sol.speedKn.toFixed(0)} KN`, p.x + 10, p.y + 14);
+        L.prio = PRIO.contact;
       }
     }
   }
@@ -520,29 +533,5 @@ export class Plot {
     const q = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
     this.qCache.set(label, { t, q });
     return q;
-  }
-
-  private drawFriendlies(ctx: CanvasRenderingContext2D, s: Snapshot, P: (p: Vec2) => Vec2): void {
-    for (const f of s.friendlies) {
-      if (f.cls === 'merchant' && !this.opts.showConvoy) continue;
-      // Live datalink positions glide between updates; old radio reports stay where reported
-      const live = f.alive && s.time - f.reportedAt < 3;
-      const p = P(live ? moverNow(f, f.reportedAt) : f);
-      ctx.fillStyle = f.alive ? COL.blue : COL.dim;
-      ctx.strokeStyle = ctx.fillStyle;
-      if (live) drawWake(ctx, p.x, p.y, trueDeg(f.heading), f.speedKn);
-      if (f.cls === 'merchant') {
-        // APP-6 friendly surface frame (circle) with a short course leader; merchants smaller than warships
-        drawSymbol(ctx, p.x, p.y, 'friend', 'surface', 4, true);
-        const hv = screenDir(f.heading);
-        ctx.beginPath(); ctx.moveTo(p.x + hv.x * 4, p.y + hv.y * 4); ctx.lineTo(p.x + hv.x * 10, p.y + hv.y * 10); ctx.stroke();
-      } else {
-        drawSymbol(ctx, p.x, p.y, 'friend', CLASSES[f.cls].submarine ? 'subsurface' : 'surface', 6);
-        const hv = screenDir(f.heading);
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y + hv.y * 14); ctx.stroke();
-        const age = s.time - f.reportedAt;
-        ctx.fillText(age > 5 ? `${f.name} (−${Math.round(age / 60)} MIN)` : f.name, p.x + 8, p.y + 4);
-      }
-    }
   }
 }

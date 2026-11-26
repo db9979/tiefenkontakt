@@ -43,7 +43,7 @@ export const EN_UI: [string, string][] = [
   ['Konvoi gesichtet', 'Convoy sighted'], ['Greife an', 'Attacking'], ['Werde gejagt', 'Being hunted'], ['Position', 'Position'],
   ['Kontakt', 'Contact'], ['Torpedo im Wasser', 'Torpedo in the water'], ['Suche Sektor', 'Searching sector'],
   ['Ruderstand', 'Helm'], ['KLICK IN KOMPASS = KURS', 'CLICK COMPASS = COURSE'], ['KURS', 'COURSE'], ['FAHRT', 'SPEED'], ['TIEFE', 'DEPTH'],
-  ['Sehrohr', 'Periscope'], ['Über Schicht', 'Above layer'], ['Unter Schicht', 'Below layer'], ['KAVITATION', 'CAVITATION'],
+  ['Sehrohr', 'Periscope'], ['Über Schicht', 'Above layer'], ['Unter Schicht', 'Below layer'], ['Über Sch.', 'Above lyr'], ['Unter Sch.', 'Below lyr'], ['KAVITATION', 'CAVITATION'],
   ['Klicken oder ziehen, um den Kurs zu setzen', 'Click or drag to set the course'], ['Fahrt in Knoten', 'Speed in knots'],
   ['Knapp über der Sprungschicht', 'Just above the layer'], ['Unter der Sprungschicht: schwerer zu orten', 'Below the layer: harder to detect'],
   ['Tiefe in Metern', 'Depth in metres'], ['Stopp', 'Stop'], ['AK zurück', 'Full astern'], ['Halbe zurück', 'Half astern'], ['Langsam zurück', 'Slow astern'], ['SCHL', 'CREEP'], ['LANGS', 'SLOW'], ['HALBE', 'HALF'], ['STOPP', 'STOP'], ['ZURÜCK', 'ASTERN'], ['VORAUS', 'AHEAD'], ['Schleich', 'Creep'], ['Langsam', 'Slow'], ['Halbe', 'Half'], ['AK', 'Full'], ['Volle', 'Full'],
@@ -401,4 +401,11 @@ export const EN_UI: [string, string][] = [
   ['Navigationsradar, kurze Pulse', 'navigation radar, short pulses'], ['kleines Navigationsradar, schwach', 'small navigation radar, weak'], ['Sektorabtastung, Pulskompression', 'sector scan, pulse compression'],
   ['kurze Pulse, schnelle Rundsuche', 'short pulses, fast all-round search'], ['lange Pulse, Seeraumüberwachung', 'long pulses, sea surveillance'],
   ['Rasterzeilen', 'Scanlines'], ['LIEGT AN', 'STEADY'], ['MITTE', 'MIDSHIPS'], ['Fahrt 1 kn weniger', 'Speed 1 kn less'], ['Fahrt 1 kn mehr', 'Speed 1 kn more'], ['Maschinentelegraf', 'Engine telegraph'], ['MELD', 'LOG'], ['BOOT', 'BOAT'], ['SCHADEN', 'DAMAGE'], ['BEFEHLE', 'ORDERS'],
+  // Audit 4 (worker C): helm, contact list, chart tools, top bar
+  ['Zwei Drittel', 'Two thirds'], ['RUDER KLEMMT', 'RUDDER JAMMED'],
+  ['Ruderlage, wie der Rudergänger sie legt, und die Drehrate', 'Rudder angle as the helmsman lays it, and the rate of turn'],
+  ['Sprungschicht noch nicht gemessen: einmal tief durchtauchen', 'Layer not measured yet: dive deep once'],
+  ['KRIEGSSCH.', 'WARSHIP'], ['EIG. TORPEDO', 'OWN TORPEDO'], ['Eigener Torpedo am Draht', 'Own wire-guided torpedo'],
+  ['Entfernung in km · ≈ aus der TMA-Lösung', 'Range in km · ≈ from the TMA solution'],
+  ['Weitere Kartenwerkzeuge', 'More chart tools'], ['Warum der Zeitraffer angehalten hat', 'Why the fast-forward stopped'],
 ];

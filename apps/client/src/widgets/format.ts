@@ -6,9 +6,13 @@ export const deg3 = (d: number) => Math.round(((d % 360) + 360) % 360).toString(
 export const deg1 = (d: number) => (((d % 360) + 360) % 360).toFixed(1).replace('.', ',');
 /** Game-frame direction shown as true degrees, three digits (north-up display). */
 export const tdeg3 = (game: number) => deg3(trueDeg(game));
-/** Game-frame direction shown as true degrees, one decimal. */
+/** Bearing as every list and report writes it (F20): true, three digits, with the degree sign: "087°". */
+export const tbrg = (game: number) => `${tdeg3(game)}°`;
+/** Game-frame direction shown as true degrees, one decimal (TMA solutions only). */
 export const tdeg1 = (game: number) => deg1(trueDeg(game));
 export const km = (m: number) => (m / 1000).toFixed(1).replace('.', ',') + ' KM';
+/** Kilometres without the unit (a column whose header says KM): "2,8". */
+export const kmNum = (m: number) => (m / 1000).toFixed(1).replace('.', ',');
 export const kn = (v: number) => v.toFixed(1).replace('.', ',') + ' KN';
 
 export function clock(t: number): string {

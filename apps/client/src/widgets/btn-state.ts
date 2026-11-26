@@ -77,7 +77,8 @@ export function depthBtn(b: HTMLElement | null | undefined, depth: number, order
     return;
   }
   const span = Math.max(1, Math.abs(rec.from - order));
-  btnState(b, { on: true, label: `${depth.toFixed(0)} M ${depth > order ? '↑' : '↓'}`, pct: 100 * (1 - left / span), tone: 'busy' });
+  // Short ("84↓"), so a button with a long name doesn't cut it (S18: "MAX. TIEFE…")
+  btnState(b, { on: true, label: `${depth.toFixed(0)}${depth > order ? '↑' : '↓'}`, pct: 100 * (1 - left / span), tone: 'busy' });
 }
 
 /** A short flash on every button press, so each press is answered at once (also before the server's reply). */

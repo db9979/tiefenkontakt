@@ -1,11 +1,11 @@
 import { onTap } from './touch.js';
-import { CHOICE_LABEL, CLASS_LABEL, esc, km, setHtml, tdeg1 } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setHtml, tbrg } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
 import { trueDeg } from '../north.js';
 import { steadyBearing } from './smooth.js';
-import { CLASSES, bearing, distance, type SensorKind } from '@tk/shared';
+import { CLASSES, bearing, distance, targetPosAt, type ClassChoice, type SensorKind } from '@tk/shared';
 import { bindSortable, filterChips, getFilters, sortHead, sortRows, type SortState } from './sortable.js';
 
 /**
@@ -23,6 +23,11 @@ const SENSOR_NAME: Record<SensorKind, string> = {
   hull: 'Rumpfsonar', towed: 'Schleppsonar', active: 'Aktivsonar', intercept: 'Ping gehört', periscope: 'Optik', radar: 'Radar', esm: 'ESM', buoy: 'Sonarboje', visual: 'Ausguck', mad: 'MAD',
 };
 const GLYPH_TITLE = Object.entries(SENSOR_GLYPH).map(([k, g]) => `${g} = ${SENSOR_NAME[k as SensorKind]}`).join(', ');
+
+/** Class words short enough for the column (the full word is the cell's tooltip, S18). */
+const CHOICE_SHORT: Record<ClassChoice, string> = {
+  merchant: 'FRACHTER', warship: 'KRIEGSSCH.', submarine: 'U-BOOT', torpedo: 'TORPEDO', bio: 'BIOLOGISCH', unknown: 'UNBEKANNT',
+};
 
 /** A contact counts as new this long after it first appeared (game seconds). */
 export const NEW_FOR_S = 60;
@@ -81,13 +86,12 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
   const all = s.contacts.filter((c) => filter(c.via));
   noteContacts(s);
   // Two columns: what it is (class or "?"), and how loud it is or, once it has gone quiet, how old
-  const whatOf = (c: (typeof all)[number], own: boolean) => {
-    const name = c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : '';
-    return own ? `EIGEN${name ? ' · ' + name : ''}` : name || '?';
-  };
+  const nameOf = (c: (typeof all)[number]) => (c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : '');
+  // Own units: EIGEN (the class is in the tooltip); the rest the short class word
+  const whatOf = (c: (typeof all)[number], own: boolean) => (own ? 'EIGEN' : c.assigned ? CHOICE_SHORT[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : '?');
   const levelOf = (c: (typeof all)[number]) => {
     const age = s.time - c.lastSeen;
-    return age > 30 ? `ALT ${Math.round(age)} S` : `${c.se.toFixed(0)} DB`;
+    return age > 30 ? (age < 100 ? `ALT ${Math.round(age)} S` : `ALT ${Math.round(age / 60)}MIN`) : `${c.se.toFixed(0)} DB`;
   };
   const shown = all
     .map((c) => ({ c, own: isFriendlyContact(c, s) }))
@@ -116,28 +120,33 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
     { key: 'g:esm', label: 'ESM' },
     { key: 'g:visual', label: sub ? 'OPTIK' : 'SICHT' },
   ]).replace('</div>', `<span class="dim chipcount">${rows.length}/${all.length}</span></div>`);
-  const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? sortHead(ID, 'range', 'ENTF.', DEF) : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'SENS', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}<span title="Signalpegel in dB · ALT: Sekunden seit der letzten Peilung">${sortHead(ID, 'lvl', 'PEGEL', DEF)}</span></div>`;
+  const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? `<span title="Entfernung in km · ≈ aus der TMA-Lösung">${sortHead(ID, 'range', 'KM', DEF)}</span>` : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'SENS', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}<span title="Signalpegel in dB · ALT: Zeit seit der letzten Peilung">${sortHead(ID, 'lvl', 'PEGEL', DEF)}</span></div>`;
   setHtml(el, chips + (rows.length
     ? head + rows.map(({ c, own, fresh }) => {
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
       const cls = c.label === store.selected ? 'amber selrow' : own ? 'mute' : age > 30 ? 'dim' : '';
       const fr = fixRange(c, s);
-      let range = fr !== undefined ? km(fr) : sol ? '≈ LSG' : '—';
+      // Measured range, else the TMA solution's (S36), in km (the header says so)
+      let range = fr !== undefined ? kmNum(fr) : sol ? `≈ ${kmNum(distance(s.own, targetPosAt(sol, s.time)))}` : '—';
+      // Doppler in the tooltip (the column holds the range whole)
+      let rangeTitle = fr !== undefined ? `${range} KM` : sol ? `${range} KM AUS DER TMA-LÖSUNG` : '';
       if (c.dopplerKn !== undefined && c.rangeAt !== undefined && s.time - c.rangeAt < 90 && Math.abs(c.dopplerKn) >= 1) {
-        range += c.dopplerKn > 0 ? ` ↓${c.dopplerKn.toFixed(0)}` : ` ↑${(-c.dopplerKn).toFixed(0)}`;
+        range += c.dopplerKn > 0 ? '↓' : '↑';
+        rangeTitle += ` · DOPPLER ${c.dopplerKn > 0 ? 'NÄHERT SICH' : 'ENTFERNT SICH'} ${Math.abs(c.dopplerKn).toFixed(0)} KN`;
       }
       const side = store.tasSide.get(c.label);
-      const tasNote = c.tas?.ghost ? '<span class="red"> GEIST?</span>' : c.bearingAlt !== undefined ? (side ? ` (${side === 'stb' ? 'STB' : 'BB'})` : ' <span class="amber">S/B?</span>') : '';
+      const tasNote = c.tas?.ghost ? '<span class="red"> GEIST?</span>' : c.bearingAlt !== undefined ? (side ? ` ${side === 'stb' ? 'STB' : 'BB'}` : ' <span class="amber">S/B?</span>') : '';
       const what = whatOf(c, own);
+      const whatTitle = own ? `EIGEN${nameOf(c) ? ' · ' + nameOf(c) : ''}` : nameOf(c) || 'UNKLASSIFIZIERT';
       const color = c.assigned === 'torpedo' ? 'red' : '';
       const sensors = c.sensors.map((x) => SENSOR_NAME[x]).join(', ');
       return `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
         <span>${esc(c.label)}${fresh ? ' <b class="newbadge">NEU</b>' : ''}</span>
-        <span>${c.bearingAlt !== undefined && side ? tdeg1(steadyBearing(c.label, side === 'stb' ? c.bearing : c.bearingAlt, c.lastSeen)) + '°' : `${tdeg1(steadyBearing(c.label, c.bearing, c.lastSeen))}°${c.bearingAlt !== undefined ? `/${tdeg1(steadyBearing(c.label + '/alt', c.bearingAlt, c.lastSeen))}°` : ''}`}${tasNote}${c.originX !== undefined ? ' <span class="blue">(BOJE)</span>' : ''}</span>
-        ${ranged ? `<span>${range}</span>` : ''}
+        <span>${c.bearingAlt !== undefined && side ? tbrg(steadyBearing(c.label, side === 'stb' ? c.bearing : c.bearingAlt, c.lastSeen)) : `${tbrg(steadyBearing(c.label, c.bearing, c.lastSeen))}${c.bearingAlt !== undefined ? `/${tbrg(steadyBearing(c.label + '/alt', c.bearingAlt, c.lastSeen))}` : ''}`}${tasNote}${c.originX !== undefined ? ' <span class="blue">(BOJE)</span>' : ''}</span>
+        ${ranged ? `<span title="${esc(rangeTitle)}">${range}</span>` : ''}
         <span class="glyphs" title="${esc(sensors)}">${sensorGlyphs(c.sensors)}</span>
-        <span class="${color}">${what}</span>
+        <span class="${color}" title="${esc(whatTitle)}">${what}</span>
         <span class="lvl${age > 30 ? ' dim' : ''}">${levelOf(c)}</span>
       </div>`;
     }).join('') + torpRows(s, ranged)
@@ -157,10 +166,10 @@ function torpRows(s: NonNullable<typeof store.snap>, ranged: boolean): string {
     const sel = t.id === store.selected;
     return `<div class="row ctable clickable ${sel ? 'amber selrow' : ''}" data-c="${esc(t.id)}" title="Eigener Torpedo am Draht · Klicken zum Auswählen">
       <span class="${sel ? '' : 'red'}">${esc(t.id)}</span>
-      <span>${tdeg1(bearing(s.own, t))}°</span>
-      ${ranged ? `<span>${km(distance(s.own, t))}</span>` : ''}
+      <span>${tbrg(bearing(s.own, t))}</span>
+      ${ranged ? `<span>${kmNum(distance(s.own, t))}</span>` : ''}
       <span class="glyphs" title="Draht">D</span>
-      <span class="${sel ? '' : 'red'}">EIGENER TORPEDO</span>
+      <span class="${sel ? '' : 'red'}" title="Eigener Torpedo am Draht">EIG. TORPEDO</span>
       <span class="lvl">${t.homing ? 'ERFASST' : 'LÄUFT'}</span>
     </div>`;
   }).join('');

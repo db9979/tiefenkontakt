@@ -103,9 +103,7 @@ html[data-theme='light'] button.primary.st-busy[data-bst]::after { background: #
   font: 600 var(--fs-cap) ui-monospace, monospace; line-height: 1.25; text-align: center; opacity: 0.75; vertical-align: 1px; }
 .help .kcap { color: var(--amber); opacity: 1; margin: 0 2px 0 0; }
 
-/* Contact list (E6): one look everywhere */
-.clist .ctable { grid-template-columns: 74px minmax(0, 1.1fr) minmax(0, 0.8fr) 34px minmax(0, 1.4fr); }
-.clist.norange .ctable { grid-template-columns: 74px minmax(0, 1.2fr) 34px minmax(0, 1.7fr); }
+/* Contact list (E6): one look everywhere (columns: widgets.css) */
 .clist .ctable > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .clist .glyphs { letter-spacing: 0.1em; color: var(--c-data); }
 .clist .mute, .clist .mute .glyphs { color: var(--c-mute); }

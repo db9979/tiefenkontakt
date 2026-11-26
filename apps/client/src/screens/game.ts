@@ -84,6 +84,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         <span id="ship" class="st-ship"></span>
         <span class="st-prog"><span class="dim pb-lbl">KONVOI</span><span class="pbar"><i id="pb-sunk"></i><i id="pb-arr"></i><b class="pb-mid"></b><b class="pb-30"></b></span><span id="pb-txt"></span></span>
         <span id="clock" class="st-clock"></span>
+        <span id="ff-why" class="st-ffwhy amber"></span>
       </div>
       <button id="mute" class="icon" title="Ton an/aus (M)"></button>
       <span id="gear-slot"></span>
@@ -184,7 +185,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         const go = e.label !== undefined || e.station !== undefined;
         // T+: time since the start of the match (the top bar shows the time of day)
         const at = `T+${shortClock(e.time)}`;
-        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}" title="${esc(`${at} ${e.text}`)}"><span class="lt">${at}</span><span>${esc(e.text)}</span></div>`;
+        const n = e.count ? `<b class="lcnt">${e.count}×</b> ` : '';
+        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}" title="${esc(`${at} ${e.count ? `${e.count}× ` : ''}${e.text}`)}"><span class="lt">${at}</span><span class="ltx">${n}<span>${esc(e.text)}</span></span></div>`;
       }).join('');
     if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
   };
@@ -307,8 +309,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
       const s = store.snap;
       const c = store.selectedContact();
       let text = b.dataset.r!;
-      if (text === 'Position' && s) text = `Position ${Math.round(s.own.x / 100) / 10} / ${Math.round(s.own.y / 100) / 10} km, Kurs ${tdeg3(s.own.heading)}`;
-      else if (c) text += ` · ${c.label} Peilung ${tdeg3(c.bearing)}`;
+      if (text === 'Position' && s) text = `Position ${Math.round(s.own.x / 100) / 10} / ${Math.round(s.own.y / 100) / 10} km, Kurs ${tdeg3(s.own.heading)}°`;
+      else if (c) text += ` · ${c.label} Peilung ${tdeg3(c.bearing)}°`;
       net.send({ t: 'radio', text });
     }));
     show(0);
@@ -359,10 +361,12 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     endShown = true;
     const won = store.ended.winner === s.own.team;
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
+    // No convoy (Meerenge, patrols): no tonnage figures, only the time (F24)
+    const score = s.score.totalTons > 0 ? `VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} % · ` : '';
     const ov = h(`<div class="overlay"><div class="panel" style="text-align:center;padding:24px 40px">
       <div class="title ${won || endBand === 'remis' ? '' : 'red'}">${bandLabel(won, endBand)}</div>
       <div style="margin:10px 0">${esc(store.ended.reason)}</div>
-      <div class="dim">VERSENKT ${pct(s.score.sunkTons)} % · AM ZIEL ${pct(s.score.arrivedTons)} % · DAUER ${clock(s.time)}</div>
+      <div class="dim">${score}DAUER ${clock(s.time)}</div>
       <div class="steps" style="margin-top:16px;justify-content:center"><button id="debrief" class="on">Nachbesprechung</button><button id="exit">Zur Lobby</button></div></div></div>`);
     ov.querySelector<HTMLButtonElement>('#exit')!.onclick = () => {
       ov.remove();
@@ -391,12 +395,23 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     // Compact (G4): "18:38 · SG 4 · REST 37:38"; the long form is the tooltip
     const hh = s.env.clock !== undefined ? `${String(Math.floor(s.env.clock)).padStart(2, '0')}:${String(Math.floor((s.env.clock % 1) * 60)).padStart(2, '0')} · ` : '';
     const wxTail = `${s.env.rain ? ' · REGEN' : ''}${fogAt(s.env.met, s.own) > 0.3 ? ' · NEBEL' : ''}${iceCover(s.env.met, s.own) > 0.1 ? ' · EIS' : ''}`;
-    const rest = s.score.timeLeftS > 1e8 ? '∞' : `${shortClock(s.score.timeLeftS)}${s.timeScale > 0 && s.timeScale !== 1 ? ` (ECHT ${shortClock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`;
+    // The real time left and the speed-up only in the tooltip (S10: the long form pushed KONVOI out);
+    // a lobby time scale stays as a short "×4" (the fast-forward shows its ×6 on its own button)
+    const scaled = s.timeScale > 0 && s.timeScale !== 1;
+    const rest = s.score.timeLeftS > 1e8 ? '∞' : shortClock(s.score.timeLeftS);
+    const restLong = s.score.timeLeftS > 1e8 ? '∞' : `${rest}${scaled ? ` (ECHT ${shortClock(s.score.timeLeftS / s.timeScale)} · ${s.timeScale}×)` : ''}`;
     const clk = q('#clock');
-    const clkTxt = `${hh}SG ${s.env.seaState}${wxTail} · REST ${rest}`;
+    const clkTxt = `${hh}SG ${s.env.seaState}${wxTail} · REST ${rest}${scaled && !s.ff?.on ? ` ×${s.timeScale}` : ''}`;
     if (clk.textContent !== clkTxt) {
       clk.textContent = clkTxt;
-      clk.title = `${hh ? `Uhrzeit ${hh.slice(0, 5)} · ` : ''}Seegang ${s.env.seaState}${wxTail} · Restzeit ${rest}`;
+      clk.title = `${hh ? `Uhrzeit ${hh.slice(0, 5)} · ` : ''}Seegang ${s.env.seaState}${wxTail} · Restzeit ${restLong}`;
+    }
+    // Why the fast-forward stopped, for a while after it did (S29)
+    const why = s.ff && !s.ff.on && s.ff.stopped ? `GESTOPPT: ${s.ff.stopped.toUpperCase()}` : '';
+    const whyEl = q('#ff-why');
+    if (whyEl.textContent !== why) {
+      whyEl.textContent = why;
+      whyEl.title = why ? 'Warum der Zeitraffer angehalten hat' : '';
     }
     const pct = (x: number) => Math.round((100 * x) / Math.max(1, s.score.totalTons));
     q('#ship').textContent = `${CLASS_LABEL[s.own.cls]} ${s.own.name}${s.crew.length > 1 ? ` · AN BORD: ${s.crew.join(', ')}` : ''}`;

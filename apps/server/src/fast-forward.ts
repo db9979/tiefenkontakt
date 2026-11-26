@@ -1,4 +1,4 @@
-import { FAST_FORWARD_SCALE, type AlertView, type FastForwardView, type Ship, type World } from '@tk/shared';
+import { FAST_FORWARD_SCALE, angleDiff, trueDeg3, type AlertView, type FastForwardView, type Ship, type World } from '@tk/shared';
 
 /**
  * "Zeitraffer bis Ereignis": the sim runs at 6× until something happens that a captain must
@@ -14,6 +14,14 @@ export const FRESH_CONTACT_S = 60;
 export const FF_TICK_BUDGET_MS = 45;
 /** A stop reason stays in the top bar this long (sim seconds). */
 const STOPPED_SHOW_S = 30;
+
+/**
+ * A ping or radar intercept within this many degrees of one heard in the last KNOWN_SOURCE_S
+ * comes from a source already known (an escort pinging every 30 s): it does not stop the
+ * fast-forward again (S29). The first ping of a new source does.
+ */
+export const SAME_SOURCE_DEG = 12;
+export const KNOWN_SOURCE_S = 300;
 
 /** Alerts that stop it: everything but routine traffic from command. */
 const STOP_ALERT: Partial<Record<AlertView['kind'], string>> = {
@@ -34,6 +42,8 @@ export class FastForward {
   /** Contacts each human-manned ship already holds (target ids): a new one stops the fast-forward. */
   private known = new Map<string, Set<string>>();
   private stopped?: { why: string; at: number };
+  /** Pings and radar intercepts each player heard lately (repeats from a known source don't stop it). */
+  private heard = new Map<string, { kind: AlertView['kind']; b: number; emitter?: string; t: number }[]>();
 
   constructor(private host: FastForwardHost) {}
 
@@ -80,10 +90,27 @@ export class FastForward {
     this.remember(w, voters);
   }
 
-  /** An alert for a player: alarms stop it. */
-  alert(playerId: string, kind: AlertView['kind'], time: number): void {
-    const why = STOP_ALERT[kind];
-    if (this.on && why && this.host.voters().includes(playerId)) this.stop(why, time);
+  /**
+   * An alert for a player: alarms stop it, with the reason and bearing for the top bar
+   * ("Ortungsimpuls 087°"). Pings and radar intercepts from a source already heard don't.
+   */
+  alert(playerId: string, a: AlertView['kind'] | Pick<AlertView, 'kind' | 'bearing' | 'emitter'>, time: number): void {
+    const al = typeof a === 'string' ? { kind: a } : a;
+    const why = STOP_ALERT[al.kind];
+    if (!why) return;
+    const repeat = (al.kind === 'ping' || al.kind === 'esm') && al.bearing !== undefined && this.knownSource(playerId, al.kind, al.bearing, al.emitter, time);
+    if (!this.on || repeat || !this.host.voters().includes(playerId)) return;
+    const w = this.host.world();
+    this.stop(al.bearing !== undefined && w ? `${why} ${trueDeg3(w, al.bearing)}°` : why, time);
+  }
+
+  /** Note a ping or intercept; true when the same source (bearing, radar) was heard lately. */
+  private knownSource(playerId: string, kind: AlertView['kind'], b: number, emitter: string | undefined, t: number): boolean {
+    const list = (this.heard.get(playerId) ?? []).filter((h) => t - h.t >= 0 && t - h.t < KNOWN_SOURCE_S);
+    const known = list.some((h) => h.kind === kind && h.emitter === emitter && Math.abs(angleDiff(h.b, b)) <= SAME_SOURCE_DEG);
+    list.push({ kind, b, emitter, t });
+    this.heard.set(playerId, list);
+    return known;
   }
 
   /** The tutorial ticked off a step. */
