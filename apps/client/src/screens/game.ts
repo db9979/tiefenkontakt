@@ -215,7 +215,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   // A torpedo warning is a way to the countermeasure: click jumps to the decoys
   // (submarine: fire control; frigate: towed decoy on the weapons station)
   let bannerGo: StationId | undefined;
-  banner.addEventListener('click', () => bannerGo !== undefined && go(bannerGo));
+  // Delegated on the column, on release: the banner comes and goes with the alarm, and an element
+  // with its own click handler appearing mid-tap makes iOS drop that tap
+  onTap(stationWrap, '.banner', () => bannerGo !== undefined && go(bannerGo));
   // Top bar: "Zeitraffer bis Ereignis" with its ×6 tag; own ship sunk: crew / watch / debrief
   const fastFwd = mountFastForward();
   q('#clock').before(fastFwd.el);

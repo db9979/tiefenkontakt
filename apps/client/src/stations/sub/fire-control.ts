@@ -33,7 +33,7 @@ import { isFriendlyContact } from '../../widgets/friendly.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { COL, fitCanvas, h, km, kn, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
+import { COL, fitCanvas, h, km, kn, setHtml, setRows, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 import { decoy } from '../../widgets/emergency.js';
@@ -462,11 +462,22 @@ export function fireControlStation(): Station {
       q('#tubes').textContent = `${tubes.filter((t) => t.loaded).length}/${tubes.length} GELADEN · VORRAT ${lo.heavy}`;
       bank.update(tubes);
       // One wire row per torpedo: name and state, course · run so far · fuel left (mm:ss), steering
-      setHtml(q('#wires'), s.torpedoes.length ? s.torpedoes.map((t) => `
-        <div class="row wire-row ${t.id === store.selected ? 'selrow amber' : ''}"><span class="clickable wr-name" data-pick="${t.id}" title="Torpedo wählen">${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-        <span class="wr-data" title="Kurs · gelaufene Strecke · Restlaufzeit (Brennstoff)">${tdeg1(t.heading)}° · GELAUFEN ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">REST ${t.leftS !== undefined ? mmss(t.leftS) : '—'}</span></span>
-        <span class="seg wr-steer"><button data-steer="${t.id}" data-d="-10" title="Über den Draht 10° nach Backbord">◀◀</button><button data-steer="${t.id}" data-d="-2" title="Über den Draht 2° nach Backbord">◀</button><button data-steer="${t.id}" data-d="2" title="Über den Draht 2° nach Steuerbord">▶</button><button data-steer="${t.id}" data-d="10" title="Über den Draht 10° nach Steuerbord">▶▶</button></span></div>`).join('')
-        : '<div class="dim" title="Kein eigener Torpedo am Draht">KEIN TORPEDO</div>');
+      // One row per torpedo, kept by id: the figures change every snapshot, the steering buttons stay
+      // the same nodes (buttons inserted while a finger is down make iOS drop the tap)
+      const wires = q('#wires');
+      setRows(wires, s.torpedoes.length ? s.torpedoes.map((t) => ({ key: t.id, html: `
+        <div class="row wire-row"><span class="clickable wr-name" data-pick="${t.id}" title="Torpedo wählen"></span>
+        <span class="wr-data" title="Kurs · gelaufene Strecke · Restlaufzeit (Brennstoff)"></span>
+        <span class="seg wr-steer"><button data-steer="${t.id}" data-d="-10" title="Über den Draht 10° nach Backbord">◀◀</button><button data-steer="${t.id}" data-d="-2" title="Über den Draht 2° nach Backbord">◀</button><button data-steer="${t.id}" data-d="2" title="Über den Draht 2° nach Steuerbord">▶</button><button data-steer="${t.id}" data-d="10" title="Über den Draht 10° nach Steuerbord">▶▶</button></span></div>` }))
+        : [{ key: 'none', html: '<div class="dim" title="Kein eigener Torpedo am Draht">KEIN TORPEDO</div>' }]);
+      s.torpedoes.forEach((t, i) => {
+        const row = wires.children[i] as HTMLElement | undefined;
+        if (!row) return;
+        row.classList.toggle('selrow', t.id === store.selected);
+        row.classList.toggle('amber', t.id === store.selected);
+        setHtml(row.querySelector('.wr-name')!, `${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}`);
+        setHtml(row.querySelector('.wr-data')!, `${tdeg1(t.heading)}° · GELAUFEN ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">REST ${t.leftS !== undefined ? mmss(t.leftS) : '—'}</span>`);
+      });
       btnState(q('#tr-nm'), { label: String(lo.noisemakers), tone: lo.noisemakers ? undefined : 'empty' });
     },
     frame() {

@@ -115,14 +115,57 @@ export function setHtml(el: Element, html: string): void {
  * drops a tap (treats it as a hover) when a control is inserted anywhere while the finger is down.
  * The pieces are `display: contents` wrappers, so the container's layout sees their children.
  */
-export function setParts(el: Element, parts: string[]): void {
+export function setParts(el: Element, parts: (string | ((part: Element) => void))[]): void {
   const kids = el.children;
   // A later setHtml on the container itself must not think its old content is still there
   written.delete(el);
   if (kids.length !== parts.length || [...kids].some((k) => !k.classList.contains('part'))) {
     el.innerHTML = parts.map(() => '<div class="part"></div>').join('');
   }
-  parts.forEach((html, i) => setHtml(kids[i]!, html));
+  parts.forEach((p, i) => (typeof p === 'string' ? setHtml(kids[i]!, p) : p(kids[i]!)));
+}
+
+const rowHtml = new WeakMap<Element, string>();
+const rowAttrs = new WeakMap<Element, string[]>();
+
+/**
+ * A list of rows kept by key: a row whose markup changed is updated in place (its own node stays,
+ * only its attributes and contents are rewritten), new rows are added, gone rows removed, and
+ * rows are only moved when the order changed. A list redrawn every snapshot then replaces no
+ * row a finger may be on. Each `html` is one element; attributes added by others (a11y) stay.
+ */
+export function setRows(box: Element, rows: { key: string; html: string }[]): void {
+  written.delete(box);
+  const old = new Map<string, Element>();
+  for (const k of [...box.children]) {
+    const key = (k as HTMLElement).dataset.rowKey;
+    if (key !== undefined && !old.has(key)) old.set(key, k);
+    else k.remove();
+  }
+  let at: Element | null = box.firstElementChild;
+  for (const { key, html } of rows) {
+    let el = old.get(key);
+    if (el) {
+      old.delete(key);
+      if (rowHtml.get(el) !== html) {
+        const fresh = h(html);
+        const names = fresh.getAttributeNames();
+        for (const n of rowAttrs.get(el) ?? []) if (!names.includes(n)) el.removeAttribute(n);
+        for (const n of names) if (el.getAttribute(n) !== fresh.getAttribute(n)) el.setAttribute(n, fresh.getAttribute(n)!);
+        el.replaceChildren(...fresh.childNodes);
+        rowHtml.set(el, html);
+        rowAttrs.set(el, names);
+      }
+    } else {
+      el = h(html);
+      rowAttrs.set(el, el.getAttributeNames());
+      (el as HTMLElement).dataset.rowKey = key;
+      rowHtml.set(el, html);
+    }
+    if (el === at) at = at.nextElementSibling;
+    else box.insertBefore(el, at);
+  }
+  for (const el of old.values()) el.remove();
 }
 
 /** Set textContent only when it changed. */

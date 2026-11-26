@@ -16,6 +16,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   noch für echte Mauszeiger, und Zeilen, Sortierköpfe und Panel-Reiter haben `touch-action: manipulation`.
   Touch-Prüfung mit 390 × 844 vorher → nachher: U-Boot 17 → 55 von 55, Geleitschutz 24 → 46 von 46, Lobby-Timing
   0 → 4 von 4; Lobby, Briefing und Handy-Sehrohr waren schon in Ordnung, die Maus am Desktop unverändert.
+  Zweite Runde: Kontaktzeilen bleiben dieselben Knoten und ändern nur ihre Werte. Die Knöpfe KLASSE ZUWEISEN und
+  ALARMTAUCHEN im Sehrohr, KLASSE ZUWEISEN auf der Brücke, die Drahtsteuerung ◀◀ ◀ ▶ ▶▶ in der Feuerleitung sowie
+  TRUPP HIERHER und ABSCHOTTEN in der Schadensabwehr werden nicht mehr bei jeder Peilungs-, Strecken- oder
+  Wasserstandsänderung ersetzt. Torpedo-Warnbanner, Hinweisleiste und Sichtungsliste reagieren beim Loslassen. Auf dem
+  Handy-Sehrohr liegen ☾ und EN nicht mehr über der Kopfzeile.
 - **Eigenes Schiff, vierte Runde:** gedämpfte rote Lichtkegel unter den Lampen auf Nocks, Niedergängen und Flugdeck
   statt rot getöntem Deck, dunkles Schanzkleid bei Nacht, fein aufgebrochener Schaum an der Wasserlinie,
   Hitzeflimmern über den Abgasrohren bei hoher Fahrt.
