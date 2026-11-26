@@ -9,6 +9,14 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - **Auto-TMA nutzt gemessene Entfernungen:** Eine frische Entfernung (Sehrohr-Stadimeter, Aktiv-Ping, höchstens 60 s
   alt) legt die Entfernung fest; Kurs und Fahrt werden bei ihr gesucht. Vorher blieb die Güte nach einem Sehrohrblick
   und einem kurzen zweiten Schenkel bei 29 % („ENTFERNUNG UNBESTIMMT“), obwohl die Entfernung gemessen war.
+- **Stadimeter ins Lagebild (Profi):** Im Sehrohr „ENTF. ÜBERNEHMEN“ (nur mit ausgefahrenem Mast und frischer
+  Sehrohrpeilung) legt eine Entfernungsmarke je Kontakt an; die Feuerleitung zeigt Zeile STADIMETER mit Alter
+  („VERALTET“ nach 60 s) und „Übernehmen“ setzt die Entfernung auf die letzte Peilung.
+- **Letzte Prüfpunkte:** Das Ostpakt-Atom-U-Boot schießt Kielwasser-Torpedos auf das Geleitschiff, das es festhält
+  (Pingen, laut oder unter 3 km), mit eigener Schussregel und Zielpunkt achteraus; Torpedobahnen leuchten nachts in
+  der 3D-Sicht der Überwasserschiffe; Meeresleuchten-Spur des U-Boots auch auf Entfernung sichtbar; Fregattenseite
+  durchgehend in Seemeilen; Sonarkopf der Fregatte bei 1140 px ohne abgeschnittene Reiter; Schadensbild nach einem
+  versenkenden Treffer zeigt die Lage beim Untergang statt 0 %.
 - **Handbuch, Hilfe und Tutorials** auf dem Stand von Runde 5: neue Hilfe-Rubrik „Regeln, die man kennen muss“,
   Handbuchkapitel zu Tiefwasser, Peilfehler, Doppler, Draht, Kielwasser-Torpedo, Batterie, Seegang, Mond und
   Meeresleuchten, Zickzackplänen, Flugkurs, Bojenmustern und Datenlink; veraltete Angaben (Raketenflugzeit, Mörser,
