@@ -70,6 +70,12 @@ export interface BotMemory {
   tmaLegUntil?: number;
   /** Submarines: since when the TMA on each contact label has stayed above the firing threshold. */
   qualSince?: Record<string, number>;
+  /** Submarines: the contact the attack is being worked on (kept while it is still heard), its last
+   * bearing and time, and since when the attack has been on that ship (across a relabelled track). */
+  attackLabel?: string;
+  attackBrg?: number;
+  attackSeen?: number;
+  attackFirst?: number;
   /** Escorts: since when the ship has been prosecuting (unbroken). */
   huntSince?: number;
   huntSeen?: number;
@@ -183,6 +189,11 @@ export function solveFor(m: BotMemory, t: ContactTrack, now: number, choice?: Cl
   if (!fit) return cached;
   m.sols[t.label] = { sol: fit.sol, at: now, q: fit.q };
   return m.sols[t.label];
+}
+
+/** Log a contact's newest bearings on the captain's plot without solving (the plotter keeps every contact). */
+export function plotBearings(m: BotMemory, t: ContactTrack, now: number): void {
+  logBearings((m.blog ??= {}), t, m.track, now);
 }
 
 /** Bearing a bot can hear from a transient at a known spot (with operator error). */

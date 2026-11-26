@@ -16,6 +16,12 @@ export interface SavedCrew {
   pack: PackReport[];
 }
 
+/**
+ * A boat with a torpedo on it beams it, sprints and crosses the layer this long (s), then goes
+ * back to its attack quietly (at 120 s the sprints kept it off its plot for a third of the battle).
+ */
+const SUB_TORPEDO_EVADE_S = 90;
+
 const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000, sounding: 4_000 } as const;
 
 /** AI captains for empty teams (and passive training targets). */
@@ -116,7 +122,7 @@ export class BotCrew {
     const sub = CLASSES[ship.cls].submarine;
     for (const e of fresh) {
       if (e.kind === 'torpedo_alert' && e.shipId === ship.id && !m.passive) {
-        m.evadeUntil = w.time + 120;
+        m.evadeUntil = w.time + (sub ? SUB_TORPEDO_EVADE_S : 120);
         if (sub) launchNoisemaker(w, ship);
         else setTowedDecoy(w, ship, true);
         // Beam the torpedo, sprint, and (submarine) cross the layer

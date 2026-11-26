@@ -30,9 +30,10 @@ describe('time compression', () => {
   });
 
   it('keeps the arena-balanced short geometry of fjord and schelf', () => {
-    // Fjord: the boat waits far up the narrows and off the channel; schelf: 3.6 km off the route
+    // Fjord: the boat waits far up the narrows and off the channel; schelf: 2.4 km off the route
     expect(startGeometry('fjord', 1 / 3)).toMatchObject({ subFrac: 0.8, spread: 1.2 });
-    expect(startGeometry('schelf', 1 / 3).spread).toBeCloseTo(0.3);
+    expect(startGeometry('schelf', 1 / 3).spread).toBeCloseTo(0.2);
+    expect(startGeometry('schelf', 1 / 3).subFrac).toBeCloseTo(0.4);
     // The designed long battle is unchanged
     expect(startGeometry('fjord', 1)).toMatchObject({ subFrac: 0.45, spread: 1 });
   });
