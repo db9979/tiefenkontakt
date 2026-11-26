@@ -98,7 +98,7 @@ export function periscopeStation(): Station {
       <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
       <div class="panel grow" id="mast-panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
         <div id="mast-rows"></div>
-        <div class="fill" id="rose-box"><canvas id="esm-rose" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas></div>
+        <div class="fill" id="rose-box"><canvas id="esm-rose" class="keep" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas></div>
         <div id="esm"></div>
         <div class="btnrow"><button id="radar" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button></div>
       </div>
@@ -489,7 +489,13 @@ export function periscopeStation(): Station {
       plateTextAt(ctx, 'BB', cx - R + 14, cy + 20);
       ctx.textAlign = 'right';
       plateTextAt(ctx, 'STB', cx + R - 14, cy + 20);
-      if (s && mst.raised) sky.draw(ctx, cx, cy, R, sky.readout(air, simNow(), true), t);
+      if (s && mst.raised) {
+        // An aircraft already reported by the lookout or the mast radar overrides "unchecked"
+        let r = sky.readout(air, simNow(), true);
+        const threat = r.tone === 'alarm' ? undefined : airThreat(s);
+        if (threat) r = { text: `FLIEGER! · ${threat.text}`, tone: 'alarm' };
+        sky.draw(ctx, cx, cy, R, r, t);
+      }
       if (photoReq) {
         photoReq = false;
         if (s && mst.raised) {
