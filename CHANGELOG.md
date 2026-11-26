@@ -6,6 +6,24 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Realismus-Runde 5 (mit U-Boot- und Fregattenkommandant):**
+  - Sensoren: aufgetauchtes U-Boot auf Radar und im Sehrohr sichtbar; langsam wandernder Peilfehler je Kontakt und
+    Sensor, Schleppsonar ungenauer zur Längsachse; Radarreichweite nach Radarhorizont; Meeresleuchten nach Seegebiet,
+    Jahreszeit und Mondlicht verrät fahrende Boote, Sehrohrfeder und Torpedobahnen.
+  - U-Boot: Batterie lädt über 70 % langsamer; Rumpfschaden senkt die erlaubte Tauchtiefe; Kavitationsgrenze steigt
+    mit der Tiefe.
+  - Seegang: Bugsonar der Fregatte leidet ab Seegang 5, Radar findet Sehrohre schlechter, Sehrohr wird überspült, das
+    Boot kann durchbrechen, das Kopfventil schlägt beim Schnorcheln zu; Geleitschiffe verlieren in Gegensee Fahrt.
+  - Schall: Schattenzone, Bodenreflexion und Konvergenzzonen je Seegebiet im Tiefwasser, Schiffslärm je Seegebiet,
+    Doppler-Verschiebung der Linien in Signalanalyse, Wasserfall und Sonarkopf; Reichweitenvorhersage zeigt Schatten-
+    und Konvergenzzone.
+  - Waffen: Draht reißt bei scharfen Kurswechseln, Torpedo achteraus, hoher Fahrt (mit Warnung vorher), höchstens 2–4
+    gelenkte Torpedos; Torpedo mit Transit- und Angriffsfahrt; Mörser sinkt 12 m/s; Raketenflugzeit und Streuung nach
+    Entfernung; Kielwasser-Torpedo für das Ostpakt-Atom-U-Boot; Treffer unter dem Kiel stärker.
+  - Geleit: Zickzackpläne je Partie, vom Kommandanten wählbar; Hubschrauber startet und landet nur auf Flugkurs gegen
+    den Wind und bis Seegang 5; realistische Tauchsonar-Zyklen; Bojenmuster Sperre, Kreis und Winkel; Datenlink mit
+    Verzögerung und Positionsfehler, Spuren werden nach Lage zusammengeführt; KI ohne verdecktes Wissen; Schleppsonar-
+    Tiefe nach Kabellänge und Fahrt.
 - **Echter Mond:** Stand und Phase nach Meeus für Seegebiet, Datum (Tag je Partie aus dem Seed) und Bordzeit,
   Sichel mit Erdschein, Lichthof, Mondlichtbahn auf dem Wasser, rot und schwach am Horizont, hinter Wolken verdeckt,
   blass am Tag. Das Mondlicht bestimmt die Nachtsicht von Ausguck, Sehrohr und gegen abgeblendete Flugzeuge
