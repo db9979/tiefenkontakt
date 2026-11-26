@@ -60,7 +60,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       for (const slot of ctx.aboard(e.shipId)) ctx.alert(slot.playerId, { time: e.time, kind: 'sunk', text: 'AUF GRUND GELAUFEN · SCHÄDEN' });
     } else if (e.kind === 'torpedo_alert') {
       for (const slot of ctx.aboard(e.shipId)) {
-        ctx.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${trueDeg3(w, e.bearing)}` });
+        ctx.alert(slot.playerId, { time: e.time, kind: 'torpedo', bearing: e.bearing, text: `TORPEDO PEILUNG ${trueDeg3(w, e.bearing)}°` });
       }
     } else if (e.kind === 'boat') {
       const kind = e.what === 'command' ? 'command' : 'boat';
@@ -76,7 +76,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       const b = trueDeg3(w, e.bearing);
       const r = (Math.round(e.range / 100) / 10).toFixed(1).replace('.', ',');
       for (const slot of ctx.aboard(e.shipId)) {
-        ctx.alert(slot.playerId, { time: e.time, kind: 'sighting', bearing: e.bearing, range: e.range, what: e.what, label: e.label, text: `AUSGUCK · ${SIGHTING_TEXT[e.what]} PEILUNG ${b} · CA. ${r} KM` });
+        ctx.alert(slot.playerId, { time: e.time, kind: 'sighting', bearing: e.bearing, range: e.range, what: e.what, label: e.label, text: `AUSGUCK · ${SIGHTING_TEXT[e.what]} PEILUNG ${b}° · CA. ${r} KM` });
       }
     } else if (e.kind === 'hit') {
       // A warhead on a surface ship: a detonation everyone around hears and lookouts may see
@@ -87,7 +87,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
         const own = ctx.shipOf(s.playerId);
         if (!own || own.id === victim.id || distance(own.pos, e) > EXPLOSION_HEARING) continue;
         const b = bearing(own.pos, e);
-        ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, text: `EXPLOSION PEILUNG ${trueDeg3(w, b)}` });
+        ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, text: `EXPLOSION PEILUNG ${trueDeg3(w, b)}°` });
       }
     } else if (e.kind === 'sunk') {
       const victim = shipById(w, e.shipId);
@@ -101,7 +101,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
         if (own.id === victim.id) ctx.alert(s.playerId, { time: e.time, kind: 'sunk', text: 'SCHIFF SINKT' });
         else if (distance(own.pos, victim.pos) < EXPLOSION_HEARING) {
           const b = bearing(own.pos, victim.pos);
-          ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, sink, text: `${sink ? 'SINKGERÄUSCHE' : 'EXPLOSION / SINKGERÄUSCHE'} PEILUNG ${trueDeg3(w, b)}` });
+          ctx.alert(s.playerId, { time: e.time, kind: 'hit', bearing: b, sink, text: `${sink ? 'SINKGERÄUSCHE' : 'EXPLOSION / SINKGERÄUSCHE'} PEILUNG ${trueDeg3(w, b)}°` });
         }
       }
     }
@@ -114,7 +114,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       if (!own?.alive || own.team !== 'east' || !CLASSES[own.cls].submarine || !(canCopy(own) || mastRaised(own) || own.depth <= 0.5)) continue;
       const b = bearing(own.pos, e);
       const km = Math.round(distance(own.pos, e) / 1000);
-      ctx.alert(s.playerId, { time: e.time, kind: 'command', bearing: b, text: `FÜHRUNG · LUFTAUFKLÄRUNG: KONVOI PEILUNG ${trueDeg3(w, b)} · CA. ${km} KM · KURS ${trueDeg3(w, e.course)} · ${e.speedKn} KN` });
+      ctx.alert(s.playerId, { time: e.time, kind: 'command', bearing: b, text: `FÜHRUNG · LUFTAUFKLÄRUNG: KONVOI PEILUNG ${trueDeg3(w, b)}° · CA. ${km} KM · KURS ${trueDeg3(w, e.course)}° · ${e.speedKn} KN` });
     }
   }
   for (const e of fresh) {
@@ -125,7 +125,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       const reach = TRANSIENT_RANGE[e.what] * (1 - 0.05 * w.env.seaState) * (own.speed / KN > 15 ? 0.5 : 1);
       if (distance(own.pos, e) > reach) continue;
       const b = (bearing(own.pos, e) + w.rng.gauss(0, 2) + 360) % 360;
-      ctx.alert(s.playerId, { time: e.time, kind: 'transient', bearing: b, text: `${TRANSIENT_TEXT[e.what]} · PEILUNG ${trueDeg3(w, b)}` });
+      ctx.alert(s.playerId, { time: e.time, kind: 'transient', bearing: b, text: `${TRANSIENT_TEXT[e.what]} · PEILUNG ${trueDeg3(w, b)}°` });
     }
   }
   for (const d of w.lastDetections) {
@@ -140,7 +140,7 @@ export function alertsFor(w: World, fresh: GameEvent[], ctx: AlertContext): void
       ctx.alert(slot.playerId, {
         time: d.time, kind, bearing: d.bearing, level: Math.round(d.se), source: d.source,
         ...(d.emitter ? { emitter: d.emitter, esmLvl: d.esmLvl, esmTrend: d.esmTrend } : {}),
-        text: kind === 'ping' ? `${d.source === 'dip' ? 'TAUCHSONAR' : 'AKTIVSONAR'} PEILUNG ${b}` : `ESM PEILUNG ${b}${em}`,
+        text: kind === 'ping' ? `${d.source === 'dip' ? 'TAUCHSONAR' : 'AKTIVSONAR'} PEILUNG ${b}°` : `ESM PEILUNG ${b}°${em}`,
       });
     }
   }

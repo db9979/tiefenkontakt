@@ -447,7 +447,7 @@ export class Match {
     this.eventCursor = w.events.length;
     alertsFor(w, fresh, { slots: this.slots, shipOf: (id) => this.shipOf(id), aboard: (id) => this.aboard(id), alert: (id, a) => {
       pushAlert(this.extras.get(id), a);
-      this.ff.alert(id, a.kind, w.time);
+      this.ff.alert(id, a, w.time);
     }, radio: (id, r) => this.extras.get(id)?.radio.push(r) });
   }
 

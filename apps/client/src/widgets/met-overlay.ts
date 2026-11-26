@@ -30,16 +30,26 @@ function forecast(ctx: CanvasRenderingContext2D, now: Vec2, then: Vec2, r: numbe
   ctx.stroke();
 }
 
-function label(ctx: CanvasRenderingContext2D, p: Vec2, r: number, text: string, color: string): void {
-  if (r < 14) return;
-  const y = p.y - Math.min(r * 0.6, 40);
-  // Not under the chart's tool buttons (top row, right column), where it would peek out half hidden
-  const cv = ctx.canvas as HTMLCanvasElement;
-  const w = cv.clientWidth || cv.width;
-  const tw = ctx.measureText(text).width;
-  if (y < 44 || p.x + tw / 2 > w - 46) return;
-  ctx.fillStyle = color;
-  ctx.fillText(text, p.x, y);
+export interface MetLabel { x: number; y: number; text: string; color: string }
+
+/** Where a cell's name goes (above its middle), or nothing for a cell too small on screen. */
+function label(p: Vec2, r: number, text: string, color: string): MetLabel | undefined {
+  if (r < 14) return undefined;
+  return { x: p.x, y: p.y - Math.min(r * 0.6, 40), text, color };
+}
+
+/**
+ * Names of cells that stand on top of each other become one ("EIS · 4/10 · NEBEL" instead of
+ * "EIS · 4/1NEBEL"): within `near` px across and a line height up or down (F4).
+ */
+export function mergeMetLabels(ls: readonly MetLabel[], near = 70): MetLabel[] {
+  const out: MetLabel[] = [];
+  for (const l of ls) {
+    const hit = out.find((o) => Math.abs(o.x - l.x) < near && Math.abs(o.y - l.y) < 16);
+    if (hit) hit.text = `${hit.text} · ${l.text}`;
+    else out.push({ ...l });
+  }
+  return out;
 }
 
 /**
@@ -74,14 +84,14 @@ export function drawMet(ctx: CanvasRenderingContext2D, met: MetCells | undefined
   ctx.lineWidth = 1;
   ctx.font = FONT.label;
   ctx.textAlign = 'center';
-  const labels: (() => void)[] = [];
+  const labels: (MetLabel | undefined)[] = [];
   ctx.globalAlpha = AREA_ALPHA;
   const iceL = labelled(met.floes);
   met.floes.forEach((f, i) => {
     const c = P(f);
     const r = f.r / scale;
     area(ctx, c, r, `rgba(215,232,240,${0.05 + 0.12 * f.cover})`, 'rgba(215,232,240,0.35)', [1, 3]);
-    if (iceL.has(i)) labels.push(() => label(ctx, c, r, `EIS · ${Math.round(f.cover * 10)}/10`, 'rgba(215,232,240,0.7)'));
+    if (iceL.has(i)) labels.push(label(c, r, `EIS ${Math.round(f.cover * 10)}/10`, 'rgba(215,232,240,0.7)'));
   });
   const fogL = labelled(met.fog);
   met.fog.forEach((f, i) => {
@@ -89,7 +99,7 @@ export function drawMet(ctx: CanvasRenderingContext2D, met: MetCells | undefined
     const r = f.r / scale;
     area(ctx, c, r, 'rgba(190,200,205,0.16)', 'rgba(200,210,215,0.45)', [2, 2]);
     forecast(ctx, c, P({ x: f.x + met.wind.x * FOG_SPEED * AHEAD_S, y: f.y + met.wind.y * FOG_SPEED * AHEAD_S }), r, 'rgba(200,210,215,0.3)');
-    if (fogL.has(i)) labels.push(() => label(ctx, c, r, 'NEBEL', 'rgba(215,222,226,0.8)'));
+    if (fogL.has(i)) labels.push(label(c, r, 'NEBEL', 'rgba(215,222,226,0.8)'));
   });
   const sqL = labelled(met.squalls);
   met.squalls.forEach((q, i) => {
@@ -97,11 +107,15 @@ export function drawMet(ctx: CanvasRenderingContext2D, met: MetCells | undefined
     const r = q.r / scale;
     area(ctx, c, r, 'rgba(80,130,165,0.18)', 'rgba(110,165,200,0.5)', [6, 3]);
     forecast(ctx, c, P({ x: q.x + met.wind.x * SQUALL_SPEED * AHEAD_S, y: q.y + met.wind.y * SQUALL_SPEED * AHEAD_S }), r, 'rgba(110,165,200,0.3)');
-    if (sqL.has(i)) labels.push(() => label(ctx, c, r, 'SCHAUER', 'rgba(140,190,220,0.85)'));
+    if (sqL.has(i)) labels.push(label(c, r, 'SCHAUER', 'rgba(140,190,220,0.85)'));
   });
   // Labels a little stronger than the areas, so the name still reads
   ctx.globalAlpha = 0.75;
-  for (const l of labels) l();
+  // (On the plot the chart's label pass places them, clear of the buttons and of what matters more)
+  for (const l of mergeMetLabels(labels.filter((x): x is MetLabel => !!x))) {
+    ctx.fillStyle = l.color;
+    ctx.fillText(l.text, l.x, l.y);
+  }
   ctx.globalAlpha = 1;
   ctx.setLineDash([]);
   for (const b of met.bergs) {

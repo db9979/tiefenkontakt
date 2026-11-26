@@ -97,6 +97,23 @@ function resolveTas(tr: ContactTrack): void {
 }
 
 const HISTORY_MAX = 180;
+/**
+ * Track re-association (S6, F7): a new track within this many degrees of one dropped in the last
+ * REASSOC_S seconds (with the same sensor letter, and a shared tonal when both have tonals) takes
+ * the old label back, so S2 doesn't come back as S13 and its TMA solution stays with it.
+ */
+export const REASSOC_DEG = 3;
+export const REASSOC_S = 600;
+/** Two tonals count as the same line within this (Hz). */
+const TONAL_HZ = 1.5;
+
+interface Dropped { label: string; prefix: string; bearing: number; lastSeen: number; firstSeen: number; tonals?: number[] }
+
+/** True when both have tonals and none match, i.e. the lines say it is another ship. */
+function tonalsDiffer(a: number[] | undefined, b: number[] | undefined): boolean {
+  if (!a?.length || !b?.length) return false;
+  return !a.some((x) => b.some((y) => Math.abs(x - y) <= TONAL_HZ));
+}
 const PREFIX: Record<SensorKind, string> = {
   hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S', visual: 'A', mad: 'M',
 };
@@ -105,14 +122,35 @@ const PREFIX: Record<SensorKind, string> = {
 export class ContactBook {
   private byTarget = new Map<string, ContactTrack>();
   private counters: Record<string, number> = {};
+  /** Tracks dropped lately: candidates for re-association. */
+  private dropped: Dropped[] = [];
+
+  /** A dropped track the new detection matches (bearing, sensor letter, tonals), taken off the list. */
+  private reclaim(d: Detection, p: string): Dropped | undefined {
+    this.dropped = this.dropped.filter((x) => d.time - x.lastSeen <= REASSOC_S);
+    const tonals = d.evidence?.tonals.map((t) => t.hz);
+    let best: Dropped | undefined;
+    let bd = REASSOC_DEG;
+    for (const x of this.dropped) {
+      const diff = Math.abs(((d.bearing - x.bearing + 540) % 360) - 180);
+      if (x.prefix !== p || diff > bd || tonalsDiffer(tonals, x.tonals)) continue;
+      // Not while another live track still carries the label (it can't, but stay safe)
+      if ([...this.byTarget.values()].some((t) => t.label === x.label)) continue;
+      best = x;
+      bd = diff;
+    }
+    if (best) this.dropped = this.dropped.filter((x) => x !== best);
+    return best;
+  }
 
   ingest(d: Detection): ContactTrack {
     let tr = this.byTarget.get(d.targetId);
     if (!tr) {
       const p = PREFIX[d.sensor];
-      this.counters[p] = (this.counters[p] ?? 0) + 1;
+      const old = this.reclaim(d, p);
+      if (!old) this.counters[p] = (this.counters[p] ?? 0) + 1;
       tr = {
-        label: `${p}${this.counters[p]}`, firstSeen: d.time, lastSeen: d.time,
+        label: old?.label ?? `${p}${this.counters[p]}`, firstSeen: old?.firstSeen ?? d.time, lastSeen: d.time,
         bearing: d.bearing, se: d.se, sensors: [], history: [],
       };
       this.byTarget.set(d.targetId, tr);
@@ -184,23 +222,30 @@ export class ContactBook {
     return tr;
   }
 
-  /** Drop contacts not seen for `timeout` seconds. */
+  /** Drop contacts not seen for `timeout` seconds (kept a while for re-association). */
   expire(now: number, timeout = 180): void {
-    for (const [id, tr] of this.byTarget) if (now - tr.lastSeen > timeout) this.byTarget.delete(id);
+    for (const [id, tr] of this.byTarget) {
+      if (now - tr.lastSeen <= timeout) continue;
+      this.byTarget.delete(id);
+      const m = /^([A-Z]+)\d+$/.exec(tr.label);
+      if (m) this.dropped.push({ label: tr.label, prefix: m[1]!, bearing: tr.bearing, lastSeen: tr.lastSeen, firstSeen: tr.firstSeen, tonals: tr.evidence?.tonals.map((t) => t.hz) });
+    }
+    if (this.dropped.length > 64) this.dropped.splice(0, this.dropped.length - 64);
   }
 
   tracks(): ContactTrack[] {
     return [...this.byTarget.values()];
   }
 
-  toJSON(): { tracks: [string, ContactTrack][]; counters: Record<string, number> } {
-    return { tracks: this.entries(), counters: { ...this.counters } };
+  toJSON(): { tracks: [string, ContactTrack][]; counters: Record<string, number>; dropped?: Dropped[] } {
+    return { tracks: this.entries(), counters: { ...this.counters }, dropped: this.dropped.map((x) => ({ ...x })) };
   }
 
-  static fromJSON(data: { tracks: [string, ContactTrack][]; counters: Record<string, number> }): ContactBook {
+  static fromJSON(data: { tracks: [string, ContactTrack][]; counters: Record<string, number>; dropped?: Dropped[] }): ContactBook {
     const b = new ContactBook();
     for (const [id, tr] of data.tracks) b.byTarget.set(id, tr);
     b.counters = { ...data.counters };
+    b.dropped = (data.dropped ?? []).map((x) => ({ ...x }));
     return b;
   }
 

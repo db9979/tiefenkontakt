@@ -214,13 +214,19 @@ body:has(.game) .langbtn { display: none; }
 /* Top bar: tabs, compact status, icons */
 .topbar { flex-wrap: nowrap; }
 .topbar .status { flex: 1; display: flex; align-items: center; gap: 14px; min-width: 0; justify-content: flex-end; white-space: nowrap; overflow: hidden; }
-.st-ship { color: var(--g2); overflow: hidden; text-overflow: ellipsis; }
-.st-prog { display: flex; align-items: center; gap: 6px; }
+/* What gives way when the bar is full (F13, S10, S11): first the ship name, then the clock and the
+   stop note (with an ellipsis); the convoy bar with its label never shrinks */
+.st-ship { color: var(--g2); overflow: hidden; text-overflow: ellipsis; flex: 0 1000 auto; min-width: 0; }
+.st-prog { display: flex; align-items: center; gap: 6px; flex: none; }
+.st-clock { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.st-ffwhy { flex: 0 10 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-cap); letter-spacing: 0.04em; }
+.st-ffwhy:empty { display: none; }
 .pbar { position: relative; width: 130px; height: 9px; background: #0b1311; border: 1px solid var(--line2); overflow: visible; }
 .pbar i { position: absolute; top: 0; bottom: 0; display: block; }
 .pbar #pb-sunk { left: 0; background: var(--red); }
 .pbar #pb-arr { right: 0; background: var(--blue); }
 .st-clock { color: var(--g); }
+@media (max-width: 1279px) { .st-ffwhy { max-width: 22ch; } .topbar .status { gap: 8px; } .topbar .pbar { flex-basis: 50px; width: 50px; } }
 button.icon, button.gear { min-width: 32px; padding: 5px 7px; text-transform: none; }
 .menu-panel { position: fixed; top: 46px; right: 10px; z-index: 65; width: 290px; padding: 10px 12px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
 .menu-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
@@ -361,12 +367,24 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 .st-prog { min-width: 0; }
 #pb-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Lookout hit inset */
-.hitcam { position: fixed; right: 310px; top: 64px; z-index: 75; width: min(420px, 92vw); background: #050b0a; border: 1px solid var(--red);
-  box-shadow: 0 0 18px rgba(240,149,149,0.35); padding: 6px; border-radius: 4px; }
-.hitcam .hd { color: var(--red); font-size: 0.9167rem; letter-spacing: 0.1em; align-items: center; }
-.hitcam .hd button { padding: 0 8px; min-height: 0 !important; }
-.hitcam canvas { display: block; width: 100%; height: 220px; border-radius: 2px; }
-@media (max-width: 900px) { .hitcam { right: 8px; left: 8px; width: auto; top: 56px; } }
+/* Hit camera (F3): over the lower left of the station column, never over the side tabs; clicks go
+   through it except on × ; an opaque backing so fog in the scene doesn't show the console through */
+.hitcam { position: fixed; left: 16px; bottom: 16px; z-index: 75; width: min(420px, 92vw); background: #050b0a; border: 1px solid var(--red);
+  box-shadow: 0 0 18px rgba(240,149,149,0.35); padding: 6px; border-radius: 4px; pointer-events: none; }
+.hitcam .hd { color: var(--red); font-size: 0.9167rem; letter-spacing: 0.1em; align-items: center; gap: 6px; }
+.hitcam .hd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hitcam .hd button { padding: 0 8px; min-height: 0 !important; pointer-events: auto; }
+.hitcam canvas { display: block; width: 100%; height: 220px; border-radius: 2px; background: #050b0a; }
+@media (max-width: 900px) { .hitcam { left: 8px; right: 8px; width: auto; } .hitcam canvas { height: 180px; } }
+/* Phones: above the station bar and the helm button */
+@media (max-width: 600px) { .hitcam { bottom: 112px; } .hitcam canvas { height: 150px; } }
+
+/* Chart tool column (plot-tools.ts); on a narrow chart only zoom and ⋯ (S19) */
+.plot-tools { position: absolute; top: 6px; right: 6px; display: flex; flex-direction: column; gap: 3px; }
+.plot-tools > .more { display: none; }
+.plot-tools.compact > .more { display: block; }
+.plot-tools.compact:not(.open) > button:not(.keep) { display: none; }
+.plot-tools.compact.open > .more { background: linear-gradient(180deg, #164036, #0f2a24); }
 
 /* Crew & boat panel */
 .crew-panel .bar { flex: 1; margin-left: 10px; height: 7px; background: #132320; align-self: center; }
@@ -478,6 +496,9 @@ button.ack { animation: btn-ack 0.45s ease-out; }
 input[type=range] { accent-color: var(--g); }
 /* Reports wrap under their text, the T+ time stays a column of its own */
 .alerts .logrow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 1ch; }
+/* S28: a report takes at most two lines (the tooltip has it whole); folded floods show their count */
+.alerts .logrow > .ltx { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.alerts .logrow .lcnt { font-weight: 600; }
 @media (min-width: 601px) { .menu-panel .m-quit { display: none; } }
 /* G9 phone: one 44 px top row (clock · ⏩ · ⚙; sound, help and VERLASSEN in ⚙), RUDER as the last bottom tab */
 @media (max-width: 600px) {

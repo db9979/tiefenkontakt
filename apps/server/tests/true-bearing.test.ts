@@ -27,17 +27,17 @@ describe('true bearings in server texts', () => {
   it('Gibraltar (route bearing 88): game bearing 0 reads 088, the alert number stays 0', () => {
     const { w, got, run } = setup('gibraltar');
     run(w);
-    expect(got[0]!.text).toBe('TORPEDO PEILUNG 088');
+    expect(got[0]!.text).toBe('TORPEDO PEILUNG 088°');
     expect(got[0]!.bearing).toBe(0);
-    expect(got[1]!.text).toBe('EXPLOSION PEILUNG 088');
+    expect(got[1]!.text).toBe('EXPLOSION PEILUNG 088°');
     expect(got[1]!.bearing).toBe(0);
   });
 
   it('region-less worlds are unchanged', () => {
     const { w, got, run } = setup();
     run(w);
-    expect(got[0]!.text).toBe('TORPEDO PEILUNG 000');
-    expect(got[1]!.text).toBe('EXPLOSION PEILUNG 000');
+    expect(got[0]!.text).toBe('TORPEDO PEILUNG 000°');
+    expect(got[1]!.text).toBe('EXPLOSION PEILUNG 000°');
   });
 
   it('helpers wrap, round and name the compass direction', () => {

@@ -3,6 +3,8 @@ import { depthAt, type Snapshot, type Vec2 } from '@tk/shared';
 import { ensureGrid } from './bathy-client.js';
 import { northOff } from '../north.js';
 import { FONT, LW } from './format.js';
+import { CHART_PLATE } from './canvas-text.js';
+import { labelLayer } from './plot-labels.js';
 
 /**
  * The plot's chart background from the (public) seabed: a continuous depth tint, hill shading
@@ -196,10 +198,9 @@ function drawLabels(ctx: CanvasRenderingContext2D, r: Render, sx: number, sy: nu
     const x = w / 2 + gx * cos - gy * sin, y = hgt / 2 + gx * sin + gy * cos;
     if (x < 0 || x > w || y < 0 || y > hgt) continue;
     const tw = ctx.measureText(l.t).width + 4;
-    // Not under the chart's tool buttons (the row along the top, the column on the right):
-    // a label there would peek out beside a button as a stray glyph
-    if (y < 40 || x + tw / 2 > w - 46) continue;
-    ctx.fillStyle = 'rgba(6,14,16,0.75)';
+    // On its plate; the chart's label pass keeps it clear of the buttons, the legend and the
+    // labels that matter more (it is the first to go)
+    ctx.fillStyle = CHART_PLATE;
     ctx.fillRect(x - tw / 2, y - 6, tw, 12);
     ctx.fillStyle = 'rgba(150,210,190,0.85)';
     ctx.fillText(l.t, x, y + 0.5);
@@ -268,7 +269,17 @@ function isobaths(ctx: CanvasRenderingContext2D, depths: Float32Array, cols: num
 }
 
 /** Depth scale in the lower left corner, above the grid note (the top carries the chart's tool buttons). */
-function legend(ctx: CanvasRenderingContext2D, _w: number, hgt: number): void {
+function legend(ctx: CanvasRenderingContext2D, w: number, hgt: number): void {
+  const L = labelLayer(ctx);
+  const x = 62;
+  const y = hgt - 52;
+  // Labels keep clear of it; it is drawn as it is (not moved by the label pass)
+  L?.avoid({ x: 0, y: y - 11, w: x + 150 + 16, h: hgt - y + 11 });
+  if (L) L.direct(() => legendBody(ctx, w, hgt));
+  else legendBody(ctx, w, hgt);
+}
+
+function legendBody(ctx: CanvasRenderingContext2D, _w: number, hgt: number): void {
   const marks = [0, 200, 1000, 3000];
   const bw = 150;
   const x = 62;

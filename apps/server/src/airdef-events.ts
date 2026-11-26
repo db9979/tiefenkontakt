@@ -27,15 +27,15 @@ export function airdefAlerts(w: World, fresh: GameEvent[], ctx: AlertContext): v
       each((own) => own.id === shooter.id, () => ({ time: e.time, kind: 'boat', text: 'SEEZIELFLUGKÖRPER AB · STARTER LÄDT NACH' }));
       // Escorts see the launch flash on radar (or by eye close in): the raid warning
       each((own) => own.team !== shooter.team && own.team !== 'neutral' && !CLASSES[own.cls].submarine && distance(own.pos, shooter.pos) < (own.radarOn ? 30_000 : 9000),
-        (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, shooter.pos), text: `FLUGKÖRPERWARNUNG · SEEZIELFLUGKÖRPER STARTET PEILUNG ${trueDeg3(w, bearing(own.pos, shooter.pos))}${own.radarOn ? '' : ' · RADAR AN FÜR ABWEHR'}` }));
+        (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, shooter.pos), text: `FLUGKÖRPERWARNUNG · SEEZIELFLUGKÖRPER STARTET PEILUNG ${trueDeg3(w, bearing(own.pos, shooter.pos))}°${own.radarOn ? '' : ' · RADAR AN FÜR ABWEHR'}` }));
     } else if (e.kind === 'airdef') {
       const shooter = e.shipId ? w.ships.find((s) => s.id === e.shipId) : undefined;
       if (e.what === 'launch' && shooter) {
-        each((own) => own.id === shooter.id, (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, e), text: `FLUGABWEHR · FLUGKÖRPER ABGEFEUERT · ZIEL PEILUNG ${trueDeg3(w, bearing(own.pos, e))}` }));
+        each((own) => own.id === shooter.id, (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, e), text: `FLUGABWEHR · FLUGKÖRPER ABGEFEUERT · ZIEL PEILUNG ${trueDeg3(w, bearing(own.pos, e))}°` }));
         // Boats with an optic up may see the smoke trail climb
         const reach = (w.env.light ?? 1) > 0.4 ? 25_000 : 35_000;
         each((own) => own.team !== shooter.team && CLASSES[own.cls].submarine && mastRaised(own) && distance(own.pos, shooter.pos) < reach * (w.env.rain ? 0.4 : 1),
-          (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, shooter.pos), text: `AUSGUCK · RAKETENSTART PEILUNG ${trueDeg3(w, bearing(own.pos, shooter.pos))} · FLUGABWEHR` }));
+          (own) => ({ time: e.time, kind: 'boat', bearing: bearing(own.pos, shooter.pos), text: `AUSGUCK · RAKETENSTART PEILUNG ${trueDeg3(w, bearing(own.pos, shooter.pos))}° · FLUGABWEHR` }));
       } else if (e.what === 'kill') {
         each(surface(e.team), () => ({ time: e.time, kind: 'boat', text: `FLUGABWEHR · ZIEL ABGESCHOSSEN${shooter ? ` · ${shooter.name}` : ''}` }));
         each(boats(e.team), lost(e));
@@ -53,7 +53,7 @@ export function airdefAlerts(w: World, fresh: GameEvent[], ctx: AlertContext): v
       if (e.what === 'detected') {
         each(surface(e.team), (own) => {
           const b = bearing(own.pos, e);
-          return { time: e.time, kind: 'boat', bearing: b, text: `MINENWARNUNG · MINE PEILUNG ${trueDeg3(w, b)} · ${Math.round(distance(own.pos, e) / 10) * 10} M` };
+          return { time: e.time, kind: 'boat', bearing: b, text: `MINENWARNUNG · MINE PEILUNG ${trueDeg3(w, b)}° · ${Math.round(distance(own.pos, e) / 10) * 10} M` };
         });
       } else {
         each((own) => own.id === e.shipId, () => ({ time: e.time, kind: 'sunk', text: 'MINENTREFFER · WASSEREINBRUCH' }));

@@ -10,14 +10,9 @@ import { isKey } from '../widgets/keys.js';
 import { touchable } from '../widgets/touch.js';
 import { easeAngle, ownNow } from '../widgets/smooth.js';
 import { depthAlarms } from '../widgets/depth-alarm-ui.js';
+import { orderedRudder, telegraphOf, type TelStep } from './helm-tel.js';
 
-/** Engine telegraph, astern on the left, ahead on the right (kn; named steps follow the class). */
-const TELEGRAPH: { label: string; short: string; kn: number | 'astern' | 'halfAstern' | 'max' }[] = [
-  { label: 'AK zurück', short: 'AK', kn: 'astern' }, { label: 'Halbe zurück', short: 'HA', kn: 'halfAstern' },
-  { label: 'Langsam zurück', short: 'LA', kn: -3 }, { label: 'Stopp', short: 'ST', kn: 0 },
-  { label: 'Schleich', short: 'SL', kn: 3 }, { label: 'Langsam', short: 'LA', kn: 6 },
-  { label: 'Halbe', short: 'HA', kn: 12 }, { label: 'AK', short: 'AK', kn: 'max' },
-];
+let TELEGRAPH: TelStep[] = telegraphOf('ssk');
 const telKn = (i: number, cls: ClassId): number => {
   const k = TELEGRAPH[i]!.kn;
   const max = CLASSES[cls].maxSpeedKn;
@@ -40,6 +35,7 @@ function telName(v: number, cls: ClassId): string | undefined {
   const i = TELEGRAPH.findIndex((_, j) => Math.abs(telKn(j, cls) - v) < 0.5);
   return i < 0 ? undefined : TELEGRAPH[i]!.label;
 }
+
 
 /**
  * Sends at most one order per interval while a control is dragged, and always the last value
@@ -81,7 +77,7 @@ const HELM_CSS = `<style>
 .hm-rud b{position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:var(--dim)}
 .hm-rud i{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--c-data)}
 .hm-telcap{display:flex;justify-content:space-between;font-size:var(--fs-cap);color:var(--dim);letter-spacing:0.08em;margin:6px 0 2px}
-.hm-tel{display:grid;grid-template-columns:repeat(8,minmax(28px,1fr));gap:0}
+.hm-tel{display:grid;grid-template-columns:repeat(var(--n,8),minmax(26px,1fr));gap:0}
 .hm-tel button{min-height:24px;padding:0;border-radius:0;margin-left:-1px;font-size:var(--fs-cap);letter-spacing:0;overflow:hidden;text-overflow:clip;white-space:nowrap}
 .hm-tel button:first-child{margin-left:0;border-radius:3px 0 0 3px}
 .hm-tel button:last-child{border-radius:0 3px 3px 0}
@@ -100,6 +96,10 @@ const HELM_CSS = `<style>
 #depth-box .hm-drow>span{overflow:hidden;text-overflow:ellipsis}
 #depth-box .hm-dcap{margin-top:4px;font-size:var(--fs-cap)}
 #depth-box input[type=range]{margin-top:0}
+/* S26: the three depth buttons keep one row whatever their state tag says */
+#depth-box .steps.hm-dbtn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+#depth-box .hm-dbtn button{position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:3px;padding-right:3px;min-width:0;font-size:var(--fs-cap);letter-spacing:0.02em}
+#depth-box .hm-dbtn button[data-bst]::after{position:absolute;right:1px;top:1px;margin:0;padding:0 2px;font-size:10px;line-height:1.1;border:0;background:var(--well)}
 @media (min-width:601px) and (max-width:1279px){
 .hm-top{grid-template-columns:minmax(0,1fr);justify-items:center}
 .hm-tiles{flex-direction:row;width:100%}
@@ -113,17 +113,17 @@ html[data-theme='light'] .hm-tel button.made.stop{background:#e2ebe7}
 /** Helm: compass rose for the course, instrument tiles, engine telegraph strip (ahead and astern), depth. Visible on every station. */
 export function mountHelm(el: HTMLElement) {
   el.innerHTML = `${HELM_CSS}
-    <div class="hd"><span>Ruderstand<span id="h-ship" class="h-ship"></span></span><span id="h-rot" class="dim" title="Drehrate"></span></div>
+    <div class="hd"><span>Ruderstand<span id="h-ship" class="h-ship"></span></span></div>
     <div class="hm-top">
       <canvas id="h-compass" style="cursor:pointer" title="Klicken oder ziehen, um den Kurs zu setzen"></canvas>
       <div class="hm-tiles">
         <div class="hm-tile"><div class="l">KURS</div><div class="v" id="h-hdg"></div><div class="o" id="h-hdg-o"></div></div>
         <div class="hm-tile"><div class="l">FAHRT</div><div class="v" id="h-spd"></div><div class="o" id="h-spd-o"></div></div>
-        <div class="hm-tile"><div class="l">RUDER</div><div class="v" id="h-rud"></div><div class="hm-rud"><b></b><i id="h-rud-i"></i></div></div>
+        <div class="hm-tile" title="Ruderlage, wie der Rudergänger sie legt, und die Drehrate"><div class="l">RUDER</div><div class="v" id="h-rud"></div><div class="hm-rud"><b></b><i id="h-rud-i"></i></div><div class="o" id="h-rot"></div></div>
       </div>
     </div>
     <div class="hm-telcap"><span><span aria-hidden="true">◂ </span><span>ZURÜCK</span></span><span><span>VORAUS</span><span aria-hidden="true"> ▸</span></span></div>
-    <div class="hm-tel" id="h-tel" role="group" aria-label="Maschinentelegraf">${TELEGRAPH.map((s, i) => `<button data-tel="${i}" class="${i < 3 ? 'ast' : i === 3 ? 'stop' : ''}" title="${s.label}">${s.short}</button>`).join('')}</div>
+    <div class="hm-tel" id="h-tel" role="group" aria-label="Maschinentelegraf"></div>
     <div class="hm-ord">
       <button id="h-slow" title="Fahrt 1 kn weniger">−1</button>
       <span id="h-ord"></span>
@@ -132,13 +132,13 @@ export function mountHelm(el: HTMLElement) {
     <div id="depth-box">
       <div class="row hm-drow"><span class="dim">TIEFE</span><span id="h-dep"></span></div>
       <div class="row hm-drow"><span id="h-env"></span><span id="h-lay"></span></div>
-      <div class="steps">
+      <div class="steps hm-dbtn">
         <button id="h-peri" title="Sehrohrtiefe ${PERISCOPE_DEPTH} m">Sehrohr</button>
-        <button id="h-above" title="Knapp über der Sprungschicht">Über Schicht</button>
-        <button id="h-below" title="Unter der Sprungschicht: schwerer zu orten">Unter Schicht</button>
+        <button id="h-above" title="Knapp über der Sprungschicht">Über Sch.</button>
+        <button id="h-below" title="Unter der Sprungschicht: schwerer zu orten">Unter Sch.</button>
       </div>
       <div class="row hm-drow hm-dcap"><span class="dim">BEFOHLENE TIEFE</span><span id="h-dval"></span></div>
-      <input id="h-depth" type="range" min="0" max="400" step="5" title="Befohlene Tiefe in Metern" aria-label="Befohlene Tiefe">
+      <input id="h-depth" type="range" min="0" max="400" step="1" title="Befohlene Tiefe in Metern" aria-label="Befohlene Tiefe">
     </div>`;
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
   const order = (o: { heading?: number; speedKn?: number; depth?: number }) => net.send({ t: 'order', ...o });
@@ -201,7 +201,19 @@ export function mountHelm(el: HTMLElement) {
   q<HTMLButtonElement>('#h-fast').onclick = () => nudge({ speedKn: 1 });
   const depthOrder = throttle<number>((depth) => order({ depth }));
   const dp = q<HTMLInputElement>('#h-depth');
-  const showDepthValue = () => setText(q('#h-dval'), `${dp.value} M`);
+  /** While dragging the slider's value, otherwise the order as the boat has it (S13). */
+  const showDepthValue = (ordered?: number) => setText(q('#h-dval'), `${ordered !== undefined && document.activeElement !== dp ? Math.round(ordered) : dp.value} M`);
+  let telFor: ClassId | undefined;
+  /** Build the telegraph strip for the class (boat or surface steps). */
+  const buildTel = (cls: ClassId) => {
+    if (telFor === cls) return;
+    telFor = cls;
+    TELEGRAPH = telegraphOf(cls);
+    const tel = q('#h-tel');
+    tel.style.setProperty('--n', String(TELEGRAPH.length));
+    tel.innerHTML = TELEGRAPH.map((st, i) => `<button data-tel="${i}" class="${i < 3 ? 'ast' : i === 3 ? 'stop' : ''}" title="${st.label}">${st.short}</button>`).join('');
+  };
+  buildTel('ssk');
   dp.oninput = () => {
     showDepthValue();
     depthOrder.push(Number(dp.value));
@@ -395,13 +407,18 @@ export function mountHelm(el: HTMLElement) {
       setHtml(q('#h-spd'), `${made}<small> KN${o.sternway ? ' <span class="amber">ZUR</span>' : ''}</small>`);
       setHtml(q('#h-spd-o'), `→ ${kn(Math.abs(o.order.speedKn))}${o.order.speedKn < 0 ? ' ZUR.' : ''}${o.speedKn > o.cavitationKn ? ' · KAV' : ''}`);
       // Rudder: estimated from the rate of turn against the class's best rate (about 35° at full)
-      const rudder = Math.max(-35, Math.min(35, (rot / Math.max(0.1, spec.turnRateDeg)) * 35 * (o.sternway ? -1 : 1)));
+      // Rudder (S8): the angle the helmsman lays for the turn still to go (going astern the
+      // rudder works the other way round); jammed: it holds what it had
+      buildTel(o.cls);
+      const rudder = o.rudderJam
+        ? Math.max(-35, Math.min(35, (rot / Math.max(0.1, spec.turnRateDeg)) * 35))
+        : orderedRudder(togo, spec.turnRateDeg) * (o.sternway ? -1 : 1);
       const rAbs = Math.abs(rudder);
       setHtml(q('#h-rud'), rAbs < 1.5 ? '0°<small> MITTE</small>' : `${rAbs.toFixed(0)}°<small> ${rudder > 0 ? 'STB' : 'BB'}</small>`);
       q('#h-rud-i').style.left = `${50 + (rudder / 35) * 50}%`;
       setText(q('#h-ship'), ` · ${o.name}`);
-      // Rate of turn kept short (↻ starboard, ↺ port), so the ship's name beside it is not cut
-      setHtml(q('#h-rot'), Math.abs(rot) > 0.05 ? `${rot > 0 ? '↻' : '↺'} ${Math.abs(rot).toFixed(1).replace('.', ',')}°/S` : '');
+      // Rate of turn in the rudder tile (S12: in the header it cut the ship's name)
+      setHtml(q('#h-rot'), o.rudderJam ? '<span class="red">RUDER KLEMMT</span>' : Math.abs(rot) > 0.05 ? `${rot > 0 ? '↻' : '↺'} ${Math.abs(rot).toFixed(1).replace('.', ',')}°/S` : '<span class="dim">0°/S</span>');
       // Telegraph strip: the step she is making filled, the ordered step outlined amber
       const ordered = o.order.speedKn;
       const ordI = telNearest(ordered, o.cls);
@@ -414,7 +431,8 @@ export function mountHelm(el: HTMLElement) {
         b.setAttribute('aria-pressed', String(i === ordI && exact));
       });
       const name = telName(ordered, o.cls);
-      setHtml(q('#h-ord'), `<span class="amber">${name ? t(name).toUpperCase() : `${Math.abs(ordered)} KN ${ordered < 0 ? 'ZURÜCK' : 'VORAUS'}`}</span>`);
+      // The step's name with its speed: "HALBE · 12 KN" (F30)
+      setHtml(q('#h-ord'), `<span class="amber">${name ? `${t(name).toUpperCase()} · ${Math.abs(Math.round(ordered))} KN` : `${Math.abs(ordered)} KN ${ordered < 0 ? 'ZURÜCK' : 'VORAUS'}`}</span>`);
       q('#depth-box').style.display = spec.submarine ? '' : 'none';
       depthAlarms.update(s);
       if (spec.submarine) {
@@ -425,14 +443,20 @@ export function mountHelm(el: HTMLElement) {
         const layEl = q('#h-lay');
         setHtml(layEl, `<span class="dim">SCHICHT</span> ${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M` : s.env.noLayer ? 'KEINE' : '—'}`);
         layEl.title = s.env.layerDepth !== undefined ? 'Gemessene Sprungschicht' : s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt' : 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
-        q('#h-above').style.display = q('#h-below').style.display = s.env.layerDepth === undefined ? 'none' : '';
+        // Always there (the row doesn't re-flow when the layer is measured), usable once it is
+        for (const id of ['#h-above', '#h-below']) {
+          const b = q<HTMLButtonElement>(id);
+          b.disabled = s.env.layerDepth === undefined;
+          if (b.disabled) b.title = 'Sprungschicht noch nicht gemessen: einmal tief durchtauchen';
+          else b.title = id === '#h-above' ? 'Knapp über der Sprungschicht' : 'Unter der Sprungschicht: schwerer zu orten';
+        }
         const lay = s.env.layerDepth;
         depthBtn(q('#h-peri'), o.depth, o.order.depth, PERISCOPE_DEPTH);
         depthBtn(q('#h-above'), o.depth, o.order.depth, lay === undefined ? undefined : Math.max(30, lay - 40));
         depthBtn(q('#h-below'), o.depth, o.order.depth, lay === undefined ? undefined : lay + 30);
         dp.max = String(spec.maxDepth);
-        if (document.activeElement !== dp) dp.value = String(o.order.depth);
-        showDepthValue();
+        if (document.activeElement !== dp) dp.value = String(Math.round(o.order.depth));
+        showDepthValue(o.order.depth);
       }
     },
     frame: drawCompass,

@@ -1,8 +1,16 @@
 /* Widget fixes (contact list, waterfall and analysis toolbars, scopes): loaded after stations.css */
 
-/* Contact list: KLASSE holds only the class, PEGEL the level or the age (right-aligned) */
-.clist .ctable { grid-template-columns: 74px minmax(0, 1fr) minmax(0, 0.8fr) 40px minmax(0, 1.2fr) 72px; }
-.clist.norange .ctable { grid-template-columns: 74px minmax(0, 1.1fr) 40px minmax(0, 1.4fr) 72px; }
+/* Contact list (F2): fixed widths for what has a fixed width (bearing "272°/088°", range "≈ 12,3",
+   level "ALT 120 S"), the class takes the rest; PEGEL right-aligned */
+.clist .ctable { grid-template-columns: 9ch minmax(7ch, 0.5fr) 6ch 4ch minmax(0, 1fr) 8ch; gap: 5px; }
+.clist.norange .ctable { grid-template-columns: 9ch minmax(7ch, 0.5fr) 4ch minmax(0, 1fr) 8ch; }
+/* S17: a scrolling list never ends in a half-cut row: the bottom fades out, and room after the
+   last row lets it scroll clear of the fade */
+.st .panel.tabbed > .pane:has(> .clist), .sub-fc .fc-list {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+}
+.st .panel.tabbed > .pane > .clist, .sub-fc .fc-list > .clist { padding-bottom: 20px; }
 .clist .ctable > span:nth-last-child(2) { text-align: left; }
 .clist .ctable > span:last-child { text-align: right; }
 /* Filter chips stay on one row (the count right), whole words; a column too narrow for them

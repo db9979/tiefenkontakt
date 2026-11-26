@@ -11,5 +11,5 @@ const WHAT: [string, string][] = [
 
 export const EN_DAMAGE_PHRASES: [RegExp, string][] = [
   ...WHAT.flatMap(([w, we]) => PLACE.map(([p, pe]) => [new RegExp(`^${w} ${p.replace(/[/-]/g, '\\$&')}$`), `${we} ${pe}`] as [RegExp, string])),
-  [/^EXPLOSION PEILUNG (\d+)$/, 'EXPLOSION BEARING $1'], [/^SINKGERÄUSCHE PEILUNG (\d+)$/, 'BREAKING-UP NOISES BEARING $1'],
+  [/^EXPLOSION PEILUNG (\d+°?)$/, 'EXPLOSION BEARING $1'], [/^SINKGERÄUSCHE PEILUNG (\d+°?)$/, 'BREAKING-UP NOISES BEARING $1'],
 ];

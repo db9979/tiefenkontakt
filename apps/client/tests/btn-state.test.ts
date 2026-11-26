@@ -46,7 +46,7 @@ describe('status on the button', () => {
   it('a depth button shows the way to its depth, then a tick', () => {
     const b = fakeButton();
     m.depthBtn(b as unknown as HTMLElement, 80, 18, 18);
-    expect(b.dataset.bst).toBe('80 M ↑');
+    expect(b.dataset.bst).toBe('80↑');
     m.depthBtn(b as unknown as HTMLElement, 49, 18, 18);
     expect(b.props.get('--pct')).toBe('50%');
     m.depthBtn(b as unknown as HTMLElement, 18.4, 18, 18);
