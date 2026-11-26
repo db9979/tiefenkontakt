@@ -69,7 +69,7 @@ void main() {
   // Broken water against the hull just aft of the stem
   float broken = (1.0 - smoothstep(0.0, c * 0.6 + 0.8, off)) * exp(-s / (5.0 + 20.0 * uK)) * (0.15 + 0.85 * uK);
   // A thin skirt of foam along the whole waterline
-  float skirt = exp(-max(off, 0.0) / (0.35 + 1.2 * uK)) * (0.12 + 0.45 * uK);
+  float skirt = exp(-max(off, 0.0) / (0.35 + 1.2 * uK)) * (0.14 + 0.5 * uK);
   // (the sheets of both sides end at the stem: fade in over the first metre)
   float f0 = smoothstep(0.0, 1.0, s + max(off, 0.0) * 0.3);
   crest *= f0;
@@ -83,12 +83,26 @@ void main() {
   vec2 q = vPos.xz + uOffR;
   vec2 r = vec2(dot(q, vec2(-uFwd.y, uFwd.x)), dot(q, uFwd));
   vec2 r2 = mat2(0.8, 0.6, -0.6, 0.8) * r;
-  float grain = fbm(vec2(r.x * 0.5, r.y * 0.14)) * 0.45 + fbm(r2 * vec2(1.3, 0.6) + 17.0) * 0.35 + noise(r2 * 3.1 + uTime * 0.4) * 0.2;
-  // Dense foam stays solid, thin foam breaks into lace and streaks
+  float grain = fbm(vec2(r.x * 0.5, r.y * 0.14)) * 0.5 + fbm(r2 * vec2(1.3, 0.6) + 17.0) * 0.5;
+  // Fine lace: ridged noise (thin filaments round dark cells) drawn out along the track, and a
+  // finer speckle; both give way to the coarse grain where a pixel covers more than a few centimetres
+  float fw = length(fwidth(q));
+  float hk = 1.0 - smoothstep(0.2, 0.7, fw);
+  vec2 rl = vec2(r.x * 2.6, r.y * 0.55) + vec2(0.0, uTime * 0.05);
+  float l1 = 1.0 - abs(noise(rl) * 2.0 - 1.0);
+  float l2 = 1.0 - abs(noise(rl * 2.2 + vec2(5.3, uTime * 0.25)) * 2.0 - 1.0);
+  float lace = l1 * l1 * 0.6 + l2 * l2 * 0.4;
+  float speck = noise(r2 * vec2(9.0, 4.0) + uTime * 0.5);
+  float hi = mix(grain, lace * 0.7 + speck * 0.3, hk);
+  float n = grain * 0.35 + hi * 0.65;
+  // Alpha erosion: dense foam stays solid, thinner foam keeps only the highs of the pattern, so
+  // it breaks into lace and specks instead of thinning into a smear; what is left is crisp
+  #define ERODE(c, s) (smoothstep(-0.04, 0.14 + 0.25 * (1.0 - hk), n - 0.74 * (1.0 - clamp((c) * (s), 0.0, 1.0))) * min((c) * 1.35, 0.92) * (0.65 + 0.35 * hi))
   ${stern
-    ? 'a *= smoothstep(0.36, 0.74, grain + 0.22 * a + 0.3 * dense);'
-    : `a = max(crest * smoothstep(0.28, 0.62, grain + 0.35 * crest), max(broken * smoothstep(0.22, 0.58, grain + 0.45 * broken),
-    skirt * smoothstep(0.38, 0.72, grain + 0.2 * skirt)));`}
+    ? `// Astern the old wash keeps a faint veil under the lace as it calms
+    a = max(ERODE(a, 0.9 + 0.5 * dense), a * 0.5 * smoothstep(0.2, 0.55, grain));`
+    : `// Under the lace a faint veil of spent foam, patchy with the coarse grain
+    a = max(max(ERODE(crest, 1.1), max(ERODE(broken, 1.3), ERODE(skirt, 1.8))), a * 0.45 * smoothstep(0.25, 0.6, grain));`}
   vec3 lit = vec3(0.1 + 0.9 * uLight);
   vec3 foam = mix(vec3(0.5, 0.7, 0.7), vec3(0.94, 0.97, 0.98), clamp(a * 1.6, 0.0, 1.0)) * lit;
   // Thin haze of foam would only veil the water: below a trace there is none
