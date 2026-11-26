@@ -5,6 +5,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-11-26
+
 ### Neu
 - **Auto-TMA nutzt gemessene Entfernungen:** Eine frische Entfernung (Sehrohr-Stadimeter, Aktiv-Ping, höchstens 60 s
   alt) legt die Entfernung fest; Kurs und Fahrt werden bei ihr gesucht. Vorher blieb die Güte nach einem Sehrohrblick
@@ -463,4 +465,5 @@ classes, a sonar/TMA simulation, voice radio with radio rules, learning AI capta
 guided tutorials, campaign, rankings, shareable replays, light and dark theme, accessibility and touch support, and a
 single Docker image that runs on a Raspberry Pi 5.
 
+[1.1.0]: https://github.com/db9979/tiefenkontakt/releases/tag/v1.1.0
 [1.0.0]: https://github.com/db9979/tiefenkontakt/releases/tag/v1.0.0
