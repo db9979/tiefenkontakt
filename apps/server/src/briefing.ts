@@ -18,11 +18,44 @@ import {
   trueDeg3,
   compassStem,
   batteryDrainPctH,
+  areaAcoustics,
+  areaKind,
+  bioluminescence,
+  trueWind,
+  FLYCO_MAX_SS,
+  FLYCO_REL_DEG,
 } from '@tk/shared';
 import { MISSIONS, seaMinutes, simTimeLimit, type ScenarioSettings } from './scenario.js';
 import { escapeS, shadowGoalS } from './rules.js';
 
 const km = (m: number) => `${Math.round(m / 1000)} km`;
+
+/**
+ * What the sea, the weather and the night of this match mean for this ship: deep-water sound in
+ * the area, busy shipping lanes, a heavy sea, the wind for the helicopter, a glowing sea at night.
+ * Short lines for the briefing; the handbook explains them (chapters 3 and 10).
+ */
+function environmentNotes(w: World, ship: Ship, sub: boolean, night: boolean): string[] {
+  const out: string[] = [];
+  const ac = areaAcoustics(w.env.seabed);
+  if (areaKind(w.env.seabed) === 'open') {
+    if (ac.halfChannel) out.push('Arktischer Halbkanal: der Schall läuft an der Oberfläche entlang, keine Schattenzone und keine Konvergenzzone');
+    else if (ac.czKm) out.push(`Tiefwasser: hinter dem direkten Weg (6–20 km) liegt die Schattenzone, die 1. Konvergenzzone bei etwa ${ac.czKm} km (über mehr als ${ac.czDepthM} m Wasser)`);
+  }
+  if (ac.shippingDb >= 5) out.push(`Starker Schiffsverkehr im Gebiet: Störpegel +${ac.shippingDb} dB`);
+  const ss = w.env.seaState;
+  if (ss >= 5) {
+    out.push(sub
+      ? `Seegang ${ss}: Wellen überspülen das Sehrohr, auf Sehrohrtiefe kann das Boot durchbrechen, das Kopfventil des Schnorchels schlägt zu`
+      : `Seegang ${ss}: Bugsonar gestört (Schleppsonar und VDS nicht), in Gegensee weniger Fahrt${hasHelicopter(ship.cls) && ss > FLYCO_MAX_SS ? ', kein Hubschrauberstart' : ''}`);
+  }
+  if (!sub && hasHelicopter(ship.cls) && w.env.met) {
+    const wind = trueWind(w);
+    out.push(`Wind aus ${trueDeg3(w, wind.from)}°, ${wind.kn} kn: der Hubschrauber startet und landet nur mit dem Wind höchstens ${FLYCO_REL_DEG}° vom Bug (Flugkurs)`);
+  }
+  if (night && bioluminescence(w.env) >= 0.4) out.push('Meeresleuchten: in dunkler Nacht leuchten Sehrohrfahne, Kielwasser und Torpedobahnen');
+  return out;
+}
 
 /**
  * Mission briefing for one ship: goal, what is known about the enemy and the first steps.
@@ -82,6 +115,7 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   }
   if (w.env.layerDepth > 0) intel.push('Sprungschicht vorhanden, Tiefe noch nicht gemessen');
   else if (region) intel.push('Keine Sprungschicht: das Wasser ist bis zum Grund durchmischt, unter der Schicht verstecken geht nicht');
+  intel.push(...environmentNotes(w, ship, sub, (w.env.light ?? 1) < 0.25));
   // Fleet intelligence sometimes knows the enemy commander's character (AI ships only)
   const ai = enemies.find((e) => e.id.startsWith('p_bot-'));
   if (ai && rnd() < 0.6) intel.push(`Feindlagebild: Der gegnerische Kommandant ${ai.name} gilt als ${TRAITS[commanderTrait(ai.id, w.env.seed ?? 0)].de}`);
@@ -91,7 +125,7 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   const cap = CLASSES[ship.cls].battery?.capacityKnH;
   if (cap && ship.battery !== undefined) {
     const pct = Math.round((100 * ship.battery) / cap);
-    intel.push(`Batterie bei ${pct} %: bei 4 kn etwa ${Math.round(pct / batteryDrainPctH(4))} h getaucht, bei 10 kn etwa ${(pct / batteryDrainPctH(10)).toFixed(1).replace('.', ',')} h; Schnorcheln lädt`);
+    intel.push(`Batterie bei ${pct} %: bei 4 kn etwa ${Math.round(pct / batteryDrainPctH(4))} h getaucht, bei 10 kn etwa ${(pct / batteryDrainPctH(10)).toFixed(1).replace('.', ',')} h; Schnorcheln lädt, über 70 % langsamer`);
   }
   // Without a convoy (the strait, the duel) the escorts guard a line, not a convoy
   const convoy = merchants.length > 0;

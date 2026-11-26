@@ -11,12 +11,33 @@ const SUB_HOWTO: Record<SubStationId, string> = {
   zentrale: 'Der Platz des Kommandanten: Koppeltisch und Tiefenprofil (Klick = Tiefe), Kacheln für Tiefe, Trimm, Batterie und Schnorchel, die häufigsten Befehle (Sehrohrtiefe, unter die Schicht, Alarmtauchen, Ruhe im Boot, Schnorcheln), Navigation mit Echolot, Tiefenalarme und Minen.',
 };
 const FRIGATE_HOWTO: Record<FrigateStationId, string> = {
-  opz: 'Lagekarte mit allen Kontakten, darüber der Stand aller U-Jagd-Mittel. Rechtsklick vor den Konvoi wirft eine Sonarboje. Reiter: Kontakte, Verband (Konvoi umleiten), Hubschrauber (Aufträge zum gewählten Kontakt).',
+  opz: 'Lagekarte mit allen Kontakten, darüber der Stand aller U-Jagd-Mittel. Rechtsklick vor den Konvoi, „Hubschrauber ▸“: Bojen legen, Tauchsonar, MAD. Reiter: Kontakte, Verband (Konvoi umleiten), Hubschrauber (Aufträge zum gewählten Kontakt).',
   sonar: 'Rumpf- und Schleppsonar übereinander. Schleppsonar ausbringen (lang = unter der Sprungschicht), nach jeder Kursänderung stabilisieren. Reiter „Aktiv“: Einzelping, CW/LFM; „VDS/BT“: Sprungschicht messen, Tiefensonar, Minenmeiden.',
   waffen: 'Kontakt wählen, dann „Rakete auf Ziel“ oder Rechtsklick auf die Karte und „U-Jagd-Rakete hierher“. Rohre, Werfer und Täuschkörper-Schleppe als Karten daneben.',
   radar: 'Radar findet aufgetauchte Boote und Masten. ESM-Peilungen erscheinen als rote Striche am Rand des Radarschirms und in der Liste. Daneben die Luftabwehr.',
   bruecke: 'Ausguck und Fernglas: Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen mit eigenen Augen. Nachts und bei Seegang kaum Sicht.',
 };
+
+/** Newer rules worth a line in the help: common, then per side (handbook chapters 3, 5, 6 and 10 hold the details). */
+const RULES_COMMON: [string, string][] = [
+  ['Tiefwasser', 'Über tiefem Wasser endet der direkte Weg nach 6–20 km, dahinter liegt die Schattenzone; in der Konvergenzzone (40–60 km je Seegebiet) hört man laute Schiffe wieder. Die Reichweitenvorhersage zeigt beide; belebte Seegebiete (Gibraltar, Dardanellen) sind lauter.'],
+  ['Peilfehler', 'Jede Peilung hat einen langsam wandernden Fehler (Sonar etwa 1°, ESM 4°), der minutenlang gleich bleibt. Mitteln hilft nicht; erst ein zweiter Schenkel oder eine Kreuzpeilung deckt ihn auf.'],
+  ['Doppler', 'Linien eines nahenden Schiffs liegen etwas höher („+0,8 HZ · NÄHERT“), eines sich entfernenden tiefer. Kippt der Doppler von + nach −, passiert das Ziel gerade seinen nächsten Punkt.'],
+  ['Nacht', 'Neumond hilft dem U-Boot, Vollmond dem Geleit (MOND-Zeile). In dunkler Nacht verrät Meeresleuchten Sehrohrfahne, Kielwasser und Torpedobahn. Ein aufgetauchtes U-Boot ist für Radar ein klares Echo bis 12 sm.'],
+];
+const RULES_SUB: [string, string][] = [
+  ['Draht', 'Reißt über 12 kn, bei Kurswechseln über 30° je Minute und wenn der Torpedo achteraus steht (über 135° vom Bug); die Drahtanzeige warnt vorher gelb. Diesel-, Küsten- und AIP-Boot lenken 2 Torpedos, Atom- und Jagd-U-Boot 4; weitere laufen ohne Draht.'],
+  ['Unter dem Kiel', 'Suchtiefe tiefer als der Kiel eines Geleitschiffs: Der Torpedo zündet darunter und wirkt anderthalbfach.'],
+  ['Batterie', 'Schnorcheln lädt bis 70 % mit 40 %/h, darüber immer langsamer (bis 12 %/h). Meist bis 80–90 % laden, nicht bis voll. Ab Seegang 4 lädt es langsamer und das Kopfventil kann zuschlagen.'],
+  ['Tiefe', 'Schnell nur tief: Die Kavitation setzt in der Tiefe später ein (Projekt 4: 6,5 kn auf Sehrohrtiefe, gut 14 kn auf 100 m). Ein beschädigter Druckkörper senkt die erlaubte Tiefe.'],
+];
+const RULES_FRIGATE: [string, string][] = [
+  ['Kielwassertorpedo', 'Das Ostpakt-Atom-U-Boot schießt Torpedos, die der Hecksee folgen: Täuschkörper und Schleppe wirken nicht. Scharf wenden (50° binnen einer Minute) oder die Hecksee eines anderen Schiffs kreuzen.'],
+  ['Zickzack', 'OPZ › Verband: Zickzack-Plan 1–6. Kurze, unregelmäßige Schläge stören die TMA der U-Boote am meisten, kosten aber Fahrt über Grund.'],
+  ['Datalink', 'Spuren der Kameraden (⇄) sind 3–15 s alt und um einige hundert Meter versetzt. Liegen zwei Meldungen nicht nah genug beieinander, steht dasselbe Ziel als Doppelspur im Bild.'],
+  ['Schleppsonar-Tiefe', 'Je schneller, desto flacher hängt es: 900 m Kabel bei 6 kn gut 200 m tief, bei 15 kn 90 m. Unter die Schicht also langsam und lang.'],
+  ['Schwere See', 'Ab Seegang 5 hört das Bugsonar schlechter (Schleppsonar und VDS nicht) und der Hubschrauber startet nicht. In Gegensee verliert das Schiff Fahrt (8 % je Stufe über 3).'],
+];
 
 /** Emergency keys of a side, as "T Täuschkörper · X Alarmtauchen". */
 function emergencyKeys(submarine: boolean): string {
@@ -68,15 +89,17 @@ export function helpOverlay(submarine: boolean): void {
       <tr><td>Schleppsonar</td><td>Peilt links/rechts mehrdeutig. Seite wählen oder 20° wenden; hört das Rumpfsonar den Kontakt, löst es die Seite auf. Weicht es ab: möglicher Geist.</td></tr>
       <tr><td>Aktivsonar</td><td>CW misst die Annäherung (Doppler, ↓ = kommt näher), LFM misst genau und findet auch langsame Ziele.</td></tr>
       <tr><td>Sprungschicht</td><td>Unbekannt, bis gemessen: die Fregatte wirft einen BT, das U-Boot merkt sie beim Durchtauchen.</td></tr>
-      <tr><td>Torpedo-Fahrt</td><td>30 kn ist leiser und der Suchkopf hört weiter; 40 kn ist schneller, macht den Suchkopf aber tauber. Torpedos führen das Ziel mit Vorhalt.</td></tr>
+      <tr><td>Torpedo-Fahrt</td><td>LAUF: 40 oder 30 kn mit einer Fahrt, oder leise Marschfahrt bis zum Suchkopf und dann Angriff (30→40, 25→40, 25→30). 30 kn reicht 25 km, 40 kn 15 km, 25 kn 35 km; schnell hört ein passiver Suchkopf schlechter. Torpedos führen das Ziel mit Vorhalt.</td></tr>
       <tr><td>Täuschkörper</td><td>Ein schwerer Torpedo durchläuft ihn, erkennt die Täuschung und sucht neu: abdrehen und Tiefe wechseln. Leichte U-Jagd-Torpedos verbrauchen sich daran.</td></tr>
       <tr><td>Abstrahlung</td><td>Schiffe sind von achtern am lautesten und von vorn am leisesten; querab gibt das stärkste Aktiv-Echo. Torpedos im toten Winkel achtern hört man erst spät.</td></tr>
       <tr><td>Transienten</td><td>Rohrfluten und Abschuss sind weit hörbar und warnen vor einem Schuss.</td></tr>
-      <tr><td>Hubschrauber</td><td>Rechtsklick auf die Karte oder Reiter „Hubschrauber“ in der OPZ (Fregatte): Sonarboje, Tauchsonar, MAD, Angriff; die Tiefe folgt der gemessenen Schicht. Bojen peilen von ihrer Position aus.</td></tr>
+      <tr><td>Hubschrauber</td><td>Rechtsklick auf die Karte oder Reiter „Hubschrauber“ in der OPZ (Fregatte): Bojen (Linie, Sperre, Kreis, Keil), Tauchsonar, MAD, Angriff; die Tiefe folgt der gemessenen Schicht. Start und Landung nur auf Flugkurs (Wind höchstens 30° vom Bug, Schiff ohne Drehung, bis Seegang 5): „FLUGKURS STEUERN“.</td></tr>
       <tr><td>Schäden</td><td>Treffer beschädigen Antrieb, Sonar, Waffen und verursachen Wassereinbruch. Klick in der Schadensabwehr legt die Reparatur-Priorität fest.</td></tr>
       <tr><td>Besatzung</td><td>In der Lobby bei einem Teamkameraden „Mitfahren“: ihr bedient gemeinsam ein Schiff.</td></tr>
       <tr><td>KI</td><td>Ein Team ohne Spieler wird von der KI übernommen; du kannst also allein spielen.</td></tr>
     </table>
+    <h3>REGELN, DIE MAN KENNEN MUSS</h3>
+    <table>${[...(submarine ? RULES_SUB : RULES_FRIGATE), ...RULES_COMMON].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
     <h3>TASTATUR</h3>
     <div class="dim">Aktion anklicken, dann die neue Taste drücken. ⇧ beim Kurs = 1° statt 5°.</div>
     <div id="keys"></div>

@@ -75,20 +75,20 @@ export const FIRST_PATROL_STEPS: Lesson & { sequential: true } = {
     {
       station: 'feuerleitung', where: 'Torpedo', target: '#calc',
       do: 'Mast einfahren, „Lösung übernehmen“, dann „Feuer“.',
-      why: '„Lösung übernehmen“ programmiert Schusskurs und Suchkopf-Distanz aus der Lösung.',
+      why: '„Lösung übernehmen“ programmiert Schusskurs und Suchkopf-Distanz aus der Lösung. Zeigt FEUER „GÜTE UNTER 50 % – NOCHMAL“, ist die Lösung schwach: noch einmal drücken oder erst nachbessern.',
       done: (s) => s.torpedoes.length > 0,
     },
     {
       station: 'feuerleitung', where: 'Draht', target: '#wires',
-      do: 'Unter 12 kn bleiben und mit ◀ ▶ nachsteuern, bis „ZIEL ERFASST“ erscheint; dann auf den Treffer warten.',
-      why: 'Der Torpedo hängt am Draht. Kein „ZIEL ERFASST“, obwohl er längst beim Ziel sein müsste, oder ist er abgelaufen? Dann war die Entfernung zu groß geschätzt und der Suchkopf schaltete erst hinter dem Ziel ein. Noch ein Schuss: „Auto-TMA“, „Lösung übernehmen“, „Suchkopf ein nach“ halbieren, „Feuer“.',
+      do: 'Unter 12 kn, Kurs ruhig halten, mit ◀ ▶ nachsteuern, bis „ZIEL ERFASST“ erscheint; dann auf den Treffer warten.',
+      why: 'Der Torpedo hängt am Draht. Er reißt über 12 kn, bei Kurswechseln über 30° je Minute und wenn der Torpedo achteraus gerät; die Drahtanzeige warnt vorher gelb. Kein „ZIEL ERFASST“, obwohl er längst beim Ziel sein müsste, oder ist er abgelaufen? Dann war die Entfernung zu groß geschätzt und der Suchkopf schaltete erst hinter dem Ziel ein. Noch ein Schuss: „Auto-TMA“, „Lösung übernehmen“, „Suchkopf ein nach“ halbieren, „Feuer“.',
       // Only the hit counts: a torpedo that found the target can still lose it again
       done: (s) => s.score.sunkTons > 0,
     },
     {
       where: 'Ruderstand · Ablaufen', target: TEL.halbe,
       do: 'Mast einfahren, Fahrt „Halbe“, tiefer als 60 m und vom Ziel wegdrehen.',
-      why: 'Nach dem Schuss weiß der Gegner, wo du bist.',
+      why: 'Nach dem Schuss weiß der Gegner, wo du bist. Schnell nur tief: je tiefer, desto später kavitiert die Schraube.',
       done: (s) => !s.own.mastUp && s.own.depth >= 55 && s.own.order.speedKn >= 8,
     },
   ],

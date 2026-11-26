@@ -22,8 +22,8 @@ ${MISSIONS.map(([a, b, c]) => `<tr><td><b>${a}</b></td><td>${b}</td><td>${c}</td
 <table class="grid">
 <tr><td>Einsatzdauer</td><td>20, 30, 40 oder 60 echte Minuten (voreingestellt 40). Die Aufstellung richtet sich nach der Seezeit.</td></tr>
 <tr><td>Zeitraffer</td><td>Unter „Erweitert“: Echtzeit, 2× oder 3×. Die echte Dauer bleibt, auf See vergeht mehr Zeit und der Konvoi kommt weiter.</td></tr>
-<tr><td>Tageszeit</td><td>Tag, Dämmerung oder Nacht; die Uhr läuft mit. Nachts sieht man nur beleuchtete Schiffe und Mündungsfeuer weit.</td></tr>
-<tr><td>Seegang</td><td>Mehr Seegang heißt mehr Störpegel, mehr Seegangsechos im Radar und schwerere Sicht im Sehrohr.</td></tr>
+<tr><td>Tageszeit</td><td>Tag, Dämmerung oder Nacht; die Uhr läuft mit. Nachts sieht man nur beleuchtete Schiffe und Mündungsfeuer weit; wie dunkel die Nacht ist, bestimmt der Mond (Kapitel 10).</td></tr>
+<tr><td>Seegang</td><td>Mehr Seegang heißt mehr Störpegel, mehr Seegangsechos im Radar und schwerere Sicht im Sehrohr; ab Seegang 5 kein Hubschrauberstart (Kapitel 10).</td></tr>
 <tr><td>Sprungschicht</td><td>Tiefe und Stärke der Schicht; im Flachwasser schwächer.</td></tr>
 <tr><td>KI-Stärke</td><td>Bestimmt, wie schnell und genau KI-Kommandanten lösen, schießen und melden. Jeder KI-Kommandant hat einen Charakter (draufgängerisch, schlauer Fuchs, vorsichtig, verbissener Jäger); die Aufklärung im Briefing deutet ihn manchmal an.</td></tr>
 </table>
@@ -48,6 +48,21 @@ und werden ersetzt, wenn sie das Gebiet verlassen. Sie sind laut, verdecken leis
 <tr><td>Schnorchelventil</td><td>Klemmt: Der Schnorchel bleibt 45 Sekunden oben.</td></tr>
 <tr><td>Batteriegas</td><td>Fünf Minuten weiter schnorcheln und lüften, sonst verpufft das Gas und beschädigt den Antrieb.</td></tr>
 </table>
+<h2>Schwere See</h2>
+<p>Seegang trifft beide Seiten, aber verschieden:</p>
+<table class="grid">
+<tr><th>Ab Seegang</th><th>U-Boot</th><th>Geleit</th></tr>
+<tr><td>4</td><td>Wellen überspülen das Sehrohr (Seegang 4: 15 % der Blicke verloren, 6: 45 %); das Kopfventil des Schnorchels kann zuschlagen (Diesel aus, 20–40 s keine Ladung); je Stufe über 3 lädt der Schnorchel 12 % langsamer.</td><td>Das Radar verliert Sehrohre in den Schaumkronen, Schnorchel etwas weniger; in Gegensee verlieren Geleitschiffe je Stufe über 3 Fahrt (Fregatte 8 %, Korvette 12 % der Höchstfahrt).</td></tr>
+<tr><td>5</td><td>Auf Sehrohrtiefe zieht die See das Boot nach oben; ein langsames Boot kann <b>durchbrechen</b> und zeigt den Turm (Radar, Ausguck). Mit 4 kn und mehr greifen die Tiefenruder besser.</td><td>Das Bugsonar leidet (−3 dB, Seegang 6 −8 dB, gelegentliche Aussetzer); Schleppsonar und VDS nicht. Kein Hubschrauberstart, Landung dauert doppelt so lange.</td></tr>
+</table>
+<h2>Nacht, Mond und Meeresleuchten</h2>
+<p>Mond, Phase und Stand werden für Seegebiet, Datum und Bordzeit berechnet; die <b>MOND</b>-Zeile auf Brücke und Sehrohr und die Lagebesprechung
+nennen ihn. Neumond hilft dem U-Boot, Vollmond dem Geleit: Ein hoher voller Mond gibt dem Ausguck und dem Sehrohr einen guten Teil der Tagessicht
+zurück, eine mondlose oder bewölkte Nacht nimmt noch etwas mehr. Abgeblendete Flugzeuge sieht man nur im Mondlicht.</p>
+<p><b>Meeresleuchten</b> gibt es je nach Seegebiet und Jahreszeit: kräftig in warmem und gemäßigtem Wasser vom späten Frühjahr bis in den Herbst
+(Biskaya, Mittelmeer, im Spätsommer Nordsee und norwegische Küste), schwach in arktischem Wasser und im Winter; jede Partie hat ihre eigene Blüte.
+Nur in dunkler Nacht leuchtet das aufgewühlte Wasser: eine Sehrohrfahne bis etwa 1,5 km, ein fahrendes Boot auf Sehrohrtiefe bis etwa 1 km,
+eine Torpedobahn bis 1,8 km. Heller Mond und Schaumkronen löschen es aus. Die Brücke zeigt die erwartete Reichweite als „MEERESLEUCHTEN · BOOT (6 KN)“.</p>
 <h2>Strömung</h2>
 <p>Eine Meeresströmung versetzt alle Bojen. Eine Boje, die vor 20 Minuten gesetzt wurde, liegt nicht mehr dort, wo sie abgeworfen wurde – die Karte zeigt ihre aktuelle Position.</p>
 <h2>Schäden</h2>
@@ -75,6 +90,10 @@ export const chapterTactics = `
 <li>Nach dem Schuss sofort weg: Transienten haben dich verraten.</li>
 <li>Im Lärm der Frachter bist du für die Eskorte fast unsichtbar.</li>
 <li>Gegen pingende Eskorten: Heck zeigen, langsam, Schicht wechseln.</li>
+<li>Schnell nur tief: Die Kavitation setzt in 150 m fast dreimal so spät ein wie auf Sehrohrtiefe.</li>
+<li>Bis 80–90 % schnorcheln, nicht bis voll: Über 70 % lädt die Batterie immer langsamer.</li>
+<li>Am Draht ruhig bleiben: höchstens 12 kn und 30° je Minute, den Torpedo nie achteraus.</li>
+<li>Über tiefem Wasser die Schattenzone nutzen: Zwischen dem direkten Weg und der Konvergenzzone hört dich kaum jemand.</li>
 </ol></div>
 <div class="box"><h4>Für die Eskorte</h4><ol>
 <li>Zuerst die Schicht messen (BT), dann das Schleppsonar auf die passende Länge.</li>
@@ -83,7 +102,10 @@ export const chapterTactics = `
 <li>Funkpeilungen und Radarfixe aus der Luft sofort mit Hubschrauber oder Bojen nachgehen.</li>
 <li>Im Flachwasser: LFM-Puls, aktive Bojen, VDS. Der Nachhall frisst CW-Echos.</li>
 <li>Unter dem eigenen Kiel bist du blind – ein Boot, das nah und tief steht, braucht Hubschrauber oder VDS.</li>
-<li>Den Konvoi bei Gefahr abdrehen und verdunkeln lassen.</li>
+<li>Den Konvoi bei Gefahr abdrehen und verdunkeln lassen; ein schärferer Zickzack-Plan stört die TMA der U-Boote.</li>
+<li>Den Hubschrauber früh starten: Startvorbereitung und Flugkurs kosten drei Minuten, ab Seegang 6 startet er nicht.</li>
+<li>Kielwassertorpedo im Wasser: Täuschkörper nützen nichts – hart wenden oder eine fremde Hecksee kreuzen.</li>
+<li>Zwei Datalink-Spuren mit gleicher Bewegung sind oft dasselbe Boot.</li>
 </ol></div>
 </div>
 `;
@@ -105,10 +127,16 @@ const GLOSSARY: [string, string][] = [
   ['ESM', 'Funk- und Radarpeilung: hört gegnerische Sender.'],
   ['Kavitation', 'Dampfblasen an der Schraube bei hoher Fahrt: plötzlich sehr laut; setzt in der Tiefe später ein.'],
   ['Knuckle', 'Wirbelfeld nach einer harten Wende bei Fahrt: schluckt Schall und lenkt Suchköpfe kurz ab.'],
-  ['Konvergenzzone', 'Bereich in etwa 55 km Entfernung, in dem Schall in tiefem Wasser wieder an die Oberfläche kommt.'],
+  ['Doppelspur', 'Dasselbe Ziel zweimal im Lagebild, weil zwei Meldungen über den Datalink nicht nah genug beieinanderlagen.'],
+  ['Doppler', 'Verschiebung einer Linie nach oben (Ziel nähert sich) oder unten (entfernt sich).'],
+  ['Flugkurs', 'Kurs, auf dem der Wind über Deck den Start oder die Landung des Hubschraubers erlaubt (höchstens 30° vom Bug).'],
+  ['Kielwassertorpedo', 'Torpedo des Ostpakt-Atom-U-Boots, der der Hecksee eines Schiffs folgt; Täuschkörper wirken nicht.'],
+  ['Konvergenzzone', 'Ring in 40–60 km Entfernung (je Seegebiet), in dem Schall über tiefem Wasser wieder an die Oberfläche kommt; der zweite liegt doppelt so weit.'],
   ['LOFAR', 'Schmalband-Spektrum: zeigt Linien von Maschinen, Generatoren und Getrieben.'],
   ['MAD', 'Magnetanomalie-Detektor: findet ein getauchtes Boot nur direkt darunter.'],
+  ['Meeresleuchten', 'Leuchtendes Plankton: verrät in dunkler Nacht Sehrohrfahne, Kielwasser und Torpedobahn.'],
   ['Schenkel', 'Ein gerades Stück eigener Kurs während der TMA.'],
+  ['Schattenzone', 'Bereich über tiefem Wasser zwischen dem Ende des direkten Wegs und der ersten Konvergenzzone; nur Bodenreflexion trägt hinein.'],
   ['SE', 'Signalüberschuss: über 0 dB ist ein Kontakt da.'],
   ['Sprechtaste', 'Taste zum Senden im Sprechfunk; nur solange sie gedrückt ist, geht die Stimme hinaus.'],
   ['TMA', 'Zielbewegungsanalyse: Kurs, Fahrt und Entfernung aus einer Folge von Peilungen.'],
@@ -122,5 +150,5 @@ export const chapterReference = `
 <p>Die Maus ist das Hauptwerkzeug; die Tasten sind Abkürzungen und lassen sich in der Hilfe (H) frei belegen. Die Notfall-Tasten wirken auf jeder Station und stehen als Tastenkappe auf dem Knopf, den sie drücken; Feuer und Rakete gehen dabei über den Sicherheitsknopf ihrer Station.</p>
 <table class="grid keys">${KEYS.map(([k, v]) => `<tr><td><kbd>${k}</kbd></td><td>${v}</td></tr>`).join('')}</table>
 <h2>Glossar</h2>
-<table class="grid gloss">${GLOSSARY.map(([k, v]) => `<tr><td><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>
+<table class="grid gloss">${[...GLOSSARY].sort((a, b) => a[0].localeCompare(b[0], 'de')).map(([k, v]) => `<tr><td><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>
 `;

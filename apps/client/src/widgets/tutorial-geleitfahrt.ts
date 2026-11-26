@@ -1,6 +1,6 @@
 import { createLoadout, type Snapshot } from '@tk/shared';
 import { store } from '../store.js';
-import { TEL, type Lesson } from './tutorial-step.js';
+import { TEL_SHIP, type Lesson } from './tutorial-step.js';
 
 /**
  * "Erste Geleitfahrt": guided beginner sortie on the frigate. A small convoy follows the
@@ -16,7 +16,7 @@ export const FIRST_ESCORT_STEPS: Lesson & { sequential: true } = {
   sequential: true,
   steps: [
     {
-      where: 'Ruderstand · Fahrt', target: TEL.halbe,
+      where: 'Ruderstand · Fahrt', target: TEL_SHIP.halbe,
       do: 'Stelle die Fahrt auf „Halbe“ (12 kn).',
       why: 'Willkommen an Bord der Fregatte. Hinter dir laufen drei Frachter nach Osten, du sicherst sie nach vorn. Mit 20 kn hört das Sonar fast nur das eigene Schiff, und ein Schleppsonar rauscht über 14 kn.',
       done: (s) => s.own.order.speedKn <= 12,
@@ -24,7 +24,7 @@ export const FIRST_ESCORT_STEPS: Lesson & { sequential: true } = {
     {
       station: 'sonar', where: 'Schleppsonar', target: '[data-len="900"]',
       do: 'Bringe das Schleppsonar aus: Knopf „900 m“ unter dem Schleppsonar-Wasserfall.',
-      why: 'Das Schleppsonar hört leise U-Boote viel weiter als das Rumpfsonar.',
+      why: 'Das Schleppsonar hört leise U-Boote viel weiter als das Rumpfsonar. Mit 900 m Kabel hängt es bei 12 kn gut 110 m tief, langsamer tiefer.',
       done: (s) => (s.own.towedOrder ?? s.own.towedLength) >= 900,
     },
     {
@@ -35,8 +35,8 @@ export const FIRST_ESCORT_STEPS: Lesson & { sequential: true } = {
     },
     {
       station: 'opz', where: 'Sonarboje', target: '#plot',
-      do: 'Rechtsklick in die Karte etwa 4 km vor das eigene Schiff (Richtung Osten), dann „Sonarboje tief“.',
-      why: 'Der Bordhubschrauber fliegt hin und wirft sie ab; sie hört dort, wo der Konvoi gleich hinfährt.',
+      do: 'Rechtsklick in die Karte etwa 4 km vor das eigene Schiff (Richtung Osten), dann „Hubschrauber ▸“ und „Bojenlinie hier“.',
+      why: 'Der Bordhubschrauber legt die Bojen quer vor den Konvoi; sie hören dort, wo er gleich hinfährt. Er startet nach 2 Minuten Startvorbereitung, wenn das Schiff eine Minute ruhig auf Flugkurs liegt (Wind höchstens 30° vom Bug). Meldet das Flugdeck „FLUGKURS NÖTIG“: Reiter „Hubschrauber“, „FLUGKURS STEUERN“.',
       done: (s) => (s.air?.buoys.length ?? 0) > 0,
     },
     {
@@ -66,7 +66,7 @@ export const FIRST_ESCORT_STEPS: Lesson & { sequential: true } = {
     {
       station: 'waffen', where: 'Rakete', target: '#rocket',
       do: 'Den U-Boot-Kontakt wählen und „Rakete auf Ziel“.',
-      why: 'Sie zielt auf die frische Ortung (nicht älter als 45 s, sonst erneut pingen). Flugzeit etwa 40 s.',
+      why: 'Sie zielt auf die frische Ortung (nicht älter als 45 s, sonst erneut pingen). Flugzeit 5 s plus 1 s je 300 m, auf 9 km also etwa 35 s.',
       done: (s) => s.own.loadout.rockets < ROCKETS,
     },
     {
