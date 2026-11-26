@@ -7,7 +7,7 @@ import { isConvoyShip, mastRaised, type Ship } from './entities.js';
 import { KN, angleDiff, bearing, clamp, distance, headingVec, wrap360, type Vec2 } from './math.js';
 import { bookFor, type World } from './world.js';
 import { aircraftEmitter, emitterSpec, esmLevel, esmTrend } from './emitters.js';
-import { antennaTurned, exposedMast, mastDetectP, type Detection, type MastKind } from './sensors.js';
+import { SURFACED_TOP_M, antennaTurned, exposedMast, mastDetectP, type Detection, type MastKind } from './sensors.js';
 import { lineOfSight } from './terrain.js';
 import { gridRef } from './orders.js';
 
@@ -235,11 +235,13 @@ export function sortieRadarOn(s: Sortie, now: number): boolean {
 
 /**
  * Aircraft search radar against masts: limit per aircraft and mast kind (m). Seen from above a
- * snorkel's spray and exhaust stand out far better than a thin periscope.
+ * snorkel's spray and exhaust stand out far better than a thin periscope. A surfaced boat is a
+ * big, steady return: a patrol aircraft's radar finds her at 30 nm and more, a helicopter's
+ * at about 20 nm.
  */
 export const AIR_MAST_RADAR: Record<'mpa' | 'helo', Record<MastKind, number>> = {
-  mpa: { snorkel: 30_000, mast: 9_000 },
-  helo: { snorkel: 15_000, mast: 6_000 },
+  mpa: { snorkel: 30_000, mast: 9_000, hull: 60_000 },
+  helo: { snorkel: 15_000, mast: 6_000, hull: 35_000 },
 };
 /** Position error of an aircraft radar fix, per axis (m): about 1 km off in all. */
 export const AIR_FIX_SD = 700;
@@ -259,12 +261,12 @@ export function aircraftRadarSweep(w: World): void {
     if (!antennaTurned(`${kind}${a.id}`, rot, w.time)) continue;
     for (const sub of w.ships) {
       if (!sub.alive || sub.team === owner.team || !CLASSES[sub.cls].submarine) continue;
-      const mk = exposedMast(sub);
+      const mk = exposedMast(sub, w.time);
       if (!mk) continue;
       const r = distance(p, sub.pos);
-      const pDet = mastDetectP(mk, r, w.env.seaState, AIR_MAST_RADAR[kind][mk]) * (inSquall(w.env.met, sub.pos) ? 0.25 : 1);
+      const pDet = mastDetectP(mk, r, w.env.seaState, AIR_MAST_RADAR[kind][mk]) * (inSquall(w.env.met, sub.pos) ? (mk === 'hull' ? 0.6 : 0.25) : 1);
       if (pDet <= 0 || w.rng.next() > pDet) continue;
-      if (!lineOfSight(w.env.seabed, p, alt, sub.pos, 3)) continue;
+      if (!lineOfSight(w.env.seabed, p, alt, sub.pos, mk === 'hull' ? SURFACED_TOP_M : 3)) continue;
       const fix = { x: sub.pos.x + w.rng.gauss(0, AIR_FIX_SD), y: sub.pos.y + w.rng.gauss(0, AIR_FIX_SD) };
       const escorts = w.ships.filter((e) => e.alive && e.team === owner.team && (e === owner || isEscort(e.cls)));
       for (const e of escorts) {
@@ -279,7 +281,7 @@ export function aircraftRadarSweep(w: World): void {
       airAlertAt.set(s, seen);
       if (w.time - (seen[sub.id] ?? -1e9) < AIR_ALERT_GAP_S) continue;
       seen[sub.id] = w.time;
-      const text = `${kind === 'mpa' ? 'SEEAUFKLÄRER' : 'BORDHUBSCHRAUBER'} · RADARKONTAKT ${mk === 'snorkel' ? 'SCHNORCHEL' : 'SEHROHR'} · PLANQUADRAT ${gridRef(fix.x, fix.y)}`;
+      const text = `${kind === 'mpa' ? 'SEEAUFKLÄRER' : 'BORDHUBSCHRAUBER'} · RADARKONTAKT ${mk === 'snorkel' ? 'SCHNORCHEL' : mk === 'hull' ? 'U-BOOT AUFGETAUCHT' : 'SEHROHR'} · PLANQUADRAT ${gridRef(fix.x, fix.y)}`;
       for (const e of escorts) w.events.push({ kind: 'boat', time: w.time, shipId: e.id, what: 'airradar', text });
     }
   }

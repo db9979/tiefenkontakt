@@ -1,4 +1,4 @@
-import { CLASSES, NIXIE_MAX_KN, PERISCOPE_DEPTH, angleDiff, asternMaxKn, headingVec, wrap360, type ClassId } from '@tk/shared';
+import { CLASSES, NIXIE_MAX_KN, PERISCOPE_DEPTH, angleDiff, asternMaxKn, depthLimitOf, headingVec, wrap360, type ClassId } from '@tk/shared';
 import { t } from '../i18n/index.js';
 import { net } from '../net.js';
 import { depthBtn } from '../widgets/btn-state.js';
@@ -444,7 +444,12 @@ export function mountHelm(el: HTMLElement) {
       if (spec.submarine) {
         // Two short rows that never wrap: depth and order (with the alarm tag), then the water under her
         const under = s.env.bottom !== undefined ? s.env.bottom - o.depth : undefined;
-        setHtml(q('#h-dep'), `${depthAlarms.helmTag()} ${o.depth.toFixed(0)} <span class="amber">→ ${o.order.depth.toFixed(0)} M</span>`);
+        // A damaged hull: the reduced test depth beside the depth (red once she is below it)
+        const limit = depthLimitOf(o.cls, o.comps);
+        // (only while no alarm tag stands in the row: the row must not wrap, the tag says it then)
+        const tag = depthAlarms.helmTag();
+        const max = limit < spec.maxDepth && !tag ? ` <span class="${o.depth > limit ? 'red blink' : 'red'}" title="Druckkörper beschädigt: Testtiefe ${limit} M statt ${spec.maxDepth} M">MAX ${limit}</span>` : '';
+        setHtml(q('#h-dep'), `${tag} ${o.depth.toFixed(0)} <span class="amber">→ ${o.order.depth.toFixed(0)} M</span>${max}`);
         setHtml(q('#h-env'), s.env.bottom !== undefined ? `<span class="dim">GRUND</span> <span class="${under! < 40 ? 'red blink' : ''}">${s.env.bottom} M</span>` : '<span class="dim">GRUND</span> —');
         const layEl = q('#h-lay');
         setHtml(layEl, `<span class="dim">SCHICHT</span> ${s.env.layerDepth !== undefined ? `${s.env.layerDepth} M` : s.env.noLayer ? 'KEINE' : '—'}`);

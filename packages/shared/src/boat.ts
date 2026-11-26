@@ -4,6 +4,7 @@ import { CLASSES } from './classes.js';
 import { BAD_CO2, BAD_O2, airOf, crewOf } from './crew.js';
 import { PERISCOPE_DEPTH, mastRaised, type Ship } from './entities.js';
 import { MAST_MAX_KN, isSnorkeling } from './kinematics.js';
+import type { ClassId } from './classes.js';
 import { compsOf } from './compartments.js';
 import { KN, NM, headingVec } from './math.js';
 import type { World } from './world.js';
@@ -41,7 +42,54 @@ const CRASH_FROM_M = 30;
 const CRASH_DEEPER_M = 30;
 const CRASH_SPEED_SHARE = 0.6;
 
+/**
+ * A damaged pressure hull (cracked frames, leaking hull fittings, sprung valves) no longer
+ * stands its test depth: the captain orders a reduced limit. The test depth falls by 40 % of
+ * the worst compartment's damage (a wrecked compartment: 60 % of the test depth left); the
+ * crush depth falls with it.
+ */
+export const HULL_DEPTH_LOSS = 0.4;
+/** Crush depth as a multiple of the test depth (boat.ts: hull collapses at 95 % of half again). */
+export const CRUSH_FACTOR = 1 + 0.5 * 0.95;
+
+/** Worst structural damage among the compartments (0 = sound … 1 = wrecked). */
+export function hullDamage(comps?: readonly { dmg: number }[]): number {
+  return comps?.length ? Math.min(1, Math.max(0, ...comps.map((c) => c.dmg))) : 0;
+}
+
+/** Test depth (m) a boat of this class may use with these compartments (undamaged: the class value). */
+export function depthLimitOf(cls: ClassId, comps?: readonly { dmg: number }[]): number {
+  return Math.round(CLASSES[cls].maxDepth * (1 - HULL_DEPTH_LOSS * hullDamage(comps)));
+}
+
+/** Present test depth (m) of a boat after hull damage. */
+export function depthLimit(s: Ship): number {
+  return depthLimitOf(s.cls, s.comps);
+}
+
+/** Crush depth (m) with the present hull. */
+export function crushDepth(s: Ship): number {
+  return Math.round(depthLimit(s) * CRUSH_FACTOR);
+}
+
+/** Heavy sea at periscope depth: chance per second of a broach, of the snorkel head valve shutting. */
+export function broachChanceS(seaState: number, kn: number): number {
+  // About 3 % a minute per sea state above 4 when slow (SS6: one in some 17 minutes), a third with way on
+  return seaState < 5 ? 0 : (0.03 * (seaState - 4) * (kn < 4 ? 1 : 0.3)) / 60;
+}
+export function headValveChanceS(seaState: number): number {
+  // 15 % a minute per sea state above 3 (SS5: about every three minutes)
+  return seaState < 4 ? 0 : (0.15 * (seaState - 3)) / 60;
+}
+/** How long a broach throws the boat up (s) and the head valve stays shut (s, 20–40). */
+export const BROACH_S = 20;
+const VALVE_MIN_S = 20;
+const VALVE_SPREAD_S = 20;
+const VALVE_SAY_GAP_S = 180;
+
 const cursor = new WeakMap<World, number>();
+const lastLimit = new WeakMap<Ship, number>();
+const valveSaid = new WeakMap<Ship, number>();
 const lastHp = new WeakMap<Ship, number>();
 const lastKnuckle = new WeakMap<Ship, number>();
 /** Last alarm that called battle stations (only when the crew called them itself). */
@@ -172,8 +220,12 @@ function stepBoat(w: World, s: Ship, dt: number): void {
   s.trim -= Math.sign(s.trim) * Math.min(Math.abs(s.trim), 0.025 * dt);
   // Compressors refill a bottle every 15 minutes at the surface or on the snorkel
   if ((s.depth <= 0.5 || isSnorkeling(s)) && s.hpAir < HP_AIR_BOTTLES && Math.floor((w.time - dt) / 900) !== Math.floor(w.time / 900)) s.hpAir++;
+  // A damaged hull: the captain is told the new limit as soon as it drops
+  const test = depthLimit(s);
+  const before = lastLimit.get(s) ?? spec.maxDepth;
+  if (test <= before - 5) say(w, s, 'depthlimit', `TIEFENBESCHRÄNKUNG ${test} M · DRUCKKÖRPER BESCHÄDIGT`);
+  if (test <= before - 5 || test > before) lastLimit.set(s, test);
   // Below the test depth: rising risk of sheared bolts, failing seals, a cracked hull
-  const test = spec.maxDepth;
   if (test > 0 && s.depth > test) {
     const over = (s.depth - test) / (0.5 * test);
     if (over >= 0.95) {
@@ -191,6 +243,31 @@ function stepBoat(w: World, s: Ship, dt: number): void {
       c.leak = Math.min(1, c.leak + leakAdd);
       s.hp -= hp;
       say(w, s, 'hull', `${text} · UNTER TESTTIEFE`);
+    }
+  }
+}
+
+/**
+ * Heavy sea at periscope depth (sea state 5 and more): the swell may throw a slow boat up until
+ * her conning tower breaks the surface (seen by radar and lookouts, kinematics.ts lifts her), and
+ * from sea state 4 a wave over the snorkel head shuts its valve: the diesels stop, the boat's air
+ * is sucked into them (ears pop) and the charge is lost for 20–40 s.
+ */
+function stepHeavySea(w: World, s: Ship, dt: number): void {
+  if (!CLASSES[s.cls].submarine || s.depth <= 0.5 || s.depth > PERISCOPE_DEPTH + 0.5) return;
+  const ss = w.env.seaState;
+  const kn = s.speed / KN;
+  const p = broachChanceS(ss, kn);
+  if (p > 0 && (s.broachUntil ?? 0) <= w.time && s.order.depth <= PERISCOPE_DEPTH + 1 && w.rng.next() < p * dt) {
+    s.broachUntil = w.time + BROACH_S;
+    say(w, s, 'broach', `BOOT BRICHT DURCH · TURM ÜBER WASSER · SEEGANG ${ss}`);
+  }
+  const v = headValveChanceS(ss);
+  if (v > 0 && isSnorkeling(s) && (s.headValveUntil ?? 0) <= w.time && w.rng.next() < v * dt) {
+    s.headValveUntil = w.time + VALVE_MIN_S + w.rng.next() * VALVE_SPREAD_S;
+    if (w.time - (valveSaid.get(s) ?? -1e9) >= VALVE_SAY_GAP_S) {
+      valveSaid.set(s, w.time);
+      say(w, s, 'headvalve', 'KOPFVENTIL SCHLÄGT ZU · DIESEL AUS · LADUNG UNTERBROCHEN');
     }
   }
 }
@@ -270,6 +347,7 @@ export function boatSystem(w: World, dt: number): void {
     stepAir(w, s, dt);
     stepNav(w, s, dt);
     stepBoat(w, s, dt);
+    stepHeavySea(w, s, dt);
     stepMastSpeed(w, s);
     stepWorkNoise(w, s);
     stepKnuckles(w, s);

@@ -80,3 +80,23 @@ describe('depth alarms', () => {
     expect(sanitizeCfg({ upper: 200, lower: 120 }, 300)).toMatchObject({ upper: 110, lower: 120 });
   });
 });
+
+describe('damaged hull: the reduced test depth (F24)', () => {
+  const track = (depths: number[], limit?: number) => {
+    let s = initialAlarmState();
+    const raised: string[] = [];
+    for (const depth of depths) {
+      const r = stepAlarms(s, { ...cfg, lowerOn: false }, { depth, orderDepth: 200, periscopeDepth: PD, limit });
+      s = r.state;
+      raised.push(...r.raised.map((x) => `${x.kind}${x.level}`));
+    }
+    return { s, raised };
+  };
+  it('warns from 90 % of the limit, danger below it, quiet with a sound hull', () => {
+    expect(track([100, 165, 185], 180).raised).toEqual(['limit1', 'limit2']);
+    expect(activeAlarms(track([100, 185], 180).s)[0]).toEqual({ kind: 'limit', level: 2 });
+    expect(track([100, 185, 170], 180).s.limit).toBe(1);
+    expect(track([100, 185, 120], 180).s.limit ?? 0).toBe(0);
+    expect(track([100, 185, 250]).raised).toEqual([]);
+  });
+});

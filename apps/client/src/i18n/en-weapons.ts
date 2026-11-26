@@ -2,6 +2,14 @@
 
 export const EN_WEAPONS: [string, string][] = [
   ['REICHWEITE BEI DIESER FAHRT', 'RANGE AT THIS SPEED'], ['AIP · UNBEGRENZT', 'AIP · UNLIMITED'],
+  ['VOLL GELADEN', 'FULLY CHARGED'], ['KOPFVENTIL SCHLÄGT ZU · DIESEL AUS · LADUNG UNTERBROCHEN', 'HEAD VALVE SLAMS SHUT · DIESELS STOPPED · CHARGE INTERRUPTED'],
+  ['UNTER TESTTIEFE · DRUCKKÖRPER BESCHÄDIGT', 'BELOW TEST DEPTH · PRESSURE HULL DAMAGED'], ['TIEFENBESCHRÄNKUNG', 'DEPTH LIMIT'], ['TESTTIEFE', 'TEST DEPTH'],
+  ['LEUCHTSPUR', 'GLOW'], ['LEUCHTSPUR IM WASSER', 'GLOWING WAKE IN THE WATER'],
+  ['MEERESLEUCHTEN · BOOT (6 KN)', 'BIOLUMINESCENCE · BOAT (6 KN)'],
+  ['Meeresleuchten (erwartet für Jahreszeit und Seegebiet): in dunkler Nacht leuchtet das Wasser, wo ein Boot es aufwühlt (Sehrohrfahne, Kielwasser, Torpedolaufbahn)',
+    'Bioluminescence (expected for the season and area): on a dark night the water glows where a boat stirs it (periscope feather, wake, torpedo track)'],
+  ['Zeit im Spiel verdichtet: die Batterie lädt schneller als auf einem echten Boot (dort etwa 10–15 %/h beim Schnorcheln). Über 70 % nimmt sie die Ladung immer langsamer an (40 auf 12 %/h); schwerer Seegang drosselt die Diesel. Reichweite bei der befohlenen Fahrt',
+    'Time is compressed in the game: the battery charges faster than on a real boat (there about 10–15 %/h on the snorkel). Above 70 % it takes the charge ever more slowly (40 down to 12 %/h); a heavy sea throttles the diesels. Range at the ordered speed'],
   ['SALVE', 'SALVO'], ['FÄCHER', 'SPREAD'], ['LAUFZEIT', 'RUN TIME'], ['DRAHT', 'WIRE'],
   ['ZU SCHNELL', 'TOO FAST'], ['ZU TIEF', 'TOO DEEP'], ['KEIN ROHR', 'NO TUBE'],
   ['Wasserbombenwerfer', 'ASW mortar'], ['WERFER', 'MORTAR'], ['Salve voraus werfen', 'Throw salvo ahead'],
@@ -24,7 +32,19 @@ export const EN_WEAPONS: [string, string][] = [
 ];
 
 export const EN_WEAPONS_PHRASES: [RegExp, string][] = [
-  [/^LÄDT (\d+) %\/H$/, 'CHARGING $1 %/H'], [/^(\d+:\d\d(?::\d\d)?) · (\d+) SM$/, '$1 · $2 NM'],
+  [/^LÄDT (\d+) %\/H$/, 'CHARGING $1 %/H'],
+  // Charge taper above 70 % (F23), head valve and broaching in a heavy sea (F25), damaged hull (F24), surfaced boat on radar (F8)
+  [/^LÄDT (-?\d+) %\/H · VOLL IN (\d+:\d\d)$/, 'CHARGING $1 %/H · FULL IN $2'],
+  [/^LADUNG VERLANGSAMT · VOLL (\d+:\d\d)$/, 'CHARGE SLOWING · FULL $1'],
+  [/^LADUNG VERLANGSAMT (-?\d+) %\/H$/, 'CHARGE SLOWING $1 %/H'],
+  [/^LÄDT NICHT · (-?\d+) %\/H$/, 'NOT CHARGING · $1 %/H'],
+  [/^TIEFENBESCHRÄNKUNG (\d+) M · DRUCKKÖRPER BESCHÄDIGT$/, 'DEPTH LIMIT $1 M · PRESSURE HULL DAMAGED'],
+  [/^BOOT BRICHT DURCH · TURM ÜBER WASSER · SEEGANG (\d)$/, 'BOAT BROACHES · CONNING TOWER ABOVE WATER · SEA STATE $1'],
+  [/^MAX (\d+) M$/, 'MAX $1 M'], [/^MAX (\d+)$/, 'MAX $1'],
+  [/^Druckkörper beschädigt: Testtiefe (\d+) M statt (\d+) M, Zerstörungstiefe etwa (\d+) M$/, 'Pressure hull damaged: test depth $1 M instead of $2 M, crush depth about $3 M'],
+  [/^Druckkörper beschädigt: Testtiefe (\d+) M statt (\d+) M$/, 'Pressure hull damaged: test depth $1 M instead of $2 M'],
+  [/^SEEAUFKLÄRER · RADARKONTAKT U-BOOT AUFGETAUCHT · PLANQUADRAT (\w+)$/, 'PATROL AIRCRAFT · RADAR CONTACT SURFACED SUBMARINE · GRID $1'],
+  [/^BORDHUBSCHRAUBER · RADARKONTAKT U-BOOT AUFGETAUCHT · PLANQUADRAT (\w+)$/, 'HELICOPTER · RADAR CONTACT SURFACED SUBMARINE · GRID $1'], [/^(\d+:\d\d(?::\d\d)?) · (\d+) SM$/, '$1 · $2 NM'],
   [/^ZU SCHNELL · AUF (\d+) KN$/, 'TOO FAST · TO $1 KN'], [/^ZU TIEF · AUF (\d+) M$/, 'TOO DEEP · TO $1 M'],
   [/^Abschuss nur bis (\d+) kn \(jetzt (\d+) kn\)$/, 'Launch only up to $1 kn (now $2 kn)'],
   [/^Abschuss nur bis (\d+) m Tiefe \(jetzt (\d+) m\)$/, 'Launch only down to $1 m depth (now $2 m)'],

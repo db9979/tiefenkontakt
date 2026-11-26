@@ -385,7 +385,7 @@ export interface AlertView {
   level?: number;
   source?: 'hull' | 'dip' | 'buoy';
   /** Lookout sightings: what, rough range and the contact label. */
-  what?: 'mast' | 'snorkel' | 'surfaced';
+  what?: 'mast' | 'snorkel' | 'surfaced' | 'glow';
   range?: number;
   label?: string; /** ESM: emitter (emitters.ts), strength 0..2, trend. */ emitter?: string; esmLvl?: number; esmTrend?: number;
   bearing?: number;

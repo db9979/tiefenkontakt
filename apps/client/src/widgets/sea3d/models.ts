@@ -78,6 +78,17 @@ function cabinLights(g: THREE.Group, seed: number): void {
 /** What a lookout actually sees of a submerged boat: a periscope with its feather, or a snorkel with exhaust haze. */
 export function sightingModel(what: Sighting, cls: ClassId): THREE.Group {
   if (what === 'surfaced') return shipModel(CLASSES[cls].submarine ? cls : 'ssk');
+  if (what === 'glow') {
+    // Bioluminescence: a pale blue-green smear on the dark sea where the boat stirs the water
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ color: 0x6fe8c8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.scale.set(4, 30, 1);
+    m.position.set(0, 0.15, -10);
+    m.name = 'glow';
+    g.add(m);
+    return g;
+  }
   const g = new THREE.Group();
   const head = cyl(g, what === 'snorkel' ? 0.6 : 0.22, what === 'snorkel' ? 2.2 : 3.4, 0, 1.3, 0, M.black);
   head.name = 'head';

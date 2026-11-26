@@ -12,7 +12,7 @@ import {
   transmissionLoss,
   sonarDepth,
 } from './acoustics.js';
-import { isSnorkeling } from './kinematics.js';
+import { isBroaching, isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
 import { seeingLight } from './moon.js';
 import { crewNoiseDb, crewSonarDb } from './crew.js';
@@ -115,31 +115,54 @@ const RADAR_RANGE = 22 * NM;
 const ESM_RANGE = 40 * NM;
 
 /**
- * Radar against a submarine's masts: one chance per antenna turn, p = base · (1 − r/Rmax) ·
- * clutter. A periscope or mast head is a tiny, intermittent return; the snorkel head with its
- * spray and exhaust is a far better one. Whitecaps hide both (clutter floor 0.3).
+ * Radar against a submarine: one chance per antenna turn, p = base · (1 − r/Rmax) · clutter.
+ * A periscope or mast head is a tiny, intermittent return; the snorkel head with its spray and
+ * exhaust is a far better one. A surfaced boat's conning tower and casing (some 10–100 m² of
+ * radar cross-section) is a solid paint: a frigate's surface-search radar holds it at 8–12 nm
+ * in a moderate sea; that is why diesel boats charged on the snorkel, not on the surface.
  */
-export const MAST_RADAR = { mast: { base: 0.08, rmax: 5 * NM }, snorkel: { base: 0.4, rmax: 8 * NM } } as const;
+export const MAST_RADAR = { mast: { base: 0.08, rmax: 5 * NM }, snorkel: { base: 0.4, rmax: 8 * NM }, hull: { base: 0.9, rmax: 12 * NM } } as const;
 export type MastKind = keyof typeof MAST_RADAR;
 const RADAR_MAST_RANGE = MAST_RADAR.mast.rmax;
 const RADAR_SNORKEL_RANGE = MAST_RADAR.snorkel.rmax;
 export { RADAR_RANGE, RADAR_MAST_RANGE, RADAR_SNORKEL_RANGE };
+/** Height of a surfaced boat's conning tower above the sea (m): for line of sight and the horizon. */
+export const SURFACED_TOP_M = 6;
+/** A boat shallower than this has her conning tower and casing out of the water. */
+export const SURFACED_DEPTH_M = 2;
 
-/** What of a submarine sticks out of the water for a radar: the snorkel head, a mast, or nothing. */
-export function exposedMast(s: Ship): MastKind | undefined {
+/** Is this submarine on the surface (conning tower and casing out of the water)? */
+export function isSurfacedBoat(s: Ship): boolean {
+  return CLASSES[s.cls].submarine && s.alive && s.depth < SURFACED_DEPTH_M;
+}
+
+/**
+ * What of a submarine sticks out of the water for a radar: the whole boat (surfaced, or broaching
+ * in a heavy sea at `now`), the snorkel head, a mast, or nothing.
+ */
+export function exposedMast(s: Ship, now?: number): MastKind | undefined {
+  if (isSurfacedBoat(s) || (CLASSES[s.cls].submarine && isBroaching(s, now))) return 'hull';
   if (!mastExposed(s)) return undefined;
   return (s.snorkelExt ?? 0) > 0.3 ? 'snorkel' : 'mast';
 }
 
-/** Sea clutter factor of a radar against small targets. */
-export function radarClutter(seaState: number): number {
-  return Math.max(0.3, 1 - 0.12 * seaState);
+/**
+ * Sea clutter factor of a radar against a small target. Up to sea state 3 the old 12 % per
+ * step; above it the non-coherent search radars of the period lose a periscope in the
+ * whitecaps almost completely (SS5 0,30, SS6 0,13). A snorkel head with its spray and
+ * exhaust is lost more slowly (floor 0,2); a surfaced hull stands well above the clutter.
+ */
+export function radarClutter(seaState: number, kind: MastKind = 'mast'): number {
+  if (kind === 'hull') return Math.max(0.5, 1 - 0.06 * seaState);
+  const calm = 1 - 0.12 * Math.min(seaState, 3);
+  const rough = Math.max(0, seaState - 3);
+  return kind === 'snorkel' ? Math.max(0.2, calm - 0.12 * rough) : Math.max(0.05, calm - 0.17 * rough);
 }
 
 /** Chance per antenna turn that a radar paints this mast at this range (rmax: the radar's own limit for it). */
 export function mastDetectP(kind: MastKind, range: number, seaState: number, rmax: number = MAST_RADAR[kind].rmax, base: number = MAST_RADAR[kind].base): number {
   if (range >= rmax) return 0;
-  return base * (1 - range / rmax) * radarClutter(seaState);
+  return base * (1 - range / rmax) * radarClutter(seaState, kind);
 }
 
 /**
@@ -192,8 +215,67 @@ export function knuckleLoss(a: Vec2, b: Vec2, knuckles: SensorContext['knuckles'
   return n * KNUCKLE_LOSS_DB;
 }
 
-function noisyBearing(trueB: number, se: number, rng: Rng): number {
-  return wrap360(trueB + rng.gauss(0, bearingSigma(se)));
+/**
+ * Slow, correlated bearing bias (degrees, unit standard deviation) per contact and sensor:
+ * multipath, refraction, array shape and the operator's own habit keep a bearing off by the
+ * same amount for minutes. Smooth value noise over two scales (knots every 4 and 12 minutes,
+ * the slow one carrying three quarters of the variance), seeded by the key: no state to carry, the same for everyone who
+ * asks at the same time. This is why a real TMA needs a second leg and a cross-bearing.
+ */
+const BIAS_KNOTS = [[240, 0.5], [720, Math.sqrt(0.75)]] as const;
+/** FNV-1a with a murmur3 finaliser: keys that differ only in the last digit land far apart. */
+function mix01(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function gaussOf(key: string): number {
+  // Box–Muller from two hashes: a normal deviate fixed by the key
+  const u = Math.max(1e-9, mix01(key)), v = mix01(key + '~');
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+export function bearingBias(key: string, t: number): number {
+  let sum = 0;
+  for (const [T, amp] of BIAS_KNOTS) {
+    const x = t / T + mix01(`${key}|o${T}`);
+    const k = Math.floor(x), f = x - k;
+    const w = (1 - Math.cos(Math.PI * f)) / 2;
+    sum += amp * (gaussOf(`${key}|${T}|${k}`) * (1 - w) + gaussOf(`${key}|${T}|${k + 1}`) * w);
+  }
+  // Cosine interpolation between two unit normals has a variance between 0,5 and 1 (mean 0,75)
+  return sum / Math.sqrt(0.75);
+}
+
+/**
+ * Size (1 σ, degrees) of that slow bias per sensor: a hull array 1–2° (here 1°, the lower end,
+ * so the AI TMA settle gate still passes), a towed
+ * array about 1° at broadside (growing toward endfire), the periscope 0,2°, the radar 0,3°,
+ * ESM direction finding 3–5° (4°). Active sonar shares the hull array's error.
+ */
+export const BEARING_BIAS_DEG = { hull: 1, towed: 1, active: 1, intercept: 1, periscope: 0.2, radar: 0.3, esm: 4 } as const;
+
+/** The slow bias of this observer's sensor on this target now (degrees); different in every match (seed). */
+function biasOf(ctx: Pick<SensorContext, 'env' | 'time'>, obsId: string, tgtId: string, sensor: keyof typeof BEARING_BIAS_DEG): number {
+  return BEARING_BIAS_DEG[sensor] * bearingBias(`${ctx.env.seed ?? 0}|${obsId}|${tgtId}|${sensor}`, ctx.time);
+}
+
+function noisyBearing(trueB: number, se: number, rng: Rng, bias = 0): number {
+  return wrap360(trueB + bias + rng.gauss(0, bearingSigma(se)));
+}
+
+/**
+ * A line array measures the cosine of the cone angle: its bearing error grows as 1 / sin θ
+ * toward the axis (1° at the beam is about 3° at 20° off endfire). Capped at four times the
+ * broadside value: inside some 15° of endfire the array is no use for TMA anyway.
+ */
+export const TOWED_ENDFIRE_CAP = 4;
+export function towedErrorFactor(rel: number): number {
+  return 1 / Math.max(1 / TOWED_ENDFIRE_CAP, Math.abs(Math.sin((rel * Math.PI) / 180)));
 }
 
 /** Depth of the towed array: it streams below and behind the towing ship. */
@@ -273,6 +355,21 @@ export function belowHull(obs: Ship, tgt: Ship, range: number): boolean {
   return tgt.depth - sonarDepth(obs) > Math.max(range, 1) * BLIND_TAN;
 }
 
+/**
+ * Heavy weather and a surface ship's bow dome: from sea state 5 the dome pitches, slams and
+ * draws air under the keel. The hull sonar loses 3 dB at SS5 and 8 dB at SS6 and drops out
+ * now and then (7 % / 14 % of looks and pings). A lowered VDS body and the towed array ride
+ * deep and steady: they are untouched, which is why navies bought them. Submarines don't care.
+ */
+export function domeQuenchDb(obs: Ship, seaState: number): number {
+  if (CLASSES[obs.cls].submarine || (obs.vdsDepth ?? 0) > 5) return 0;
+  return seaState < 5 ? 0 : 3 + 5 * (seaState - 5);
+}
+export function domeDropoutP(obs: Ship, seaState: number): number {
+  if (CLASSES[obs.cls].submarine || (obs.vdsDepth ?? 0) > 5) return 0;
+  return 0.07 * Math.max(0, seaState - 4);
+}
+
 function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): void {
   const spec = CLASSES[obs.cls];
   const range = distance(obs.pos, tgt.pos);
@@ -290,11 +387,11 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
 
   if (spec.hull.di > 0 && Math.abs(rel) < 180 - spec.hull.baffleHalfAngle && !belowHull(obs, tgt, range)) {
     const se = passiveSignalExcess(tgt, obs, range, 'hull', ctx.env, sonarDepth(obs), bottom) + fading(`${obs.id}|${tgt.id}|h`, ctx.time) +
-      ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'hull', ctx.env);
-    if (se > 0) {
+      ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'hull', ctx.env) - domeQuenchDb(obs, ctx.env.seaState);
+    if (se > 0 && !(domeDropoutP(obs, ctx.env.seaState) > 0 && ctx.rng.next() < domeDropoutP(obs, ctx.env.seaState))) {
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'hull', time: ctx.time,
-        bearing: noisyBearing(trueB, se, ctx.rng), se, evidence: shipEvidence(tgt, se, ctx),
+        bearing: noisyBearing(trueB, se, ctx.rng, biasOf(ctx, obs.id, tgt.id, 'hull')), se, evidence: shipEvidence(tgt, se, ctx),
       });
     }
   }
@@ -307,8 +404,10 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
       fading(`${obs.id}|${tgt.id}|t`, ctx.time) +
       ctx.rng.gauss(0, SE_FLUCTUATION) + adj - maskingLoss(obs, tgt.id, trueB, heard, 'towed', ctx.env);
     if (se > 0) {
-      // A line array measures only the angle to its axis: report starboard side first, port as mirror
-      const measuredRel = Math.abs(rel + ctx.rng.gauss(0, bearingSigma(se)));
+      // A line array measures only the angle to its axis: report starboard side first, port as mirror.
+      // Its error (fast and slow) grows toward endfire as 1 / sin θ
+      const k = towedErrorFactor(rel);
+      const measuredRel = Math.abs(rel + k * (ctx.rng.gauss(0, bearingSigma(se)) + biasOf(ctx, obs.id, tgt.id, 'towed')));
       const b = wrap360(obs.heading + measuredRel);
       const alt = wrap360(obs.heading - measuredRel);
       out.push({
@@ -333,11 +432,11 @@ function passiveEmitters(obs: Ship, ctx: SensorContext, out: Detection[]): void 
     const trueB = bearing(obs.pos, e.pos);
     if (Math.abs(angleDiff(obs.heading, trueB)) >= 180 - spec.hull.baffleHalfAngle) continue;
     const se = passiveExcessFrom(e.sl, e.depth, obs, range, 'hull', ctx.env) + ctx.rng.gauss(0, SE_FLUCTUATION) -
-      terrainLossDb(ctx.env.seabed, e.pos, e.depth, obs.pos, sonarDepth(obs));
+      terrainLossDb(ctx.env.seabed, e.pos, e.depth, obs.pos, sonarDepth(obs)) - domeQuenchDb(obs, ctx.env.seaState);
     if (se <= 0) continue;
     out.push({
       observerId: obs.id, targetId: e.id, sensor: 'hull', time: ctx.time,
-      bearing: noisyBearing(trueB, se, ctx.rng), se,
+      bearing: noisyBearing(trueB, se, ctx.rng, biasOf(ctx, obs.id, e.id, 'hull')), se,
       evidence: measureEvidence(e.sig, e.speedKn, se, { cavitating: true }, ctx.rng),
     });
   }
@@ -346,6 +445,10 @@ function passiveEmitters(obs: Ship, ctx: SensorContext, out: Detection[]): void 
 function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
   // Echoes from beyond the range scale come back after the receiver stopped listening
   const scale = pingRangeOf(pinger);
+  // A slamming dome loses the odd ping altogether (heavy weather, surface ships' hull sonar)
+  const pLost = domeDropoutP(pinger, ctx.env.seaState);
+  const lost = pLost > 0 && ctx.rng.next() < pLost;
+  const quench = domeQuenchDb(pinger, ctx.env.seaState);
   for (const tgt of ctx.ships) {
     if (tgt === pinger || !tgt.alive) continue;
     const range = distance(pinger.pos, tgt.pos);
@@ -358,11 +461,11 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
     const tv = headingVec(tgt.heading);
     const closing = ((tv.x * los.x + tv.y * los.y) * tgt.speed) / KN;
     const se = activeSignalExcess(tgt, pinger, range, ctx.env, bottom, { lfm, closingKn: closing }) + ctx.rng.gauss(0, 2) -
-      2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger) - 2 * terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), tgt.pos, tgt.depth);
-    if (se > 0 && range <= scale && !inBaffles && !belowHull(pinger, tgt, range)) {
+      2 * knuckleLoss(pinger.pos, tgt.pos, ctx.knuckles) + crewSonarDb(pinger) - 2 * terrainLossDb(ctx.env.seabed, pinger.pos, sonarDepth(pinger), tgt.pos, tgt.depth) - quench;
+    if (se > 0 && !lost && range <= scale && !inBaffles && !belowHull(pinger, tgt, range)) {
       out.push({
         observerId: pinger.id, targetId: tgt.id, sensor: 'active', time: ctx.time,
-        bearing: noisyBearing(trueB, se + 10, ctx.rng),
+        bearing: noisyBearing(trueB, se + 10, ctx.rng, biasOf(ctx, pinger.id, tgt.id, 'active')),
         range: Math.max(10, range + ctx.rng.gauss(0, lfm ? 5 : 250)), se,
         dopplerKn: lfm ? undefined : Math.round((closing + ctx.rng.gauss(0, 0.5)) * 10) / 10,
       });
@@ -372,11 +475,12 @@ function ping(pinger: Ship, ctx: SensorContext, out: Detection[]): void {
       if (ie > 0) {
         out.push({
           observerId: tgt.id, targetId: pinger.id, sensor: 'intercept', time: ctx.time,
-          bearing: noisyBearing(bearing(tgt.pos, pinger.pos), ie, ctx.rng), se: ie, source: 'hull',
+          bearing: noisyBearing(bearing(tgt.pos, pinger.pos), ie, ctx.rng, biasOf(ctx, tgt.id, pinger.id, 'intercept')), se: ie, source: 'hull',
         });
       }
     }
   }
+  if (lost) return;
   bottomEchoes(pinger, ctx, out, scale);
   // Knuckles answer like a stopped target: an echo with no Doppler that fades within minutes
   for (const k of ctx.knuckles ?? []) {
@@ -437,7 +541,7 @@ export function horizonRange(eyeHeight: number, targetHeight: number): number {
 }
 
 /** How far a submarine's mast radar finds ships: its horizon. */
-export const SUB_RADAR_RANGE = Math.min(RADAR_RANGE, horizonRange(SUB_RADAR_ANTENNA_M, SHIP_TOP_M));
+export const SUB_RADAR_RANGE = Math.min(RADAR_RANGE, radioHorizon(SUB_RADAR_ANTENNA_M, 0.6 * SHIP_TOP_M));
 
 /** Field of view of the attack periscope (degrees) at a power: 32° at 1.5×, 8° at 6×, 4° at 12×. */
 export function scopeFov(mag: number): number {
@@ -453,6 +557,24 @@ export function inScopeView(scope: Ship['scope'], trueBearing: number): boolean 
   return !!scope && Math.abs(angleDiff(scope.bearing, trueBearing)) <= scopeFov(scope.mag) / 2 + SCOPE_MARGIN_DEG;
 }
 
+/**
+ * Share of looks the periscope gets clear of the sea: every second from sea state 4 a wave may
+ * wash over the head glass (SS4 85 %, SS5 70 %, SS6 55 %).
+ */
+export function periscopeClearP(seaState: number): number {
+  return 1 - 0.15 * Math.max(0, seaState - 3);
+}
+
+/**
+ * How far a radar at this antenna height paints a ship: the radio horizon to the bulk of her
+ * superstructure (about 0,6 of the masthead height: a masthead alone is a weak return), never
+ * beyond the radar's own 22 nm. A frigate's radar holds a merchant at about 19 nm, a fishing
+ * boat at about 17 nm; a boat's mast radar sees them at 12–13 nm.
+ */
+export function shipRadarRange(antennaM: number, tgt: Ship): number {
+  return Math.min(RADAR_RANGE, radioHorizon(antennaM, 0.6 * RECOG[tgt.cls].mast));
+}
+
 function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   // Only what is inside the optic's field of view. Until the player trains it, the watch keeps
   // the periscope on the bow at low power (a raised scope is always manned)
@@ -462,21 +584,28 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   // As far as the horizon allows and the air carries (spray haze, rain); night cuts it to a third
   const air = Math.min(horizonRange(1.5, 30), metVisibility(ctx.env.seaState, !!ctx.env.rain)) * (1 - ctx.env.seaState * 0.03);
   const vis = 0.3 + 0.7 * light;
+  // Heavy sea washes over the head glass: the look is lost for that second
+  const clear = periscopeClearP(ctx.env.seaState);
+  if (clear < 1 && ctx.rng.next() > clear) return;
   for (const tgt of ctx.ships) {
-    if (tgt === obs || !tgt.alive || CLASSES[tgt.cls].submarine) continue;
+    if (tgt === obs || !tgt.alive) continue;
+    // Submerged boats are not seen; a surfaced one is, by her conning tower (smaller, nearer horizon)
+    const boat = CLASSES[tgt.cls].submarine;
+    if (boat && !isSurfacedBoat(tgt) && !isBroaching(tgt, ctx.time)) continue;
     const trueB = bearing(obs.pos, tgt.pos);
     if (!inScopeView(scope, trueB)) continue;
     const range = distance(obs.pos, tgt.pos);
     // Navigation lights carry far at night: a lit ship is seen almost as well as by day
     const seen = tgt.lights ? Math.max(vis, 0.85) : vis;
-    if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > air * seen) continue;
+    const reach = boat ? Math.min(air, horizonRange(1.5, SURFACED_TOP_M)) : air;
+    if (range + sightPenalty(ctx.env.met, obs.pos, tgt.pos) > reach * seen) continue;
     // Behind a headland or island the masts are out of sight
-    if (!lineOfSight(ctx.env.seabed, obs.pos, 1.5, tgt.pos, SHIP_TOP_M)) continue;
+    if (!lineOfSight(ctx.env.seabed, obs.pos, 1.5, tgt.pos, boat ? SURFACED_TOP_M : SHIP_TOP_M)) continue;
     // Class and range stay on the server's books: a player gets them only by the rules of his
     // realism mode (snapshot.ts); the stadimeter angle is what the eye really measures
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'periscope', time: ctx.time,
-      bearing: wrap360(trueB + ctx.rng.gauss(0, 0.3)),
+      bearing: wrap360(trueB + biasOf(ctx, obs.id, tgt.id, 'periscope') + ctx.rng.gauss(0, 0.3)),
       range: range * (1 + ctx.rng.gauss(0, 0.05)), se: 20, classified: tgt.cls, lit: tgt.lights, mag: scope.mag,
       subtense: (RECOG[tgt.cls].mast / Math.max(50, range)) * 1000 * (1 + ctx.rng.gauss(0, STADIMETER_ERR)),
     });
@@ -486,8 +615,6 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
 function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   const low = CLASSES[obs.cls].submarine;
   const antenna = low ? SUB_RADAR_ANTENNA_M : RADAR_ANTENNA_M;
-  // From a submarine's mast the horizon limits the range to ships, and masts are lost in the waves sooner
-  const shipRange = low ? SUB_RADAR_RANGE : RADAR_RANGE;
   // Masts are rolled for once per antenna turn (not every second); a mast radar's short horizon cuts their range
   const rot = emitterSpec(shipEmitter(obs.cls))?.rotationS ?? 2.5;
   const turned = antennaTurned(obs.id, rot, ctx.time);
@@ -496,17 +623,20 @@ function radar(obs: Ship, ctx: SensorContext, out: Detection[]): void {
     const range = distance(obs.pos, tgt.pos);
     const sub = CLASSES[tgt.cls].submarine;
     if (sub) {
-      const kind = exposedMast(tgt);
+      const kind = exposedMast(tgt, ctx.time);
       if (!kind || !turned) continue;
-      // Rain clutter swallows a small mast return inside a shower
-      const p = mastDetectP(kind, range, ctx.env.seaState, MAST_RADAR[kind].rmax * (low ? 0.6 : 1)) * (inSquall(ctx.env.met, tgt.pos) ? 0.25 : 1);
+      // A surfaced boat is limited by the horizon to her conning tower, masts by their tiny return;
+      // from a submarine's low mast both are lost in the waves sooner
+      const rmax = Math.min(MAST_RADAR[kind].rmax * (low ? 0.6 : 1), kind === 'hull' ? radioHorizon(antenna, SURFACED_TOP_M) : Infinity);
+      // Rain clutter swallows a small mast return inside a shower (a hull a little less)
+      const p = mastDetectP(kind, range, ctx.env.seaState, rmax) * (inSquall(ctx.env.met, tgt.pos) ? (kind === 'hull' ? 0.6 : 0.25) : 1);
       if (p <= 0 || ctx.rng.next() > p) continue;
-    } else if (range > shipRange) continue;
+    } else if (range > shipRadarRange(antenna, tgt)) continue;
     // Land in between hides the target in its radar shadow
-    if (!lineOfSight(ctx.env.seabed, obs.pos, antenna, tgt.pos, sub ? 3 : SHIP_TOP_M)) continue;
+    if (!lineOfSight(ctx.env.seabed, obs.pos, antenna, tgt.pos, sub ? (exposedMast(tgt, ctx.time) === 'hull' ? SURFACED_TOP_M : 3) : SHIP_TOP_M)) continue;
     out.push({
       observerId: obs.id, targetId: tgt.id, sensor: 'radar', time: ctx.time,
-      bearing: wrap360(bearing(obs.pos, tgt.pos) + ctx.rng.gauss(0, 0.5)),
+      bearing: wrap360(bearing(obs.pos, tgt.pos) + biasOf(ctx, obs.id, tgt.id, 'radar') + ctx.rng.gauss(0, 0.5)),
       range: range * (1 + ctx.rng.gauss(0, 0.01)), se: 15,
     });
   }
@@ -543,7 +673,7 @@ function esm(obs: Ship, ctx: SensorContext, out: Detection[], fc: Set<string>): 
     if (!lineOfSight(ctx.env.seabed, obs.pos, hObs, emitter.pos, radarAntennaM(emitter))) continue;
     out.push({
       observerId: obs.id, targetId: emitter.id, sensor: 'esm', time: ctx.time,
-      bearing: wrap360(bearing(obs.pos, emitter.pos) + ctx.rng.gauss(0, 2)), se: 10,
+      bearing: wrap360(bearing(obs.pos, emitter.pos) + biasOf(ctx, obs.id, emitter.id, 'esm') + ctx.rng.gauss(0, 2)), se: 10,
       emitter: shipEmitter(emitter.cls, fc.has(emitter.id)), esmLvl: esmLevel(range, reach),
       esmTrend: esmTrend(obs.pos, obs.heading, obs.speed, emitter.pos, emitter.heading, emitter.speed),
     });
@@ -573,7 +703,7 @@ export function runSensors(ctx: SensorContext): Detection[] {
     if (CLASSES[obs.cls].submarine && mastRaised(obs)) periscope(obs, ctx, out);
     if (radiating(obs)) radar(obs, ctx, out);
     if (!CLASSES[obs.cls].submarine) {
-      for (const v of lookoutSweep(obs, ctx.ships, ctx.env, ctx.rng)) {
+      for (const v of lookoutSweep(obs, ctx.ships, ctx.env, ctx.rng, ctx.time)) {
         out.push({ observerId: obs.id, targetId: v.targetId, sensor: 'visual', time: ctx.time, bearing: v.bearing, range: v.range, se: 20, sighting: v.sighting });
       }
     }

@@ -29,7 +29,7 @@ const EXPLOSION_HEARING = 40_000;
 const TRANSIENT_RANGE = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000, sounding: 4_000, charge: 30_000 } as const;
 const TRANSIENT_TEXT = { flood: 'TRANSIENT · ROHR WIRD GEFLUTET', launch: 'TRANSIENT · MECHANISCHER STARTLÄRM', mishap: 'TRANSIENT · METALLISCHER SCHLAG', blow: 'TRANSIENT · TAUCHZELLEN WERDEN ANGEBLASEN', splash: 'TRANSIENT · BOJENEINSCHLAG', sam: 'TRANSIENT · RAKETENSTART ÜBER WASSER', mine: 'TRANSIENT · UNTERWASSERDETONATION', sounding: 'TRANSIENT · ECHOLOTIMPULS (U-BOOT LOTET)', charge: 'TRANSIENT · WASSERBOMBENDETONATION' } as const;
 
-const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT' } as const;
+const SIGHTING_TEXT = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'U-BOOT AUFGETAUCHT', glow: 'LEUCHTSPUR IM WASSER' } as const;
 
 /** When each surface ship was last reported hit (to tell sinking noises from a new detonation). */
 const lastHit = new WeakMap<Ship, number>();

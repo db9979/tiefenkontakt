@@ -215,7 +215,7 @@ export class Callouts {
 export const callouts = new Callouts();
 export const selectFromLog = (label: string) => (store.selected = label);
 
-const WHAT = { mast: ['Sehrohr', 'Periscope'], snorkel: ['Schnorchel', 'Snorkel'], surfaced: ['U-Boot aufgetaucht', 'Submarine on the surface'] } as const;
+const WHAT = { mast: ['Sehrohr', 'Periscope'], snorkel: ['Schnorchel', 'Snorkel'], surfaced: ['U-Boot aufgetaucht', 'Submarine on the surface'], glow: ['Leuchtspur im Wasser', 'Glowing wake in the water'] } as const;
 
 /** Lookout report as sailors call it: what, side and sector relative to the bow, bearing, rough range. */
 function sightingCall(a: AlertView, heading: number): string {

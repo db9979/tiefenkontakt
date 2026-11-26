@@ -73,8 +73,9 @@ describe('C1 radar against masts: one roll per antenna turn', () => {
     expect(mastDetectP('snorkel', 4 * NM, 3)).toBeCloseTo(0.4 * 0.5 * 0.64);
     expect(mastDetectP('mast', 5 * NM, 0)).toBe(0);
     expect(mastDetectP('snorkel', 8 * NM, 0)).toBe(0);
-    // Clutter never below 0.3
-    expect(mastDetectP('snorkel', 0, 6)).toBeCloseTo(0.4 * 0.3);
+    // Heavy sea: a snorkel keeps a fifth at worst (SS6: 0,64 − 3 × 0,12 = 0,28), a periscope almost nothing
+    expect(mastDetectP('snorkel', 0, 6)).toBeCloseTo(0.4 * 0.28);
+    expect(mastDetectP('mast', 0, 6)).toBeCloseTo(0.08 * 0.13);
   });
 
   it('Monte Carlo: the paint rate per second matches p / rotation period', () => {
@@ -145,8 +146,8 @@ describe('C3 aircraft radar finds exposed masts for the escort team', () => {
     }
   };
 
-  it('ranges: MPA snorkel 30 km / mast 9 km, helicopter snorkel 15 km / mast 6 km', () => {
-    expect(AIR_MAST_RADAR).toEqual({ mpa: { snorkel: 30_000, mast: 9000 }, helo: { snorkel: 15_000, mast: 6000 } });
+  it('ranges: MPA snorkel 30 km / mast 9 km / surfaced 60 km, helicopter snorkel 15 km / mast 6 km / surfaced 35 km', () => {
+    expect(AIR_MAST_RADAR).toEqual({ mpa: { snorkel: 30_000, mast: 9000, hull: 60_000 }, helo: { snorkel: 15_000, mast: 6000, hull: 35_000 } });
   });
 
   it('a snorkel at 20 km is painted by the MPA; the fix reaches every escort with ≈1 km error and an alert', () => {

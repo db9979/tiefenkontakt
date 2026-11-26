@@ -207,7 +207,7 @@ export function stepWorld(w: World, dt = SIM_DT): void {
     if (s.route?.active) followRoute(s);
   }
   for (const s of w.ships) {
-    stepShip(s, dt, w.time);
+    stepShip(s, dt, w.time, { seaState: w.env.seaState, wind: w.env.met?.wind });
     // Everything afloat drifts with the current at its depth (tide, two-layer straits)
     if (s.alive) {
       const c = currentAt(w.env, s.pos, s.depth, w.time);

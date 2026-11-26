@@ -8,7 +8,7 @@ import type { Station } from '../../screens/game.js';
 import { clock, h, latLon, setHtml, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction } from '../../widgets/actions.js';
-import { BATTERY_TIP, DepthProfile, batteryInfo, depthOf, trimDeg, trimText } from '../../widgets/depth-profile.js';
+import { BATTERY_TIP, DepthProfile, batteryInfo, depthOf, ownDepthLimit, trimDeg, trimText } from '../../widgets/depth-profile.js';
 import { airThreat, exposed } from './air-alarm.js';
 import { depthAlarms } from '../../widgets/depth-alarm-ui.js';
 import { crashDive } from '../../widgets/emergency.js';
@@ -90,7 +90,7 @@ export function centralStation(): Station {
       store.lastError = s.env.noLayer ? 'Hier keine Sprungschicht: das Wasser ist bis zum Grund durchmischt' : 'Sprungschicht unbekannt: einmal tief durchtauchen, um sie zu messen';
       return;
     }
-    const depth = depthOf(v, layer, CLASSES[s.own.cls].maxDepth);
+    const depth = depthOf(v, layer, ownDepthLimit(s.own));
     if (depth !== undefined) net.send({ t: 'order', depth });
   }));
   q<HTMLButtonElement>('#c-air [data-crash]').onclick = () => crashDive();
@@ -137,7 +137,12 @@ export function centralStation(): Station {
       // Tiles: the four figures a diving officer watches
       const moving = Math.abs(o.order.depth - o.depth) > 2;
       q('#t-depth').textContent = `${o.depth.toFixed(0)} M`;
-      q('#t-depth2').textContent = `${moving ? `→ ${o.order.depth.toFixed(0)} M · ` : ''}GRUND ${s.env.bottom !== undefined ? `${s.env.bottom} M` : '—'}`;
+      // A damaged hull: the reduced test depth takes the place of the bottom figure (the danger now)
+      const limit = ownDepthLimit(o);
+      const hurt = limit < spec.maxDepth;
+      q('#t-depth2').textContent = `${moving ? `→ ${o.order.depth.toFixed(0)} M · ` : ''}${hurt ? `MAX ${limit} M` : `GRUND ${s.env.bottom !== undefined ? `${s.env.bottom} M` : '—'}`}`;
+      q('#t-depth2').className = hurt ? (o.depth > limit ? 'red' : 'amber') : 'dim';
+      q('[data-tile="depth"]').title = hurt ? `Druckkörper beschädigt: Testtiefe ${limit} M statt ${spec.maxDepth} M, Zerstörungstiefe etwa ${Math.round(limit * 1.475)} M` : '';
       // Trim in degrees, the same figure damage control shows; the weight out of trim in the tooltip
       const trim = trimDeg(o);
       const tons = o.trim ?? 0;
@@ -145,11 +150,11 @@ export function centralStation(): Station {
       q('#t-trim').className = Math.abs(trim) > 3 ? 'red' : Math.abs(trim) > 1 ? 'amber' : '';
       q('[data-tile="trim"]').title = `Trimmwinkel (+ Bug unten). ${Math.abs(tons) < 0.05 ? 'Boot ausgetrimmt' : `Trimmlast ${Math.abs(tons).toFixed(1).replace('.', ',')} t ${tons > 0 ? 'zu leicht' : 'zu schwer'} · Trimmpumpen laufen`}`;
       q('#t-trim2').textContent = `PRESSLUFT ${'●'.repeat(o.hpAir ?? 3)}${'○'.repeat(Math.max(0, 3 - (o.hpAir ?? 3)))}${o.blowing ? ' · BLÄST AN' : ''}`;
-      const bat = batteryInfo(o);
+      const bat = batteryInfo(o, s.env.seaState);
       q('#t-bat').textContent = bat ? `${bat.pct.toFixed(0)} %` : 'REAKTOR';
       q('#t-bat').className = bat ? (bat.pct < 25 ? 'red' : bat.pct < 50 ? 'amber' : '') : '';
       q('#t-bat2').textContent = bat ? bat.range : 'UNBEGRENZT';
-      q('#t-bat2').className = bat?.short ? 'amber' : 'dim';
+      q('#t-bat2').className = bat?.short || bat?.slow ? 'amber' : 'dim';
       q('[data-tile="bat"]').title = bat ? BATTERY_TIP : '';
       const sx = o.snorkelExt ?? (o.snorkel ? 1 : 0);
       q('[data-tile="snort"]').hidden = !spec.battery;
@@ -163,7 +168,7 @@ export function centralStation(): Station {
       btnState(q('[data-cmd="silent"]'), { on: !!o.crew?.silent });
       btnState(q('[data-cmd="battle"]'), { on: !!o.crew?.battle });
       el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => {
-        depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, layer, spec.maxDepth));
+        depthBtn(b, o.depth, o.order.depth, depthOf(b.dataset.depth!, layer, limit));
         // Over/under the layer only once it is measured; the tooltip says why not
         if (!b.dataset.depth!.startsWith('layer')) return;
         b.disabled = layer === undefined;

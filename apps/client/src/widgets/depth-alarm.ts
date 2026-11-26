@@ -19,7 +19,7 @@ export interface DepthAlarmCfg {
 }
 
 export type AlarmLevel = 0 | 1 | 2; // none, WARNUNG, GEFAHR
-export type AlarmKind = 'upper' | 'lower' | 'ground';
+export type AlarmKind = 'upper' | 'lower' | 'ground' | 'limit';
 
 export interface AlarmState {
   /** The upper band is armed once the boat has been deeper than it. */
@@ -27,6 +27,8 @@ export interface AlarmState {
   upper: AlarmLevel;
   lower: AlarmLevel;
   ground: AlarmLevel;
+  /** Reduced test depth after hull damage: WARNUNG within 10 % above it, GEFAHR below it. */
+  limit?: AlarmLevel;
 }
 
 export interface AlarmInput {
@@ -35,6 +37,8 @@ export interface AlarmInput {
   /** Bottom under the boat (m), undefined where it is not known. */
   bottom?: number;
   periscopeDepth: number;
+  /** Test depth reduced by hull damage (m); undefined while the hull is sound (the lower band covers that). */
+  limit?: number;
 }
 
 export interface AlarmRaise { kind: AlarmKind; level: AlarmLevel }
@@ -105,26 +109,39 @@ export function stepAlarms(prev: AlarmState, cfg: DepthAlarmCfg, inp: AlarmInput
     else if (ground === 0 && clear < cfg.groundWarn) ground = 1;
   }
 
+  // Damaged hull: always on (not a setting), from 90 % of the reduced test depth
+  let limit: AlarmLevel = prev.limit ?? 0;
+  if (inp.limit === undefined) limit = 0;
+  else {
+    const warnAt = inp.limit * 0.9;
+    if (depth > inp.limit) limit = 2;
+    else if (limit === 2 && depth < inp.limit - H) limit = depth > warnAt ? 1 : 0;
+    if (limit === 1 && depth < warnAt - H) limit = 0;
+    else if (limit === 0 && depth > warnAt) limit = 1;
+  }
+
   if (upper > prev.upper) raised.push({ kind: 'upper', level: upper });
   if (lower > prev.lower) raised.push({ kind: 'lower', level: lower });
   if (ground > prev.ground) raised.push({ kind: 'ground', level: ground });
-  return { state: { upperArmed, upper, lower, ground }, raised };
+  if (limit > (prev.limit ?? 0)) raised.push({ kind: 'limit', level: limit });
+  return { state: { upperArmed, upper, lower, ground, ...(limit ? { limit } : {}) }, raised };
 }
 
 /** Worst active level. */
-export const worstLevel = (s: AlarmState): AlarmLevel => Math.max(s.upper, s.lower, s.ground) as AlarmLevel;
+export const worstLevel = (s: AlarmState): AlarmLevel => Math.max(s.upper, s.lower, s.ground, s.limit ?? 0) as AlarmLevel;
 
 /** Short console label of a band (German, without numbers so the UI dictionary translates it). */
 export function alarmLabel(kind: AlarmKind, level: AlarmLevel): string {
   if (kind === 'upper') return 'ZU FLACH';
   if (kind === 'lower') return 'UNTER TIEFENGRENZE';
+  if (kind === 'limit') return level === 2 ? 'UNTER TESTTIEFE · DRUCKKÖRPER BESCHÄDIGT' : 'TIEFENBESCHRÄNKUNG';
   return level === 2 ? 'GRUNDABSTAND · GEFAHR' : 'GRUNDABSTAND · WARNUNG';
 }
 
 /** Active bands, worst first. */
 export function activeAlarms(s: AlarmState): AlarmRaise[] {
   const all: AlarmRaise[] = [
-    { kind: 'ground', level: s.ground }, { kind: 'lower', level: s.lower }, { kind: 'upper', level: s.upper },
+    { kind: 'limit', level: s.limit ?? 0 }, { kind: 'ground', level: s.ground }, { kind: 'lower', level: s.lower }, { kind: 'upper', level: s.upper },
   ];
   return all.filter((a) => a.level > 0).sort((a, b) => b.level - a.level);
 }

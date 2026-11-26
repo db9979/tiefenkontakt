@@ -1,4 +1,4 @@
-import { CLASSES, PERISCOPE_DEPTH, type Snapshot } from '@tk/shared';
+import { CLASSES, PERISCOPE_DEPTH, depthLimitOf, type Snapshot } from '@tk/shared';
 import { announce } from '../a11y.js';
 import { audio } from '../audio.js';
 import { t } from '../i18n/index.js';
@@ -20,6 +20,8 @@ class DepthAlarms {
   cfg?: DepthAlarmCfg;
   state: AlarmState = initialAlarmState();
   clearance?: number;
+  /** Test depth reduced by hull damage (undefined while the hull is sound). */
+  limit?: number;
   private cls?: string;
   private callout?: HTMLElement;
   private panels = new Set<() => void>();
@@ -39,7 +41,9 @@ class DepthAlarms {
     }
     const bottom = s.env.bottom;
     this.clearance = bottom !== undefined ? bottom - o.depth : undefined;
-    const { state, raised } = stepAlarms(this.state, this.cfg!, { depth: o.depth, orderDepth: o.order.depth, bottom, periscopeDepth: PERISCOPE_DEPTH });
+    const lim = depthLimitOf(o.cls, o.comps);
+    this.limit = lim < spec.maxDepth ? lim : undefined;
+    const { state, raised } = stepAlarms(this.state, this.cfg!, { depth: o.depth, orderDepth: o.order.depth, bottom, periscopeDepth: PERISCOPE_DEPTH, limit: this.limit });
     this.state = state;
     for (const r of raised) {
       const text = `${t(alarmLabel(r.kind, r.level))} · ${this.figure(r.kind)}`;
@@ -56,6 +60,7 @@ class DepthAlarms {
     const c = this.cfg!;
     if (kind === 'upper') return `${c.upper} M`;
     if (kind === 'lower') return `${c.lower} M`;
+    if (kind === 'limit') return `${this.limit ?? 0} M`;
     return `${Math.max(0, Math.round(this.clearance ?? 0))} M`;
   }
 
@@ -67,7 +72,7 @@ class DepthAlarms {
   helmTag(): string {
     const a = activeAlarms(this.state)[0];
     if (!a) return '';
-    const short = a.kind === 'ground' ? 'GRUND' : a.kind === 'upper' ? 'ZU FLACH' : 'TIEFENGRENZE';
+    const short = a.kind === 'ground' ? 'GRUND' : a.kind === 'upper' ? 'ZU FLACH' : a.kind === 'limit' ? 'TESTTIEFE' : 'TIEFENGRENZE';
     return `<span class="${a.level === 2 ? 'red blink' : 'amber'}" title="Tiefenalarm">⚠ <span>${short}</span></span>`;
   }
 

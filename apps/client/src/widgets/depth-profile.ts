@@ -1,11 +1,11 @@
-import { CLASSES, PERISCOPE_DEPTH, batteryChargePctH, batteryDrainPctH, type Snapshot } from '@tk/shared';
+import { CLASSES, PERISCOPE_DEPTH, batteryChargePctH, batteryDrainPctH, chargeTapering, chargeTimeS, depthLimitOf, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { COL, fitCanvas } from './format.js';
 import { clampTextX, plateText } from './canvas-text.js';
 
 /** Tooltip on the battery figures: game time runs compressed, so the charge comes faster than at sea. */
-export const BATTERY_TIP = 'Zeit im Spiel verdichtet: die Batterie lädt schneller als auf einem echten Boot (dort etwa 10–15 %/h beim Schnorcheln). Reichweite bei der befohlenen Fahrt';
+export const BATTERY_TIP = 'Zeit im Spiel verdichtet: die Batterie lädt schneller als auf einem echten Boot (dort etwa 10–15 %/h beim Schnorcheln). Über 70 % nimmt sie die Ladung immer langsamer an (40 auf 12 %/h); schwerer Seegang drosselt die Diesel. Reichweite bei der befohlenen Fahrt';
 
 /**
  * Submerged endurance (s) at a speed with the present charge; undefined when the AIP plant
@@ -33,18 +33,36 @@ export function enduranceText(s: number, kn: number): string {
  * the battery is flat; after ALARMTAUCHEN that is the sprint, not the creep still on the log).
  * Undefined for a nuclear boat.
  */
-export function batteryInfo(o: Snapshot['own']): { pct: number; charging: boolean; range: string; short: boolean } | undefined {
+export function batteryInfo(o: Snapshot['own'], seaState = 0): { pct: number; charging: boolean; range: string; short: boolean; slow?: boolean } | undefined {
   const spec = CLASSES[o.cls];
   if (!spec.battery || o.battery === undefined) return undefined;
   const pct = (100 * o.battery) / spec.battery.capacityKnH;
   const charging = o.depth <= 0.5 || (o.snorkel && o.depth <= PERISCOPE_DEPTH + 0.5 && (o.snorkelExt ?? 1) >= 1);
   const kn = Math.min(Math.abs(o.order.speedKn), spec.maxSpeedKn);
   const end = enduranceAt(o, kn);
-  const range = charging
-    ? `LÄDT ${Math.round(batteryChargePctH(o.speedKn))} %/H`
+  // Surfaced the diesels breathe freely; on the snorkel the sea throttles them
+  const sea = o.depth <= 0.5 ? 0 : seaState;
+  const slow = charging && chargeTapering(pct);
+  const range = charging ? chargeText(pct, o.speedKn, sea)
     : end === undefined ? 'AIP · UNBEGRENZT'
     : enduranceText(end, kn);
-  return { pct, charging, range, short: !charging && (end ?? Infinity) < 3600 };
+  return { pct, charging, range, short: !charging && (end ?? Infinity) < 3600, ...(slow ? { slow } : {}) };
+}
+
+/** "LÄDT 38 %/H · VOLL IN 2:05" or, above 70 % (short, it has to fit the tile), "LADUNG VERLANGSAMT · VOLL 1:10". */
+export function chargeText(pct: number, kn: number, seaState = 0): string {
+  const rate = batteryChargePctH(kn, pct, seaState);
+  if (pct >= 99.5) return 'VOLL GELADEN';
+  if (rate <= 0) return `LÄDT NICHT · ${Math.round(rate)} %/H`;
+  const t = chargeTimeS(pct, 100, kn, seaState);
+  const hm = Number.isFinite(t) ? `${Math.floor(t / 3600)}:${String(Math.floor((t % 3600) / 60)).padStart(2, '0')}` : undefined;
+  if (chargeTapering(pct)) return hm ? `LADUNG VERLANGSAMT · VOLL ${hm}` : `LADUNG VERLANGSAMT ${Math.round(rate)} %/H`;
+  return `LÄDT ${Math.round(rate)} %/H${hm ? ` · VOLL IN ${hm}` : ''}`;
+}
+
+/** The boat's present test depth (m): the class value, less after hull damage (boat.ts). */
+export function ownDepthLimit(o: Snapshot['own']): number {
+  return depthLimitOf(o.cls, o.comps);
 }
 
 /**
@@ -63,6 +81,7 @@ export function trimText(deg: number): string {
 
 /** Depth of a depth button ('layer-'/'layer+' need the measured layer). */
 export function depthOf(v: string, layer: number | undefined, maxDepth: number): number | undefined {
+  // maxDepth: the present test depth (reduced after hull damage)
   if (v === 'layer-') return layer === undefined ? undefined : Math.max(30, layer - 40);
   if (v === 'layer+') return layer === undefined ? undefined : layer + 30;
   return v === 'max' ? maxDepth * 0.9 : Number(v);
@@ -132,6 +151,16 @@ export class DepthProfile {
       ctx.fillRect(40, Y(layer) - 4, w - 40, 8);
       ctx.fillStyle = COL.amber;
       plateText(ctx, `SPRUNGSCHICHT ${layer} M`, lx(`SPRUNGSCHICHT ${layer} M`), place(Y(layer) + 16), COL.bg, 2);
+    }
+    // A damaged hull: the reduced test depth as a red band, everything below it is risk
+    const limit = ownDepthLimit(s.own);
+    if (limit < maxD) {
+      ctx.fillStyle = 'rgba(240, 149, 149, 0.14)';
+      ctx.fillRect(40, Y(limit), w - 40, H - Y(limit));
+      ctx.strokeStyle = COL.red;
+      ctx.beginPath(); ctx.moveTo(40, Y(limit)); ctx.lineTo(w, Y(limit)); ctx.stroke();
+      ctx.fillStyle = COL.red;
+      plateText(ctx, `TIEFENBESCHRÄNKUNG ${limit} M`, lx(`TIEFENBESCHRÄNKUNG ${limit} M`), place(Y(limit) - 5), COL.bg, 2);
     }
     const bottom = s.env.bottom;
     if (bottom !== undefined && bottom < maxD) {

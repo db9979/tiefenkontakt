@@ -49,6 +49,10 @@ export interface Ship {
   scope?: { bearing: number; mag: number };
   /** Snorkel head extension 0..1; the diesels only run once it is fully up. */
   snorkelExt?: number;
+  /** Heavy sea: the snorkel head valve is shut by a wave until then (diesels stopped, no charge; boat.ts). */
+  headValveUntil?: number;
+  /** Heavy sea at periscope depth: the boat broaches (sucked up, conning tower out) until then (boat.ts). */
+  broachUntil?: number;
   /** Current rate of turn (deg/s, + = starboard); builds up and dies away with rudder and hull inertia. */
   yawRate?: number;
   /** People aboard: fatigue, morale, wounded, battle stations, silent running (crew.ts). */

@@ -1,5 +1,5 @@
 import { trueDeg } from '../../north.js';
-import { angleDiff, fogAt, lookoutRanges, type AlertView, type Sighting } from '@tk/shared';
+import { REGIONS, angleDiff, fogAt, lookoutRanges, type AlertView, type Sighting } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from '../../widgets/periscope3d.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -24,7 +24,7 @@ let H = 380;
 const WIDE_FOV = 75;
 /** Binocular magnifications: true field of view is about 52° / magnification (7×50: 7.4°). */
 const MAGS = [6, 8, 10, 12];
-const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'AUFGETAUCHT' };
+const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'AUFGETAUCHT', glow: 'LEUCHTSPUR' };
 
 /** What a report shows in the sightings list (undefined: not something the lookouts see). */
 export function sightWhat(a: Pick<AlertView, 'kind' | 'what' | 'sink' | 'text'>): string | undefined {
@@ -263,7 +263,9 @@ export function bridgeStation(): Station {
     },
     snap() {
       const s = store.snap!;
-      const env = { layerDepth: 0, layerLoss: 0, seaState: s.env.seaState, light: s.env.light, rain: s.env.rain, moon: s.env.moon };
+      // Area and month give the season's expected bioluminescence (the match's own bloom stays unknown)
+      const region = s.env.seabed?.region;
+      const env = { layerDepth: 0, layerLoss: 0, seaState: s.env.seaState, light: s.env.light, rain: s.env.rain, moon: s.env.moon, month: s.env.month, lat: region ? REGIONS[region].lat : undefined };
       const fog = fogAt(s.env.met, s.own);
       const r = lookoutRanges(env, fog);
       const quality = r.mast > 1500 ? 'GUT' : r.mast > 600 ? 'MÄSSIG' : 'SCHLECHT';
@@ -272,7 +274,8 @@ export function bridgeStation(): Station {
         <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${fog > 0.3 ? ' · NEBEL' : ''}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
-        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>${moonRow(s)}`,
+        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>${r.glow >= 150 ? `
+        <div class="row" title="Meeresleuchten (erwartet für Jahreszeit und Seegebiet): in dunkler Nacht leuchtet das Wasser, wo ein Boot es aufwühlt (Sehrohrfahne, Kielwasser, Torpedolaufbahn)"><span class="dim">MEERESLEUCHTEN · BOOT (6 KN)</span><span>${km(r.glow)}</span></div>` : ''}${moonRow(s)}`,
         airLine(s),
         selLine(),
       ]);

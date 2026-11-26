@@ -21,6 +21,10 @@ export interface ArenaSetup {
   season?: ScenarioSettings['season'];
   /** Time scale the lobby would have set (default 1×): the sea time is timeLimitMin × scale. */
   timeScale?: number;
+  /** Sea state 1–6 as set in the lobby (default 3; the variation may still shift it by a step). */
+  seaState?: number;
+  /** Weather as set in the lobby (stabil keeps the sea state from drifting during the match). */
+  weather?: ScenarioSettings['weather'];
 }
 
 export const DEFAULT_ARENA: ArenaSetup = { mission: 'groenland', timeOfDay: 'tag', botSkill: 'normal', west: ['ffg', 'ffg'], east: ['ssk', 'ssn'], timeLimitMin: 40 };
@@ -69,6 +73,7 @@ export class ArenaGame {
     this.settings = fixSeaTime(resolveLobby({
       ...DEFAULT_SETTINGS, mission: setup.mission, timeOfDay: setup.timeOfDay, botSkill: setup.botSkill, timeLimitMin: setup.timeLimitMin,
       timeScale: setup.timeScale ?? DEFAULT_SETTINGS.timeScale,
+      seaState: setup.seaState ?? DEFAULT_SETTINGS.seaState, weather: setup.weather ?? DEFAULT_SETTINGS.weather,
       variation: setup.variation ?? DEFAULT_SETTINGS.variation, area: setup.area, season: setup.season,
     }, seed));
     const slots = arenaSlots(setup);
