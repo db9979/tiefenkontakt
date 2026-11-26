@@ -1,5 +1,5 @@
 import { CLASSES, fogAt, iceCover, type ServerMsg, type Snapshot, type StationId } from '@tk/shared';
-import { audio } from '../audio.js';
+import { audio, installUnlock } from '../audio.js';
 import { lang } from '../i18n/index.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -222,8 +222,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   let endShown = false;
   let endBand: 'klar' | 'knapp' | 'remis' | undefined;
 
-  const unlock = () => audio.unlock();
-  window.addEventListener('pointerdown', unlock, { signal });
+  installUnlock(signal);
   const menu = settingsMenu({
     onRealism: () => stations[current]?.snap?.(),
     onBriefing: () => store.briefing && showBriefing(store.briefing, true),

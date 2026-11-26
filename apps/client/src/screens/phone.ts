@@ -1,5 +1,5 @@
 import { CLASSES, type ServerMsg, type Snapshot } from '@tk/shared';
-import { audio } from '../audio.js';
+import { audio, installUnlock } from '../audio.js';
 import { store } from '../store.js';
 import { h, tdeg3 } from '../widgets/format.js';
 import { lookFromOrientation, turnFrom } from '../widgets/gyro.js';
@@ -83,6 +83,7 @@ export function phoneScreen(root: HTMLElement, code: string): void {
   };
 
   // Start: sensors need a tap (iOS asks for permission), sound needs it too
+  installUnlock();
   q('#ph-go').onclick = async () => {
     const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     try {

@@ -98,7 +98,7 @@ export function periscopeStation(): Station {
       <div class="panel"><div class="hd"><span>Messwerte</span></div><div id="data"></div></div>
       <div class="panel grow" id="mast-panel"><div class="hd"><span>Mast · Radarwarner</span><span id="esm-st" class="dim"></span></div>
         <div id="mast-rows"></div>
-        <div class="fill" id="rose-box"><canvas id="esm-rose" class="keep" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas></div>
+        <div class="fill" id="rose-box"><canvas id="esm-rose" title="Radarwarner: Peilungen der gehörten Radare (Nord oben, gestrichelt der eigene Kurs; rot = Flugzeug oder Feuerleitradar)"></canvas></div>
         <div id="esm"></div>
         <div class="btnrow"><button id="radar" title="Radar am Mast: Entfernung und Peilung zu Schiffen bis zum Horizont. Jedes Schiff und Flugzeug mit ESM peilt dich dabei an – nur kurz einschalten">Radar</button></div>
       </div>

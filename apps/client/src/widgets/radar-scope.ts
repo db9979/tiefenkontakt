@@ -1,4 +1,4 @@
-import { inkOn, isInkLight } from './ink.js';
+import { inkOn, inkPixels, isInkLight } from './ink.js';
 import { depthAt, headingVec, isDangerEmitter, type Snapshot } from '@tk/shared';
 import { drawAir } from './air-symbols.js';
 import { plateText } from './canvas-text.js';
@@ -44,9 +44,13 @@ export class RadarScope {
   /** Transmitting in the last update (draw shows the sweep only then). */
   private live = false;
 
-  /** keep: the tube stays dark in the light theme (its canvas carries .keep too), like a real PPI. */
-  constructor(opts: { keep?: boolean } = {}) {
-    if (opts.keep) this.phos.classList.add('keep');
+  /** Paper copy of the phosphor for the light theme (lightness mirrored per pixel). */
+  private paper?: HTMLCanvasElement;
+
+  constructor() {
+    // The phosphor always burns in glowing ink on black; the light theme mirrors the finished
+    // picture per pixel (draw), so faint afterglow stays as visible as on the dark tube
+    this.phos.classList.add('keep');
     this.phos.width = S;
     this.phos.height = S;
     this.pc = this.phos.getContext('2d')!;
@@ -186,6 +190,21 @@ export class RadarScope {
   }
 
   /** Composite the tube, sweep trail, bezel and markings into the station canvas. */
+  /** The phosphor as drawn: itself on the dark tube, its lightness-mirrored copy on paper. */
+  private paperOf(light: boolean): HTMLCanvasElement {
+    if (!light) return this.phos;
+    if (!this.paper) {
+      this.paper = document.createElement('canvas');
+      this.paper.classList.add('keep');
+      this.paper.width = S;
+      this.paper.height = S;
+    }
+    const img = this.pc.getImageData(0, 0, S, S);
+    inkPixels(img.data);
+    this.paper.getContext('2d')!.putImageData(img, 0, 0);
+    return this.paper;
+  }
+
   draw(ctx: CanvasRenderingContext2D, w: number, h: number, s: Snapshot | undefined, rangeNm: number, selected?: string): { ox: number; oy: number; k: number } {
     ctx.fillStyle = '#030807';
     ctx.fillRect(0, 0, w, h);
@@ -205,7 +224,7 @@ export class RadarScope {
     ctx.globalCompositeOperation = inkOn(ctx) ? 'darken' : 'lighter';
     // Only the tube: the phosphor's corners must not paint a square around it
     ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.clip();
-    ctx.drawImage(this.phos, ox, oy, size, size);
+    ctx.drawImage(this.paperOf(inkOn(ctx)), ox, oy, size, size);
     ctx.restore();
     const on = this.live;
     if (on) {

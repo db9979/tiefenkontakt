@@ -42,12 +42,42 @@ class Audio {
   muted = localStorage.getItem('tk_muted') === '1';
   volume = Number(localStorage.getItem('tk_volume') ?? '0.7');
 
-  /** Must be called from a user gesture (browser autoplay rules). */
+  /** Silent looping <audio>: on iOS it moves the page into the "playback" audio session, so the ringer switch does not silence Web Audio. */
+  private keepAwake?: HTMLAudioElement;
+
+  /**
+   * Must be called from a user gesture (browser autoplay rules). Safe to call on every gesture: it
+   * creates the context once and resumes it whenever the browser suspended or interrupted it
+   * (iOS does so after a call, a lock or a tab switch). On iOS only touchend/click count as a
+   * gesture, so installUnlock() listens to those too.
+   */
   unlock(): void {
-    if (this.ctx) {
-      void this.ctx.resume();
-      return;
+    if (!this.ctx) this.create();
+    const ctx = this.ctx!;
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    try {
+      if (nav.audioSession && nav.audioSession.type !== 'playback') nav.audioSession.type = 'playback';
+    } catch { /* older browsers */ }
+    if (ctx.state !== 'running') {
+      void ctx.resume().catch(() => undefined);
+      // Classic iOS unlock: start a one-sample silent buffer inside the gesture
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, 22050);
+      src.connect(ctx.destination);
+      src.start(0);
     }
+    if (!nav.audioSession && /iP(hone|ad|od)|Macintosh.*Mobile/.test(navigator.userAgent)) {
+      this.keepAwake ??= Object.assign(document.createElement('audio'), { src: silentWav(), loop: true, playsInline: true });
+      if (this.keepAwake.paused) void this.keepAwake.play().catch(() => undefined);
+    }
+  }
+
+  /** True once the browser lets the page make sound. */
+  get running(): boolean {
+    return this.ctx?.state === 'running';
+  }
+
+  private create(): void {
     this.ctx = new AudioContext();
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : this.volume;
@@ -69,6 +99,8 @@ class Audio {
 
   setMuted(m: boolean): void {
     this.muted = m;
+    // Switching sound on is a gesture: make sure the context really runs
+    if (!m) this.unlock();
     localStorage.setItem('tk_muted', m ? '1' : '0');
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(m ? 0 : this.volume, this.ctx.currentTime, 0.05);
   }
@@ -477,3 +509,25 @@ class Audio {
 }
 
 export const audio = new Audio();
+
+/** Half a second of silence as a WAV data URI (8 kHz, 8 bit). */
+function silentWav(): string {
+  const n = 4000;
+  const b = new Uint8Array(44 + n);
+  const v = new DataView(b.buffer);
+  const str = (o: number, t: string) => [...t].forEach((c, i) => (b[o + i] = c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVEfmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  str(36, 'data'); v.setUint32(40, n, true);
+  b.fill(128, 44);
+  let bin = '';
+  for (const x of b) bin += String.fromCharCode(x);
+  return `data:audio/wav;base64,${btoa(bin)}`;
+}
+
+/** Unlock sound on every kind of gesture (iOS only accepts touchend/click, desktop pointerdown/keydown). */
+export function installUnlock(signal?: AbortSignal): void {
+  const go = () => audio.unlock();
+  for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, go, { capture: true, signal });
+}

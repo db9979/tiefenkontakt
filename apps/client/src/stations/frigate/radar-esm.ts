@@ -25,7 +25,7 @@ export function radarEsmStation(): Station {
   const el = h(`<div class="st two fradar">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Luft-/Seeraumradar · <span id="rng">12</span> SM</span><span id="rs" class="dim"></span></div>
-        <div class="fill" id="ppi-box" title="Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)"><canvas id="ppi" class="keep"></canvas></div>
+        <div class="fill" id="ppi-box" title="Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)"><canvas id="ppi"></canvas></div>
         <div class="foot"><button id="radar" class="primary">Radar</button>
           <span class="seg">${RANGES.map((r) => `<button data-rng="${r}" title="Bereich ${r} SM">${r} SM</button>`).join('')}</span></div>
       </div>
@@ -42,7 +42,7 @@ export function radarEsmStation(): Station {
   const canvas = el.querySelector<HTMLCanvasElement>('#ppi')!;
   const box = fillBox(el.querySelector<HTMLElement>('#ppi-box')!, 300, 900);
   // The PPI stays a dark tube in the light theme (phosphor on glass, readable in both)
-  const scope = new RadarScope({ keep: true });
+  const scope = new RadarScope();
   let rangeNm: number = Number(localStorage.getItem('tk_radar_rng')) || 12;
   let last = performance.now();
   let geo = { ox: 0, oy: 0, k: 1 };
