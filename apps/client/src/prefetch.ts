@@ -1,7 +1,24 @@
 /**
- * Background warm-up while the player is in the lobby or reading the briefing: the lazy
- * chunks (3D view and models, recognition renderer, voice server client) are fetched one
- * after another when the browser is idle, and the 3D shaders are compiled once in a small
+ * Code split for a fast first start: the login carries only the core; the lobby and the game
+ * screen (stations, plots, sonar) are chunks of their own. The lobby is fetched as soon as the
+ * login is on screen, the game screen first thing in the lobby.
+ */
+let lobby: Promise<typeof import('./screens/lobby.js')> | undefined;
+let game: Promise<typeof import('./screens/game.js')> | undefined;
+// A failed fetch (offline for a moment) is tried again on the next call
+export const loadLobby = () => (lobby ??= import('./screens/lobby.js').catch((e: unknown) => {
+  lobby = undefined;
+  throw e;
+}));
+export const loadGame = () => (game ??= import('./screens/game.js').catch((e: unknown) => {
+  game = undefined;
+  throw e;
+}));
+
+/**
+ * Background warm-up while the player is in the lobby or reading the briefing: the game
+ * screen first, then the lazy chunks (3D view and models, recognition renderer, voice server
+ * client) one after another when the browser is idle, and the 3D shaders are compiled once in a small
  * throwaway scene (the GPU driver keeps the compiled programs, so the first periscope or
  * bridge view no longer stalls). Nothing here blocks the UI; failures are ignored.
  */
@@ -36,11 +53,20 @@ async function warmShaders(): Promise<void> {
   }
 }
 
+/** The login is on screen: fetch the lobby while the player types. */
+export function preloadLobby(): void {
+  void idle().then(loadLobby).catch(() => undefined);
+}
+
 /** Start once per page load; runs step by step in idle time. */
 export function warmUp(): void {
   if (started) return;
   started = (async () => {
     try {
+      // The game screen is needed the moment a match starts: right after the lobby (which
+      // must not share a slow line with it), no waiting for idle time
+      await loadLobby();
+      await loadGame();
       await idle();
       await warmShaders();
       await idle();

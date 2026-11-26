@@ -92,14 +92,15 @@ export class StarField {
   readonly galCentre = new THREE.Vector3(1, 0, 0);
   private rot = new THREE.Matrix3();
 
-  constructor(cloud: Record<string, THREE.IUniform>, cloudGlsl: string) {
+  /** low: the low graphics level (no faint scatter, the cheaper cloud test). */
+  constructor(cloud: Record<string, THREE.IUniform>, cloudGlsl: string, private low = false) {
     const geo = (c: { pos: Float32Array; mag: Float32Array; bv: Float32Array }) => new THREE.BufferGeometry()
       .setAttribute('position', new THREE.BufferAttribute(c.pos, 3))
       .setAttribute('aMag', new THREE.BufferAttribute(c.mag, 1))
       .setAttribute('aBV', new THREE.BufferAttribute(c.bv, 1));
     this.points = new THREE.Points(geo(starCatalog()), new THREE.ShaderMaterial({
       vertexShader: STAR_VERT(cloudGlsl), fragmentShader: STAR_FRAG,
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, defines: low ? { LOW: 1 } : {},
       uniforms: {
         ...cloud,
         uRot: { value: this.rot }, uLim: { value: 5 }, uPx: { value: 1 }, uGain: { value: 0 }, uTime: { value: 0 },
@@ -134,7 +135,7 @@ export class StarField {
     (u.uMoon!.value as THREE.Vector3).copy(o.moonDir);
     u.uMoonK!.value = o.moon;
     this.points.visible = clear > 0.01 && lim > -1.6;
-    this.faint.visible = this.points.visible && lim - 1.6 * o.moon > 4.5;
+    this.faint.visible = !this.low && this.points.visible && lim - 1.6 * o.moon > 4.5;
     // Milky Way: only well after twilight, on a clear night; a half moon washes most of it out, a full moon all
     return clear * THREE.MathUtils.smoothstep(lim, 3.8, 4.8) * Math.max(0, 1 - 1.3 * o.moon);
   }

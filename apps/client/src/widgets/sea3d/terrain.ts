@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { depthAt, type SeabedSpec, type Vec2 } from '@tk/shared';
+import { depthAt, hasGrid, hasWideGrid, type SeabedSpec, type Vec2 } from '@tk/shared';
 
 /** Square of land around the own ship (m) and its cell size: mountains far off still show. */
 const SPAN = 60_000;
@@ -71,6 +71,12 @@ function buildLevel(spec: SeabedSpec, c: Vec2, span: number, cells: number, hole
   return g;
 }
 
+/** Identity of a sea chart for the land mesh (with the loaded state of its real-area grids). */
+export function seabedKey(spec: SeabedSpec): string {
+  const r = spec.region;
+  return `${spec.kind}|${spec.seed}|${spec.bankY ?? ''}|${r ?? ''}|${r ? `${hasGrid(r)}${hasWideGrid(r)}` : ''}`;
+}
+
 /** Near level: fine cells where coasts are close enough to matter for steering. */
 const NEAR_SPAN = 16_000;
 const NEAR_CELLS = 160;
@@ -79,7 +85,8 @@ export class Terrain {
   readonly group = new THREE.Group();
   private meshes: THREE.Mesh[] = [];
   private centre?: Vec2;
-  private spec?: SeabedSpec;
+  /** What the land was built from: the chart's content and which real grids were loaded then. */
+  private key = '';
   private mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
 
   /** Place the land for the own position (game frame); rebuild when needed. */
@@ -89,8 +96,12 @@ export class Terrain {
       return;
     }
     this.group.visible = true;
-    if (spec !== this.spec || !this.centre || Math.hypot(own.x - this.centre.x, own.y - this.centre.y) > REBUILD_M) {
-      this.spec = spec;
+    // By content, not identity: every snapshot brings a fresh copy of the same chart, and rebuilding
+    // the land ten times a second took most of a phone's main thread. A real sea area's grids
+    // arriving later do count (they replace the procedural seabed).
+    const key = seabedKey(spec);
+    if (key !== this.key || !this.centre || Math.hypot(own.x - this.centre.x, own.y - this.centre.y) > REBUILD_M) {
+      this.key = key;
       this.centre = { x: Math.round(own.x / 500) * 500, y: Math.round(own.y / 500) * 500 };
       this.build(spec, this.centre);
     }
