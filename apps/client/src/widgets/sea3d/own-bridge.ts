@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { C, Kit, P, facet } from './own-kit.js';
 import { bridgeDeckTexture, drains, nonSkidBump } from './own-deck-tex.js';
-import type { Lamp } from './own-lights.js';
+import type { Lamp, LightPool } from './own-lights.js';
 
 /**
  * The bridge the eye stands on (own ship, close-range model): a closed wheelhouse with a sloped
@@ -31,10 +31,16 @@ const BULWARK = 1.1;
 
 /**
  * Builds the bridge; returns where the flag-locker halyards end (port, starboard), the
- * darkened-ship lamps and the spot for a dim red light over the deck.
+ * darkened-ship lamps with the pools of light they throw, the spot for a faint red light over
+ * the deck and the paint of the bulwark (shaded down at night).
  */
-export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): { ends: THREE.Vector3[]; lamps: Lamp[]; pool: THREE.Vector3 } {
+export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): {
+  ends: THREE.Vector3[]; lamps: Lamp[]; patches: LightPool[]; pool: THREE.Vector3; shade: THREE.MeshStandardMaterial;
+} {
   const lamps: Lamp[] = [];
+  const patches: LightPool[] = [];
+  // The bulwark's own paint: its inboard faces stand in its shadow, dark at night
+  const shade = P.paint.clone();
   const yF = b.eye - EYE_OVER_DECK;
   const yW = yF - 2.6;
   const zf = b.ze + 0.25;
@@ -104,9 +110,9 @@ export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): 
     const grp = near.group((a.x + c.x) / 2, yF, (a.z + c.z) / 2, Math.atan2(c.x - a.x, c.z - a.z));
     // Local z runs along the wall, local x across it; `inward` picks the side the eye is on
     const side = Math.sign(inward.x * Math.cos(grp.rotation.y) - inward.z * Math.sin(grp.rotation.y)) || 1;
-    near.box(0.06, BULWARK, len + 0.06, 0, BULWARK / 2, 0, C.haze, P.paint, grp).userData.ao = 0.25;
+    near.box(0.06, BULWARK, len + 0.06, 0, BULWARK / 2, 0, C.haze, shade, grp).userData.ao = 0.25;
     near.box(0.13, 0.07, len + 0.13, side * 0.02, BULWARK + 0.035, 0, C.wood, P.matte, grp);
-    for (let s = -len / 2 + 0.35; s < len / 2; s += 0.7) near.box(0.08, BULWARK - 0.15, 0.05, side * 0.07, (BULWARK - 0.15) / 2, s, C.hazeD, P.paint, grp);
+    for (let s = -len / 2 + 0.35; s < len / 2; s += 0.7) near.box(0.08, BULWARK - 0.15, 0.05, side * 0.07, (BULWARK - 0.15) / 2, s, C.hazeD, shade, grp);
     // Waterway: a low flat bar inboard of the bulwark foot, drain holes through the plating
     near.box(0.015, 0.05, len - 0.3, side * 0.2, 0.025, 0, C.hazeD, P.paint, grp).userData.ao = 0;
     for (const f of drains(len)) near.box(0.012, 0.07, 0.2, side * 0.032, 0.035, (f - 0.5) * len, C.dark, P.matte, grp).userData.ao = 0;
@@ -152,6 +158,14 @@ export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): 
       const lg = near.group(lx2, yF + BULWARK - 0.16, lz2, ry);
       near.box(0.16, 0.09, 0.07, 0, 0, 0, C.chain, P.metal, lg);
       lamps.push({ p: V(lx2 - (ry ? sx * 0.06 : 0), yF + BULWARK - 0.2, lz2 - (ry ? 0 : 0.06)), color: 0xff1a0a, kind: 'red', near: true });
+      // It lights the wall under it and a half pool on the deck at the wall's foot
+      const inb = ry ? V(-sx, 0, 0) : V(0, 0, -1);
+      const along = ry ? V(0, 0, 1) : V(1, 0, 0);
+      const wx = ry ? sx * (b.wing - 0.068) : lx2;
+      const wz = ry ? lz2 : zf - 0.068;
+      const hTop = BULWARK - 0.24;
+      patches.push({ p: V(wx, yF + hTop / 2, wz), u: along.clone().multiplyScalar(0.62), v: V(0, hTop / 2, 0), n: inb, kind: 'wash', k: 0.38, near: true });
+      patches.push({ p: V(wx, yF + 0.006, wz), u: along.clone().multiplyScalar(1.5), v: inb.clone().multiplyScalar(1.7), b0: 0, kind: 'pool', k: 0.32, near: true });
     }
     // The compass cards glow faintly under their glass
     lamps.push({ p: V(sx * (b.hw + 0.7), yF + 1.13, b.ze - 0.3), color: 0xff5a2a, kind: 'card', near: true });
@@ -159,6 +173,7 @@ export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): 
   // Over the ladder well: a hooded lamp low on the rail post, lighting the treads
   near.box(0.14, 0.08, 0.1, 0, yF + 0.42, z0 + 0.03, C.chain, P.metal);
   lamps.push({ p: V(0, yF + 0.36, z0 - 0.02), color: 0xff1a0a, kind: 'red', near: true });
+  patches.push({ p: V(0, yF + 0.006, z0 + 0.02), u: V(0.9, 0, 0), v: V(0, 0, 0.9), b0: 0, kind: 'pool', k: 0.3, near: true });
   // Flag lockers in the wings' after corners: pigeonholes with rolled flags facing inboard, canvas cover on top
   const ends: THREE.Vector3[] = [];
   const flagCols = [0xb0261e, 0xd6b23a, 0x1f3a6b, 0xe2e4e0, 0x2c2c2c, 0x2f6b3a];
@@ -166,7 +181,7 @@ export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): 
     const lx = sx * (b.wing - 0.45);
     const lz = z0 + 1.25;
     const grp = near.group(lx, yF, lz, (-sx * Math.PI) / 2);
-    near.box(1.9, 0.95, 0.6, 0, 0.475, 0, C.haze, P.paint, grp);
+    near.box(1.9, 0.95, 0.6, 0, 0.475, 0, C.haze, shade, grp);
     for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
       near.box(0.26, 0.22, 0.02, -0.8 + c * 0.32, 0.2 + r * 0.29, 0.305, C.dark, P.matte, grp);
       const roll = near.mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 6), flagCols[(r * 6 + c * 5 + (sx > 0 ? 2 : 0)) % 6]!, P.matte, grp);
@@ -176,7 +191,7 @@ export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): 
     near.box(2.0, 0.05, 0.7, 0, 0.98, 0, C.canvas, P.matte, grp).rotation.x = -0.1;
     ends.push(V(lx, yF + 1.0, lz));
   }
-  return { ends, lamps, pool: V(0, yF + 2.4, (z0 + zf) / 2) };
+  return { ends, lamps, patches, pool: V(0, yF + 2.4, (z0 + zf) / 2), shade };
 }
 
 /**

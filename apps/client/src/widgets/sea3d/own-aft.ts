@@ -3,7 +3,7 @@ import type { Hull } from './hullkit.js';
 import { MARK, UNIT, base } from './warkit.js';
 import { C, Kit, P, facet } from './own-kit.js';
 import type { Deck } from './own-fittings.js';
-import type { Lamp } from './own-lights.js';
+import type { Lamp, LightPool } from './own-lights.js';
 
 /**
  * Aft and amidships detail for the own ship's close-range model (own-detail.ts): what the bridge
@@ -391,6 +391,8 @@ export interface AftOut {
   /** Exhaust pipe mouths (smoke), darkened-ship lamps, the spot for a red light over the after decks. */
   pipes: { p: THREE.Vector3; r: number }[];
   lamps: Lamp[];
+  /** The pools of light the lamps throw. */
+  patches: LightPool[];
   pool: { p: THREE.Vector3; range: number };
 }
 
@@ -436,12 +438,15 @@ export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, en
   const stern = quarterdeck(k, d, L, a.winch);
   // Darkened ship: masthead and stern lights, red lamps over the ladders, red floods on the flight deck
   const lamps: Lamp[] = [{ p: yard[2]!, color: 0xfff2dc, kind: 'nav' }, { p: stern, color: 0xfff2dc, kind: 'nav' }];
+  const patches: LightPool[] = [];
   const rr = a.roofRail;
   if (rr) for (const sx of [-1, 1]) {
     // On top of the rail's end stanchion, shining down onto the ladder head
     const p = V(sx * rr.half, rr.y + 0.98, rr.z0 - 0.06);
     k.box(0.12, 0.09, 0.14, p.x, rr.y + 1.04, rr.z0, C.chain, P.metal);
     lamps.push({ p, color: 0xff1a0a, kind: 'red' });
+    // A half pool on the roof inboard of the ladder head
+    patches.push({ p: V(sx * (rr.half - 0.05), rr.y + 0.03, rr.z0 + 0.35), u: V(0, 0, 1.0), v: V(-sx * 1.3, 0, 0), b0: 0, kind: 'pool', k: 0.3 });
   }
   let pool = { p: V(0, (rr?.y ?? d.y(0, 0)) + 3, (rr?.z0 ?? 0) - 2), range: 12 };
   const hg = a.hangar;
@@ -450,6 +455,13 @@ export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, en
       const p = V(sx * (hg.half - 0.7), hg.top - 0.5, hg.aft - 0.2);
       k.box(0.3, 0.2, 0.22, p.x, p.y + 0.05, hg.aft - 0.11, C.chain, P.metal);
       lamps.push({ p, color: 0xff2010, kind: 'flood' });
+      // Each flood throws a long red fan aft over its half of the flight deck, its hot spot a few metres out
+      const f = a.flight;
+      const len = Math.min(8, (f.z1 - f.z0) / 2.4);
+      const zc = f.z1 - len * 0.7;
+      patches.push({ p: V(sx * (hg.half - 0.7) * 0.5, f.y + 0.07, zc), u: V(3.8, 0, 0), v: V(0, 0, -len), b0: (zc - f.z1) / len, kind: 'pool', k: 0.36 });
+      // and some spill on the hangar face just under it
+      patches.push({ p: V(p.x - sx * 0.5, (p.y + hg.floor) / 2, hg.aft - 0.08), u: V(0.75, 0, 0), v: V(0, (p.y - hg.floor) / 2, 0), n: V(0, 0, -1), kind: 'wash', k: 0.12 });
     }
     pool = { p: V(0, a.flight.y + 4.5, hg.aft - 3), range: 20 };
   }
@@ -463,5 +475,5 @@ export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, en
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
   const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x1c2022 }));
   lines.name = 'own-halyards';
-  return { lines, pipes, lamps, pool };
+  return { lines, pipes, lamps, patches, pool };
 }

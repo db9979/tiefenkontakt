@@ -9,6 +9,7 @@ import { aftDetail, aftLayout, stripAft } from './own-aft.js';
 import { deckTile, foredeckTexture } from './own-deck-tex.js';
 import * as F from './own-fittings.js';
 import { ownSmoke } from './own-smoke.js';
+import { ownShimmer } from './own-shimmer.js';
 import { ownWake } from './own-wake.js';
 import { ownLights } from './own-lights.js';
 
@@ -179,9 +180,11 @@ export function ownDetail(g: THREE.Group, cls: OwnDetailCls, eye: number, eyeZ: 
   delete g.userData.smoke;
   for (const name of ['wake', 'bow', 'navlights']) g.getObjectByName(name)?.removeFromParent();
   const smoke = ownSmoke(g, out.pipes);
+  const shimmer = ownShimmer(g, out.pipes);
   const stem = L - (s.rake ?? 6) * (1 - s.draft / (top(L) + s.draft));
   const wake = ownWake(g, (z) => h.halfBeamAt(z, 0), stem, -L, s.beam);
-  const lights = ownLights(g, [...br.lamps, ...out.lamps], [{ p: br.pool, near: true, range: 9 }, { p: out.pool.p, near: false, range: out.pool.range }]);
+  const lights = ownLights(g, [...br.lamps, ...out.lamps], [{ p: br.pool, near: true, range: 9 }, { p: out.pool.p, near: false, range: out.pool.range }],
+    [...br.patches, ...out.patches], [br.shade]);
   const air = new THREE.Vector3();
   const inv = new THREE.Quaternion();
   const fx: OwnFx = {
@@ -192,6 +195,7 @@ export function ownDetail(g: THREE.Group, cls: OwnDetailCls, eye: number, eyeZ: 
       air.y = 0;
       air.z -= speed * 0.514;
       smoke.update(t, speed, light, air);
+      shimmer.update(t, speed, air);
       wake.update(speed, g);
       lights.update(light);
     },
