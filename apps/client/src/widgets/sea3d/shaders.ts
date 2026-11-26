@@ -43,10 +43,16 @@ void main() {
   vec2 sl = slopeLod(vPos.xz, foot);
   // Slopes a touch steeper than linear theory: the sharpened crests are steeper than the sines
   vec3 n = normalize(vec3(-sl.x * 1.2, 1.0, -sl.y * 1.2));
+  float dist = length(cameraPosition - vPos);
+#ifdef LOW
+  // Low graphics: no second pass over the wave trains for the flank tint, no capillary ripples
+  float vH = 0.0;
+  float near = 0.0;
+#else
   float vH = heightLod(vPos.xz, foot) / max(uAmp, 0.01);
   // Capillary ripples: high-frequency normal detail, fading with distance (gives the eye a sense of scale)
-  float dist = length(cameraPosition - vPos);
   float near = 1.0 - smoothstep(60.0, 900.0, dist);
+#endif
   if (near > 0.0) {
     // Fixed to the sea (own position added), drifting downwind
     vec2 q = vPos.xz + uOffR + uWind * uTime * 0.7;
@@ -91,6 +97,7 @@ void main() {
     float farF = 1.0 - smoothstep(400.0, 2500.0, dist);
     foam = mix(0.05 * uFoam, foam, farF) * uFoam;
     // Gale: spindrift, long foam streaks blown out along the wind
+#ifndef LOW
     if (uSpin > 0.0) {
       // Wavy lanes a few metres apart, broken into patches; left out where a pixel spans a lane
       vec2 sq = wq + vec2(0.0, (noise(wq * 0.05) - 0.5) * 14.0);
@@ -99,6 +106,9 @@ void main() {
       float sharp = 1.0 - smoothstep(0.6, 2.5, foot);
       foam += uSpin * mix(0.08, smoothstep(0.6, 0.82, lane) * patchy * 0.45, sharp) * farF;
     }
+#else
+    foam += uSpin * 0.08 * farF;
+#endif
     col = mix(col, vec3(0.86, 0.9, 0.92) * (0.1 + 0.9 * uLight), clamp(foam, 0.0, 1.0) * 0.85);
   }
   // Pack ice beyond the modelled floes: a floe pattern drifting with its field (x, z, radius, cover)

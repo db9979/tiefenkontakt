@@ -30,8 +30,11 @@ export function registerServiceWorker(inMatch: () => boolean): void {
       setInterval(() => void reg.update(), 30 * 60_000);
     });
     let reloading = false;
+    // The very first install also takes control (clients.claim): that is no new version, and
+    // reloading then would throw a first-time player out of the login, lobby or even a match
+    const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
+      if (reloading || !hadController) return;
       reloading = true;
       location.reload();
     });

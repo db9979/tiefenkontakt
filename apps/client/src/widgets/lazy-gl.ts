@@ -1,3 +1,5 @@
+import { quality } from './perf.js';
+
 /**
  * A WebGL scene that is built on first use and given back when it is no longer needed.
  * Browsers allow only a handful of live WebGL contexts per page: a station that leaves its
@@ -6,6 +8,8 @@
  */
 export interface GlScene {
   dispose(): void;
+  /** The graphics level the scene was built for (perf.ts); another level in effect rebuilds it. */
+  readonly level?: string;
 }
 
 export class LazyGl<T extends GlScene> {
@@ -28,6 +32,8 @@ export class LazyGl<T extends GlScene> {
   /** Build the scene if there is none yet (and cancel a pending free). */
   ensure(): void {
     clearTimeout(this.timer);
+    // Auto stepped down (or the player picked another level): build anew with that level's detail
+    if (this.scene?.level !== undefined && this.scene.level !== quality()) this.free();
     if (this.scene || this.loading || this.off || this.dead) return;
     this.loading = true;
     this.create(this.canvas)

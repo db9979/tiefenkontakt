@@ -1,14 +1,17 @@
 /**
  * Graphics quality: how hard the client works. "Auto" picks a lower level on phones and
  * small machines to save battery and heat; players can override it in the gear menu.
- * Levels cap the frame rate, the canvas resolution and the 3D detail.
+ * Levels cap the frame rate, the canvas resolution and the 3D detail. "Niedrig" also draws the
+ * 3D views a little under CSS resolution and without multisampling, with cheaper sea and sky
+ * shaders, no faint stars, Milky Way or cirrus and half the rain (periscope3d.ts, sea3d/sky.ts):
+ * on a weak GPU that doubles to triples the frame rate of the night views.
  */
 
 export type Quality = 'niedrig' | 'mittel' | 'hoch';
 export type QualitySetting = Quality | 'auto';
 
 const LEVELS = {
-  niedrig: { fps: 24, dpr2d: 1, dprGl: 1, ocean: 128 },
+  niedrig: { fps: 24, dpr2d: 1, dprGl: 0.8, ocean: 128 },
   mittel: { fps: 30, dpr2d: 1.5, dprGl: 1.25, ocean: 224 },
   hoch: { fps: 60, dpr2d: 2, dprGl: 1.5, ocean: 320 },
 } as const;

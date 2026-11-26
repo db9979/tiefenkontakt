@@ -48,8 +48,13 @@ export const CLOUD_GLSL = `
 uniform vec2 uCloudOff; uniform float uCover;
 float cloudThr() { return mix(0.8, 0.12, uCover); }
 float cloudDens(vec2 p) {
+#ifdef LOW
+  // Low graphics: one noise sum instead of a domain-warped one (a third of the work, rounder clouds)
+  float n = fbm(p + vec2(0.7, 0.35));
+#else
   vec2 w = vec2(fbm(p * 0.5 + vec2(3.1, 1.7)), fbm(p * 0.5 + vec2(7.7, 4.2)));
   float n = fbm(p + w * 1.4);
+#endif
   float t = cloudThr();
   return smoothstep(t - 0.05, t + 0.16, n);
 }
@@ -120,6 +125,7 @@ void main() {
   if (m > 0.995 && dot(uMoonCol, uMoonCol) > 0.0) col += moonDisc(d, md, sd);
   // Milky Way: a faint, mottled band along the galactic plane, wider and brighter toward Sagittarius,
   // split by the dark rift; only on clear dark nights (uMilky), under the clouds and the haze below
+#ifndef LOW
   if (uMilky > 0.002 && d.y > 0.0) {
     float b = dot(d, uGalN);
     vec3 pl = d - uGalN * b;
@@ -145,6 +151,7 @@ void main() {
     float ci = smoothstep(0.55, 0.85, fbm(q * vec2(0.5, 5.0))) * smoothstep(0.05, 0.4, d.y) * (1.0 - uCover);
     col = mix(col, vec3(0.92, 0.94, 0.96) * lit, ci * 0.35);
   }
+#endif
   // Cumulus / stratus deck, lit from the sun side
   float c = cloudAt(d);
   if (c > 0.0) {
@@ -194,8 +201,8 @@ void main() {
   gl_FragColor = vec4(uColor, uOpacity * vFade);
 }`;
 
-function precip(snow: boolean): THREE.LineSegments | THREE.Points {
-  const n = snow ? 4000 : 5000;
+function precip(snow: boolean, low: boolean): THREE.LineSegments | THREE.Points {
+  const n = (snow ? 4000 : 5000) / (low ? 2 : 1);
   const pos: number[] = [], end: number[] = [];
   for (let i = 0; i < n; i++) {
     const x = Math.random(), y = Math.random(), z = Math.random();
@@ -263,8 +270,8 @@ export interface SkyLight {
 export class SkyFx {
   readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
   private stars: StarField;
-  private rain = precip(false);
-  private snow = precip(true);
+  private rain: THREE.LineSegments | THREE.Points;
+  private snow: THREE.LineSegments | THREE.Points;
   private cloud: Record<string, THREE.IUniform> = { uCloudOff: { value: new THREE.Vector2() }, uCover: { value: 0.3 } };
   private last = -1;
   private precipK = 0;
@@ -273,11 +280,14 @@ export class SkyFx {
   /** Last lightning level per shower (to catch the start of a stroke). */
   private struck = new Map<number, number>();
 
-  constructor(scene: THREE.Scene) {
+  /** low: the low graphics level (cheaper clouds, no Milky Way, cirrus or faint stars, half the rain). */
+  constructor(scene: THREE.Scene, low = false) {
+    this.rain = precip(false, low);
+    this.snow = precip(true, low);
     this.mesh = new THREE.Mesh(
       new THREE.SphereGeometry(50_000, 48, 24),
       new THREE.ShaderMaterial({
-        vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false,
+        vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, fog: false, defines: low ? { LOW: 1 } : {},
         uniforms: {
           ...this.cloud,
           uTop: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() }, uHaze: { value: new THREE.Color() },
@@ -289,7 +299,7 @@ export class SkyFx {
         },
       }),
     );
-    this.stars = new StarField(this.cloud, CLOUD_GLSL);
+    this.stars = new StarField(this.cloud, CLOUD_GLSL, low);
     scene.add(this.mesh, this.stars.points, this.stars.faint, this.rain, this.snow);
   }
 

@@ -16,7 +16,7 @@ import { ownDetail, type OwnFx } from './sea3d/own-detail.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { GlowTracks, styleGlowSighting } from './sea3d/glow-trails.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
-import { dprGl, oceanSegments } from './perf.js';
+import { dprGl, oceanSegments, quality } from './perf.js';
 import { store } from '../store.js';
 
 /**
@@ -146,12 +146,16 @@ export class Periscope3D {
   /** Sighted torpedoes' glowing tracks at night; screen pixels per radian of the view this frame. */
   private glowTracks = new GlowTracks(this.scene);
   private pxPerRad = 1000;
+  /** Graphics level this scene was built for (a station rebuilds it when the level changes, lazy-gl.ts). */
+  readonly level = quality();
 
   constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
     this.eye = opts.eye ?? 4;
     this.camera.near = opts.own ? 1.5 : 3; // depth precision at range: nothing comes within 3 m of a periscope head
     canvas.classList.add('gl');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // Low graphics: no multisampling, cheaper sea and sky shaders (sky.ts, shaders.ts: LOW)
+    const low = this.level === 'niedrig';
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !low, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x24343b);
     this.camera.rotation.order = 'YXZ';
     const grid = oceanGrid(oceanSegments());
@@ -159,7 +163,7 @@ export class Periscope3D {
     this.ocean = new THREE.Mesh(
       grid.geo,
       new THREE.ShaderMaterial({
-        vertexShader: OCEAN_VERT, fragmentShader: OCEAN_FRAG,
+        vertexShader: OCEAN_VERT, fragmentShader: OCEAN_FRAG, defines: low ? { LOW: 1 } : {},
         uniforms: {
           ...waveUniforms(), uCell: { value: grid.cell }, uTime: { value: 0 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) }, uSkyTop: { value: new THREE.Color(0x3d5560) },
           uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uMoon: { value: new THREE.Vector3(-0.3, 0.4, 0.8) }, uFog: { value: new THREE.Color(0x4b5f67) },
@@ -172,7 +176,7 @@ export class Periscope3D {
     // Coasts, islands and mountains from the sea chart
     this.scene.add(this.terrain.group);
     this.wx = new WeatherFx(this.scene, this.ocean.material);
-    this.skyFx = new SkyFx(this.scene);
+    this.skyFx = new SkyFx(this.scene, low);
     this.scene.add(this.hemi, this.sun, this.fire);
     this.scene.add(this.camera);
     if (opts.own) {

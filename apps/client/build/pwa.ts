@@ -76,7 +76,9 @@ export function pwa(buildId: string): Plugin {
     name: 'tk-pwa',
     apply: 'build',
     generateBundle(_opts, bundle) {
-      const files = Object.keys(bundle).filter((f) => f.startsWith('assets/')).map((f) => `/${f}`);
+      // The English dictionaries only for those who use them: the page fetches them on first use
+      // and the worker keeps them then (cache first for /assets/)
+      const files = Object.keys(bundle).filter((f) => f.startsWith('assets/') && !f.startsWith('assets/dict-en-')).map((f) => `/${f}`);
       // Small public files worth having offline; the 4 MB handbook is cached only when opened
       files.push('/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png');
       this.emitFile({ type: 'asset', fileName: 'sw.js', source: swSource(buildId, files) });
