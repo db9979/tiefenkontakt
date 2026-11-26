@@ -6,6 +6,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Hafen ausgeglichen:** Die U-Boote starten 750 m näher am Ankerplatz und kommen so vor Ablauf der Zeit zu einer
+  zweiten Salve. 96 Bot-Partien: Geleitschiffe 48 % (vorher 74 %); alle fünf Missionen jetzt 44–56 %.
 - **Balance mit der langsameren KI:** KI-U-Boote bleiben an ihrem Ziel (auch über kurze Kontaktverluste), plotten
   alle gehörten Frachter, fahren ihre TMA-Schenkel quer zur Sichtlinie und weichen kürzer aus; Schelf-Startposition
   angepasst. 80 Bot-Partien: Geleitschiffe 55 % (vorher 74 %), Grönland, Schelf, Fjord und Meerenge je 44–56 %.
