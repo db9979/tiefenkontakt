@@ -1,5 +1,5 @@
 import { onTap } from './touch.js';
-import { fitCanvas, setHtml } from './format.js';
+import { fitCanvas, setHtml, setParts } from './format.js';
 import { CLASSES, SYSTEMS, compartmentLayout, type CompartmentView, type ShipSystem, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -30,7 +30,7 @@ html[data-theme='light'] .dp-sel{background:#fbf0d6}
 .dp-bar>span{position:absolute;right:2px;top:-3px;font-size:var(--fs-cap);line-height:15px;color:var(--g2)}
 .dp-fl{display:inline-block;width:14px;text-align:center;font-weight:bold}
 .dp-act{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:4px 0 0;padding:4px;border:1px solid var(--line2);border-radius:3px;font-size:0.8333rem}
-.dp-act>span{flex:1 1 100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dp-act .dp-state{flex:1 1 100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dp-act button{flex:1 1 0;padding:2px 4px;min-height:0;font-size:var(--fs-cap);white-space:nowrap}
 .dp-sys{display:grid;grid-template-columns:62px minmax(0,1fr) 34px;align-items:center;column-gap:6px;font-size:0.9167rem}
 .dp-sys>div{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0}
@@ -161,9 +161,10 @@ export function renderDamage(el: HTMLElement): void {
       pc.dmg > 0.05 ? `SCHADEN ${Math.round(pc.dmg * 100)} %` : '',
       pc.sealed ? 'ABGESCHOTTET' : '',
     ].filter(Boolean).join(' · ') || 'KLAR';
-    setHtml(el.querySelector('#dp-act')!, `<span><b style="color:${compColour(pc)}">${pick + 1}</b> ${ps.name.toUpperCase()} <span class="dim">${state}</span></span>
-      <button data-cact="party" data-ci="${pick}" class="${pick === at ? 'on' : ''}" ${pc.sealed || pick === at ? 'disabled' : ''} title="Schadenstrupp hierher: Lecks dichten, lenzen, Brand löschen, reparieren">${pick === at ? 'TRUPP IST HIER' : 'TRUPP HIERHER'}</button>
-      <button data-cact="seal" data-ci="${pick}" class="warn" title="${pc.sealed ? 'Schott öffnen: der Trupp kann wieder hinein' : 'Schotten schließen: Wasser und Feuer gehen nicht weiter, aber Stationen und Systeme darin fallen aus'}">${pc.sealed ? 'SCHOTT ÖFFNEN' : 'ABSCHOTTEN'}</button>`);
+    // The state line (water %) changes all the time, the two buttons stay the same nodes
+    setParts(el.querySelector('#dp-act')!, [`<span class="dp-state"><b style="color:${compColour(pc)}">${pick + 1}</b> ${ps.name.toUpperCase()} <span class="dim">${state}</span></span>`,
+      `<button data-cact="party" data-ci="${pick}" class="${pick === at ? 'on' : ''}" ${pc.sealed || pick === at ? 'disabled' : ''} title="Schadenstrupp hierher: Lecks dichten, lenzen, Brand löschen, reparieren">${pick === at ? 'TRUPP IST HIER' : 'TRUPP HIERHER'}</button>
+      <button data-cact="seal" data-ci="${pick}" class="warn" title="${pc.sealed ? 'Schott öffnen: der Trupp kann wieder hinein' : 'Schotten schließen: Wasser und Feuer gehen nicht weiter, aber Stationen und Systeme darin fallen aus'}">${pc.sealed ? 'SCHOTT ÖFFNEN' : 'ABSCHOTTEN'}</button>`]);
   }
   const d = o.damage;
   setHtml(el.querySelector('#dp-sys')!, SYSTEMS.map((k) => {

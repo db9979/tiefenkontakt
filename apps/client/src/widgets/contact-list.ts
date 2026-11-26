@@ -1,5 +1,5 @@
 import { onTap } from './touch.js';
-import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setParts, setText, tbrg, tdeg3 } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setParts, setRows, setText, tbrg, tdeg3 } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
@@ -126,8 +126,8 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
   const chipRow = `<div class="chiprow">${chips}<span class="dim chipcount" title="Gezeigt / alle Kontakte"></span></div>`;
   const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? `<span title="Entfernung in km · ≈ aus der TMA-Lösung">${sortHead(ID, 'range', 'KM', DEF)}</span>` : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'SENS', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}<span title="Signalpegel in dB · ALT: Zeit seit der letzten Peilung">${sortHead(ID, 'lvl', 'PEGEL', DEF)}</span></div>`;
   // Chips, header and rows apart: the header's sort buttons stay put while the rows move
-  setParts(el, [chipRow, rows.length ? head : '', (rows.length
-    ? rows.map(({ c, own, fresh }) => {
+  // and the rows are kept by contact (setRows): a row changes in place when its bearing moves
+  const items = rows.map(({ c, own, fresh }) => {
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
       const cls = c.label === store.selected ? 'amber selrow' : own ? 'mute' : age > 30 ? 'dim' : '';
@@ -159,7 +159,7 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
       const whatTitle = own ? `EIGEN${nameOf(c) ? ' · ' + nameOf(c) : ''}` : nameOf(c) || 'UNKLASSIFIZIERT';
       const color = c.assigned === 'torpedo' ? 'red' : '';
       const sensors = c.sensors.map((x) => SENSOR_NAME[x]).join(', ');
-      return `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
+      const html = `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
         <span>${esc(c.label)}${fresh ? ' <b class="newbadge">NEU</b>' : ''}</span>
         <span${brgTitle ? ` title="${esc(brgTitle)}"` : ''}>${brgText}</span>
         ${ranged ? `<span title="${esc(rangeTitle)}">${range}</span>` : ''}
@@ -167,11 +167,13 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
         <span class="${color}" title="${esc(whatTitle)}">${what}</span>
         <span class="lvl${age > 30 ? ' dim' : ''}">${levelOf(c)}</span>
       </div>`;
-    }).join('') + torpRows(s, ranged)
-    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>` + torpRows(s, ranged))]);
+    return { key: `c:${c.label}`, html };
+  });
+  if (!rows.length) items.push({ key: 'none', html: `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>` });
+  setParts(el, [chipRow, rows.length ? head : '', (box) => setRows(box, [...items, ...torpRows(s, ranged)])]);
   setText(el.querySelector('.chipcount')!, `${rows.length}/${all.length}`);
   if (!el.dataset.bound) {
-    // Delegated mousedown: rows are rebuilt on every snapshot, so per-row handlers would lose clicks
+    // Delegated, on release: rows come and go with the contacts, so per-row handlers would lose taps
     el.dataset.bound = '1';
     onTap(el, '[data-c]', (row) => {
       store.selected = row.dataset.c;
@@ -180,16 +182,16 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
 }
 
 /** Own wire-guided torpedoes at the end of the list: bearing and range from the wire, selectable. */
-function torpRows(s: NonNullable<typeof store.snap>, ranged: boolean): string {
+function torpRows(s: NonNullable<typeof store.snap>, ranged: boolean): { key: string; html: string }[] {
   return s.torpedoes.map((t) => {
     const sel = t.id === store.selected;
-    return `<div class="row ctable clickable ${sel ? 'amber selrow' : ''}" data-c="${esc(t.id)}" title="Eigener Torpedo am Draht · Klicken zum Auswählen">
+    return { key: `t:${t.id}`, html: `<div class="row ctable clickable ${sel ? 'amber selrow' : ''}" data-c="${esc(t.id)}" title="Eigener Torpedo am Draht · Klicken zum Auswählen">
       <span class="${sel ? '' : 'red'}">${esc(t.id)}</span>
       <span>${tbrg(bearing(s.own, t))}</span>
       ${ranged ? `<span>${kmNum(distance(s.own, t))}</span>` : ''}
       <span class="glyphs" title="Draht">D</span>
       <span class="${sel ? '' : 'red'}" title="Eigener Torpedo am Draht">EIG. TORPEDO</span>
       <span class="lvl">${t.homing ? 'ERFASST' : 'LÄUFT'}</span>
-    </div>`;
-  }).join('');
+    </div>` };
+  });
 }

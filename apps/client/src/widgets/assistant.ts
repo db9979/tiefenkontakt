@@ -1,6 +1,7 @@
 import { CLASSES, ownLegChange, type Snapshot, type StationId } from '@tk/shared';
 import { store } from '../store.js';
 import { esc, setHtml } from './format.js';
+import { onTap } from './touch.js';
 import { isFriendlyContact } from './friendly.js';
 import { solutionQuality } from './speed-prior.js';
 import { lang } from '../i18n/index.js';
@@ -75,7 +76,9 @@ export function mountAssistant(host: HTMLElement, go: (station: StationId) => vo
   el.className = 'assist';
   host.prepend(el);
   let station: StationId | undefined;
-  el.onclick = () => station !== undefined && go(station);
+  // On the host, on release: the bar shows and hides with the hint, and a control that appears
+  // with its own click handler while a finger is down makes iOS drop that tap
+  onTap(host, '.assist', () => station !== undefined && go(station));
   return {
     update() {
       const s = store.snap;

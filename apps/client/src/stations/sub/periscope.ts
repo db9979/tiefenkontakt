@@ -12,7 +12,7 @@ import type { Station } from '../../screens/game.js';
 import { phoneButton, phoneLook, phonePhoto } from '../../widgets/phone-link.js';
 import { isKey, keycap } from '../../widgets/keys.js';
 import { fillBox } from '../../widgets/fill.js';
-import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
+import { CHOICE_LABEL, CLASS_LABEL, COL, fitCanvas, h, km, mastState, setHtml, setParts, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { SkySearch } from '../../widgets/sky-search.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
 import { photosTaken, shutterFlash, snapPhoto } from '../../widgets/photo.js';
@@ -299,18 +299,21 @@ export function periscopeStation(): Station {
       const rangeRow = !target ? '—'
         : easy && target.range !== undefined ? `${stad !== undefined ? km(stad) : '—'} <span class="dim">· ORTUNG</span> ${km(target.range)}`
         : stad !== undefined ? km(stad) : target.assignedCls ? '—' : '<span class="dim">ERST KLASSE ZUWEISEN</span>';
-      setHtml(el.querySelector('#data')!, `
+      // In pieces: the bearings change every frame of training, the KLASSE ZUWEISEN and
+      // ALARMTAUCHEN buttons stay the same nodes (a button replaced mid-tap loses the tap on iOS)
+      setParts(el.querySelector('#data')!, [`
         <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${tdeg1(periBearing)}°</span></div>
-        <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : sel ? `${sel.label} <span class="amber">· NICHT IN SICHT</span>` : '—'}</span></div>
-        <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls && !autoCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : autoCls ? `${CLASS_LABEL[autoCls]} <span class="dim">AUTO</span>` : target ? '<button data-recog class="warn" style="min-height:22px;padding:1px 8px" title="Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen">KLASSE ZUWEISEN ▸</button>' : '—'}</span></div>
-        <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
+        <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : sel ? `${sel.label} <span class="amber">· NICHT IN SICHT</span>` : '—'}</span></div>`,
+        `<div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls && !autoCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : autoCls ? `${CLASS_LABEL[autoCls]} <span class="dim">AUTO</span>` : target ? '<button data-recog class="warn" style="min-height:22px;padding:1px 8px" title="Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen">KLASSE ZUWEISEN ▸</button>' : '—'}</span></div>`,
+        `<div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
-        <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>
-        ${air ? `<div class="row peri-air"><span class="dim">LUFT</span><span class="red blink">${air.text}</span></div>
-        <div class="row peri-air"><span class="red">FLIEGERALARM</span><button data-crash class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">ALARMTAUCHEN</button></div>`
-        : `<div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>`}
-        <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
-        <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>`);
+        <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>`,
+        air ? `<div class="row peri-air"><span class="dim">LUFT</span><span class="red blink">${air.text}</span></div>`
+        : `<div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>`,
+        air ? '<div class="row peri-air"><span class="red">FLIEGERALARM</span><button data-crash class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">ALARMTAUCHEN</button></div>' : '',
+        `<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
+        <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>`,
+      ]);
       // Mast block: how long it has been up and what the radar warner hears (only with the mast up)
       setHtml(el.querySelector('#mast-rows')!, `
         <div class="row"><span class="dim">MAST</span><span class="${ms.moving || o.mastUp ? 'amber' : ''}">${ms.moving ? `FÄHRT ${ms.moving === 'aus' ? 'AUS' : 'EIN'} ${Math.round(ms.ext * 100)} %` : o.mastUp ? `OBEN ${since.toFixed(0)} S · SICHTBAR UND PEILBAR` : 'EINGEFAHREN'}${o.snorkel ? ' · SCHNORCHELT' : ''}</span></div>

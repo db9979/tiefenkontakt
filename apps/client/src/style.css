@@ -196,7 +196,8 @@ button.link { background: none; border: none; color: var(--dim, #6f8a78); text-t
 .langbtn { position: fixed; left: 8px; bottom: 8px; z-index: 80; font-size: 0.8333rem; padding: 2px 6px; opacity: 0.7; }
 @media (hover: hover) { .langbtn:hover { opacity: 1; } }
 /* In a match language and theme live in the ⚙ menu: no floating buttons over the console */
-body:has(.game) .langbtn { display: none; }
+/* Not on the phone periscope either: the full-screen view has its own top bar there */
+body:has(.game) .langbtn, body.phone-view .langbtn { display: none; }
 .langbtn, button.link, .rline .racts button, .chip { min-height: 0; }
 
 /* Briefing and assistant */
@@ -344,7 +345,7 @@ button, a, label, select, input, textarea, summary, [role=button], .clickable, .
 /* Phone: language switch sits at the top of the page instead of floating over content; in game it lives in the menu */
 @media (max-width: 600px) {
   .langbtn { position: absolute; top: 10px; right: 10px; left: auto; bottom: auto; }
-  body:has(.game) .langbtn { display: none; }
+  body:has(.game) .langbtn, body.phone-view .langbtn { display: none; }
   .panel > .hd { flex-wrap: wrap; gap: 2px 10px; }
   .panel > .hd > :last-child:not(:first-child) { white-space: normal; text-align: left; }
   .overlay .brief-panel { max-height: calc(100dvh - 120px); }

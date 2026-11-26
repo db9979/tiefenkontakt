@@ -10,9 +10,9 @@ import { planeTargets } from '../../widgets/air-targets.js';
 import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
-import { CLASS_LABEL, esc, fitCanvas, h, km, setHtml, setText, tdeg3 } from '../../widgets/format.js';
+import { CLASS_LABEL, esc, fitCanvas, h, km, setHtml, setParts, setText, tdeg3 } from '../../widgets/format.js';
 import { LazyGl } from '../../widgets/lazy-gl.js';
-import { onRelease } from '../../widgets/touch.js';
+import { onRelease, onTap } from '../../widgets/touch.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { fillBox } from '../../widgets/fill.js';
 import { toggleRecogBook } from '../../widgets/recog-book.js';
@@ -113,9 +113,9 @@ export function bridgeStation(): Station {
   };
   /** The sightings list as last drawn (its rows point into it by index). */
   let sightings: { label?: string; bearing: number; what: string; time: number; range?: number }[] = [];
-  el.querySelector<HTMLElement>('#b-sight')!.addEventListener('click', (e) => {
-    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-sight]');
-    const a = row && sightings[Number(row.dataset.sight)];
+  // On release: the rows are rewritten every second (their age), even while a finger is on one
+  onTap(el.querySelector<HTMLElement>('#b-sight')!, '[data-sight]', (row) => {
+    const a = sightings[Number(row.dataset.sight)];
     if (!a) return;
     airTrack = undefined;
     const c = a.label ? store.snap?.contacts.find((x) => x.label === a.label) : undefined;
@@ -266,14 +266,15 @@ export function bridgeStation(): Station {
       const fog = fogAt(s.env.met, s.own);
       const r = lookoutRanges(env, fog);
       const quality = r.mast > 1500 ? 'GUT' : r.mast > 600 ? 'MÄSSIG' : 'SCHLECHT';
-      setHtml(el.querySelector('#b-data')!, `
+      // In pieces: the aircraft line moves every snapshot, the KLASSE ZUWEISEN button must not move with it
+      setParts(el.querySelector('#b-data')!, [`
         <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${fog > 0.3 ? ' · NEBEL' : ''}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
-        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>
-        ${airLine(s)}
-        ${selLine()}
-`);
+        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>`,
+        airLine(s),
+        selLine(),
+      ]);
       // Sightings: the latest report per contact, plus explosions, sinkings, torpedoes and launches
       // with their bearing, newest first; a click turns the view to it
       sightings = [];
