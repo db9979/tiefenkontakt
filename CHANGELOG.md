@@ -6,6 +6,18 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Stationsprüfung 4 (Kapitäne, UX-Tester, Grafiker):** 72 Befunde auf U-Boot und Fregatte geprüft und behoben.
+  - Realismus U-Boot: Auto-TMA begrenzt die Zielfahrt nach Klasse und Wellendrehzahl (Warnung „an der Grenze“),
+    Fliegeralarm bei Luftfahrzeug nahe am ausgefahrenen Mast mit ALARMTAUCHEN, Funk zählt nur echte Geleitschiffe,
+    Ausweichvorschlag bleibt unter der Schicht, Batterie-Restzeit bei befohlener Fahrt, FEUER fragt bei Güte unter 50 %.
+  - Realismus Fregatte: Hubschrauber mit Startvorbereitung und 50 km Radius, Waffenreichweiten geprüft und angezeigt,
+    Werfer mit Sicherheitsabfrage, Schleppsonar mit totem Winkel auch voraus, kein Eis an der Färöer-Bank,
+    ESM-Reichweite am Funkhorizont, Meerenge ohne Konvoi-Texte, Telegraf mit Überwasser-Fahrstufen.
+  - Lagebild: NATO-Symbole mit Farben nach Zugehörigkeit (Handelsschiff neutral), Beschriftungen ohne Überlappung,
+    eigene Konvoischiffe stabil EIGEN (auch über Bojen), verlorene Kontakte behalten ihre Nummer ohne Verwechslung.
+  - Layout: Kontaktlisten ohne abgeschnittene Werte, Kopfleiste mit Zeitraffer bei allen Breiten, Treffer-Kamera
+    verdeckt nichts, Meldungen gebündelt, Dezimalkomma und Gradzeichen durchgängig, Radarschirme bleiben im hellen
+    Modus dunkel, Konvoi-Kurs per Klick befehlbar.
 - **Eigenes Schiff, dritte Runde:** Schornsteinrauch als weiche, mit dem scheinbaren Wind ziehende Abgasfahne statt
   grauer Kugeln (bei Marschfahrt kaum sichtbar, bei hoher Fahrt deutlich); Bugwelle, Schaum an der Bordwand und
   Schraubenwasser achteraus, mit der Fahrt skaliert; Nockdeck mit rutschfestem Anstrich, Plattenfugen, Wassergang,
