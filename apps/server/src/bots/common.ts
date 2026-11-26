@@ -27,13 +27,51 @@ import {
 
 export type BotSkill = 'leicht' | 'normal' | 'schwer';
 
+/**
+ * The three AI levels (lobby KI-STUFE: LEICHT, NORMAL, VETERAN; the key of VETERAN stays 'schwer'
+ * for saves and campaigns). NORMAL is the reference: its values are the behaviour before the levels.
+ * Submarines: TMA quality before a shot, salvo size, pack reports.
+ * Escorts: aim error of rockets/helo torpedoes (m), helicopter and patrol aircraft (LEICHT: none), fire rate.
+ * Both: torpedo reaction (delay s, evasion s, decoys, layer crossing), silent running after a ping
+ * (s) and the ping strength that counts as hunted, wake-homer side shots, how much the captain
+ * varies his legs (share), and how strongly he uses what the side learned (learning.ts):
+ * escorts' ping share and radar seconds per ten minutes, the boats' depth under the layer and slow-down.
+ * Strait breakthrough: creeping speed hunted / free (kn) and depth below the layer (m; LEICHT stays above it).
+ * Harbour attack: run-in speed hunted / free (kn), run-in depth (m), least torpedoes in the fan.
+ */
 export const SKILL = {
-  // Submarines: TMA quality before a shot, salvo size, pack reports.
-  // Escorts: aim error of rockets/helo torpedoes (m), use of dipping sonar and patrol aircraft, fire rate.
-  leicht: { think: 4, subThink: 4, tmaQuality: 56, salvo: 2, pack: true, reactS: 40, aimErr: 500, air: true, fireRate: 0.67, pingDuty: 120 },
-  normal: { think: 2, subThink: 2, tmaQuality: 52, salvo: 2, pack: true, reactS: 15, aimErr: 150, air: true, fireRate: 1.3, pingDuty: 120 },
-  schwer: { think: 1, subThink: 2, tmaQuality: 52, salvo: 2, pack: true, reactS: 5, aimErr: 0, air: true, fireRate: 2, pingDuty: 240 },
+  leicht: {
+    think: 4, subThink: 4, tmaQuality: 42, salvo: 1, pack: true, reactS: 40, aimErr: 700, air: false, fireRate: 0.5, pingDuty: 60,
+    torpReactS: 12, evadeS: 60, decoys: 1, crossLayer: false, silentS: 150, pingSe: 30, wakeSide: false, vary: 0,
+    learnPing: 0.75, learnRadarS: 120, learnLayer: 20, learnSlow: 0.9, straitKn: [4, 7], straitUnder: -20,
+    harbourKn: [7, 7], harbourDeep: 60, harbourFan: 1,
+  },
+  normal: {
+    think: 2, subThink: 2, tmaQuality: 52, salvo: 2, pack: true, reactS: 15, aimErr: 150, air: true, fireRate: 1.3, pingDuty: 120,
+    torpReactS: 0, evadeS: 90, decoys: 1, crossLayer: true, silentS: 300, pingSe: 25, wakeSide: true, vary: 0,
+    learnPing: 0.5, learnRadarS: 200, learnLayer: 30, learnSlow: 0.8, straitKn: [4, 7], straitUnder: 30,
+    harbourKn: [4, 7], harbourDeep: 120, harbourFan: 2,
+  },
+  schwer: {
+    think: 1, subThink: 2, tmaQuality: 54, salvo: 3, pack: true, reactS: 5, aimErr: 0, air: true, fireRate: 2.5, pingDuty: 120,
+    torpReactS: 0, evadeS: 90, decoys: 2, crossLayer: true, silentS: 450, pingSe: 20, wakeSide: true, vary: 0.35,
+    learnPing: 0.3, learnRadarS: 300, learnLayer: 45, learnSlow: 0.7, straitKn: [4, 7], straitUnder: 50,
+    harbourKn: [4, 7], harbourDeep: 120, harbourFan: 2,
+  },
 } as const;
+
+/**
+ * A deterministic draw in [-1, 1) per ship, match and step number: a VETERAN captain varies his
+ * legs and turns with it (scaled by SKILL.vary; 0 leaves the pattern as it was, without a draw).
+ */
+export function vary(skill: BotSkill, shipId: string, seed: number, n: number): number {
+  const k = SKILL[skill].vary;
+  if (!k) return 0;
+  let h = (seed ^ Math.imul(n + 1, 0x27d4eb2d)) | 0;
+  for (let i = 0; i < shipId.length; i++) h = Math.imul(h ^ shipId.charCodeAt(i), 0x85ebca6b);
+  h ^= h >>> 15;
+  return k * ((((Math.imul(h, 0xc2b2ae35) >>> 0) % 2000) / 1000) - 1);
+}
 
 export interface BotMemory {
   /** Hunter-killer boat: shots fired (alternates salvo size). */
@@ -63,6 +101,9 @@ export interface BotMemory {
   lead?: { x: number; y: number; b: number; t: number };
   sprintUntil: number;
   snorkelUntil: number;
+  /** A torpedo alert the captain has not reacted to yet (LEICHT: a slower crew), and a second decoy due (VETERAN). */
+  torpAlert?: { b: number; at: number };
+  decoyAt?: number;
   /** Silent running after hearing a ping (no hammering, no loud work). */
   silentUntil?: number;
   xbtDone?: boolean;

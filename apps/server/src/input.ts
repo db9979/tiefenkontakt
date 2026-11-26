@@ -126,7 +126,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('lesson_step'), step: z.number().int().min(0).max(50) }),
   z.object({ t: z.literal('station'), id: z.enum(STATION_IDS) }),
   z.object({ t: z.literal('quick') }),
-  z.object({ t: z.literal('solo'), team: z.enum(['west', 'east']), weekly: z.boolean().optional() }),
+  z.object({ t: z.literal('solo'), team: z.enum(['west', 'east']), weekly: z.boolean().optional(), botSkill: z.enum(['leicht', 'normal', 'schwer']).optional() }),
   z.object({ t: z.literal('spectate'), matchId: z.string().max(40) }),
   z.object({ t: z.literal('phone_link') }),
   z.object({ t: z.literal('settings'), ...settingsFields }),

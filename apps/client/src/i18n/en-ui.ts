@@ -406,4 +406,7 @@ export const EN_UI: [string, string][] = [
   ['KRIEGSSCH.', 'WARSHIP'], ['EIG. TORPEDO', 'OWN TORPEDO'], ['Eigener Torpedo am Draht', 'Own wire-guided torpedo'],
   ['Entfernung in km · ≈ aus der TMA-Lösung', 'Range in km · ≈ from the TMA solution'],
   ['Weitere Kartenwerkzeuge', 'More chart tools'], ['Warum der Zeitraffer angehalten hat', 'Why the fast-forward stopped'],
+  ['KI-STUFE', 'AI LEVEL'], ['VETERAN', 'VETERAN'], ['KI-STUFE LEICHT', 'AI LEVEL EASY'], ['KI-STUFE NORMAL', 'AI LEVEL NORMAL'], ['KI-STUFE VETERAN', 'AI LEVEL VETERAN'],
+  ['Wie gut die KI-Kapitäne spielen. LEICHT: langsamer und ungenauer, weicht Torpedos spät aus. NORMAL: der Standard. VETERAN: schneller, nutzt Sprungschicht und Täuschkörper, variiert seine Muster und lernt stärker aus euren Gewohnheiten.', 'How well the AI captains play. EASY: slower and less accurate, dodges torpedoes late. NORMAL: the standard. VETERAN: faster, uses the layer and decoys, varies its patterns and learns more from your habits.'],
+  ['Gegen KI spielen: Stufe der KI-Gegner (die Wochenlage spielt immer NORMAL)', 'Play the AI: level of the AI opponents (the weekly situation is always NORMAL)'],
 ];

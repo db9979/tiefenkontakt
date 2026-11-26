@@ -1,6 +1,7 @@
 /**
  * Bot vs bot arena: plays full matches headless with AI on both sides and prints outcomes.
  * Usage: npx tsx scripts/bot-arena.ts [games] [skill]
+ * ARENA_LEVEL=leicht|normal|veteran [ARENA_LEVEL_SIDE=subs|escorts]: the AI level, for one role against NORMAL.
  * The match logic lives in apps/server/src/arena.ts (also used by the in-game replay series).
  */
 import { ArenaGame, DEFAULT_ARENA, type ArenaSetup } from '../apps/server/src/arena.js';
@@ -10,7 +11,17 @@ import type { ScenarioSettings } from '../apps/server/src/scenario.js';
 import { setShotTrace, type ShotTrace } from '../apps/server/src/bots/common.js';
 
 const games = Number(process.argv[2] ?? 6);
-const skill = (process.argv[3] ?? 'normal') as ScenarioSettings['botSkill'];
+/** Lobby level names to the bots' keys (VETERAN is 'schwer' inside). */
+const LEVEL: Record<string, ScenarioSettings['botSkill']> = { leicht: 'leicht', normal: 'normal', veteran: 'schwer', schwer: 'schwer' };
+// ARENA_LEVEL=leicht|normal|veteran: the AI level (else the second argument, default normal); with
+// ARENA_LEVEL_SIDE=subs|escorts only that role plays at the level, the other one at NORMAL
+const level = process.env.ARENA_LEVEL ? LEVEL[process.env.ARENA_LEVEL.toLowerCase()] : undefined;
+if (process.env.ARENA_LEVEL && !level) throw new Error(`ARENA_LEVEL ${process.env.ARENA_LEVEL}: leicht, normal oder veteran`);
+const levelSide = process.env.ARENA_LEVEL_SIDE;
+if (levelSide && levelSide !== 'subs' && levelSide !== 'escorts') throw new Error(`ARENA_LEVEL_SIDE ${levelSide}: subs oder escorts`);
+const skill = (levelSide ? 'normal' : level ?? process.argv[3] ?? 'normal') as ScenarioSettings['botSkill'];
+const roles = levelSide && level ? (levelSide === 'subs' ? { sub: level } : { escort: level }) : undefined;
+if (level) console.log(`KI-Stufe ${process.env.ARENA_LEVEL!.toUpperCase()}${levelSide ? ` nur ${levelSide === 'subs' ? 'U-Boote' : 'Eskorten'}, Gegenseite NORMAL` : ''}`);
 const missions = (process.env.ARENA_MISSIONS?.split(',') ?? ['groenland', 'schelf', 'fjord']) as ScenarioSettings['mission'][];
 // ARENA_MIX=1: the newer classes (VDS frigate, AIP boat) take the second slot of each side
 const mix = !!process.env.ARENA_MIX;
@@ -33,7 +44,7 @@ const contactToShot = { west: [] as number[], east: [] as number[] };
 interface WakeRun { id: string; game: number; owner: string; locks: string[]; lost: number; end?: string; ignoreAt?: number }
 const wakeRuns: WakeRun[] = [];
 for (let g = 0; g < games; g++) {
-  const setup: ArenaSetup = { ...DEFAULT_ARENA, mission: missions[g % missions.length]!, botSkill: skill, west: ['ffg', mixed === 'east' ? 'ffg' : mixed ? 'ssw' : mix ? 'ffv' : 'ffg'], east: [mix ? 'ssa' : 'ssk', mixed === 'west' ? 'ssn' : mixed ? 'ffk' : 'ssn'],
+  const setup: ArenaSetup = { ...DEFAULT_ARENA, mission: missions[g % missions.length]!, botSkill: skill, ...(roles ? { roles } : {}), west: ['ffg', mixed === 'east' ? 'ffg' : mixed ? 'ssw' : mix ? 'ffv' : 'ffg'], east: [mix ? 'ssa' : 'ssk', mixed === 'west' ? 'ssn' : mixed ? 'ffk' : 'ssn'],
     // ARENA_VAR=aus|leicht|stark: per-match variation of positions, route and sea state
     ...(process.env.ARENA_VAR ? { variation: process.env.ARENA_VAR as ArenaSetup['variation'] } : {}),
     // ARENA_SEASON=winter|fruehling|sommer|herbst: fix the month (default: drawn per match)

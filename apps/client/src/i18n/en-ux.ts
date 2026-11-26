@@ -197,4 +197,5 @@ export const EN_UX_PHRASES: [RegExp, string][] = [
   [/ · (\d+) T\.$/, ' · $1 D.'], [/^(\d+) · TAG (\d+) · /, '$1 · DAY $2 · '], [/(\d+) VERS\./, '$1 SUNK'], [/RUMPF (\d+) %/, 'HULL $1 %'], [/([+-]?\d+) PKT\b/, '$1 PTS'], [/(\d+) EINSÄTZE\b/, '$1 MISSIONS'],
   [/^Kampagne: /, 'Campaign: '],
   [/^AN BORD: /, 'ABOARD: '], [/ · WERTUNG (\d+)/, ' · RATING $1'], [/ UHR\b/, ''], [/AKTIVSONAR/g, 'ACTIVE SONAR'],
+  [/^Gegner: KI VETERAN/, 'Enemy: AI VETERAN'],
 ];

@@ -1,5 +1,5 @@
 import { onRelease, onTap, touchable } from '../widgets/touch.js';
-import { CLASSES, NM, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
+import { AI_LEVEL_LABEL, CLASSES, NM, targetPosAt, type Debrief, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { CLASS_LABEL, COL, clock, esc, fitCanvas, h } from '../widgets/format.js';
@@ -60,7 +60,7 @@ export function debriefOverlay(d: Debrief, onClose: () => void, live = false, sh
     <div style="min-width:0;overflow:auto">
       ${live ? '<div class="hd"><span>Zuschauer</span><span class="amber">LIVE · VERZÖGERT</span></div><div class="dim">DU SIEHST DIE WAHRE LAGE MIT EINIGEN MINUTEN VERZÖGERUNG, DAMIT NIEMAND SEINEM TEAM HELFEN KANN.</div>'
         : d.provisional ? '<div class="hd"><span>Zwischenstand</span><span class="amber">PARTIE LÄUFT NOCH</span></div><div class="dim">DIE LAGE ENDET EINIGE MINUTEN VOR JETZT, DAMIT NIEMAND SEINEM TEAM HELFEN KANN. „ZUR LOBBY“ VERLÄSST DIE PARTIE.</div>'
-        : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${resultLine(d, shared)}</span></div>${!shared && bandNote(d.band, d.winner) ? `<div class="dim">${bandNote(d.band, d.winner)}</div>` : ''}`}
+        : `<div class="hd"><span>Ergebnis</span><span class="${shared || d.stats.some((s) => s.won && s.playerId === store.playerId) ? '' : 'red'}">${resultLine(d, shared)}</span></div>${!shared && bandNote(d.band, d.winner) ? `<div class="dim">${bandNote(d.band, d.winner)}</div>` : ''}${d.aiLevel ? `<div class="dim">KI-STUFE ${AI_LEVEL_LABEL[d.aiLevel]}</div>` : ''}`}
       ${mine && !d.provisional ? gradePanel(d, store.playerId, store.snap ? tmaQuality(d, store.snap.own.team, store.solutions.values()) : undefined) : ''}
       ${mine ? debriefTips(d.stats.find((s) => s.playerId === store.playerId)) : ''}
       ${mine ? photoStrip(d, store.playerId) : ''}

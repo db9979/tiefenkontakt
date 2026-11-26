@@ -1,4 +1,4 @@
-import { CLASSES, createLoadout, emptyDamage, SYSTEMS, type DamageState } from '@tk/shared';
+import { AI_LEVEL_LABEL, CLASSES, createLoadout, emptyDamage, SYSTEMS, type DamageState } from '@tk/shared';
 import type { MissionId, PlayableClass, ScenarioSettings, TimeOfDay } from './scenario.js';
 
 /**
@@ -263,7 +263,7 @@ export function missionSettings(run: CampaignRun): Partial<ScenarioSettings> | s
 export function briefingLines(run: CampaignRun): string[] {
   const m = nextMission(run);
   if (!m) return [];
-  const out = [m.brief, `Gegner: KI ${enemySkill(run).toUpperCase()}${run.dockDays >= 4 ? ' (verstärkt während der langen Werftliegezeit)' : ''}`];
+  const out = [m.brief, `Gegner: KI ${AI_LEVEL_LABEL[enemySkill(run)]}${run.dockDays >= 4 ? ' (verstärkt während der langen Werftliegezeit)' : ''}`];
   const s = run.ship;
   if (s.hull < 0.7) out.push(`Rumpf nur ${Math.round(s.hull * 100)} % – ein weiterer Treffer kann das Ende sein.`);
   const bad = SYSTEMS.filter((k) => s.damage[k] >= 0.3);

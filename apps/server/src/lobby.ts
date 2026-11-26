@@ -273,6 +273,8 @@ export class Lobby {
         this.leaveCurrent(conn.playerId);
         const wk = msg.weekly ? weeklySetup() : undefined;
         const setup = wk ?? soloSetup((Math.random() * 0xffffffff) >>> 0 || 1);
+        // KI-STUFE from quick play; the weekly situation is the same for everyone (NORMAL)
+        if (!wk && msg.botSkill) setup.settings.botSkill = msg.botSkill;
         const m = this.create(wk ? `Wochenlage ${wk.week}` : 'Gegen die KI');
         if (typeof m === 'string') return void err(m);
         m.fixSetup(setup);

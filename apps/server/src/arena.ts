@@ -1,5 +1,5 @@
 import { CLASSES, distance, isConvoyShip, stepWorld, type Debrief, type PlayerSlot, type World } from '@tk/shared';
-import { BotCrew } from './bots/index.js';
+import { BotCrew, type RoleSkills } from './bots/index.js';
 import { Recorder } from './recorder.js';
 import { evaluate, computeScore, type MatchResult } from './rules.js';
 import { DEFAULT_SETTINGS, allowedClasses, buildScenario, fixSeaTime, simTimeLimit, type MissionId, type PlayableClass, type ScenarioSettings } from './scenario.js';
@@ -11,6 +11,8 @@ export interface ArenaSetup {
   mission: MissionId;
   timeOfDay: ScenarioSettings['timeOfDay'];
   botSkill: ScenarioSettings['botSkill'];
+  /** One role at another level than botSkill (the arena measures a level against NORMAL). */
+  roles?: RoleSkills;
   west: PlayableClass[];
   east: PlayableClass[];
   timeLimitMin: number;
@@ -78,7 +80,7 @@ export class ArenaGame {
     }, seed));
     const slots = arenaSlots(setup);
     this.world = buildScenario(slots, this.settings, seed);
-    this.crew = new BotCrew(setup.botSkill);
+    this.crew = new BotCrew(setup.botSkill, setup.roles);
     for (const s of slots) this.crew.add(`p_${s.playerId}`);
     this.limit = simTimeLimit(this.settings);
     if (record) this.recorder = new Recorder();

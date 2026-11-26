@@ -27,7 +27,7 @@ import {
   ROCKET_MIN_RANGE,
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
-import { SKILL, isFriendly, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
+import { SKILL, isFriendly, solveFor, traceShot, vary, voted, type BotMemory, type BotSkill } from './common.js';
 import { thinkStrike } from './strike.js';
 import { convoyEstimate } from './convoy-estimate.js';
 import { directorCourse, type EscortTask } from './escort-team.js';
@@ -114,12 +114,12 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   const role = task?.role;
   const prosecuting = task ? role !== 'screen' && (leadB !== undefined || !!datum) : leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
   const learned = w.env.adapt?.west;
-  s.activeSonar = role === 'attacker' ? false : role === 'director' || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? 0.5 : 1);
+  s.activeSonar = role === 'attacker' ? false : role === 'director' || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? SKILL[skill].learnPing : 1);
   // Range scale (sets the ping interval): the long search scale, shorter and faster as the contact closes
   const near = target?.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : datum ? distance(s.pos, datum) : Infinity;
   s.pingRange = near < 3000 ? 4000 : near < 7000 ? 8000 : 16_000;
   // Learned: boats that like periscope depth get radar sweeps a third of the time
-  if (learned?.pd) s.radarOn = now % 600 < 200;
+  if (learned?.pd) s.radarOn = now % 600 < SKILL[skill].learnRadarS;
   // Raid warning (launch flash, ESM on the seeker): radar on for the air defence while rounds fly
   if (w.env.ssm?.missiles.some((x) => !x.done && x.team !== s.team && distance(x.pos, s.pos) < 30_000)) s.radarOn = true;
 
@@ -156,7 +156,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     }
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
-      m.legUntil = now + 240;
+      m.legUntil = now + Math.round(240 * (1 + vary(skill, s.id, w.env.seed ?? 0, Math.round(now))));
     }
   } else if (!merchants.length && s.team === 'east') {
     // Ostpakt patrol ship: sweep ahead of its own wolfpack toward the convoy, drawing the escorts
@@ -187,7 +187,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     if (now > m.legUntil) {
       m.legSign = -m.legSign;
       // Long straight legs: the towed array needs a minute of steady course after every turn
-      m.legUntil = now + 360;
+      m.legUntil = now + Math.round(360 * (1 + vary(skill, s.id, w.env.seed ?? 0, Math.round(now))));
     }
     s.order.heading = distance(s.pos, station) > 2500 ? to : wrap360(to + 30 * m.legSign);
     s.order.speedKn = distance(s.pos, station) > 4000 ? 18 : 12;
