@@ -1,4 +1,4 @@
-import type { WeeklyBoard, WeeklyRow } from '@tk/shared';
+import { AI_LEVELS, AI_LEVEL_HINT, AI_LEVEL_LABEL, type AiLevel, type WeeklyBoard, type WeeklyRow } from '@tk/shared';
 import { net } from '../net.js';
 import { esc, h } from '../widgets/format.js';
 
@@ -8,6 +8,17 @@ const MISSION: Record<string, string> = {
 };
 const TOD: Record<string, string> = { tag: 'Tag', daemmerung: 'Dämmerung', nacht: 'Nacht' };
 const CLS: Record<string, string> = { ffg: 'F-12', kor: 'K-7', ffv: 'F-30', ffk: 'P-11', ssw: 'S-14', ssk: 'Diesel', ssn: 'Atom', ssc: 'Küste', ssa: 'AIP' };
+
+/** The quick-play AI level is remembered on this device. */
+const LEVEL_KEY = 'tk-ki-stufe';
+function savedLevel(): AiLevel {
+  try {
+    const v = localStorage.getItem(LEVEL_KEY);
+    return AI_LEVELS.includes(v as AiLevel) ? (v as AiLevel) : 'normal';
+  } catch {
+    return 'normal';
+  }
+}
 
 /** Days and hours until the week turns. */
 function left(endsAt: number): string {
@@ -31,10 +42,18 @@ export function quickPanel(): HTMLElement {
       <span class="dim" title="Zufällige Mission, Tageszeit, Wetter und Lage; die Gegner spielt die KI">ZUFÄLLIGE LAGE</span>
       <span style="display:flex;gap:6px"><button data-solo="east" class="on" title="Sofort als U-Boot gegen die KI-Eskorte">Als U-Boot</button><button data-solo="west" class="on" title="Sofort als Fregatte gegen KI-U-Boote">Als Geleitschutz</button></span>
     </div>
+    <div class="row" style="gap:6px"><span class="dim" title="${AI_LEVEL_HINT}">KI-STUFE</span><select id="qp-skill" title="Gegen KI spielen: Stufe der KI-Gegner (die Wochenlage spielt immer NORMAL)">${AI_LEVELS.map((v) => `<option value="${v}">${AI_LEVEL_LABEL[v]}</option>`).join('')}</select></div>
     <div id="wk" style="margin-top:8px"><div class="dim">WOCHENLAGE WIRD GELADEN …</div></div>
   </div>`);
+  const level = el.querySelector<HTMLSelectElement>('#qp-skill')!;
+  level.value = savedLevel();
+  level.onchange = () => {
+    try {
+      localStorage.setItem(LEVEL_KEY, level.value);
+    } catch { /* private mode: not remembered */ }
+  };
   el.querySelectorAll<HTMLButtonElement>('[data-solo]').forEach((b) => {
-    b.onclick = () => net.send({ t: 'solo', team: b.dataset.solo as 'west' | 'east' });
+    b.onclick = () => net.send({ t: 'solo', team: b.dataset.solo as 'west' | 'east', botSkill: level.value as AiLevel });
   });
   const wk = el.querySelector<HTMLElement>('#wk')!;
   fetch('/api/weekly').then(async (r) => {

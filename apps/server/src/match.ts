@@ -250,6 +250,11 @@ export class Match {
     Object.assign(this.settings, setup.settings);
   }
 
+  /** The AI's level when AI captains played (not in lessons: their targets are passive). */
+  private aiLevel(): Debrief['aiLevel'] {
+    return !this.settings.lesson && this.bots.size > 0 ? this.settings.botSkill ?? 'normal' : undefined;
+  }
+
   /** Seed and lobby choices for a rematch (convoy battles only). */
   private setup(): MatchSetup | undefined {
     const s = this.settings;
@@ -495,7 +500,7 @@ export class Match {
     if (result) {
       this.state = 'ended';
       this.stop();
-      this.finished = { result, debrief: { ...this.recorder.debrief(w, this.slots, result), learned: this.learned.length ? this.learned : undefined, setup: this.setup() } };
+      this.finished = { result, debrief: { ...this.recorder.debrief(w, this.slots, result), learned: this.learned.length ? this.learned : undefined, aiLevel: this.aiLevel(), setup: this.setup() } };
       for (const c of this.conns.values()) {
         c.send({ t: 'end', ...result });
         c.send({ t: 'debrief', d: this.finished.debrief });

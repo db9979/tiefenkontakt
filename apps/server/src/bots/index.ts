@@ -1,4 +1,4 @@
-import { CLASSES, bearing, launchNoisemaker, setTowedDecoy, wrap360, type World } from '@tk/shared';
+import { CLASSES, bearing, launchNoisemaker, setTowedDecoy, wrap360, type Ship, type World } from '@tk/shared';
 import { SKILL, heardBearing, newMemory, recordTrack, type BotMemory, type BotSkill } from './common.js';
 import { thinkFrigate } from './frigate.js';
 import { thinkAirDefense } from './airdef.js';
@@ -12,17 +12,26 @@ export type { BotSkill } from './common.js';
 /** Kept for save files written before the AI rewrite. */
 export type BotState = BotMemory;
 
+/** Per-role levels (the arena plays one level against another): boats, surface ships. */
+export interface RoleSkills {
+  sub?: BotSkill;
+  escort?: BotSkill;
+}
+
 export interface SavedCrew {
   skill: BotSkill;
+  roles?: RoleSkills;
   bots: BotMemory[];
   pack: PackReport[];
 }
 
 /**
- * A boat with a torpedo on it beams it, sprints and crosses the layer this long (s), then goes
- * back to its attack quietly (at 120 s the sprints kept it off its plot for a third of the battle).
+ * A boat with a torpedo on it beams it, sprints and crosses the layer for SKILL.evadeS (NORMAL 90 s),
+ * then goes back to its attack quietly (at 120 s the sprints kept it off its plot for a third of the battle).
  */
-const SUB_TORPEDO_EVADE_S = 90;
+const ESCORT_TORPEDO_EVADE_S = 120;
+/** VETERAN: the second noisemaker goes this long after the first (s), as the torpedo comes through the first. */
+const SECOND_DECOY_S = 25;
 
 const TRANSIENT_HEARING = { flood: 14_800, launch: 65_000, mishap: 9_000, blow: 25_000, splash: 7_400, sam: 20_000, mine: 40_000, sounding: 4_000 } as const;
 
@@ -36,10 +45,15 @@ export class BotCrew {
   /** Events already scanned for torpedo alerts on the side's ships (heard datum). */
   private alertCursor = 0;
 
-  constructor(private skill: BotSkill = 'normal') {}
+  constructor(private skill: BotSkill = 'normal', private roles: RoleSkills = {}) {}
 
   setSkill(skill: BotSkill): void {
     this.skill = skill;
+  }
+
+  /** The level a ship's captain plays at: its role's level, else the crew's. */
+  skillOf(ship: Ship): BotSkill {
+    return (CLASSES[ship.cls].submarine ? this.roles.sub : this.roles.escort) ?? this.skill;
   }
 
   add(shipId: string, passive = false): void {
@@ -51,7 +65,7 @@ export class BotCrew {
   }
 
   toJSON(): SavedCrew {
-    return { skill: this.skill, bots: this.bots.map((b) => ({ ...b })), pack: [...this.pack] };
+    return { skill: this.skill, ...(this.roles.sub || this.roles.escort ? { roles: { ...this.roles } } : {}), bots: this.bots.map((b) => ({ ...b })), pack: [...this.pack] };
   }
 
   restore(saved: SavedCrew | BotMemory[]): void {
@@ -60,14 +74,14 @@ export class BotCrew {
       return;
     }
     this.skill = saved.skill;
+    this.roles = saved.roles ?? {};
     this.bots = saved.bots.map((b) => ({ ...newMemory(b.shipId, b.passive), ...b }));
     this.pack = saved.pack;
   }
 
   step(w: World): void {
-    const k = SKILL[this.skill];
     this.heardAlerts(w);
-    if (w.time - this.planAt >= k.think) {
+    if (w.time - this.planAt >= SKILL[this.roles.escort ?? this.skill].think) {
       this.planAt = w.time;
       const mems = new Map(this.bots.map((b) => [b.shipId, b]));
       this.tasks = new Map([...planSide(w, 'west', mems), ...planSide(w, 'east', mems)]);
@@ -76,18 +90,29 @@ export class BotCrew {
       const ship = w.ships.find((s) => s.id === m.shipId);
       if (!ship?.alive) continue;
       recordTrack(m, ship, w.time);
-      this.readEvents(w, m);
+      const skill = this.skillOf(ship);
+      const k = SKILL[skill];
+      this.readEvents(w, m, skill);
+      // A slower crew reacts to the torpedo alert late; a veteran's second decoy goes as the torpedo comes through the first
+      if (m.torpAlert && w.time >= m.torpAlert.at) {
+        evadeTorpedo(w, m, ship, skill, m.torpAlert.b);
+        m.torpAlert = undefined;
+      }
+      if (m.decoyAt !== undefined && w.time >= m.decoyAt) {
+        m.decoyAt = undefined;
+        if (w.time < m.evadeUntil) launchNoisemaker(w, ship);
+      }
       // The periscope looks where the captain trains it, every second, not only when he thinks
       if (CLASSES[ship.cls].submarine) sweepScope(w, ship);
       if (w.time < m.nextThink) continue;
       const sub = CLASSES[ship.cls].submarine;
       m.nextThink = w.time + (sub ? k.subThink : k.think);
       if (sub) {
-        thinkSub(w, m, ship, this.skill, this.pack);
+        thinkSub(w, m, ship, skill, this.pack);
         obeySub(w, m, ship);
       } else {
-        thinkFrigate(w, m, ship, this.skill, this.tasks.get(ship.id));
-        thinkAirDefense(w, m, ship, this.skill);
+        thinkFrigate(w, m, ship, skill, this.tasks.get(ship.id));
+        thinkAirDefense(w, m, ship, skill);
         // The helicopter's launch or recovery needs a flying course (not while dodging a torpedo)
         if (!m.passive && w.time >= m.evadeUntil) steerFlyingCourse(w, ship);
         // VDS frigates hunt with the body under the layer whenever they are slow enough
@@ -119,20 +144,16 @@ export class BotCrew {
     }
   }
 
-  private readEvents(w: World, m: BotMemory): void {
+  private readEvents(w: World, m: BotMemory, skill: BotSkill): void {
     const ship = w.ships.find((s) => s.id === m.shipId)!;
     const fresh = w.events.slice(m.eventCursor);
     m.eventCursor = w.events.length;
     const sub = CLASSES[ship.cls].submarine;
     for (const e of fresh) {
       if (e.kind === 'torpedo_alert' && e.shipId === ship.id && !m.passive) {
-        m.evadeUntil = w.time + (sub ? SUB_TORPEDO_EVADE_S : 120);
-        if (sub) launchNoisemaker(w, ship);
-        else setTowedDecoy(w, ship, true);
-        // Beam the torpedo, sprint, and (submarine) cross the layer
-        ship.order.heading = wrap360(e.bearing + 100 * m.legSign);
-        ship.order.speedKn = CLASSES[ship.cls].maxSpeedKn;
-        if (sub) ship.order.depth = ship.depth < (ship.btLayer ?? 120) ? (ship.btLayer ?? 120) + 50 : 40;
+        const delay = SKILL[skill].torpReactS;
+        if (delay) m.torpAlert ??= { b: e.bearing, at: w.time + delay };
+        else evadeTorpedo(w, m, ship, skill, e.bearing);
       } else if (e.kind === 'transient' && e.sourceId !== ship.id && e.what !== 'charge') {
         const b = heardBearing(w, ship, e.x, e.y, TRANSIENT_HEARING[e.what]);
         if (b !== undefined) {
@@ -153,4 +174,19 @@ export class BotCrew {
       }
     }
   }
+}
+
+/** Torpedo in the water on the ship: decoy, beam it, sprint, and (submarine) cross the layer. */
+function evadeTorpedo(w: World, m: BotMemory, ship: Ship, skill: BotSkill, b: number): void {
+  const k = SKILL[skill];
+  const sub = CLASSES[ship.cls].submarine;
+  m.evadeUntil = w.time + (sub ? k.evadeS : ESCORT_TORPEDO_EVADE_S);
+  if (sub) {
+    launchNoisemaker(w, ship);
+    if (k.decoys > 1) m.decoyAt = w.time + SECOND_DECOY_S;
+  } else setTowedDecoy(w, ship, true);
+  ship.order.heading = wrap360(b + 100 * m.legSign);
+  ship.order.speedKn = CLASSES[ship.cls].maxSpeedKn;
+  // LEICHT: the boat only runs; it doesn't think of the layer
+  if (sub && k.crossLayer) ship.order.depth = ship.depth < (ship.btLayer ?? 120) ? (ship.btLayer ?? 120) + 50 : 40;
 }

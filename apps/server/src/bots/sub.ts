@@ -30,11 +30,11 @@ import {
   planesFor,
   type ContactTrack,
 } from '@tk/shared';
-import { HARBOUR_ANCHORAGE } from '../scenario.js';
+import { harbourRun } from './harbour.js';
 import { considerMine } from './mines.js';
-import { PACE, captainPace, legsRun, looked, plotFrom, subWaits } from './pacing.js';
+import { PACE, SHOT_COOLDOWN, captainPace, legsRun, looked, plotFrom, subWaits } from './pacing.js';
 import { WAKE_ARM_M, WAKE_MIN_RANGE, WAKE_SHOT_KN, astern, escortKn, fastEscort, wakeAtHunter } from './wake-shot.js';
-import { SKILL, classify, isFriendly, isNeutral, plotBearings, solveFor, traceShot, voted, votedPeek, type BotMemory, type BotSkill } from './common.js';
+import { SKILL, classify, isFriendly, isNeutral, plotBearings, solveFor, traceShot, vary, voted, votedPeek, type BotMemory, type BotSkill } from './common.js';
 
 export interface PackReport {
   t: number;
@@ -46,7 +46,6 @@ export interface PackReport {
 
 /** A TMA leg runs at least this long once the boat is on it (s); the crew's pace adds to it. */
 const LEG_MIN_S = 120;
-const SHOT_COOLDOWN = 150;
 /**
  * Shoot and scoot: this long turning away deep after a salvo before the attack goes on (s). At
  * 180 s the boats lost the convoy after each salvo (arena 4 seeds x 15, groenland/schelf/fjord:
@@ -103,12 +102,12 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const tracks = w.books.get(s.id)?.tracks() ?? [];
   const fresh = tracks.filter((t) => now - t.lastSeen < 15 && t.sensors.some((x) => x === 'hull' || x === 'towed'));
   // A ping heard from far away is a warning, not a threat; a loud one means the escort is close
-  const pinged = tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 90 && t.se > 25);
+  const pinged = tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 90 && t.se > k.pingSe);
   const warships = fresh.filter((t) => voted(m, t) === 'warship' && !isFriendly(w, s, t, m));
   // Escorts are loud from far away: only a strong signal (close) or a ping counts as a threat
   const threatNear = pinged || warships.some((t) => t.se > 24 || (t.range !== undefined && t.range < 6000));
   // Any ping heard (even faint) means rig for silent running for five minutes
-  if (tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 30)) m.silentUntil = now + 300;
+  if (tracks.some((t) => t.sensors.includes('intercept') && now - t.lastSeen < 30)) m.silentUntil = now + k.silentS;
   crewOf(s).silent = now < (m.silentUntil ?? 0);
   // Radar warner: mast and snorkel down, below the layer, and stay down for a while
   if (radarWarning(w, s, m, tracks)) {
@@ -132,15 +131,15 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
       }
     }
     s.order.heading = wrap360(best);
-    s.order.speedKn = threatNear ? 4 : 7;
-    s.order.depth = Math.max(25, Math.min(maxSafe, (s.btLayer ?? 80) + 30, bestDepth - 30));
+    s.order.speedKn = threatNear ? k.straitKn[0] : k.straitKn[1];
+    s.order.depth = Math.max(25, Math.min(maxSafe, (s.btLayer ?? 80) + k.straitUnder, bestDepth - 30));
     considerMine(w, m, s, threatNear);
     return;
   }
   // A boat in direct support of its own convoy hunts the wolves instead of merchants
   const guard = w.ships.some((x) => isConvoyShip(x) && x.team === s.team);
   // Harbour attack: run in to the charted anchorage and fire into it from periscope depth
-  if (!guard && w.env.mission === 'hafen' && harbourRun(w, m, s, threatNear, maxSafe, k.salvo)) return;
+  if (!guard && w.env.mission === 'hafen' && harbourRun(w, m, s, threatNear, maxSafe, skill)) return;
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip) || guard;
   const wanted = duel ? 'submarine' : 'merchant';
@@ -193,7 +192,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const peeking = now < m.peekUntil;
   if (!peeking) m.peekUp = undefined;
   // Learned: against escorts that ping a lot, stay under the layer even when it's quiet
-  const quietDepth = w.env.adapt?.east?.ping && layer !== undefined ? Math.min(layer + 30, maxSafe) : Math.min(60, maxSafe);
+  const quietDepth = w.env.adapt?.east?.ping && layer !== undefined ? Math.min(layer + k.learnLayer, maxSafe) : Math.min(60, maxSafe);
   s.order.depth = peeking ? PERISCOPE_DEPTH : threatNear || radarDown ? hide : quietDepth;
   // Mast and periscope only below 10 kn
   const mastOk = s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN;
@@ -251,7 +250,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // The crew's pace (pacing.ts): time on each leg, listening, the solution settling
   const pace = PACE[skill];
   const pf = captainPace(s.id, w.env.seed ?? 0, commanderTrait(s.id, w.env.seed ?? 0));
-  const legS = Math.max(LEG_MIN_S, Math.round(pace.legS * pf) + 30);
+  const legN = Math.round(m.legStarts?.[m.legStarts.length - 1] ?? 0);
+  const legS = Math.max(LEG_MIN_S, Math.round(pace.legS * pf * (1 + vary(skill, s.id, w.env.seed ?? 0, legN))) + 30);
   // Legs across the line of sight make the range observable for the TMA (a long patrol leg
   // from the search ends at once: the plot needs the turns)
   // (an own timer: a contact that drops out for a moment and the search's zigzag don't cut a leg short)
@@ -292,12 +292,13 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Hunted: still slow legs across the line of sight while the plot needs them (pointing at the
   // target gives the TMA no range), then close in under the merchants' noise once it holds
   const plotting = wait === 'classify' || wait === 'legs' || wait === 'tma';
-  s.order.heading = wrap360(target.bearing + (threatNear && !duel ? (plotting ? HUNTED_LEG_DEG : 8) : approach ? 20 : 40) * m.legSign);
+  const turn = (threatNear && !duel ? (plotting ? HUNTED_LEG_DEG : 8) : approach ? 20 : 40) * (1 + 0.5 * vary(skill, s.id, (w.env.seed ?? 0) ^ 0x5bd1, legN));
+  s.order.heading = wrap360(target.bearing + turn * m.legSign);
   // Escorts about but nobody on to the boat (no loud ping, no escort close aboard): the plot needs
   // the merchants' noise, so it stays above the layer; hunted, it goes under
   const hunted = pinged || warships.some((t) => t.se > 32 || (t.range !== undefined && t.range < 3000));
   if (plotting && threatNear && !hunted && !radarDown && !peeking && !duel) s.order.depth = quietDepth;
-  s.order.speedKn = threatNear ? (plotting && !duel ? HUNTED_LEG_KN : 3) : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
+  s.order.speedKn = threatNear ? (plotting && !duel ? HUNTED_LEG_KN : 3) : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? k.learnSlow : 1));
 
   // Reconnaissance: an escort seen through the periscope gets reported at once
   if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified !== undefined && isEscort(t.classified) && t.classified !== 'ffk') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
@@ -331,7 +332,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const envelope = !launchBlock(s.cls, s.speed / KN, s.depth);
   // A fast escort pinning the boat down gets a wake homer on her own plot and gates (wake-shot.ts);
   // the convoy attack keeps its target, plot and legs
-  if (hunter && envelope && now - m.lastShot > SHOT_COOLDOWN && wakeAtHunter(w, m, s, hunter, { pace, pf, qMin, now })) return;
+  if (k.wakeSide && hunter && envelope && now - m.lastShot > SHOT_COOLDOWN && wakeAtHunter(w, m, s, hunter, { pace, pf, qMin, now })) return;
   // A warship the boat is attacking anyway (a guarding boat) running fast: a wake homer too
   const wakeShot = s.cls === 'ssn' && choice === 'warship' && !!solved && (w.weapons?.loadouts.get(s.id)?.wake ?? 0) > 0
     && (escortKn(target, solved.sol, now) ?? 0) > WAKE_SHOT_KN && (range ?? 0) >= WAKE_MIN_RANGE;
@@ -423,78 +424,4 @@ function headingTo(s: Ship, r: { x: number; y: number; b: number }): number {
   const rad = (r.b * Math.PI) / 180;
   const p = { x: r.x + Math.sin(rad) * 12_000, y: r.y + Math.cos(rad) * 12_000 };
   return (Math.atan2(p.x - s.pos.x, p.y - s.pos.y) * 180) / Math.PI;
-}
-
-/**
- * The anchorage (harbour attack): charted in the briefing; once the boat holds ships at anchor in
- * its own contact book (periscope, radar: with range), the centre of what it plotted. Never truth.
- */
-function anchorageOf(w: World, m: BotMemory, s: Ship): { x: number; y: number } | undefined {
-  if (!w.ships.some((x) => x.cls === 'merchant')) return undefined;
-  const held = anchored(w, m, s, 1800);
-  if (!held.length) return HARBOUR_ANCHORAGE;
-  const ps = held.map((t) => plotted(m, s, t));
-  return { x: ps.reduce((a, p) => a + p.x, 0) / ps.length, y: ps.reduce((a, p) => a + p.y, 0) / ps.length };
-}
-
-/** Merchants in the boat's own book with a range (periscope, radar), seen within maxAge s. */
-function anchored(w: World, m: BotMemory, s: Ship, maxAge: number): ContactTrack[] {
-  return (w.books.get(s.id)?.tracks() ?? []).filter((t) => w.time - t.lastSeen < maxAge && t.range !== undefined &&
-    (t.classified === 'merchant' || voted(m, t) === 'merchant') && !isNeutral(w, s, t, m));
-}
-
-/** Where a contact with a range lies, from where the boat was when it measured it. */
-function plotted(m: BotMemory, s: Ship, t: ContactTrack): { x: number; y: number } {
-  const at = [...m.track].reverse().find((f) => f.t <= (t.rangeAt ?? t.lastSeen) + 3) ?? s.pos;
-  const v = headingVec(t.bearing);
-  return { x: at.x + v.x * t.range!, y: at.y + v.y * t.range! };
-}
-
-/** Firing range into the anchorage (m): close enough for a fan of slow passive torpedoes. */
-const HARBOUR_FIRE_M = 4200;
-
-/**
- * Harbour attack: the anchorage is charted and the ships lie still. Run in deep and steady
- * (slower when escorts are close), then come up to periscope depth, take a look and fire a fan
- * at the nearest ship at anchor; between salvos hold off quietly. Returns false without targets.
- */
-function harbourRun(w: World, m: BotMemory, s: Ship, threatNear: boolean, maxSafe: number, salvo: number): boolean {
-  const anch = anchorageOf(w, m, s);
-  if (!anch) return false;
-  const now = w.time;
-  const d = distance(s.pos, anch);
-  const toAnch = wrap360((Math.atan2(anch.x - s.pos.x, anch.y - s.pos.y) * 180) / Math.PI);
-  s.snorkel = false;
-  if (d > HARBOUR_FIRE_M) {
-    s.order = { heading: toAnch, speedKn: threatNear ? 4 : 7, depth: Math.min(maxSafe, 120) };
-    s.mastUp = false;
-    return true;
-  }
-  if (now - m.lastShot < SHOT_COOLDOWN) {
-    // Reloading: hold off, deep and slow, nose on the anchorage
-    s.order = { heading: toAnch, speedKn: 2, depth: Math.min(maxSafe, 90) };
-    s.mastUp = false;
-    return true;
-  }
-  // A short look through the periscope (slow, at periscope depth), then the fan at the nearest
-  // ship at anchor the look found (or into the anchorage when it found none)
-  s.order = { heading: toAnch, speedKn: 3, depth: PERISCOPE_DEPTH };
-  s.mastUp = s.depth <= PERISCOPE_DEPTH + 0.5 && s.speed / KN <= MAST_MAX_KN;
-  if (!s.mastUp) {
-    m.peekUp = undefined;
-    return true;
-  }
-  m.peekUp ??= now;
-  const seen = anchored(w, m, s, 30).sort((a, b) => a.range! - b.range!)[0];
-  if (!seen && now - m.peekUp < PEEK_LOOK_S) return true;
-  const r = seen?.range ?? d;
-  const brg = seen?.bearing ?? toAnch;
-  const shot = fireSalvo(w, s, { heading: brg, enableAfter: Math.max(600, r * 0.7), mode: 'passive', searchDepth: 8, speedKn: 30 }, Math.max(2, salvo), 4);
-  if (typeof shot !== 'string' && shot.length) {
-    traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: 'harbour', mode: 'passive', range: r, held: seen ? now - seen.firstSeen : undefined });
-    m.lastShot = now;
-    m.peekUp = undefined;
-    s.mastUp = false;
-  }
-  return true;
 }

@@ -26,10 +26,13 @@ export interface Pace {
 }
 
 export const PACE: Record<BotSkill, Pace> = {
-  leicht: { classifyS: 120, legs: 2, legS: 110, settleS: 45, prosecuteS: 180, fixes: 3 },
+  leicht: { classifyS: 180, legs: 2, legS: 140, settleS: 75, prosecuteS: 300, fixes: 3 },
   normal: { classifyS: 90, legs: 2, legS: 90, settleS: 30, prosecuteS: 120, fixes: 2 },
-  schwer: { classifyS: 75, legs: 2, legS: 80, settleS: 20, prosecuteS: 100, fixes: 2 },
+  schwer: { classifyS: 60, legs: 2, legS: 70, settleS: 15, prosecuteS: 60, fixes: 1 },
 };
+
+/** A boat's least time between salvos (s). */
+export const SHOT_COOLDOWN = 150;
 
 /** Active fixes count inside this window (s). */
 export const FIX_WINDOW_S = 180;

@@ -1,4 +1,4 @@
-import { REGIONS, TIME_SCALES, seaMinutesFor, areasFor, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
+import { AI_LEVELS, AI_LEVEL_HINT, AI_LEVEL_LABEL, REGIONS, TIME_SCALES, seaMinutesFor, areasFor, type AiLevel, type MatchLobby, type MatchSummary, type MissionKey, type RegionId, type ServerMsg } from '@tk/shared';
 import { net } from '../net.js';
 import { t } from '../i18n/index.js';
 import { accountPanel } from './account.js';
@@ -165,6 +165,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           </div>
           <div class="row"><span class="dim">TAGESZEIT</span><select id="s-tod"><option value="tag">Tag</option><option value="daemmerung">Dämmerung</option><option value="nacht">Nacht</option><option value="zufall">Zufall</option></select></div>
           <div class="row"><span class="dim" title="So lange dauert die Partie in echten Minuten; mit Zeitraffer vergeht auf See entsprechend mehr Zeit">EINSATZDAUER</span><select id="s-time">${[20, 30, 40, 60].map((v) => `<option value="${v}">${v} MIN</option>`).join('')}</select></div>
+          <div class="row"><span class="dim" title="${AI_LEVEL_HINT}">KI-STUFE</span><select id="s-skill">${AI_LEVELS.map((v) => `<option value="${v}">${AI_LEVEL_LABEL[v]}</option>`).join('')}</select></div>
           <details id="adv" ${advOpen ? 'open' : ''} style="margin-top:6px"><summary class="dim" style="cursor:pointer" title="Seegebiet, Jahreszeit, Wetter, Seegang, Variation, Zeitraffer, KI und Übungsmodus">ERWEITERT</summary>
           <div class="row"><span class="dim" title="Echte Seegebiete (Tiefen: NOAA ETOPO 2022). Jede Mission spielt in den Gebieten, die zu ihr passen">SEEGEBIET</span><select id="s-area">${areasFor(match.settings.mission).map((id: RegionId) => `<option value="${id}">${esc(REGIONS[id].name)}</option>`).join('')}</select></div>
           <div class="row"><span class="dim" title="Monat der Partie: Sonnenstand (Polarnacht, Mitternachtssonne), Sprungschicht, Nebel und Eis wie im echten Seegebiet">JAHRESZEIT</span><select id="s-season"><option value="zufall">ZUFALL</option><option value="winter">WINTER</option><option value="fruehling">FRÜHLING</option><option value="sommer">SOMMER</option><option value="herbst">HERBST</option></select></div>
@@ -174,7 +175,6 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
           ${match.settings.lage !== undefined ? `<div class="row"><span class="dim">LAGE</span><span>#${match.settings.lage} · WIE IN DER LETZTEN PARTIE</span></div>` : ''}
           <div class="row"><span class="dim" title="Wie schnell die Zeit auf See läuft. Die echte Spieldauer bleibt gleich; mit Zeitraffer ist der Weg des Konvois länger und die Lage weiter auseinander">ZEITRAFFER</span><select id="s-scale">${TIME_SCALES.map((n) => `<option value="${n}">${n === 1 ? 'ECHTZEIT' : `${n}×`} · ${seaMinutesFor(match!.settings.timeLimitMin, n)} MIN AUF SEE</option>`).join('')}</select></div>
           <div class="row"><span class="dim">KI FÜR LEERES TEAM</span><select id="s-bots"><option value="1">JA</option><option value="0">NEIN</option></select></div>
-          <div class="row"><span class="dim">KI-STÄRKE</span><select id="s-skill"><option value="leicht">LEICHT</option><option value="normal">NORMAL</option><option value="schwer">SCHWER</option></select></div>
           <div class="row"><span class="dim" title="Wahrheitsansicht, Zeitraffer und Ziele setzen; ohne Wertung">ÜBUNGSMODUS (SANDKASTEN)</span><select id="s-sandbox"><option value="0">NEIN</option><option value="1">JA</option></select></div>
           <div class="row"><span class="dim">SPRUNGSCHICHT</span><span>${match.settings.layerDepth > 0 ? match.settings.layerDepth + ' M' : 'UNBEKANNT · MESSEN'}</span></div>
           </details>
@@ -252,7 +252,7 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
       area: sel('#s-mission').value === match!.settings.mission ? sel('#s-area').value as RegionId : undefined,
       timeOfDay: sel('#s-tod').value as 'tag' | 'daemmerung' | 'nacht' | 'zufall',
       seaState: Number(sel('#s-sea').value), timeLimitMin: Number(sel('#s-time').value), timeScale: Number(sel('#s-scale').value), fillBots: sel('#s-bots').value === '1',
-      botSkill: sel('#s-skill').value as 'leicht' | 'normal' | 'schwer',
+      botSkill: sel('#s-skill').value as AiLevel,
       weather: sel('#s-wx').value as 'wechselhaft' | 'stabil' | 'zufall',
       season: sel('#s-season').value as 'winter' | 'fruehling' | 'sommer' | 'herbst' | 'zufall',
       variation: sel('#s-var').value as 'aus' | 'leicht' | 'stark',

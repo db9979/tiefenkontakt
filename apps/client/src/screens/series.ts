@@ -1,4 +1,4 @@
-import type { Debrief } from '@tk/shared';
+import { AI_LEVEL_LABEL, type AiLevel, type Debrief } from '@tk/shared';
 import { CLASS_LABEL, esc, h } from '../widgets/format.js';
 import { post } from './account.js';
 import { debriefOverlay } from './debrief.js';
@@ -28,7 +28,7 @@ export function seriesPanel(): HTMLElement {
       <div>
         <div class="row"><span class="dim">MISSION</span><select id="se-m">${opt(['groenland', 'schelf', 'fjord', 'hafen', 'meerenge', 'duell'], (v) => ({ groenland: 'Grönland-Lücke', schelf: 'Schelfmeer', fjord: 'Fjordausfahrt', hafen: 'Hafenangriff', meerenge: 'Meerenge', duell: 'U-Boot-Duell' })[v]!)}</select></div>
         <div class="row"><span class="dim">TAGESZEIT</span><select id="se-tod">${opt(['tag', 'daemmerung', 'nacht'], (v) => ({ tag: 'Tag', daemmerung: 'Dämmerung', nacht: 'Nacht' })[v]!)}</select></div>
-        <div class="row"><span class="dim">KI-STÄRKE</span><select id="se-skill">${opt(['leicht', 'normal', 'schwer'], (v) => v.toUpperCase())}</select></div>
+        <div class="row"><span class="dim">KI-STUFE</span><select id="se-skill">${opt(['leicht', 'normal', 'schwer'], (v) => AI_LEVEL_LABEL[v as AiLevel])}</select></div>
         <div class="row"><span class="dim">ZEITLIMIT</span><select id="se-time">${opt(['20', '30', '40'], (v) => `${v} MIN`)}</select></div>
       </div>
       <div>

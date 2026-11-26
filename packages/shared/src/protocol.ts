@@ -8,6 +8,16 @@ import type { CompartmentView, WreckView } from './compartments.js';
 import type { ClassChoice } from './signatures.js';
 import type { StationId } from './stations.js';
 
+/**
+ * The AI's level (lobby and quick play: KI-STUFE). VETERAN keeps its old key 'schwer' so saved
+ * matches, campaigns and series stay valid.
+ */
+export type AiLevel = 'leicht' | 'normal' | 'schwer';
+export const AI_LEVELS: readonly AiLevel[] = ['leicht', 'normal', 'schwer'];
+export const AI_LEVEL_LABEL: Record<AiLevel, string> = { leicht: 'LEICHT', normal: 'NORMAL', schwer: 'VETERAN' };
+/** What the levels mean (tooltip in the lobby and quick play). */
+export const AI_LEVEL_HINT = 'Wie gut die KI-Kapitäne spielen. LEICHT: langsamer und ungenauer, weicht Torpedos spät aus. NORMAL: der Standard. VETERAN: schneller, nutzt Sprungschicht und Täuschkörper, variiert seine Muster und lernt stärker aus euren Gewohnheiten.';
+
 export type MissionKey = 'groenland' | 'schelf' | 'fjord' | 'duell' | 'hafen' | 'eigene' | 'fuehlung' | 'meerenge' | 'aufklaerung';
 export interface CustomMissionSettings {
   convoyKn: number;
@@ -139,7 +149,7 @@ export type ClientMsg =
   | { t: 'station'; id: StationId }
   | { t: 'quick' }
   /** Start at once against the AI: a random situation, or this week's (same for everyone). */
-  | { t: 'solo'; team: Exclude<Team, 'neutral'>; weekly?: boolean }
+  | { t: 'solo'; team: Exclude<Team, 'neutral'>; weekly?: boolean; /** KI-STUFE of a random solo game (the weekly situation is always NORMAL). */ botSkill?: AiLevel }
   | { t: 'spectate'; matchId: string }
   /** Ask for a one-time code to put the 3D view on a phone (phone.ts on the server). */
   | { t: 'phone_link' }
@@ -152,7 +162,7 @@ export type ClientMsg =
     seaState?: number;
     timeLimitMin?: number; timeScale?: number;
     fillBots?: boolean;
-    botSkill?: 'leicht' | 'normal' | 'schwer';
+    botSkill?: AiLevel;
     weather?: 'wechselhaft' | 'stabil' | 'zufall';
     season?: Season | 'zufall';
     variation?: Variation;
@@ -251,7 +261,7 @@ export interface MatchLobby extends MatchSummary {
     timeLimitMin: number;
     merchants: number;
     fillBots: boolean;
-    botSkill: 'leicht' | 'normal' | 'schwer';
+    botSkill: AiLevel;
     /** Not listed; joined only through an invite link. */
     private?: boolean;
     weather: 'wechselhaft' | 'stabil' | 'zufall';
@@ -553,7 +563,7 @@ export interface MatchSetup {
     timeLimitMin: number;
     merchants: number;
     fillBots: boolean;
-    botSkill: 'leicht' | 'normal' | 'schwer';
+    botSkill: AiLevel;
     custom?: CustomMissionSettings;
     variation?: Variation;
   };
@@ -571,6 +581,8 @@ export interface Debrief {
   duration: number; /** sea area (north-up chart) */ region?: string;
   /** What the AI adapted to from this player's earlier matches (shown in the debrief). */
   learned?: string[];
+  /** The AI's level when AI captains played in the match (KI-STUFE). */
+  aiLevel?: AiLevel;
   /** FLASH orders of both sides and how they ended. */
   orders?: import('./orders.js').OrderSummary[];
   /** Periscope and bridge photos with their grades. */
