@@ -59,7 +59,9 @@ export class FastForward {
     const voters = this.host.voters();
     if (!on) {
       this.votes.delete(playerId);
-      if (this.on) this.stop('Zeitraffer beendet', w.time);
+      // A manual stop needs no reason in the top bar (N6): it clears any old one too
+      if (this.on) this.stop('', w.time);
+      this.stopped = undefined;
       return undefined;
     }
     if (!voters.includes(playerId)) return 'Zeitraffer nur mit eigenem Schiff';

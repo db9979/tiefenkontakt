@@ -1,4 +1,5 @@
 import { BAD_CO2, BAD_O2, CLASSES, NM, type Snapshot } from '@tk/shared';
+import { navErrorText } from './plot-marks.js';
 import { net } from '../net.js';
 import { clock, h, setHtml, setText } from './format.js';
 import { onTap } from './touch.js';
@@ -92,7 +93,7 @@ export function crewPanel(): { el: HTMLElement; update(s: Snapshot): void } {
           : cmd.nextS > 0 ? `<span class="dim">IN ${clock(cmd.nextS)}</span>`
           : `<span class="${cmd.via ? 'amber' : 'red blink'}">${cmd.via ? `EMPFANG ${Math.round(cmd.progress * 100)} % · ${cmd.via === 'vlf' ? 'VLF' : 'BOJE'}` : 'SENDET · ZU TIEF ODER ZU SCHNELL'}</span>`);
         setHtml(q('#cp-nav'), o.navUncertainty !== undefined
-          ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">± ${dec(o.navUncertainty / NM)} SM</span>${o.nav?.lastFix ? ` <span class="dim">· FIX: ${({ land: 'LAND', sat: 'SATELLIT', stars: 'STERNE', sounding: 'ECHOLOT' } as const)[o.nav.lastFix]}</span>` : ''}`
+          ? `<span class="${o.navUncertainty > 2 * NM ? 'amber' : ''}">${navErrorText(o.navUncertainty)}</span>${o.nav?.lastFix ? ` <span class="dim">· FIX: ${({ land: 'LAND', sat: 'SATELLIT', stars: 'STERNE', sounding: 'ECHOLOT' } as const)[o.nav.lastFix]}</span>` : ''}`
           : '<span>FIX</span>');
         el.querySelector('[data-cp="buoyant"]')!.classList.toggle('on', !!o.buoyAntenna);
       }

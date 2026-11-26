@@ -5,13 +5,17 @@ import {
   MERCHANT_TONAL_MAX_KN,
   SIGNATURES,
   bearing,
+  betterSolution,
   boundedQuality,
   distance,
+  evaluateSolution,
+  pickSolution,
   hasMerchantTonals,
   shaftHz,
   solveInPrior,
   speedAtBound,
   speedPrior,
+  TMA_NEAR_M,
   targetPosAt,
   type BearingSample,
   type OwnFix,
@@ -108,5 +112,53 @@ describe('TMA speed prior', () => {
     expect(distance(targetPosAt(sol, 900), targetPosAt(truth, 900))).toBeLessThan(2000);
     // A result inside the prior is kept as it is
     expect(solveInPrior(hist, track, prior, () => truth)).toBe(truth);
+  });
+});
+
+describe('Auto-TMA keeps the best fit (N8)', () => {
+  it('a band that excludes the true speed does not force a solution that fits nowhere', () => {
+    const { truth, track, hist } = scenario();
+    // A wrong DEMON band (0-0,5 kn) for a 10 kn freighter: the grid inside it fits badly
+    const prior = { lo: 0, hi: 0.5, by: 'demon' as const };
+    const sol = solveInPrior(hist, track, prior, () => truth)!;
+    expect(evaluateSolution(sol, hist, track).rmsDeg).toBeLessThan(0.5);
+    expect(sol).toBe(truth);
+  });
+
+  it('prefers the in-band candidate while it fits nearly as well', () => {
+    expect(pickSolution([{ rms: 1.0, band: false }, { rms: 2.0, band: true }])!.band).toBe(true);
+    expect(pickSolution([{ rms: 1.0, band: false }, { rms: 88, band: true }])!.band).toBe(false);
+    expect(pickSolution([])).toBeUndefined();
+  });
+
+  it('on one leg the search does not slide to the nearest range', () => {
+    // Own ship on one straight leg, a freighter 9 km off: every range on the bearing line fits
+    const truth: TmaSolution = { t0: 0, x0: 6000, y0: 7000, course: 250, speedKn: 8 };
+    const track: OwnFix[] = [];
+    const hist: BearingSample[] = [];
+    for (let t = 0; t <= 600; t += 10) {
+      const p = { x: 0, y: (5 * KN) * t };
+      track.push({ t, ...p });
+      hist.push({ t, b: bearing(p, targetPosAt(truth, t)), sensor: 'hull' });
+    }
+    const own = track[track.length - 1]!;
+    const sol = solveInPrior(hist, track, speedPrior({ choice: 'merchant' }))!;
+    expect(distance(own, targetPosAt(sol, 600))).toBeGreaterThan(TMA_NEAR_M);
+    expect(evaluateSolution(sol, hist, track).rmsDeg).toBeLessThan(1);
+    expect(pickSolution([{ rms: 0.1, band: true, range: 400 }, { rms: 0.3, band: true, range: 7000 }], true)!.range).toBe(7000);
+    expect(pickSolution([{ rms: 0.1, band: true, range: 400 }, { rms: 0.3, band: true, range: 7000 }])!.range).toBe(400);
+  });
+
+  it('never replaces a solution with one that fits the plot worse', () => {
+    const { truth, track, hist } = scenario();
+    // The near-range collapse: 0,9 km on the last bearing, 10 kn
+    const last = hist[hist.length - 1]!;
+    const own = track[track.length - 1]!;
+    const rad = (last.b * Math.PI) / 180;
+    const near: TmaSolution = { t0: last.t, x0: own.x + 900 * Math.sin(rad), y0: own.y + 900 * Math.cos(rad), course: 0, speedKn: 10 };
+    expect(evaluateSolution(near, hist, track).rmsDeg).toBeGreaterThan(10);
+    expect(betterSolution(near, truth, hist, track)).toBe(false);
+    expect(betterSolution(truth, near, hist, track)).toBe(true);
+    expect(betterSolution(near, undefined, hist, track)).toBe(true);
   });
 });

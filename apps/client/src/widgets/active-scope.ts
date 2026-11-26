@@ -13,6 +13,10 @@ const C_WATER = 1500;
 const RANGES_M = PING_RANGES;
 
 interface Echo { b: number; r: number; ping: number; label: string; doppler?: number }
+/** Pings kept for the range-time strip under the PPI (F26). */
+const HISTORY_PINGS = 12;
+/** Below the round PPI, at least this much free height (px) gets the range-time strip. */
+const STRIP_MIN_H = 90;
 
 /**
  * Active sonar console (PPI, north up). After each ping a ring runs out from the own ship at
@@ -38,6 +42,9 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
   const canvas = el.querySelector<HTMLCanvasElement>('#as-ppi')!;
   const st = el.querySelector<HTMLElement>('#as-st')!;
   const echoes: Echo[] = [];
+  /** The last HISTORY_PINGS pings' returns, for the range-time strip. */
+  const history: Echo[] = [];
+  const pingTimes: number[] = [];
   el.querySelector<HTMLButtonElement>('#as-one')!.onclick = () => net.send({ t: 'ping', single: true });
   el.querySelector<HTMLButtonElement>('#as-ping')!.onclick = () => net.send({ t: 'toggle', what: 'active', on: !store.snap?.own.activeSonar });
   el.querySelectorAll<HTMLButtonElement>('[data-pulse]').forEach((b) => (b.onclick = () => net.send({ t: 'pulse', pulse: b.dataset.pulse as 'cw' | 'lfm' })));
@@ -50,13 +57,76 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
     for (const c of s.contacts) {
       if (c.via !== 'own' || !c.sensors.includes('active') || c.range === undefined || c.lastSeen < ping - 0.5) continue;
       if (echoes.some((e) => e.ping === ping && e.label === c.label)) continue;
-      echoes.push({ b: trueDeg(c.bearing), r: c.range, ping, label: c.label, doppler: c.dopplerKn });
+      const e = { b: trueDeg(c.bearing), r: c.range, ping, label: c.label, doppler: c.dopplerKn };
+      echoes.push(e);
+      history.push(e);
     }
+    if (!pingTimes.includes(ping)) {
+      pingTimes.unshift(ping);
+      pingTimes.length = Math.min(pingTimes.length, HISTORY_PINGS);
+    }
+    for (let i = history.length - 1; i >= 0; i--) if (!pingTimes.includes(history[i]!.ping)) history.splice(i, 1);
     const pings = [...new Set(echoes.map((e) => e.ping))].sort((a, b) => b - a).slice(0, 3);
     for (let i = echoes.length - 1; i >= 0; i--) if (!pings.includes(echoes[i]!.ping)) echoes.splice(i, 1);
   };
 
   const rangeM = (s: Snapshot) => s.own.pingRange ?? DEFAULT_PING_RANGE;
+
+  /**
+   * Range-time strip (F26): one row per ping, newest on top, range across. A closing ship's
+   * returns walk left from row to row, an opening one's right; the selected contact in amber.
+   */
+  const drawStrip = (ctx: CanvasRenderingContext2D, s: Snapshot, y0: number, h: number, w: number, rM: number, now: number) => {
+    const x0 = 44, x1 = w - 10;
+    const top = y0 + 14;
+    // Rows end above the range figures, which end above the scope's captions at the foot
+    const rowH = Math.max(4, (h - 30) / HISTORY_PINGS);
+    ctx.save();
+    ctx.fillStyle = 'rgba(93,202,165,0.04)';
+    ctx.fillRect(x0, top, x1 - x0, rowH * HISTORY_PINGS);
+    ctx.font = FONT.tick;
+    ctx.fillStyle = COL.dim;
+    ctx.textAlign = 'left';
+    ctx.fillText('PING-VERLAUF · ENTFERNUNG →', x0, y0 + 9);
+    // Ring ranges as vertical lines with their labels underneath
+    ctx.strokeStyle = 'rgba(93,202,165,0.18)';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= 4; i++) {
+      const x = x0 + ((x1 - x0) * i) / 4;
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, top + rowH * HISTORY_PINGS); ctx.stroke();
+      if (i > 0) ctx.fillText(`${((rM * i) / 4000).toLocaleString('de-DE')}${i === 4 ? ' KM' : ''}`, i === 4 ? x1 - 14 : x, top + rowH * HISTORY_PINGS + 11);
+    }
+    ctx.textAlign = 'right';
+    pingTimes.forEach((p, row) => {
+      const y = top + row * rowH;
+      if (row % 3 === 0) {
+        ctx.fillStyle = COL.dim;
+        ctx.fillText(`−${Math.max(0, Math.round(now - p))} S`, x0 - 4, y + Math.min(rowH, 10));
+      }
+      for (const e of history) {
+        if (e.ping !== p || e.r > rM) continue;
+        // The newest ping's returns appear as the ring reaches them, like on the PPI
+        if (row === 0 && ((now - p) * C_WATER) / 2 < e.r) continue;
+        const x = x0 + (e.r / rM) * (x1 - x0);
+        const sel = e.label === store.selected;
+        ctx.fillStyle = sel ? COL.amber : e.doppler !== undefined && Math.abs(e.doppler) >= 1 && s.own.pulse === 'cw' ? (e.doppler > 0 ? COL.amber : COL.blue) : COL.g;
+        ctx.globalAlpha = row === 0 ? 1 : Math.max(0.3, 1 - row / HISTORY_PINGS);
+        ctx.fillRect(x - 2, y + 1, 4, Math.max(2, rowH - 2));
+        ctx.globalAlpha = 1;
+        if (row === 0) {
+          ctx.textAlign = 'left';
+          ctx.fillText(e.label, Math.min(x + 5, x1 - 24), y + Math.min(rowH, 10));
+          ctx.textAlign = 'right';
+        }
+      }
+    });
+    if (!pingTimes.length) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = COL.dim;
+      ctx.fillText('NOCH KEIN PING', (x0 + x1) / 2, top + (rowH * HISTORY_PINGS) / 2);
+    }
+    ctx.restore();
+  };
 
   return {
     el,
@@ -96,8 +166,11 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
       const H = (typeof opts.height === 'function' ? opts.height() : opts.height) ?? 300;
       const ctx = fitCanvas(canvas, H);
       const w = canvas.clientWidth;
-      // The bearing labels stand up to 27 px outside the ring: keep them inside the narrower side, clear of the captions at the foot
-      const cx = w / 2, cy = (H - 14) / 2, R = Math.max(40, Math.min(w, H - 14) / 2 - 28);
+      // The bearing labels stand up to 27 px outside the ring: keep them inside the narrower side, clear of the captions at the foot.
+      // F26: a pane taller than wide puts the PPI in the top square and a range-time strip of the last pings below it
+      const sq = Math.min(w, H - 14);
+      const stripH = H - 14 - sq >= STRIP_MIN_H ? H - 14 - sq : 0;
+      const cx = w / 2, cy = sq / 2, R = Math.max(40, sq / 2 - 28);
       const rM = rangeM(s);
       const k = R / rM;
       ctx.fillStyle = '#020605';
@@ -176,6 +249,7 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
       const hd = (trueDeg(o.heading) * Math.PI) / 180;
       ctx.strokeStyle = COL.blue;
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.sin(hd) * R * 0.25, cy - Math.cos(hd) * R * 0.25); ctx.stroke();
+      if (stripH) drawStrip(ctx, s, sq + 4, stripH - 8, w, rM, now);
       // Captions in the console's monospace (after restore() the font was the canvas default)
       ctx.font = FONT.tick;
       ctx.textAlign = 'left';

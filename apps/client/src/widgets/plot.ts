@@ -3,7 +3,7 @@ import { store } from '../store.js';
 import { airIcon, airSymbol, drawAir } from './air-symbols.js';
 import { drawMineSector } from './airdef-symbols.js';
 import { drawMet } from './met-overlay.js';
-import { COL, FONT, deg3, fitCanvas, km } from './format.js';
+import { COL, FONT, chartDist, deg3, fitCanvas } from './format.js';
 import { affiliationOf, isFriendlyContact } from './friendly.js';
 import { lastFix } from './contact-pos.js';
 import { BearingRangeFilter, ownNow, simNow } from './smooth.js';
@@ -253,7 +253,8 @@ export class Plot {
     items.push(...(this.opts.actions?.(wp) ?? []), ...(this.route?.menu(m, wp) ?? []));
     items.push({ label: 'Alle Zeichnungen löschen', run: () => this.marks.clear() });
     items.push({ label: 'Karte hier zentrieren', run: () => (this.pan = { x: wp.x - s.own.x, y: wp.y - s.own.y }) });
-    openMenu(e.clientX, e.clientY, items, `${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))}`);
+    // F19: the range in the chart's unit (sea miles on the frigate's SM chart)
+    openMenu(e.clientX, e.clientY, items, `${deg3(trueDeg(bearing(s.own, wp)))}° · ${chartDist(distance(s.own, wp), !CLASSES[s.own.cls].submarine)}`);
   }
 
   draw(height: number): void {
@@ -336,7 +337,7 @@ export class Plot {
     const ownAir = s.air?.helos ?? [];
     L.prio = PRIO.air;
     drawAir(ctx, s, (x, y) => P({ x, y }), meA, 120, (pl) => !(pl.side === 'friend' && (pl.kind === 'helo' || pl.kind === 'mpa') && pl.x !== undefined
-      && ownAir.some((hp) => Math.hypot(hp.x - pl.x!, hp.y - pl.y!) < 600)), 'km');
+      && ownAir.some((hp) => Math.hypot(hp.x - pl.x!, hp.y - pl.y!) < 600)), CLASSES[s.own.cls].submarine ? 'km' : 'sm');
     drawMineSector(ctx, s, meA, this.scale);
 
     L.prio = PRIO.contact;
@@ -392,7 +393,7 @@ export class Plot {
     let foot = `RASTER ${(step / NM).toFixed(0)} SM`;
     if (this.mouse) {
       const wp = this.toWorld(this.mouse);
-      foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${km(distance(s.own, wp))} · ` + foot;
+      foot = `MAUS ${deg3(trueDeg(bearing(s.own, wp)))}° · ${chartDist(distance(s.own, wp), !CLASSES[s.own.cls].submarine)} · ` + foot;
     }
     const fw = ctx.measureText(foot).width;
     L.avoid({ x: 2, y: height - 22, w: fw + 12, h: 20 });

@@ -94,6 +94,32 @@ describe('datalink correlation holds (F6)', () => {
     // Without a label (no memory) the strict gate applies
     expect(fr.isFriendlyContact({ bearing: 0, sensors: ['hull'] }, snap(1041, 700))).toBe(false);
   });
+
+  it('one friendly is one contact (F7: no more EIGEN rows than merchants)', () => {
+    const base = snap(3000, 0);
+    const contacts = [
+      { label: 'S20', bearing: 0.3, sensors: ['hull'], via: 'own' },
+      { label: 'S21', bearing: 1.1, sensors: ['hull'], via: 'own' },
+      { label: 'S22', bearing: -0.8, sensors: ['hull'], via: 'own' },
+      // A datalink mate's track of the same merchant is its own picture
+      { label: 'L1-S4', bearing: 0.5, sensors: ['hull'], via: 'datalink' },
+    ];
+    const s = { ...base, contacts } as unknown as Snapshot;
+    const own = contacts.filter((c) => fr.isFriendlyContact(c as never, s)).map((c) => c.label);
+    expect(own).toEqual(['S20', 'L1-S4']);
+    // Next snapshot: the held one keeps it even when another lines up a little better
+    const s2 = { ...snap(3001, 0), contacts: contacts.map((c) => (c.label === 'S21' ? { ...c, bearing: 0.1 } : c)) } as unknown as Snapshot;
+    expect(contacts.map((c) => c.label).filter((l) => fr.isFriendlyContact({ ...contacts.find((c) => c.label === l)!, bearing: l === 'S21' ? 0.1 : contacts.find((c) => c.label === l)!.bearing } as never, s2))).toEqual(['S20', 'L1-S4']);
+  });
+
+  it('measures a sonobuoy bearing from the buoy (N2)', () => {
+    // Friend 10 km north of a buoy that lies 10 km east: 000° from the buoy, 045° from the own ship
+    const s = snap(2000, 10_000);
+    const buoy = { bearing: 0, sensors: ['buoy' as const], originX: 10_000, originY: 0 };
+    expect(fr.isFriendlyContact(buoy, s)).toBe(true);
+    expect(fr.isFriendlyContact({ bearing: 0, sensors: ['buoy'] }, s)).toBe(false);
+    expect(fr.isFriendlyContact({ bearing: 45, sensors: ['hull'] }, s)).toBe(true);
+  });
 });
 
 describe('units on the chart', () => {

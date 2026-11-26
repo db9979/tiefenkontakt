@@ -1,7 +1,8 @@
-import { CLASSES, evaluateSolution, ownLegChange, type Snapshot, type StationId } from '@tk/shared';
+import { CLASSES, ownLegChange, type Snapshot, type StationId } from '@tk/shared';
 import { store } from '../store.js';
 import { esc } from './format.js';
 import { isFriendlyContact } from './friendly.js';
+import { solutionQuality } from './speed-prior.js';
 import { lang } from '../i18n/index.js';
 
 const L = (de: string, en: string) => (lang === 'en' ? en : de);
@@ -15,11 +16,8 @@ export interface Hint {
   urgent?: boolean;
 }
 
-function quality(label: string): number {
-  const c = store.snap?.contacts.find((x) => x.label === label);
-  const sol = store.solutions.get(label);
-  return c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
-}
+/** Güte as TMA and FEUER show it (bounded by the speed prior, N4). */
+const quality = solutionQuality;
 
 /** Next step for the submarine (exported for the station-reference test). */
 export function subHint(s: Snapshot): Hint {

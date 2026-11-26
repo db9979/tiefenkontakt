@@ -61,8 +61,8 @@ function report(w: World, s: Ship): string {
   const kn = Math.round(merchants[0]!.speed / KN);
   // Only the convoy's own warships: neutral fishing boats, yachts and ferries are no escort
   const escorts = w.ships.filter((x) => x.alive && x.team === merchants[0]!.team && isEscort(x.cls)).length;
-  if (own) return `FÜHRUNG: EIGENER GELEITZUG PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. STATION 4 SM VORAUS HALTEN, WÖLFE VOR DEM KONVOI STELLEN. SPERRGEBIET 4 KM UM SIE.`;
-  return `FÜHRUNG: KONVOI ${merchants.length} FRACHTER, PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. ${escorts} GELEITSCHIFFE.`;
+  if (own) return `FÜHRUNG: EIGENER GELEITZUG PEILUNG ${b}°, CA. ${r} SM, KURS ${crs}°, ${kn} KN. STATION 4 SM VORAUS HALTEN, WÖLFE VOR DEM KONVOI STELLEN. SPERRGEBIET 4 KM UM SIE.`;
+  return `FÜHRUNG: KONVOI ${merchants.length} FRACHTER, PEILUNG ${b}°, CA. ${r} SM, KURS ${crs}°, ${kn} KN. ${escorts} GELEITSCHIFFE.`;
 }
 
 export function stepCommandRadio(w: World, dt: number): void {

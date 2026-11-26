@@ -44,7 +44,7 @@ export function weaponsStation(): Station {
         </div>
         <div class="panel wcard"><div class="hd"><span>Torpedorohre</span></div>
           <div class="wbody"><div id="tb" class="wstat"></div><div id="tubes-slot"></div><div class="row"><span class="dim">SUCHTIEFE</span><span id="tdep"></span></div><div class="row"><span class="dim">REICHWEITE</span><span id="trng"></span></div></div>
-          <button id="tube" class="fire">Torpedo auf Zielpeilung</button>
+          <button id="tube" class="fire" title="Leichttorpedo aus dem Rohr auf die Zielpeilung">Torpedo auf Ziel</button>
         </div>
         <div class="panel wcard"><div class="hd"><span>Werfer</span></div>
           <div class="wbody"><div id="dcn" class="wstat"></div><div class="dim">ZIEL 400–800&nbsp;M VORAUS AUF EIGENEM KURS</div><div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div><div class="dim wcap">SALVE AUF TIEFE ▸</div></div>

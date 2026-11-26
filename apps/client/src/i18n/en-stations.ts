@@ -206,6 +206,15 @@ export const EN_STATIONS: [string, string][] = [
   ['Torpedo im Wasser', 'Torpedo in the water'], ['PEGEL —', 'LEVEL —'], ['Pegel am Cursor in dB über dem Rauschgrund', 'Level at the cursor in dB above the noise floor'],
   ['Blattrate durch Wellenrate ergibt die Blattzahl; die Abweichung von der ganzen Zahl sagt, wie gut die Marken sitzen (unter ±0,3 passt sie)',
     'Blade rate over shaft rate gives the blade count; the deviation from a whole number says how well the marks sit (under ±0.3 it fits)'],
+  // Audit 4 follow-up (N3, N5, N6, N8, S3, F18, F19, F26, nice items)
+  ['PING-VERLAUF', 'PING HISTORY'], ['ENTFERNUNG →', 'RANGE →'], ['NOCH KEIN PING', 'NO PING YET'],
+  ['Auto-TMA: keine bessere Lösung als die vorhandene', 'Auto TMA: no better solution than the present one'],
+  ['Gezeigt / alle Kontakte', 'Shown / all contacts'], ['STABILISIERT', 'SETTLING'],
+  ['Möglicher Geist: Spiegelpeilung des Schleppsonars', 'Possible ghost: towed-array mirror bearing'],
+  ['Seite ungeklärt (STB/BB?): Rumpfsonar oder Kursänderung klärt sie', 'Side unresolved (STBD/PORT?): the hull sonar or a turn resolves it'],
+  ['Peilung von der Sonarboje, nicht vom eigenen Schiff', 'Bearing from the sonobuoy, not from the own ship'],
+  ['SCHLEPPSONAR: ZWEI SPIEGELPEILUNGEN, SEITE UNGEKLÄRT', 'TOWED ARRAY: TWO MIRROR BEARINGS, SIDE UNRESOLVED'], ['SEITE STEUERBORD', 'SIDE STARBOARD'], ['SEITE BACKBORD', 'SIDE PORT'],
+  ['MÖGLICHER GEIST (SPIEGELPEILUNG)', 'POSSIBLE GHOST (MIRROR BEARING)'], ['PEILUNG VON DER SONARBOJE, NICHT VOM EIGENEN SCHIFF', 'BEARING FROM THE SONOBUOY, NOT FROM THE OWN SHIP'],
 ];
 
 /** Texts with figures in them. */
@@ -234,4 +243,8 @@ export const EN_STATIONS_PHRASES: [RegExp, string][] = [
   [/^(\d+) PINGER · (\d+) PINGS \/ 5 MIN$/, '$1 PINGERS · $2 PINGS / 5 MIN'], [/^(\d+) Pinger in den letzten 5 Minuten$/, '$1 pingers in the last 5 minutes'],
   [/^VORSCHLAG: HECK ZUM PINGER: KURS (\d+), SCHLEICHFAHRT 4 KN, TIEFE (\d+) M HALTEN \(UNTER SCHICHT\)$/, 'PROPOSAL: STERN TO THE PINGER: COURSE $1, CREEP 4 KN, HOLD DEPTH $2 M (BELOW LAYER)'],
   [/^\(ABW\. /, '(DEV. '],
+  [/^FLIEGERALARM · /, 'AIR ALARM · '], [/^AUFTRAG: /, 'TASK: '],
+  [/^U-Jagd-Rakete: ZU WEIT \((.+) · BIS (.+)\)$/, 'ASW rocket: TOO FAR ($1 · UP TO $2)'], [/^U-Jagd-Rakete: ZU NAH \((.+) · AB (.+)\)$/, 'ASW rocket: TOO CLOSE ($1 · FROM $2)'],
+  [/^Nixie ausgebracht: höchstens (\d+) kn – erst einholen \(Waffen › Täuschkörper\)$/, 'Nixie streamed: $1 kn at most – recover it first (Weapons › Decoy)'],
+  [/^−(\d+) S$/, '−$1 S'],
 ];

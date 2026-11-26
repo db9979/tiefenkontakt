@@ -34,7 +34,9 @@ export function drawEsmRose(canvas: HTMLCanvasElement, H: number, s: Snapshot | 
   ctx.clearRect(0, 0, w, H);
   const cx = w / 2;
   const cy = H / 2;
-  const R = Math.min(w, H) / 2 - 14;
+  // S30: the letters stand inside the dark disc (the rose stays dark in the light theme, so
+  // letters outside it were dim grey on white)
+  const R = Math.min(w, H) / 2 - 3;
   ctx.fillStyle = COL.bg;
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -46,7 +48,7 @@ export function drawEsmRose(canvas: HTMLCanvasElement, H: number, s: Snapshot | 
     ctx.arc(cx, cy, R * f, 0, Math.PI * 2);
     ctx.stroke();
   }
-  // Ticks every 30°, cardinal letters outside the ring
+  // Ticks every 30°, cardinal letters just inside the ring
   const at = (deg: number, r: number) => {
     const a = ((deg - 90) * Math.PI) / 180;
     return [cx + Math.cos(a) * r, cy + Math.sin(a) * r] as const;
@@ -58,11 +60,11 @@ export function drawEsmRose(canvas: HTMLCanvasElement, H: number, s: Snapshot | 
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
   }
   ctx.font = FONT.tick;
-  ctx.fillStyle = COL.dim;
+  ctx.fillStyle = COL.g2;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const [d, l] of [[0, 'N'], [90, 'O'], [180, 'S'], [270, 'W']] as const) {
-    const [x, y] = at(d, R + 8);
+    const [x, y] = at(d, R - 13);
     ctx.fillText(t(l), x, y);
   }
   if (!s) return;

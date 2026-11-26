@@ -356,6 +356,9 @@ export class AcousticAnalysis {
     if (!store.selected) {
       ctx.fillStyle = COL.dim;
       ctx.font = '12px ui-monospace, monospace';
+      // N5: the canvas keeps the last align of the previous frame's labels (right/center cut it on the left)
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
       ctx.fillText('KONTAKT WÄHLEN, UM IHN ZU ANALYSIEREN', 12, H / 2);
       return;
     }

@@ -13,6 +13,10 @@ export const tdeg1 = (game: number) => deg1(trueDeg(game));
 export const km = (m: number) => (m / 1000).toFixed(1).replace('.', ',') + ' KM';
 /** Kilometres without the unit (a column whose header says KM): "2,8". */
 export const kmNum = (m: number) => (m / 1000).toFixed(1).replace('.', ',');
+/** Sea miles, for the frigate's chart and radar (F19): "9,9 SM". */
+export const sm = (m: number) => (m / 1852).toFixed(1).replace('.', ',') + ' SM';
+/** A range on a chart: sea miles on a surface ship's chart (SM grid), kilometres on the boat's (F19). */
+export const chartDist = (m: number, surface: boolean) => (surface ? sm(m) : km(m));
 export const kn = (v: number) => v.toFixed(1).replace('.', ',') + ' KN';
 
 export function clock(t: number): string {

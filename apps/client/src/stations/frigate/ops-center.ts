@@ -26,7 +26,7 @@ function aswStrip(s: Snapshot): string {
   const chip = (label: string, value: string, tone = '') => `<span class="aswchip ${tone}"><span class="dim">${label}</span> ${value}</span>`;
   const tgt = o.towedOrder ?? o.towedLength;
   const winch = tgt !== o.towedLength;
-  const tow = !spec.towed || (o.towedLength === 0 && !winch) ? '' : chip('SCHLEPP', winch ? `${o.towedLength}/${tgt} M` : o.towedReady ? `${o.towedLength} M` : 'STAB…', winch || !o.towedReady ? 'amber' : '');
+  const tow = !spec.towed || (o.towedLength === 0 && !winch) ? '' : chip('SCHLEPP', winch ? `${o.towedLength}/${tgt} M` : o.towedReady ? `${o.towedLength} M` : 'STABILISIERT', winch || !o.towedReady ? 'amber' : '');
   const a = hasHelicopter(o.cls) ? s.air : undefined;
   const helo = a?.helos.find((x) => x.kind !== 'mpa');
   const links = s.friendlies.filter((f) => f.cls !== 'merchant').length;

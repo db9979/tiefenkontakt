@@ -79,8 +79,11 @@ export function frigateSonarStation(): Station {
     const pane = q('[data-pane="active"]');
     const wide = Math.max(240, pane.clientWidth - 8);
     if (stacked.matches) return Math.min(420, wide);
-    const echoRows = Math.min(4, store.snap?.contacts.filter((c) => c.sensors.includes('active')).length ?? 0);
-    return Math.max(240, Math.min(wide, q('#st-tabs').clientHeight - 110 - echoRows * 22));
+    // F26: the whole free height of the pane (the scope draws a range-time strip below the round
+    // PPI): what the pane holds besides the canvas (bar, header, echo table) is measured, not guessed
+    const cv = scope.el.querySelector<HTMLCanvasElement>('canvas');
+    const other = scope.el.offsetHeight - (cv?.offsetHeight ?? 0);
+    return Math.max(240, pane.clientHeight - other - 12);
   };
   const scope = activeScope({ height: scopeH, pingKey: true });
   q('#as-slot').replaceWith(scope.el);

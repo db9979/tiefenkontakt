@@ -104,6 +104,8 @@ canvas { display: block; width: 100%; image-rendering: pixelated; }
   display: flex; flex-direction: column; min-width: 220px; }
 .ctxmenu button { border: 0; border-radius: 0; text-align: left; padding: 6px 10px; background: transparent; }
 .ctxmenu button:hover { background: #12302a; }
+/* F18: a line that only says why not (out of reach, not ready) is no button */
+.ctxmenu button.info, .ctxmenu button.info:hover { color: var(--amber); background: transparent; cursor: default; opacity: 1; }
 .steps { display: flex; gap: 3px; flex-wrap: wrap; margin: 4px 0; }
 .steps button { flex: 1; padding: 4px 4px; font-size: 0.9167rem; }
 .ctable { display: grid; grid-template-columns: 52px 1.2fr 0.8fr 0.9fr 1.4fr; gap: 6px; }
@@ -375,6 +377,10 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 .hitcam .hd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hitcam .hd button { padding: 0 8px; min-height: 0 !important; pointer-events: auto; }
 .hitcam canvas { display: block; width: 100%; height: 220px; border-radius: 2px; background: #050b0a; }
+/* Wide screens: smaller, at the foot of the side column over the older reports of the log, so the
+   chart's legend, scale and labels at its lower left stay readable (the side tabs stay clear above) */
+@media (min-width: 901px) { .hitcam { left: auto; right: 12px; bottom: 12px; width: 250px; padding: 4px; }
+  .hitcam .hd { font-size: var(--fs-cap); } .hitcam .hd > span { white-space: normal; } .hitcam canvas { height: 150px; } }
 @media (max-width: 900px) { .hitcam { left: 8px; right: 8px; width: auto; } .hitcam canvas { height: 180px; } }
 /* Phones: above the station bar and the helm button */
 @media (max-width: 600px) { .hitcam { bottom: 112px; } .hitcam canvas { height: 150px; } }
@@ -499,6 +505,8 @@ input[type=range] { accent-color: var(--g); }
 /* S28: a report takes at most two lines (the tooltip has it whole); folded floods show their count */
 .alerts .logrow > .ltx { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .alerts .logrow .lcnt { font-weight: 600; }
+/* N7: FLASH, command signals, torpedo and air alarms are never cut */
+.alerts .logrow.whole > .ltx { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
 @media (min-width: 601px) { .menu-panel .m-quit { display: none; } }
 /* G9 phone: one 44 px top row (clock · ⏩ · ⚙; sound, help and VERLASSEN in ⚙), RUDER as the last bottom tab */
 @media (max-width: 600px) {
@@ -518,3 +526,33 @@ input[type=range] { accent-color: var(--g); }
 .st-clock { flex: none !important; overflow: visible !important; }
 .h-ship { display: none; color: var(--g2); text-transform: none; letter-spacing: 0.02em; }
 @media (max-width: 1499px) { .topbar .status .st-ship { display: none; } .h-ship { display: inline; } }
+
+/* N6/S11/F13: nothing slides under the station tabs. Overflow goes to the right edge, never under
+   the tabs; with a stop reason on show the KONVOI word and the fast-forward words make room for it
+   (the bar and the ⏩ keep their tooltips); below 1280 px the KONVOI word is gone for good */
+.topbar .status { justify-content: safe flex-end; }
+.st-ffwhy { flex: 0 1 auto; }
+@media (min-width: 1500px) {
+  .topbar .status:has(.st-ffwhy:not(:empty)) .pb-lbl, .topbar .status:has(.st-ffwhy:not(:empty)) .ff .ff-lbl,
+  .topbar .status:has(.st-ffwhy:not(:empty)) .st-ship { display: none; }
+  /* The ship's name gives way first (it is in the helm header too) */
+  .topbar .status .st-ship { flex-shrink: 1000; }
+}
+/* Narrower: the reason hangs as a chip just under the bar's right end (out of the crowded row,
+   clicks pass through it) for the half minute it is shown */
+@media (max-width: 1499px) {
+  .topbar { position: relative; }
+  .topbar .status .st-ffwhy { position: absolute; right: 8px; top: calc(100% + 3px); z-index: 45; max-width: none; overflow: visible;
+    background: var(--panel); border: 1px solid var(--amber); border-radius: 3px; padding: 2px 8px; pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45); }
+}
+@media (max-width: 1279px) { .topbar .status .pb-lbl { display: none; } }
+/* N6: below 1280 px sea state and weather leave the clock (its tooltip has them) */
+@media (min-width: 601px) and (max-width: 1279px) { .st-clock .clk-sg { display: none; } }
+@media (min-width: 1280px) and (max-width: 1399px) { .topbar .ff .ff-lbl { display: none; } }
+/* Last resort: the clock ellipsizes (tooltip has it whole) rather than run under the icons */
+.topbar .status .st-clock { flex: 0 1 auto !important; min-width: 9ch; overflow: hidden !important; text-overflow: ellipsis; }
+/* Phones: the torpedo banner wraps (it was cut after "AUSWEICHEN") and spends less on letter spacing */
+@media (max-width: 600px) { .banner { white-space: normal; overflow: visible; text-overflow: clip; letter-spacing: 0.04em; font-size: 1.0833rem; line-height: 1.3; } }
+/* Phones: the stop reason sits above the station bar (under the top bar it covered the torpedo banner) */
+@media (max-width: 600px) { .topbar .status .st-ffwhy { position: fixed; top: auto; right: auto; left: 8px; bottom: 60px; max-width: calc(100vw - 16px); white-space: normal; } }

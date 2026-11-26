@@ -1,4 +1,5 @@
 import { CLASSES, NM, PERISCOPE_DEPTH, REGIONS, regionToGeo, type Snapshot } from '@tk/shared';
+import { navErrorText } from '../../widgets/plot-marks.js';
 import { net } from '../../net.js';
 import { btnState, depthBtn } from '../../widgets/btn-state.js';
 import { guardFire } from '../../widgets/fire-guard.js';
@@ -28,6 +29,7 @@ import { panelTabs, tabRow } from '../../widgets/panel-tabs.js';
 export function centralStation(): Station {
   const el = h(`<div class="st two sub-central stack">
     <div class="st-col">
+      <div class="c-air" id="c-air" hidden><span class="red blink" id="c-air-txt"></span><button data-crash class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">ALARMTAUCHEN${keycap('crashDive')}</button></div>
       <div class="panel grow"><div class="hd"><span>Zentrale · Koppeltisch</span><span id="c-alarm" class="red"></span></div>
         <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
         <div class="hint">KLICK WÄHLT · RECHTSKLICK = KURS</div>
@@ -91,6 +93,7 @@ export function centralStation(): Station {
     const depth = depthOf(v, layer, CLASSES[s.own.cls].maxDepth);
     if (depth !== undefined) net.send({ t: 'order', depth });
   }));
+  q<HTMLButtonElement>('#c-air [data-crash]').onclick = () => crashDive();
   q<HTMLButtonElement>('#snort').onclick = () => net.send({ t: 'toggle', what: 'snorkel', on: !store.snap?.own.snorkel });
   // Emergency blow: loud and irreversible, so it asks for a second press
   guardFire(q<HTMLButtonElement>('[data-cmd="blow"]'), () => ({ warn: 'WIRKLICH ANBLASEN' }), () => net.send({ t: 'blow' }));
@@ -124,6 +127,9 @@ export function centralStation(): Station {
       // Torpedo first; an aircraft in sight while the mast or snorkel shows is the next worst
       const air = exposed(s) ? airThreat(s) : undefined;
       q('#c-alarm').textContent = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 60) ? 'TORPEDO!' : air ? `FLIEGER · ${air.text}` : '';
+      // S3: the call to action stands on top of the Zentrale too, not only on the periscope
+      q('#c-air').hidden = !air;
+      if (air) q('#c-air-txt').textContent = `FLIEGERALARM · ${air.text}`;
       const crash = q<HTMLButtonElement>('[data-cmd="alarm"]');
       btnState(crash, air ? { label: 'FLIEGER!', tone: 'warn' } : { label: '' });
       q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
@@ -188,8 +194,8 @@ function navRows(s: Snapshot): string {
   const region = s.env.seabed?.region;
   const pos = region ? (() => { const g = regionToGeo(REGIONS[region], o.x, o.y); return latLon(g.lat, g.lon); })() : `${(o.x / 1000).toFixed(1)} / ${(o.y / 1000).toFixed(1)} KM`;
   const n = o.nav;
-  // Position error in sea miles, as on the chart (one unit per quantity)
-  const err = o.navUncertainty !== undefined ? `± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM` : '';
+  // Position error in the chart's unit (S20: M/KM, as the circle's label on the chart)
+  const err = o.navUncertainty !== undefined ? navErrorText(o.navUncertainty) : '';
   const last = n?.lastFix ? `${FIX[n.lastFix]} VOR ${clock(n.lastFixAgo ?? 0)}` : 'NUR KOPPELORT';
   const busy = n?.sat ? `SATELLIT EMPFANG ${Math.min(100, Math.round((n.sat / 120) * 100))} %` : n?.stars ? `STERNE ${Math.min(100, Math.round((n.stars / 180) * 100))} %` : '';
   const sat = n ? (n.satIn === 0 ? '<span class="amber">SATELLIT ÜBER DEM HORIZONT · MAST HOCH</span>' : `NÄCHSTER SATELLIT IN ${clock(n.satIn)}`) : '';

@@ -1,5 +1,5 @@
 import { onTap } from './touch.js';
-import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setHtml, tbrg } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setHtml, tbrg, tdeg3 } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
@@ -22,7 +22,8 @@ export const SENSOR_GLYPH: Record<SensorKind, string> = {
 const SENSOR_NAME: Record<SensorKind, string> = {
   hull: 'Rumpfsonar', towed: 'Schleppsonar', active: 'Aktivsonar', intercept: 'Ping gehört', periscope: 'Optik', radar: 'Radar', esm: 'ESM', buoy: 'Sonarboje', visual: 'Ausguck', mad: 'MAD',
 };
-const GLYPH_TITLE = Object.entries(SENSOR_GLYPH).map(([k, g]) => `${g} = ${SENSOR_NAME[k as SensorKind]}`).join(', ');
+const GLYPH_TITLE = Object.entries(SENSOR_GLYPH).map(([k, g]) => `${g} = ${SENSOR_NAME[k as SensorKind]}`).join(', ')
+  + ' · ? = Seite ungeklärt, ! = möglicher Geist, ◆ = Peilung von der Boje';
 
 /** Class words short enough for the column (the full word is the cell's tooltip, S18). */
 const CHOICE_SHORT: Record<ClassChoice, string> = {
@@ -119,9 +120,11 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
     ...(sub ? [] : [{ key: 'g:radar', label: 'RADAR' }]),
     { key: 'g:esm', label: 'ESM' },
     { key: 'g:visual', label: sub ? 'OPTIK' : 'SICHT' },
-  ]).replace('</div>', `<span class="dim chipcount">${rows.length}/${all.length}</span></div>`);
+  ]);
+  // The count stands outside the scrolling chip strip, so a narrow column never cuts it ("17/1", N3)
+  const chipRow = `<div class="chiprow">${chips}<span class="dim chipcount" title="Gezeigt / alle Kontakte">${rows.length}/${all.length}</span></div>`;
   const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? `<span title="Entfernung in km · ≈ aus der TMA-Lösung">${sortHead(ID, 'range', 'KM', DEF)}</span>` : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'SENS', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}<span title="Signalpegel in dB · ALT: Zeit seit der letzten Peilung">${sortHead(ID, 'lvl', 'PEGEL', DEF)}</span></div>`;
-  setHtml(el, chips + (rows.length
+  setHtml(el, chipRow + (rows.length
     ? head + rows.map(({ c, own, fresh }) => {
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
@@ -136,16 +139,29 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
         rangeTitle += ` · DOPPLER ${c.dopplerKn > 0 ? 'NÄHERT SICH' : 'ENTFERNT SICH'} ${Math.abs(c.dopplerKn).toFixed(0)} KN`;
       }
       const side = store.tasSide.get(c.label);
-      const tasNote = c.tas?.ghost ? '<span class="red"> GEIST?</span>' : c.bearingAlt !== undefined ? (side ? ` ${side === 'stb' ? 'STB' : 'BB'}` : ' <span class="amber">S/B?</span>') : '';
+      // N3: the bearing column holds only the bearing (a mirror pair compact, "114/166°"); the side
+      // cue and the buoy mark are glyphs in the SENS column, spelled out in their tooltips
+      const pair = c.bearingAlt !== undefined && !side;
+      const brgText = c.bearingAlt !== undefined && side
+        ? tbrg(steadyBearing(c.label, side === 'stb' ? c.bearing : c.bearingAlt, c.lastSeen))
+        : pair ? `${tdeg3(steadyBearing(c.label, c.bearing, c.lastSeen))}/${tbrg(steadyBearing(c.label + '/alt', c.bearingAlt!, c.lastSeen))}`
+          : tbrg(steadyBearing(c.label, c.bearing, c.lastSeen));
+      const brgTitle = [
+        pair ? 'SCHLEPPSONAR: ZWEI SPIEGELPEILUNGEN, SEITE UNGEKLÄRT' : side && c.bearingAlt !== undefined ? `SEITE ${side === 'stb' ? 'STEUERBORD' : 'BACKBORD'}` : '',
+        c.tas?.ghost ? 'MÖGLICHER GEIST (SPIEGELPEILUNG)' : '',
+        c.originX !== undefined ? 'PEILUNG VON DER SONARBOJE, NICHT VOM EIGENEN SCHIFF' : '',
+      ].filter(Boolean).join(' · ');
+      const cues = (c.tas?.ghost ? '<b class="red cue" title="Möglicher Geist: Spiegelpeilung des Schleppsonars">!</b>' : pair ? '<b class="amber cue" title="Seite ungeklärt (STB/BB?): Rumpfsonar oder Kursänderung klärt sie">?</b>' : '')
+        + (c.originX !== undefined ? '<b class="blue cue" title="Peilung von der Sonarboje, nicht vom eigenen Schiff">◆</b>' : '');
       const what = whatOf(c, own);
       const whatTitle = own ? `EIGEN${nameOf(c) ? ' · ' + nameOf(c) : ''}` : nameOf(c) || 'UNKLASSIFIZIERT';
       const color = c.assigned === 'torpedo' ? 'red' : '';
       const sensors = c.sensors.map((x) => SENSOR_NAME[x]).join(', ');
       return `<div class="row ctable clickable ${cls}" data-c="${esc(c.label)}" title="Klicken zum Auswählen">
         <span>${esc(c.label)}${fresh ? ' <b class="newbadge">NEU</b>' : ''}</span>
-        <span>${c.bearingAlt !== undefined && side ? tbrg(steadyBearing(c.label, side === 'stb' ? c.bearing : c.bearingAlt, c.lastSeen)) : `${tbrg(steadyBearing(c.label, c.bearing, c.lastSeen))}${c.bearingAlt !== undefined ? `/${tbrg(steadyBearing(c.label + '/alt', c.bearingAlt, c.lastSeen))}` : ''}`}${tasNote}${c.originX !== undefined ? ' <span class="blue">(BOJE)</span>' : ''}</span>
+        <span${brgTitle ? ` title="${esc(brgTitle)}"` : ''}>${brgText}</span>
         ${ranged ? `<span title="${esc(rangeTitle)}">${range}</span>` : ''}
-        <span class="glyphs" title="${esc(sensors)}">${sensorGlyphs(c.sensors)}</span>
+        <span class="glyphs" title="${esc(sensors)}">${sensorGlyphs(c.sensors)}${cues}</span>
         <span class="${color}" title="${esc(whatTitle)}">${what}</span>
         <span class="lvl${age > 30 ? ' dim' : ''}">${levelOf(c)}</span>
       </div>`;

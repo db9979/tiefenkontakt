@@ -1,4 +1,4 @@
-import { CLASSES, PERISCOPE_DEPTH, angleDiff, asternMaxKn, headingVec, wrap360, type ClassId } from '@tk/shared';
+import { CLASSES, NIXIE_MAX_KN, PERISCOPE_DEPTH, angleDiff, asternMaxKn, headingVec, wrap360, type ClassId } from '@tk/shared';
 import { t } from '../i18n/index.js';
 import { net } from '../net.js';
 import { depthBtn } from '../widgets/btn-state.js';
@@ -141,7 +141,13 @@ export function mountHelm(el: HTMLElement) {
       <input id="h-depth" type="range" min="0" max="400" step="1" title="Befohlene Tiefe in Metern" aria-label="Befohlene Tiefe">
     </div>`;
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
-  const order = (o: { heading?: number; speedKn?: number; depth?: number }) => net.send({ t: 'order', ...o });
+  const order = (o: { heading?: number; speedKn?: number; depth?: number }) => {
+    // The streamed Nixie holds the ship to 25 kn: say so when more is ordered (the order still goes out)
+    if (o.speedKn !== undefined && o.speedKn > NIXIE_MAX_KN && store.snap?.own.loadout.towedDecoy) {
+      store.lastError = `Nixie ausgebracht: höchstens ${NIXIE_MAX_KN} kn – erst einholen (Waffen › Täuschkörper)`;
+    }
+    net.send({ t: 'order', ...o });
+  };
   const compass = q<HTMLCanvasElement>('#h-compass');
   /** Compass diameter: 120–160 px, so the whole helm stays within about 42 % of the right column (110 px below 1280 px, tiles under it). */
   let size = 156;

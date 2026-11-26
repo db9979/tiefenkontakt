@@ -164,9 +164,14 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
       btnState(q('#hp-att'), { label: String(hv.torps), tone: hv.torps || hv.magTorps ? undefined : 'empty' });
       const a = aim(s);
       const bo = a ? undefined : bearingOnly(s);
+      // With no new target picked but a task running, the row names that task instead of asking (amber only when idle)
+      const run = hv.queue[0];
+      const busy = !a && !bo && run !== undefined && run.kind !== 'return';
       q('#hp-tgt').textContent = a ? `${a.what} · ${tdeg3(bearing(s.own, a.p))}° · ${km(distance(s.own, a.p))}`
         : bo ? `${bo.label} · ${tdeg3(bo.bearing)}° · NUR PEILUNG – PINGEN, TMA ODER KARTENPUNKT (RECHTSKLICK) · BOJENLINIE LÄNGS DER PEILUNG`
+        : busy ? `AUFTRAG: ${KIND[run.kind]}${run.track ? ` · ${run.track}` : ''} · ${tdeg3(bearing(s.own, run))}° · ${km(distance(s.own, run))}`
         : 'KONTAKT ODER PUNKT WÄHLEN';
+      q('#hp-tgt').className = busy ? '' : 'amber';
       // Rows are rebuilt only when the queue changes (the × buttons stay clickable); distance and ETA tick in place
       const rows = hv.queue.map((t, i) => {
         const detail = t.kind === 'dip' ? `${Math.min((t.step ?? 0) + 1, t.count ?? 1)}/${t.count ?? 1}`

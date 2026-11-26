@@ -41,3 +41,10 @@
 .sub-horch details.fold { margin-top: var(--sp2); }
 .sub-horch details.fold > summary { cursor: pointer; font-size: var(--fs-cap); color: var(--dim); letter-spacing: 0.08em; padding: 2px 0; }
 .sub-horch details.fold[open] > summary { color: var(--g); }
+
+/* S3: Fliegeralarm on top of the Zentrale: what is up there and one button down */
+.sub-central .c-air { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  border: 2px solid var(--red); background: #2a0d0d; padding: 6px 10px; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em; }
+.sub-central .c-air[hidden] { display: none; }
+.sub-central .c-air button { min-height: 32px; }
+html[data-theme='light'] .sub-central .c-air { background: #ffe3e3; }

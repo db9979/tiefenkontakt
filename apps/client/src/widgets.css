@@ -2,8 +2,13 @@
 
 /* Contact list (F2): fixed widths for what has a fixed width (bearing "272°/088°", range "≈ 12,3",
    level "ALT 120 S"), the class takes the rest; PEGEL right-aligned */
-.clist .ctable { grid-template-columns: 9ch minmax(7ch, 0.5fr) 6ch 4ch minmax(0, 1fr) 8ch; gap: 5px; }
-.clist.norange .ctable { grid-template-columns: 9ch minmax(7ch, 0.5fr) 4ch minmax(0, 1fr) 8ch; }
+.clist .ctable { grid-template-columns: 9ch minmax(8ch, 0.5fr) 6ch 5ch minmax(0, 1fr) 8ch; gap: 5px; }
+.clist.norange .ctable { grid-template-columns: 9ch minmax(8ch, 0.5fr) 5ch minmax(0, 1fr) 8ch; }
+/* N3: side cue (?), ghost (!) and buoy (◆) are glyphs after the sensor letters */
+.clist .ctable .cue { font-weight: 700; margin-left: 1px; }
+/* N3: the count stands beside the scrolling chip strip, never scrolled or cut */
+.clist .chiprow { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.clist .chiprow > .chips { flex: 1 1 auto; }
 /* S17: a scrolling list never ends in a half-cut row: the bottom fades out, and room after the
    last row lets it scroll clear of the fade */
 .st .panel.tabbed > .pane:has(> .clist), .sub-fc .fc-list {
@@ -18,7 +23,7 @@
 .clist .chips { flex-wrap: nowrap; min-width: 0; gap: 3px; overflow-x: auto; scrollbar-width: none; }
 .clist .chips::-webkit-scrollbar { display: none; }
 .clist .chips .chip { flex: 0 0 auto; white-space: nowrap; padding-left: 5px; padding-right: 5px; letter-spacing: 0.04em; }
-.clist .chips .chipcount { flex: 0 0 auto; white-space: nowrap; padding-left: 4px; }
+.clist .chipcount { flex: 0 0 auto; white-space: nowrap; padding-left: 4px; }
 
 /* Waterfall display controls: one height with the other footer controls (24 px), no lone wraps */
 .wf-ctl { display: inline-flex; gap: 3px; align-items: stretch; white-space: nowrap; }
@@ -55,3 +60,5 @@ body.crt .analysis button.on { z-index: 2; }
   .wf-ctl button, .st.sub-horch .foot .lm-seg > button, .st.sub-horch .foot > button, .st.sub-horch details.pop > summary { padding-left: 5px; padding-right: 5px; }
   .st.sub-horch .ana-foot { flex-wrap: wrap; row-gap: 4px; }
 }
+/* N3: in a narrow column the chips close up so the last one is not cut (the count stands beside them) */
+@media (max-width: 1279px) { .clist .chips { gap: 2px; } .clist .chips .chip { padding-left: 4px; padding-right: 4px; letter-spacing: 0.02em; } }

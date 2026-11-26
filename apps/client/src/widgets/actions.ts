@@ -1,13 +1,16 @@
-import { HELO_RANGE, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
+import { CLASSES, HELO_RANGE, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
 import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { km, tdeg3 } from './format.js';
+import { chartDist, km, tdeg3 } from './format.js';
+import { rocketCheck } from './weapon-reach.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { heloMode, pickHeloPoint } from './helo-panel.js';
 
 /** A warning in front of a weapon order when own or friendly ships are near where it lands. */
 const warnNear = (s: Snapshot, p: Vec2): string => (friendNear(s, p, 2000) ? '⚠ EIGENE IN DER NÄHE · ' : '');
+/** A range in the chart's unit: sea miles on a surface ship (F19), kilometres on the boat. */
+const dist = (s: Snapshot, m: number) => chartDist(m, !CLASSES[s.own.cls].submarine);
 
 /** Right-click map actions shared by stations. */
 export function courseAction(p: Vec2): MenuItem[] {
@@ -32,7 +35,7 @@ export function torpedoAction(
     const why = block.why === 'speed'
       ? `Abschuss nur bis ${block.limit} kn (jetzt ${Math.round(s.own.speedKn)} kn)`
       : `Abschuss nur bis ${block.limit} m Tiefe (jetzt ${Math.round(s.own.depth)} m)`;
-    return [{ label: why, run: () => undefined }];
+    return [{ label: why, run: () => undefined, info: true }];
   }
   const b = bearing(s.own, p);
   const d = distance(s.own, p);
@@ -50,9 +53,15 @@ export function rocketAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s || s.own.loadout.rockets <= 0) return [];
   const d = distance(s.own, p);
-  if (d < ROCKET_MIN_RANGE || d > ROCKET_MAX_RANGE) return [{ label: 'U-Jagd-Rakete: 1,8–18 km Reichweite', run: () => undefined }];
+  // F18: the same envelope check as the fire buttons; out of reach it is a disabled line saying why
+  const chk = rocketCheck(d);
+  if (chk.block) {
+    // The envelope in the chart's unit too (not "über 18 km" beside a range in sea miles)
+    const why = d < ROCKET_MIN_RANGE ? `ZU NAH (${dist(s, d)} · AB ${dist(s, ROCKET_MIN_RANGE)})` : `ZU WEIT (${dist(s, d)} · BIS ${dist(s, ROCKET_MAX_RANGE)})`;
+    return [{ label: `U-Jagd-Rakete: ${why}`, run: () => undefined, info: true }];
+  }
   return [{
-    label: `${warnNear(s, p)}U-Jagd-Rakete hierher (${km(d)})`,
+    label: `${warnNear(s, p)}U-Jagd-Rakete hierher (${dist(s, d)})`,
     danger: true,
     run: () => net.send({ t: 'rocket', bearing: bearing(s.own, p), range: d }),
   }];
@@ -64,9 +73,9 @@ export function ssmAction(p: Vec2): MenuItem[] {
   const fk = s?.ssm;
   if (!s || fk?.left === undefined || fk.left <= 0) return [];
   const d = distance(s.own, p);
-  if (d < (fk.minRange ?? 0) || d > (fk.maxRange ?? 0)) return [{ label: `Seeziel-FK: ${km(fk.minRange ?? 0)}–${km(fk.maxRange ?? 0)}`, run: () => undefined }];
-  if (fk.readyInS) return [{ label: `Seeziel-FK: Starter lädt (${fk.readyInS} s)`, run: () => undefined }];
-  return [{ label: `${warnNear(s, p)}Seeziel-FK hierher (${km(d)}, noch ${fk.left})`, danger: true, run: () => net.send({ t: 'ssm', bearing: bearing(s.own, p), range: d }) }];
+  if (d < (fk.minRange ?? 0) || d > (fk.maxRange ?? 0)) return [{ label: `Seeziel-FK: ${km(fk.minRange ?? 0)}–${km(fk.maxRange ?? 0)}`, run: () => undefined, info: true }];
+  if (fk.readyInS) return [{ label: `Seeziel-FK: Starter lädt (${fk.readyInS} s)`, run: () => undefined, info: true }];
+  return [{ label: `${warnNear(s, p)}Seeziel-FK hierher (${dist(s, d)}, noch ${fk.left})`, danger: true, run: () => net.send({ t: 'ssm', bearing: bearing(s.own, p), range: d }) }];
 }
 
 export function buoyAction(p: Vec2): MenuItem[] {
@@ -75,7 +84,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
   const d = distance(s.own, p);
   const hv = s.air.helo;
   if (!hv) return [];
-  if (d < 500 || d > HELO_RANGE) return [{ label: `Hubschrauber: 0,5–${HELO_RANGE / 1000} km Reichweite`, run: () => undefined }];
+  if (d < 500 || d > HELO_RANGE) return [{ label: `Hubschrauber: 0,5–${HELO_RANGE / 1000} km Reichweite`, run: () => undefined, info: true }];
   const b = bearing(s.own, p);
   // Tasks go into the helicopter's queue (at the end, or at once in SOFORT mode of the helicopter panel)
   const op = heloMode();
@@ -83,7 +92,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
   const task = (kind: 'dip' | 'buoys' | 'mad' | 'attack', extra: { active?: boolean } = {}) => () => net.send({ t: 'helo', op, kind, bearing: b, range: d, ...extra });
   // The submenu's title says "Hubschrauber": the lines name only the task
   const items: MenuItem[] = [
-    { label: `Ziel für die Aufträge hier (${km(d)})`, run: () => pickHeloPoint(p) },
+    { label: `Ziel für die Aufträge hier (${dist(s, d)})`, run: () => pickHeloPoint(p) },
     { label: `Tauchsonar hier${now}`, run: task('dip') },
     ...(hv.buoys + hv.magBuoys > 0 ? [
       { label: `Bojenlinie hier${now}`, run: task('buoys') },
@@ -93,7 +102,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
     ...(hv.torps + hv.magTorps > 0 ? [{ label: `${warnNear(s, p)}Torpedo hier (${hv.torps})${now}`, danger: true, run: task('attack') }] : []),
   ];
   // One line in the chart menu, the tasks in a second menu (the chart menu stays short)
-  return [submenu(`Hubschrauber ▸ (${km(d)})`, `Hubschrauber · ${tdeg3(b)}° · ${km(d)}`, items)];
+  return [submenu(`Hubschrauber ▸ (${dist(s, d)})`, `Hubschrauber · ${tdeg3(b)}° · ${dist(s, d)}`, items)];
 }
 
 /** A menu line that opens a second menu where the first one was. */
@@ -105,7 +114,7 @@ function submenu(label: string, title: string, items: MenuItem[]): MenuItem {
 export function mpaAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s?.air) return [];
-  if (s.air.mpaReadyInS > 0) return [{ label: `Seefernaufklärer bereit in ${Math.ceil(s.air.mpaReadyInS / 60)} min`, run: () => undefined }];
+  if (s.air.mpaReadyInS > 0) return [{ label: `Seefernaufklärer bereit in ${Math.ceil(s.air.mpaReadyInS / 60)} min`, run: () => undefined, info: true }];
   if (s.air.mpaBuoys < 6) return [];
   const b = bearing(s.own, p);
   return [{ label: 'Seefernaufklärer: Bojensperre hier (6 Bojen quer)', run: () => net.send({ t: 'mpa', bearing: b, range: distance(s.own, p) }) }];

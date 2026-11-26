@@ -124,3 +124,7 @@ html[data-theme='light'] .wfpop > summary { background: linear-gradient(180deg, 
 .st.bridge .b-acts > button { flex: 1 1 auto; }
 .st.bridge .b-sightp { max-height: 50%; display: flex; flex-direction: column; min-height: 0; }
 .st.bridge .b-sightp > .scroll { flex: 0 1 auto; min-height: 0; }
+/* Verband: the button groups keep their width (no "◀ / BB" in two lines); the caption beside them wraps instead */
+.escort-orders .row > .seg { flex: none; }
+.escort-orders .row > .seg > button { white-space: nowrap; }
+.escort-orders .row > .dim:first-child { min-width: 0; white-space: normal; }

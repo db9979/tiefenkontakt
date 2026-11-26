@@ -11,7 +11,8 @@ import { esc, h, setHtml, setText } from './format.js';
  */
 
 /** Detour steps (m, − = port of the convoy's leg) and their button labels. */
-const DETOURS: [number, string][] = [[-3000, '◀ 3 km'], [-1500, '◀ 1,5 km'], [0, 'Route'], [1500, '1,5 km ▶'], [3000, '3 km ▶']];
+/** Offsets in km (the caption says so; "◀ 1,5 KM" wrapped in the narrow buttons). */
+const DETOURS: [number, string][] = [[-3000, '◀ 3'], [-1500, '◀ 1,5'], [0, 'Route'], [1500, '1,5 ▶'], [3000, '3 ▶']];
 
 /** Stations relative to the convoy's course offered in the picker: [relative bearing, range m, label]. */
 const STATIONS: [number, number, string][] = [
@@ -66,7 +67,7 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
         <button data-spd="-2" title="Konvoi 2 kn langsamer (leiser)">−2 KN</button>
         <button data-spd="0" title="Fahrt laut Route">ROUTE</button>
         <button data-spd="2" title="Konvoi 2 kn schneller (lauter, früher durch)">+2 KN</button></span></div>
-      <div class="row"><span class="dim">KONVOI UMLEITEN</span><span data-detour-st class="dim"></span></div>
+      <div class="row"><span class="dim">KONVOI UMLEITEN · KM</span><span data-detour-st class="dim"></span></div>
       <div class="steps">${DETOURS.map(([m, l]) => `<button data-detour="${m}" title="${m ? `Kurs des Konvois ${String(Math.abs(m) / 1000).replace('.', ',')} km nach ${m < 0 ? 'Backbord' : 'Steuerbord'} versetzen (z. B. um eine Minensperre)` : 'Zurück auf die befohlene Route'}">${l}</button>`).join('')}</div>
     </div>
     <div class="dim" data-noconv style="display:none;margin-bottom:4px">KEIN KONVOI · NUR DIE GELEITSCHIFFE</div>

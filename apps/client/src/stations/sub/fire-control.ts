@@ -6,8 +6,8 @@ import {
   boundedQuality,
   lsqSolve,
   solveInPrior,
+  betterSolution,
   speedAtBound,
-  speedPrior,
   type SpeedPrior,
   bearing,
   ekelundRange,
@@ -37,6 +37,7 @@ import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 import { decoy } from '../../widgets/emergency.js';
 import { fillBox } from '../../widgets/fill.js';
+import { priorFor } from '../../widgets/speed-prior.js';
 import { keycap } from '../../widgets/keys.js';
 import { tubeBank } from '../../widgets/tube-bank.js';
 
@@ -57,19 +58,7 @@ const mmss = (t: number) => {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
 
-/** What the ear and the eye say about her speed: classification, DEMON shaft rate, tonals. */
-export function priorFor(c: Contact): SpeedPrior {
-  const m = store.marks.get(c.label);
-  const cls = c.assignedCls ?? c.classified;
-  const tonals = (c.evidence?.tonals ?? []).map((t) => t.hz);
-  if (m?.tonalHz) tonals.push(m.tonalHz);
-  return speedPrior({
-    choice: c.assigned,
-    classMaxKn: cls ? CLASSES[cls].maxSpeedKn : undefined,
-    shaftHz: m?.shaftHz ?? c.evidence?.shaftHz,
-    tonalsHz: tonals,
-  });
-}
+export { priorFor };
 
 const PRIOR_BY: Record<SpeedPrior['by'], string> = { class: 'KLASSE', demon: 'DEMON', tonals: 'TONALE', none: 'SUCHGRENZE' };
 
@@ -211,6 +200,11 @@ export function fireControlStation(): Station {
       lastSel = undefined;
     }
     if (ghost && (store.selected || s.time - ghost.lostAt > GHOST_S || !store.solutions.has(ghost.c.label))) ghost = undefined;
+    // N1: the label is held again (the track was re-associated): it is live, not VERLOREN
+    if (ghost && s.contacts.some((x) => x.label === ghost!.c.label)) {
+      store.selected = ghost.c.label;
+      ghost = undefined;
+    }
   }
 
   /** Güte of the worked contact's solution, capped while its speed only sits on a bound of the prior. */
@@ -266,7 +260,10 @@ export function fireControlStation(): Station {
     // first; the grid search inside the prior when that leaves it or finds nothing
     // (no own-ship bearings, unresolved towed array)
     const sol = solveInPrior(c.history, store.ownTrack, priorFor(c), (maxKn) => lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol);
-    if (sol) store.solutions.set(c.label, sol);
+    if (!sol) return;
+    // N8: never store a solution that fits the plot worse than the one already there
+    if (betterSolution(sol, store.solutions.get(c.label), c.history, store.ownTrack)) store.solutions.set(c.label, sol);
+    else store.lastError = 'Auto-TMA: keine bessere Lösung als die vorhandene';
   };
   q<HTMLButtonElement>('#clear').onclick = () => {
     const c = cur();

@@ -86,7 +86,7 @@ export const EN_UI: [string, string][] = [
   ['Bathythermograph werfen: misst die Sprungschicht', 'Drop a bathythermograph: measures the layer'], ['Sonar', 'Sonar'],
   ['Waffenleitstand · Ziel', 'Weapons control · target'], ['U-Jagd-Rakete', 'ASW rocket'],
   ['TRÄGT EINEN LEICHTGEWICHTSTORPEDO BIS 18 KM, FLUGZEIT CA. 40 S. DER TORPEDO SUCHT AKTIV IM KREIS.', 'CARRIES A LIGHTWEIGHT TORPEDO UP TO 18 KM, FLIGHT ABOUT 40 S. THE TORPEDO SEARCHES ACTIVELY IN A CIRCLE.'],
-  ['Rakete auf Ziel', 'Rocket on target'], ['Torpedorohre', 'Torpedo tubes'], ['SUCHTIEFE', 'SEARCH DEPTH'], ['Torpedo auf Zielpeilung', 'Torpedo on target bearing'],
+  ['Rakete auf Ziel', 'Rocket on target'], ['Torpedorohre', 'Torpedo tubes'], ['SUCHTIEFE', 'SEARCH DEPTH'], ['Torpedo auf Zielpeilung', 'Torpedo on target bearing'], ['Torpedo auf Ziel', 'Torpedo on target'], ['Leichttorpedo aus dem Rohr auf die Zielpeilung', 'Lightweight torpedo from the tube on the target bearing'],
   ['Wasserbomben', 'Depth charges'], ['Torpedoabwehr', 'Torpedo defence'], ['Täuschkörper-Schleppe', 'Towed decoy'], ['Zielkarte', 'Target map'],
   ['RECHTSKLICK = RAKETE HIERHER', 'RIGHT-CLICK = ROCKET HERE'], ['PEILUNG', 'BEARING'], ['ENTFERNUNG', 'RANGE'],
   ['KONTAKT IN DER LISTE WÄHLEN', 'SELECT A CONTACT IN THE LIST'], ['Waffen', 'Weapons'],

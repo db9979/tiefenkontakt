@@ -26,7 +26,12 @@ export interface LogEntry {
   keep?: boolean;
   /** Folded row (groupLog): how many alike reports it stands for. */
   count?: number;
+  /** FLASH, command signals, torpedo and air alarms: shown whole, never cut to two lines (N7). */
+  whole?: boolean;
 }
+
+/** Alert kinds whose log row is never clamped (N7). */
+const WHOLE_KINDS = new Set<string>(['flash', 'command', 'torpedo', 'air']);
 
 
 const en = lang === 'en';
@@ -108,7 +113,7 @@ export class Callouts {
     if (!p || s.full) {
       for (const c of s.contacts) this.known.add(c.label);
       // After a reconnect the recent alerts arrive at once: list them, don't speak them
-      for (const a of s.alerts) if (!p || a.time > p.time) pushLog(this.log, { time: a.time, text: a.text, level: LEVEL[a.kind] ?? 'info', keep: a.kind === 'command' || a.kind === 'flash' });
+      for (const a of s.alerts) if (!p || a.time > p.time) pushLog(this.log, { time: a.time, text: a.text, level: LEVEL[a.kind] ?? 'info', keep: a.kind === 'command' || a.kind === 'flash', whole: WHOLE_KINDS.has(a.kind) || undefined });
       return;
     }
     const sub = CLASSES[s.own.cls].submarine;
@@ -132,11 +137,11 @@ export class Callouts {
       const b = a.bearing !== undefined ? digits(a.bearing) : '';
       if (a.kind === 'torpedo') {
         const text = store.realism === 'profi' ? `HOCHFREQUENTES SCHRAUBENGERÄUSCH, SCHNELL WANDERND · PEILUNG ${deg3(a.bearing ?? 0)}°` : a.text;
-        this.report(s, { level: 'alarm', text, station: sub ? 'feuerleitung' : 'waffen' }, en ? `Torpedo in the water! Bearing ${b}!` : `Torpedo im Wasser! Peilung ${b}!`);
+        this.report(s, { level: 'alarm', text, station: sub ? 'feuerleitung' : 'waffen', whole: true }, en ? `Torpedo in the water! Bearing ${b}!` : `Torpedo im Wasser! Peilung ${b}!`);
       } else if (a.kind === 'sighting') {
         this.report(s, { level: 'warn', text: a.text, label: a.label, station: sub ? 'sehrohr' : 'bruecke' }, sightingCall(a, s.own.heading));
       } else if (a.kind === 'command') {
-        this.report(s, { level: 'info', text: a.text, station: sub ? 'zentrale' : undefined, keep: true }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
+        this.report(s, { level: 'info', text: a.text, station: sub ? 'zentrale' : undefined, keep: true, whole: true }, en ? 'Signal from fleet command received.' : 'Funkspruch der Führung empfangen.');
       } else if (a.kind === 'boat') {
         const urgent = /KOLLABIERT|RISS|DICHTUNG|BOLZEN|VERPUFFT|BRAND|WASSEREINBRUCH|^FEUER (IM|IN|GREIFT)|MUNITION|AUFTRIEB|SINKT|SACKT/.test(a.text);
         this.report(s, { level: urgent ? 'alarm' : 'warn', text: a.text, station: undefined }, boatCall(a.text));
@@ -155,7 +160,7 @@ export class Callouts {
         this.report(s, { level: 'warn', text: a.text }, en ? `Radar intercept, bearing ${b}.` : `Radarpeilung, Peilung ${b}.`);
       } else if (a.kind === 'sunk' || a.kind === 'flash') {
         // FLASH orders: the orders panel sounds the teletype alarm and speaks
-        pushLog(this.log, { time: a.time, text: a.text, level: 'alarm', keep: true });
+        pushLog(this.log, { time: a.time, text: a.text, level: 'alarm', keep: true, whole: a.kind === 'flash' || undefined });
       }
     }
     const o = s.own;

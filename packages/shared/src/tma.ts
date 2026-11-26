@@ -1,5 +1,5 @@
 import type { BearingSample } from './contacts.js';
-import { KN, angleDiff, bearing, headingVec, type Vec2 } from './math.js';
+import { KN, angleDiff, bearing, distance, headingVec, type Vec2 } from './math.js';
 import { CHOICE_MAX_KN, SIGNATURES, type ClassChoice } from './signatures.js';
 
 /** Target motion analysis from bearings-only data. Runs on the client with what the player knows. */
@@ -93,7 +93,15 @@ export interface SolveOptions {
   samples?: number;
   /** Lower speed bound (kn) of the search, from a speed prior. */
   minSpeedKn?: number;
+  /**
+   * Among ranges that fit equally well (within 0,05° RMS), take the one nearest this (m): on one
+   * leg every range fits, and the plain search kept the first, nearest one (N8).
+   */
+  nominalRange?: number;
 }
+
+/** Grid fits within this RMS (°) count as equally good (nominal-range tie-break). */
+const TIE_RMS_DEG = 0.05;
 
 export function autoSolve(
   hist: readonly BearingSample[], track: readonly OwnFix[], maxSpeedKn = 30, opts: SolveOptions = {},
@@ -107,7 +115,8 @@ export function autoSolve(
   if (!own) return undefined;
   const sample = subsample(hist, opts.samples ?? 24);
   const bearings = last.alt !== undefined ? [last.b, last.alt] : [last.b];
-  let best: { sol: TmaSolution; rms: number } | undefined;
+  const nominal = opts.nominalRange;
+  let best: { sol: TmaSolution; rms: number; r: number } | undefined;
   for (const b0 of bearings) {
     const dir = headingVec(b0);
     for (let r = 500; r <= 60_000; r *= rangeFactor) {
@@ -117,7 +126,8 @@ export function autoSolve(
         for (let v = Math.max(0, opts.minSpeedKn ?? 0); v <= maxSpeedKn + 1e-9; v += speedStep) {
           const sol = { t0: last.t, x0, y0, course: c, speedKn: v };
           const rms = evaluateSolution(sol, sample, track).rmsDeg;
-          if (!best || rms < best.rms) best = { sol, rms };
+          if (!best || rms < best.rms - (nominal ? TIE_RMS_DEG : 0)) best = { sol, rms, r };
+          else if (nominal && rms <= best.rms + TIE_RMS_DEG && Math.abs(Math.log(r / nominal)) < Math.abs(Math.log(best.r / nominal))) best = { sol, rms: Math.min(rms, best.rms), r };
         }
       }
     }
@@ -353,15 +363,66 @@ export function boundedQuality(quality: number, sol: Pick<TmaSolution, 'speedKn'
   return speedAtBound(sol, prior) ? Math.min(quality, EDGE_QUALITY_MAX) : quality;
 }
 
+/** A least-squares result that fits this well (RMS °) inside the prior is taken without a grid search. */
+export const TMA_GOOD_RMS_DEG = 2;
+/** An in-band candidate is preferred over an out-of-band one that fits at most this much better (°). */
+export const TMA_BAND_SLACK_DEG = 1.5;
+
 /**
  * Auto-TMA inside the speed prior: the preferred solver (least squares) first; if its speed
- * leaves the prior's band, the grid search restricted to that band.
+ * leaves the prior's band, or it fits badly, the grid search restricted to that band too.
+ * N8: candidates are compared by their RMS over the whole plot, and a worse one is never taken
+ * (after a second leg the grid in a wrong band gave 0,9 km at RMS 88° while least squares had 4°).
+ * Inside the band wins unless an outside candidate fits clearly better.
  */
 export function solveInPrior(
   hist: readonly BearingSample[], track: readonly OwnFix[], prior: SpeedPrior,
   first?: (maxKn: number) => TmaSolution | undefined,
 ): TmaSolution | undefined {
+  const inBand = (s: TmaSolution) => s.speedKn <= prior.hi + 0.25 && s.speedKn >= prior.lo - 0.25;
+  const last = hist[hist.length - 1];
+  const me = last ? ownPosAt(track, last.t) : undefined;
+  const rangeOf = (sol: TmaSolution) => (last && me ? distance(me, targetPosAt(sol, last.t)) : undefined);
+  const rate = (sol: TmaSolution) => ({ sol, rms: evaluateSolution(sol, hist, track).rmsDeg, band: inBand(sol), range: rangeOf(sol) });
+  // One leg only: every range on the bearing line fits as well, and the solvers slide to the
+  // nearest one (0,4-0,9 km). Then a near-range answer is only taken when nothing else fits as well.
+  const oneLeg = ownLegChange(hist, track) < TMA_LEG_MIN_DEG;
   const a = first?.(prior.hi);
-  if (a && a.speedKn <= prior.hi + 0.25 && a.speedKn >= prior.lo - 0.25) return a;
-  return autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5 }) ?? a;
+  const cands = a ? [rate(a)] : [];
+  if (cands[0]?.band && cands[0].rms <= TMA_GOOD_RMS_DEG && !(oneLeg && (cands[0].range ?? Infinity) < TMA_NEAR_M)) return a;
+  const g = autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5, ...(oneLeg ? { nominalRange: TMA_NOMINAL_M } : {}) });
+  if (g) cands.push(rate(g));
+  return pickSolution(cands, oneLeg)?.sol;
+}
+
+/** Own course change (°) below which the range is not observable (one leg). */
+export const TMA_LEG_MIN_DEG = 6;
+/** A one-leg solution closer than this (m) counts as the near-range collapse. */
+export const TMA_NEAR_M = 1500;
+/** On one leg the grid prefers, among equally good ranges, the one nearest to this (m). */
+export const TMA_NOMINAL_M = 8000;
+
+/**
+ * The best candidate by RMS; one inside the speed band is preferred while it fits nearly as well.
+ * With `avoidNear` (one leg), a candidate beyond TMA_NEAR_M is preferred over a nearer one that
+ * fits only as well (within the band slack).
+ */
+export function pickSolution<T extends { rms: number; band: boolean; range?: number }>(cands: readonly T[], avoidNear = false): T | undefined {
+  const ok = cands.filter((c) => Number.isFinite(c.rms));
+  const lowest = (xs: T[]) => xs.reduce<T | undefined>((m, c) => (!m || c.rms < m.rms ? c : m), undefined);
+  const best = lowest(ok);
+  if (!best) return undefined;
+  let pool = ok.filter((c) => c.rms <= best.rms + TMA_BAND_SLACK_DEG);
+  if (avoidNear && pool.some((c) => (c.range ?? Infinity) >= TMA_NEAR_M)) pool = pool.filter((c) => (c.range ?? Infinity) >= TMA_NEAR_M);
+  const banded = lowest(pool.filter((c) => c.band));
+  return banded ?? lowest(pool) ?? best;
+}
+
+/**
+ * Keep the stored solution when a new one fits the plot worse (N8): Auto-TMA never replaces a
+ * good solution with a worse one. True when `next` should be stored.
+ */
+export function betterSolution(next: TmaSolution, old: TmaSolution | undefined, hist: readonly BearingSample[], track: readonly OwnFix[]): boolean {
+  if (!old) return true;
+  return evaluateSolution(next, hist, track).rmsDeg <= evaluateSolution(old, hist, track).rmsDeg + 0.05;
 }

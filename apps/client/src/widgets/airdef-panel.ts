@@ -51,7 +51,7 @@ export function samAction(p: Vec2, tol: number): MenuItem[] {
   if (s.airdef.sam && hit.side !== 'neutral') {
     items.push(st.ok
       ? { label: `Flugabwehr: Feuer auf ${NAME[hit.kind]} (${km(st.range!)} · TREFFER CA. ${Math.round((st.pk ?? 0) * 100)} %)`, danger: true, run: () => { airSel.id = hit.id; net.send({ t: 'sam', planeId: hit.id }); } }
-      : { label: `Flugabwehr: ${st.text}`, run: () => undefined });
+      : { label: `Flugabwehr: ${st.text}`, run: () => undefined, info: true });
   }
   if (hit.side === 'hostile' && s.airdef.fighter) items.push(...fighterAction(s));
   return items;
@@ -60,9 +60,9 @@ export function samAction(p: Vec2, tol: number): MenuItem[] {
 function fighterAction(s: Snapshot): MenuItem[] {
   const f = s.airdef?.fighter;
   if (!f) return [];
-  if (f.arriveInS !== undefined || f.onStation) return [{ label: f.onStation ? 'Abfangjäger im Einsatzraum' : `Abfangjäger unterwegs · ${Math.ceil(f.arriveInS! / 60)} min`, run: () => undefined }];
-  if (f.left <= 0) return [{ label: 'Keine Abfangjäger mehr', run: () => undefined }];
-  if (f.readyInS > 0) return [{ label: `Abfangjäger bereit in ${Math.ceil(f.readyInS / 60)} min`, run: () => undefined }];
+  if (f.arriveInS !== undefined || f.onStation) return [{ label: f.onStation ? 'Abfangjäger im Einsatzraum' : `Abfangjäger unterwegs · ${Math.ceil(f.arriveInS! / 60)} min`, run: () => undefined, info: true }];
+  if (f.left <= 0) return [{ label: 'Keine Abfangjäger mehr', run: () => undefined, info: true }];
+  if (f.readyInS > 0) return [{ label: `Abfangjäger bereit in ${Math.ceil(f.readyInS / 60)} min`, run: () => undefined, info: true }];
   return [{ label: `Abfangjäger anfordern (${f.left} Einsätze)`, run: () => net.send({ t: 'fighter' }) }];
 }
 

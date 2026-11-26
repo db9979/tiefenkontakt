@@ -186,7 +186,7 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         // T+: time since the start of the match (the top bar shows the time of day)
         const at = `T+${shortClock(e.time)}`;
         const n = e.count ? `<b class="lcnt">${e.count}×</b> ` : '';
-        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}" data-log="${i}" title="${esc(`${at} ${e.count ? `${e.count}× ` : ''}${e.text}`)}"><span class="lt">${at}</span><span class="ltx">${n}<span>${esc(e.text)}</span></span></div>`;
+        return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}${e.whole ? ' whole' : ''}" data-log="${i}" title="${esc(`${at} ${e.count ? `${e.count}× ` : ''}${e.text}`)}"><span class="lt">${at}</span><span class="ltx">${n}<span>${esc(e.text)}</span></span></div>`;
       }).join('');
     if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
   };
@@ -403,7 +403,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const clk = q('#clock');
     const clkTxt = `${hh}SG ${s.env.seaState}${wxTail} · REST ${rest}${scaled && !s.ff?.on ? ` ×${s.timeScale}` : ''}`;
     if (clk.textContent !== clkTxt) {
-      clk.textContent = clkTxt;
+      // Sea state and weather in their own span: a narrow top bar drops them first (the tooltip keeps them, N6)
+      clk.innerHTML = `${hh}<span class="clk-sg">SG ${s.env.seaState}${wxTail} · </span>REST ${rest}${scaled && !s.ff?.on ? ` ×${s.timeScale}` : ''}`;
       clk.title = `${hh ? `Uhrzeit ${hh.slice(0, 5)} · ` : ''}Seegang ${s.env.seaState}${wxTail} · Restzeit ${restLong}`;
     }
     // Why the fast-forward stopped, for a while after it did (S29)
@@ -463,8 +464,8 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     const torp = s.alerts.filter((a) => a.kind === 'torpedo' && s.time - a.time < 45).pop();
     if (torp && s.own.alive && !store.ended) {
       banner.textContent = store.realism === 'profi'
-        ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${tdeg3(torp.bearing ?? 0)}`
-        : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)} · AUSWEICHEN · TÄUSCHKÖRPER`;
+        ? `SCHNELL WANDERNDES HOCHFREQUENTES GERÄUSCH · PEILUNG ${tdeg3(torp.bearing ?? 0)}°`
+        : `TORPEDO! PEILUNG ${tdeg3(torp.bearing ?? 0)}° · AUSWEICHEN · TÄUSCHKÖRPER`;
       setBannerGo(sub ? 'feuerleitung' : 'waffen');
       // First in the column after the (hidden) hint bar: above a FLASH order strip
       if (!banner.isConnected) stationWrap.insertBefore(banner, stationWrap.querySelector('.assist')?.nextSibling ?? stationWrap.firstChild);

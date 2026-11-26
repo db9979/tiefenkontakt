@@ -5,6 +5,8 @@ export interface MenuItem {
   label: string;
   run: () => void;
   danger?: boolean;
+  /** Only says why not (out of reach, not ready): drawn as a disabled line (F18). */
+  info?: boolean;
 }
 
 let open: HTMLElement | undefined;
@@ -20,7 +22,7 @@ export function openMenu(x: number, y: number, items: MenuItem[], title?: string
   const el = document.createElement('div');
   el.className = 'ctxmenu';
   el.innerHTML = (title ? `<div class="dim" style="padding:4px 10px">${esc(title)}</div>` : '') +
-    items.map((it, i) => `<button data-i="${i}" class="${it.danger ? 'fire' : ''}">${esc(it.label)}</button>`).join('');
+    items.map((it, i) => `<button data-i="${i}" class="${it.danger ? 'fire' : ''}${it.info ? ' info' : ''}"${it.info ? ' disabled' : ''}>${esc(it.label)}</button>`).join('');
   el.style.left = `${Math.min(x, window.innerWidth - 240)}px`;
   el.style.top = `${Math.min(y, window.innerHeight - 40 - items.length * 30)}px`;
   el.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {

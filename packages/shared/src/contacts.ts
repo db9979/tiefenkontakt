@@ -101,18 +101,45 @@ const HISTORY_MAX = 180;
  * Track re-association (S6, F7): a new track within this many degrees of one dropped in the last
  * REASSOC_S seconds (with the same sensor letter, and a shared tonal when both have tonals) takes
  * the old label back, so S2 doesn't come back as S13 and its TMA solution stays with it.
+ * N1: only when the call is unambiguous. In a convoy the merchants share their 50/60 Hz lines and
+ * sit a degree or two apart, so a new ship on S2's old bearing took S2 (and the player's class and
+ * solution for S2 then sat on the wrong ship). No reclaim when another live track, or a second
+ * dropped candidate, lies within the gate; the gate shrinks to REASSOC_CROWDED_DEG when other
+ * tracks are within CROWD_DEG; and the label only ever goes back to the ship that carried it.
  */
 export const REASSOC_DEG = 3;
+export const REASSOC_CROWDED_DEG = 1.5;
+export const CROWD_DEG = 10;
 export const REASSOC_S = 600;
 /** Two tonals count as the same line within this (Hz). */
 const TONAL_HZ = 1.5;
 
-interface Dropped { label: string; prefix: string; bearing: number; lastSeen: number; firstSeen: number; tonals?: number[] }
+interface Dropped {
+  label: string; prefix: string; bearing: number; lastSeen: number; firstSeen: number; tonals?: number[];
+  /** Bearing rate (°/s) at the drop, to carry the bearing over the gap. */
+  rate?: number;
+  /** Measured from a sonobuoy: not comparable with own-ship bearings. */
+  buoy?: boolean;
+  /** Server-only: the ship that carried the label (never leaves the server, like the book's keys). */
+  tid?: string;
+}
+
+const angDiff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
 /** True when both have tonals and none match, i.e. the lines say it is another ship. */
 function tonalsDiffer(a: number[] | undefined, b: number[] | undefined): boolean {
   if (!a?.length || !b?.length) return false;
   return !a.some((x) => b.some((y) => Math.abs(x - y) <= TONAL_HZ));
+}
+
+/** Bearing rate (°/s) over the last minute of own-ship bearings, 0 when that is too short. */
+function bearingRate(h: BearingSample[]): number {
+  const own = h.filter((x) => x.ox === undefined);
+  const last = own[own.length - 1];
+  if (!last) return 0;
+  const first = own.find((x) => last.t - x.t <= 60);
+  if (!first || last.t - first.t < 20) return 0;
+  return (((last.b - first.b + 540) % 360) - 180) / (last.t - first.t);
 }
 const PREFIX: Record<SensorKind, string> = {
   hull: 'S', towed: 'S', active: 'S', intercept: 'S', periscope: 'V', radar: 'R', esm: 'E', buoy: 'S', visual: 'A', mad: 'M',
@@ -128,19 +155,29 @@ export class ContactBook {
   /** A dropped track the new detection matches (bearing, sensor letter, tonals), taken off the list. */
   private reclaim(d: Detection, p: string): Dropped | undefined {
     this.dropped = this.dropped.filter((x) => d.time - x.lastSeen <= REASSOC_S);
+    if (d.originX !== undefined) return undefined;
     const tonals = d.evidence?.tonals.map((t) => t.hz);
-    let best: Dropped | undefined;
-    let bd = REASSOC_DEG;
-    for (const x of this.dropped) {
-      const diff = Math.abs(((d.bearing - x.bearing + 540) % 360) - 180);
-      if (x.prefix !== p || diff > bd || tonalsDiffer(tonals, x.tonals)) continue;
-      // Not while another live track still carries the label (it can't, but stay safe)
-      if ([...this.byTarget.values()].some((t) => t.label === x.label)) continue;
-      best = x;
-      bd = diff;
-    }
-    if (best) this.dropped = this.dropped.filter((x) => x !== best);
-    return best;
+    // Other ships held now, on own-ship bearings
+    const live = [...this.byTarget.values()].filter((t) => t.originX === undefined && d.time - t.lastSeen <= 60);
+    const crowded = live.some((t) => angDiff(t.bearing, d.bearing) <= CROWD_DEG);
+    const gate = crowded ? REASSOC_CROWDED_DEG : REASSOC_DEG;
+    if (live.some((t) => angDiff(t.bearing, d.bearing) <= gate)) return undefined;
+    // Where each dropped track should be now: its last bearing, or carried on at its rate (capped)
+    const near = this.dropped.filter((x) => {
+      if (x.buoy) return false;
+      const drift = Math.max(-20, Math.min(20, (x.rate ?? 0) * (d.time - x.lastSeen)));
+      return Math.min(angDiff(d.bearing, x.bearing + drift), angDiff(d.bearing, x.bearing)) <= gate;
+    });
+    // Two candidates in the gate: the operator can't tell them apart, so a new label
+    if (near.length !== 1) return undefined;
+    const x = near[0]!;
+    if (x.prefix !== p || tonalsDiffer(tonals, x.tonals)) return undefined;
+    // Only to the ship that carried it: a neighbour never takes over S2's class and solution
+    if (x.tid !== undefined && x.tid !== d.targetId) return undefined;
+    // Not while another live track still carries the label (it can't, but stay safe)
+    if ([...this.byTarget.values()].some((t) => t.label === x.label)) return undefined;
+    this.dropped = this.dropped.filter((y) => y !== x);
+    return x;
   }
 
   ingest(d: Detection): ContactTrack {
@@ -228,7 +265,11 @@ export class ContactBook {
       if (now - tr.lastSeen <= timeout) continue;
       this.byTarget.delete(id);
       const m = /^([A-Z]+)\d+$/.exec(tr.label);
-      if (m) this.dropped.push({ label: tr.label, prefix: m[1]!, bearing: tr.bearing, lastSeen: tr.lastSeen, firstSeen: tr.firstSeen, tonals: tr.evidence?.tonals.map((t) => t.hz) });
+      if (m) this.dropped.push({
+        label: tr.label, prefix: m[1]!, bearing: tr.bearing, lastSeen: tr.lastSeen, firstSeen: tr.firstSeen,
+        tonals: tr.evidence?.tonals.map((t) => t.hz), rate: bearingRate(tr.history), tid: id,
+        ...(tr.originX !== undefined ? { buoy: true } : {}),
+      });
     }
     if (this.dropped.length > 64) this.dropped.splice(0, this.dropped.length - 64);
   }

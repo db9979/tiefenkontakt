@@ -2,6 +2,8 @@ import { PERISCOPE_DEPTH, type PlaneView, type Snapshot } from '@tk/shared';
 import { audio } from '../../audio.js';
 import { store } from '../../store.js';
 import { tdeg3 } from '../../widgets/format.js';
+import { callouts } from '../../widgets/callouts.js';
+import { pushLog } from '../../widgets/log-group.js';
 
 /**
  * Fliegeralarm: an enemy (or unknown) aircraft seen by eye or on the mast radar while the boat
@@ -68,6 +70,8 @@ export function collectAirAlarm(s: Snapshot): AirThreat | undefined {
     if (prev === undefined || s.time - prev > RE_ARM_S) {
       audio.depthAlarm(true);
       shownText = `FLIEGERALARM: ${th.text} · ALARMTAUCHEN!`;
+      // S3: a log line that stays (alarm level, never folded or cut), not only the 8 s message line
+      pushLog(callouts.log, { time: s.time, text: shownText, level: 'alarm', keep: true, whole: true, station: 'zentrale' });
       store.lastError = shownText;
       shownUntil = performance.now() + 8000;
       setTimeout(() => {

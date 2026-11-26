@@ -7,50 +7,120 @@ export const CHOICE_OF_CLASS: Record<ClassId, ClassChoice> = { merchant: 'mercha
 const LOOSE_DEG = 5;
 /** ... for this long (s): no flicker EIGEN ↔ ? on a noisy bearing or an old report (F6). */
 const HOLD_S = 30;
+/** A track not heard for this long (s) gives way to fresh ones on the same friendly. */
+const STALE_S = 60;
 /** Datalink position error assumed (m): close in, it is a wide angle. */
 const POS_ERR_M = 300;
 
-type Cand = Pick<ContactTrack, 'bearing' | 'range' | 'classified' | 'sensors'> & { assigned?: ClassChoice; label?: string };
+type Cand = Pick<ContactTrack, 'bearing' | 'range' | 'classified' | 'sensors'> & Partial<Pick<ContactTrack, 'originX' | 'originY'>> & { assigned?: ClassChoice; label?: string };
 
 /** Last time each contact lined up with a friendly (per label; cleared when the clock runs backwards). */
 const held = new Map<string, number>();
+/** The friendly (picture:index) each held contact was last tagged to. */
+const heldSlot = new Map<string, string>();
 let heldTime = -1;
 
 /** Bearing tolerance to one friendly: 2° far off, more close in and the older the report. */
-function tolerance(s: Snapshot, f: Snapshot['friendlies'][number]): number {
-  const d = Math.max(1, Math.hypot(f.x - s.own.x, f.y - s.own.y));
+function tolerance(s: Snapshot, f: Snapshot['friendlies'][number], o: { x: number; y: number }): number {
+  const d = Math.max(1, Math.hypot(f.x - o.x, f.y - o.y));
   const drift = POS_ERR_M + f.speedKn * KN * Math.max(0, s.time - f.reportedAt);
   return 2 + (Math.atan(drift / d) * 180) / Math.PI;
 }
 
-/** The friendly the contact lines up with within the tolerance plus `extra` degrees. */
-function lineUp(c: Cand, s: Snapshot, extra: number): boolean {
-  for (const f of s.friendlies) {
-    if (!f.alive || s.time - f.reportedAt > 30) continue;
-    if (c.classified && c.classified !== f.cls) continue;
-    if (c.assigned && c.assigned !== 'unknown' && c.assigned !== CHOICE_OF_CLASS[f.cls]) continue;
-    const tol = Math.max(tolerance(s, f), extra);
-    if (Math.abs(angleDiff(bearing(s.own, f), c.bearing)) > tol) continue;
-    if (c.range !== undefined && Math.abs(c.range - Math.hypot(f.x - s.own.x, f.y - s.own.y)) > 800 + (tol - 2) * 40) continue;
-    return true;
+/** How well the contact lines up with each friendly (error over tolerance, below 1 = inside it). */
+function lineUps(c: Cand, s: Snapshot, extra: number): { i: number; score: number }[] {
+  // N2: a sonobuoy bearing is measured from the buoy, not from the own ship
+  const o = c.originX !== undefined && c.originY !== undefined ? { x: c.originX, y: c.originY } : s.own;
+  const out: { i: number; score: number }[] = [];
+  s.friendlies.forEach((f, i) => {
+    if (!f.alive || s.time - f.reportedAt > 30) return;
+    if (c.classified && c.classified !== f.cls) return;
+    if (c.assigned && c.assigned !== 'unknown' && c.assigned !== CHOICE_OF_CLASS[f.cls]) return;
+    const tol = Math.max(tolerance(s, f, o), extra);
+    const err = Math.abs(angleDiff(bearing(o, f), c.bearing));
+    if (err > tol) return;
+    if (c.range !== undefined && Math.abs(c.range - Math.hypot(f.x - o.x, f.y - o.y)) > 800 + (tol - 2) * 40) return;
+    out.push({ i, score: err / tol });
+  });
+  return out;
+}
+
+const eligible = (c: Cand, s: Snapshot) => c.assigned !== 'torpedo' && s.friendlies.length > 0 && !c.sensors.includes('esm');
+
+/** Per snapshot: the labels tagged own (each friendly accounts for at most one contact). */
+const owned = new WeakMap<Snapshot, Set<string>>();
+
+/**
+ * F6/F7: one friendly is one contact. Every contact that lines up with a friendly bids for it;
+ * contacts already held go first (hysteresis), then the closest bearing. A contact that lost
+ * its friendly to a better one is no longer own (no "10 EIGEN rows for 8 merchants"); one that
+ * lined up with nothing keeps the tag for HOLD_S (a short bearing excursion).
+ */
+function assignment(s: Snapshot): Set<string> {
+  const got = owned.get(s);
+  if (got) return got;
+  if (s.time < heldTime) {
+    held.clear();
+    heldSlot.clear();
   }
-  return false;
+  heldTime = s.time;
+  // Each picture on its own: a datalink mate's track of the same merchant is no rival of ours
+  const bids: { label: string; i: string; score: number }[] = [];
+  const lined = new Set<string>();
+  for (const c of s.contacts) {
+    if (!eligible(c, s)) continue;
+    const was = held.get(c.label);
+    const ups = lineUps(c, s, was !== undefined ? LOOSE_DEG : 0);
+    if (ups.length) lined.add(c.label);
+    const pool = c.via === 'own' ? 'own' : c.label.split('-')[0];
+    // A track not heard for a minute bids last: it must not keep a fresh one off its friendly
+    const stale = s.time - c.lastSeen > STALE_S;
+    for (const u of ups) bids.push({ label: c.label, i: `${pool}:${u.i}`, score: u.score + (stale ? 2 : was !== undefined ? -1 : 0) });
+  }
+  bids.sort((a, b) => a.score - b.score);
+  const own = new Set<string>();
+  const taken = new Set<string>();
+  for (const b of bids) {
+    if (own.has(b.label) || taken.has(b.i)) continue;
+    own.add(b.label);
+    taken.add(b.i);
+    heldSlot.set(b.label, b.i);
+  }
+  for (const c of s.contacts) {
+    if (own.has(c.label)) held.set(c.label, s.time);
+    else {
+      const was = held.get(c.label);
+      const slot = heldSlot.get(c.label);
+      // Off every friendly for a moment: still own, unless another contact now stands on its
+      // friendly (then two rows would claim one ship); beaten to its friendly: not own
+      if (was !== undefined && !lined.has(c.label) && eligible(c, s) && s.time - was <= HOLD_S && slot !== undefined && !taken.has(slot)) {
+        own.add(c.label);
+        taken.add(slot);
+      } else {
+        held.delete(c.label);
+        heldSlot.delete(c.label);
+      }
+    }
+  }
+  owned.set(s, own);
+  return own;
 }
 
 /**
  * Datalink correlation: a sonar contact that lines up with a known friendly ship
  * (convoy or escort) is tagged as own. Uses only information the player has. With a label the
  * tag holds (hysteresis): it goes only after the contact has been more than 5° off every
- * friendly for 30 s.
+ * friendly for 30 s. A contact of the snapshot competes with the others for its friendly.
  */
 export function isFriendlyContact(c: Cand, s: Snapshot): boolean {
-  if (c.assigned === 'torpedo') return false;
-  if (s.friendlies.length === 0 || c.sensors.includes('esm')) return false;
+  if (!eligible(c, s)) return false;
+  const key = c.label;
+  if (key !== undefined && s.contacts?.some((x) => x.label === key)) return assignment(s).has(key);
+  // A contact not in the snapshot (tests, previews): on its own
   if (s.time < heldTime) held.clear();
   heldTime = s.time;
-  const key = c.label;
   const was = key !== undefined ? held.get(key) : undefined;
-  if (lineUp(c, s, was !== undefined ? LOOSE_DEG : 0)) {
+  if (lineUps(c, s, was !== undefined ? LOOSE_DEG : 0).length) {
     if (key !== undefined) held.set(key, s.time);
     return true;
   }
