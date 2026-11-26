@@ -280,13 +280,24 @@ export function lobbyScreen(root: HTMLElement, me: { playerId: string; callsign:
     pending = false;
     render();
   };
-  el.addEventListener('pointerdown', () => (pressing = true));
-  const release = () => {
-    pressing = false;
-    setTimeout(flush, 50); // after the click handler has run
+  // The press lasts until its click has run: iOS sends the click well after the finger lifts
+  // (it was 50 ms after pointerup, and an update drawn in between replaced the tapped button)
+  let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+  const settle = (ms: number) => {
+    clearTimeout(releaseTimer);
+    releaseTimer = setTimeout(() => {
+      pressing = false;
+      flush();
+    }, ms);
   };
-  el.addEventListener('pointerup', release);
-  el.addEventListener('pointercancel', release);
+  el.addEventListener('pointerdown', () => {
+    clearTimeout(releaseTimer);
+    pressing = true;
+  });
+  // No click follows a drag or a scroll: let go after a while anyway
+  el.addEventListener('pointerup', () => settle(500));
+  el.addEventListener('pointercancel', () => settle(50));
+  el.addEventListener('click', () => settle(0));
   el.addEventListener('focusout', () => setTimeout(flush, 50));
   const off = net.on((m: ServerMsg) => {
     if (m.t === 'lobby') matches = m.matches;
