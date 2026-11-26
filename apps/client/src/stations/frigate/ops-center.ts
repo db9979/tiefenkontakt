@@ -1,11 +1,12 @@
-import { CLASSES, ROCKET_MIN_RANGE, bearing, distance, hasHelicopter, targetPosAt, type Snapshot, type Vec2 } from '@tk/shared';
+import { CLASSES, HELO_RANGE, bearing, distance, hasHelicopter, targetPosAt, type Snapshot, type Vec2 } from '@tk/shared';
 import { net } from '../../net.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { mountEscortOrders } from '../../widgets/escort-orders.js';
 import { fillBox } from '../../widgets/fill.js';
-import { CHOICE_LABEL, CLASS_LABEL, h, km, setHtml, setText, tdeg1 } from '../../widgets/format.js';
+import { CHOICE_LABEL, CLASS_LABEL, h, km, setHtml, setText, tdeg3 } from '../../widgets/format.js';
+import { FIX_AGE_S, rocketCheck } from '../../widgets/weapon-reach.js';
 import { heloMode, mountHeloPanel } from '../../widgets/helo-panel.js';
 import { lastFix } from '../../widgets/contact-pos.js';
 import { guardFire, targetCheck } from '../../widgets/fire-guard.js';
@@ -34,7 +35,8 @@ function aswStrip(s: Snapshot): string {
     o.activeSonar ? chip('SONAR', 'AKTIV', 'amber') : '',
     tow,
     s.env.layerDepth !== undefined ? chip('SCHICHT', `${s.env.layerDepth} M`) : s.env.noLayer ? chip('SCHICHT', 'KEINE') : chip('SCHICHT', 'UNBEKANNT', 'amber'),
-    a ? chip('HUBSCHR.', helo ? 'IN DER LUFT' : a.heloReadyInS > 0 ? `${Math.ceil(a.heloReadyInS / 60)} MIN` : 'BEREIT', a.heloReadyInS > 0 && !helo ? 'amber' : '') : '',
+    a ? chip('HUBSCHR.', helo ? 'IN DER LUFT' : a.helo?.launchInS !== undefined ? 'STARTET' : a.heloReadyInS > 0 ? `${Math.ceil(a.heloReadyInS / 60)} MIN` : 'BEREIT',
+      (a.heloReadyInS > 0 || a.helo?.launchInS !== undefined) && !helo ? 'amber' : '') : '',
     a ? chip('BOJEN', buoys ? `${a.stock} · ${buoys} IM WASSER` : String(a.stock), a.stock ? '' : 'amber') : '',
     chip('RAKETEN', String(o.loadout.rockets), o.loadout.rockets ? '' : 'amber'),
     o.loadout.depthCharges ? chip('WERFER', String(o.loadout.depthCharges)) : '',
@@ -42,11 +44,11 @@ function aswStrip(s: Snapshot): string {
   ].join('');
 }
 
-/** Where the selected contact probably is: a fresh fix, else the TMA solution. */
-function contactPoint(s: Snapshot): Vec2 | undefined {
+/** Where the selected contact probably is: a fresh fix (weapons: FIX_AGE_S, helicopter: 2 min), else the TMA solution. */
+function contactPoint(s: Snapshot, maxAge = 120): Vec2 | undefined {
   const c = store.selectedContact();
   if (!c) return undefined;
-  const fix = lastFix(c, s, 120);
+  const fix = lastFix(c, s, maxAge);
   if (fix) return fix.pos;
   const sol = store.solutions.get(c.label);
   return sol ? targetPosAt(sol, s.time + 40) : undefined;
@@ -97,26 +99,24 @@ export function opsCenterStation(): Station {
   const tabs = panelTabs(q('#st-tabs'), 'opz', () => redraw());
   // The selected-contact card: the three things the OPZ does with a contact
   q<HTMLButtonElement>('#oc-ping').onclick = () => net.send({ t: 'ping', single: true });
-  const aimRange = () => {
+  const aimRange = (maxAge = 120) => {
     const s = store.snap;
-    const p = s && contactPoint(s);
+    const p = s && contactPoint(s, maxAge);
     return s && p ? { p, d: distance(s.own, p), b: bearing(s.own, p) } : undefined;
   };
   guardFire(q<HTMLButtonElement>('#oc-rocket'), () => {
-    const a = aimRange();
-    if (!a) return { block: 'KEINE ENTFERNUNG' };
-    if (a.d < ROCKET_MIN_RANGE) return { block: 'ZU NAH · UNTER 1,8 KM' };
-    if (a.d > 18_000) return { block: 'ZU WEIT · ÜBER 18 KM' };
-    return targetCheck(a.p);
+    const a = aimRange(FIX_AGE_S);
+    const r = rocketCheck(a?.d);
+    return r.block ? r : targetCheck(a?.p);
   }, () => {
-    const a = aimRange();
+    const a = aimRange(FIX_AGE_S);
     if (a) net.send({ t: 'rocket', bearing: a.b, range: a.d });
   });
   guardFire(q<HTMLButtonElement>('#oc-helo'), () => {
     const a = aimRange();
     if (!store.snap?.air?.helo) return { block: 'KEIN HUBSCHRAUBER' };
-    if (!a) return { block: 'KEINE ENTFERNUNG' };
-    if (a.d > 30_000) return { block: 'ZU WEIT (30 KM)' };
+    if (!a) return { block: store.selectedContact() ? 'NUR PEILUNG' : 'KEINE ENTFERNUNG' };
+    if (a.d > HELO_RANGE) return { block: `ZU WEIT (${HELO_RANGE / 1000} KM)` };
     return {};
   }, () => {
     const a = aimRange();
@@ -147,7 +147,7 @@ export function opsCenterStation(): Station {
       const range = p ? distance(s.own, p) : undefined;
       const cls = !c ? '' : isFriendlyContact(c, s) ? 'EIGEN' : c.assigned ? CHOICE_LABEL[c.assigned] : c.classified ? CLASS_LABEL[c.classified] : 'UNKLASSIFIZIERT';
       setHtml(q('#oc-rows'), c
-        ? `<div class="row"><span class="dim">PEILUNG</span><span>${tdeg1(p ? bearing(s.own, p) : c.bearing)}°</span></div>
+        ? `<div class="row"><span class="dim">PEILUNG</span><span>${tdeg3(p ? bearing(s.own, p) : c.bearing)}°</span></div>
            <div class="row"><span class="dim">ENTFERNUNG</span><span>${range !== undefined ? km(range) : '<span class="dim">UNBEKANNT · PINGEN</span>'}</span></div>
            <div class="row"><span class="dim">KLASSE</span><span>${cls}</span></div>
            <div class="row"><span class="dim">ALTER</span><span>${Math.round(s.time - c.lastSeen)} S</span></div>`

@@ -57,6 +57,22 @@ export function normalise(raw: Float32Array): Float32Array {
  * contact bearings arrive in the game frame and are turned on the way in.
  * Built purely from the player's own contacts plus cosmetic noise.
  */
+/** Towed-array endfire: within this many degrees of the array's axis (bow or stern) the sim takes 10 dB off. */
+export const ENDFIRE_DEG = 20;
+/** Amplitude factor for the endfire cones on the towed waterfall (about −10 dB on the display). */
+const ENDFIRE_SHADE = 0.45;
+
+/** Is a bearing (degrees off the bow) inside a towed array's endfire cone, ahead or astern? */
+export function isEndfire(relDeg: number): boolean {
+  const a = Math.abs(relDeg);
+  return a < ENDFIRE_DEG || a > 180 - ENDFIRE_DEG;
+}
+
+/** How much a towed-array trace widens at this angle off the bow: 1 abeam, up to 3× at endfire. */
+export function endfireSpread(relDeg: number): number {
+  return 1 / Math.max(1 / 3, Math.abs(Math.sin((relDeg * Math.PI) / 180)));
+}
+
 export class Waterfall {
   /** Picture in the current ink (light mode inks every row as it is put). */
   private buf = document.createElement('canvas');
@@ -95,7 +111,9 @@ export class Waterfall {
     if (Math.floor(s.time) === this.lastT) return;
     this.lastT = Math.floor(s.time);
     // A recovered towed array hears nothing: no traces and no noise, the rows run dark
-    const deaf = this.sensors.length === 1 && this.sensors[0] === 'towed' && !(s.own.towedLength > 0);
+    const towed = this.sensors.length === 1 && this.sensors[0] === 'towed';
+    const deaf = towed && !(s.own.towedLength > 0);
+    const bow = trueDeg(s.own.heading);
     const lines: Line[] = [];
     for (const c of deaf ? [] : s.contacts) {
       if (c.via !== 'own' || s.time - c.lastSeen > 2) continue;
@@ -108,7 +126,8 @@ export class Waterfall {
       const db = c.se + this.fader.at(c.label, s.time);
       if (Math.random() > showChance(db)) continue;
       const amp = dbToAmp(db);
-      const width = beamWidth(db);
+      // A line array resolves the angle to its axis worst along it: the trace widens toward endfire (1/sin)
+      const width = beamWidth(db) * (towed ? endfireSpread(angleDiff(bow, trueDeg(c.bearing))) : 1);
       lines.push({ b: trueDeg(c.bearing), amp, width });
       if (c.bearingAlt !== undefined) lines.push({ b: trueDeg(c.bearingAlt), amp, width });
     }
@@ -128,6 +147,8 @@ export class Waterfall {
         if (d < 4 * l.width) v += l.amp * Math.exp((-d * d) / (2 * l.width * l.width)) * (0.6 + 0.4 * Math.random());
       }
       if (Math.abs(angleDiff(stern, x)) < baffleHalf) v *= 0.3;
+      // Towed array: both endfire cones (±20° of bow and stern) lose about 10 dB (sensors.ts)
+      if (towed && isEndfire(angleDiff(bow, x))) v *= ENDFIRE_SHADE;
       raw[x] = v;
     }
     // Background normaliser (split window): each bearing against the mean of its neighbours
@@ -192,6 +213,8 @@ export class Waterfall {
     ctx.textAlign = 'center';
     ctx.fillText('TOTER WINKEL', Math.min(pl + pw - 44, Math.max(pl + 44, pl + (stern / 360) * pw)), pt + ph - 5);
     const hx = pl + (trueDeg(s.own.heading) / 360) * pw;
+    // Towed array: the bow endfire cone is named too (the stern one is in the dead angle)
+    if (this.sensors.length === 1 && this.sensors[0] === 'towed') ctx.fillText('ENDFIRE', Math.min(pl + pw - 30, Math.max(pl + 30, hx)), pt + ph - 5);
     ctx.fillStyle = COL.blue;
     ctx.fillText('▼', hx, pt + 9);
     // Own torpedoes: a red marker over their trace

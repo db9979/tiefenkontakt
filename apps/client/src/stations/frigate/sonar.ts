@@ -40,7 +40,7 @@ export function frigateSonarStation(): Station {
     </div>
     <div class="st-col">
       <div class="panel grow tabbed" id="st-tabs">
-        <div class="hd">${tabRow([['ana', 'Analyse', 'LOFAR / DEMON des gewählten Kontakts'], ['active', 'Aktiv', 'Aktivsonar: Einzelping, CW/LFM, Echos'], ['vds', 'VDS/BT', 'Tiefensonar, Bathythermograph, Minenmeiden, Hörreichweite'], ['list', 'Kontakte']])}<span id="lab" class="amber"></span></div>
+        <div class="hd">${tabRow([['ana', 'Analyse', 'LOFAR / DEMON des gewählten Kontakts'], ['active', 'Aktiv', 'Aktivsonar: Einzelping, CW/LFM, Echos'], ['vds', 'BT/Reichweite', 'Bathythermograph, Minenmeiden, Hörreichweite (mit Tiefensonar: VDS)'], ['list', 'Kontakte']])}<span id="lab" class="amber"></span></div>
         <div class="pane scroll" data-pane="ana"><div id="ana"></div></div>
         <div class="pane scroll" data-pane="active"><div id="as-slot"></div></div>
         <div class="pane scroll" data-pane="vds">
@@ -73,9 +73,19 @@ export function frigateSonarStation(): Station {
   const towBox = fillBox(q('#tow-box'), 150);
   const analysis = new AcousticAnalysis(170);
   q('#ana').appendChild(analysis.el);
-  const scope = activeScope({ height: () => Math.max(240, Math.min(420, q('#st-tabs').clientHeight - 150)), pingKey: true });
+  // The PPI takes the free height of the tab (no wider than the pane); stacked (below 1000 px, stations-frigate.css), the page scrolls, so a fixed cap
+  const stacked = matchMedia('(max-width: 999px)');
+  const scopeH = () => {
+    const pane = q('[data-pane="active"]');
+    const wide = Math.max(240, pane.clientWidth - 8);
+    if (stacked.matches) return Math.min(420, wide);
+    const echoRows = Math.min(4, store.snap?.contacts.filter((c) => c.sensors.includes('active')).length ?? 0);
+    return Math.max(240, Math.min(wide, q('#st-tabs').clientHeight - 110 - echoRows * 22));
+  };
+  const scope = activeScope({ height: scopeH, pingKey: true });
   q('#as-slot').replaceWith(scope.el);
-  const range = rangePanel();
+  // The listening-range plot takes the free height of its tab (fixed when the page stacks)
+  const range = rangePanel({ height: () => (stacked.matches ? 200 : q('#st-tabs').clientHeight - 300) });
   q('#range-slot').replaceWith(range.el);
   // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
   let redraw = () => {};
@@ -145,6 +155,12 @@ export function frigateSonarStation(): Station {
       btnState(q('#mav'), o.mineAvoid && !o.mineAvoidRange ? { on: true, label: 'ZU SCHNELL', tone: 'warn' } : { on: !!o.mineAvoid });
       const vb = q<HTMLButtonElement>('#vds');
       const hasVds = !!CLASSES[o.cls].vds;
+      // The tab is named for what this ship has: the F-12 has no variable-depth sonar
+      const vdsTab = q('[data-ptab="vds"]');
+      if (vdsTab.dataset.vds !== String(hasVds) && vdsTab.firstChild) {
+        vdsTab.dataset.vds = String(hasVds);
+        vdsTab.firstChild.textContent = hasVds ? 'VDS/BT' : 'BT/Reichweite';
+      }
       vb.style.display = hasVds ? '' : 'none';
       vb.textContent = (o.vdsOrder ?? 0) > 0 ? 'VDS einholen' : 'VDS absenken';
       const vd = o.vdsDepth ?? 0, vo = o.vdsOrder ?? 0;

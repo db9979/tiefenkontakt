@@ -20,7 +20,7 @@ export const EN_PACING: [string, string][] = [
   // Fast-forward
   ['⏩ Zeitraffer', '⏩ Fast-forward'], ['■ Zeitraffer aus', '■ Fast-forward off'],
   ['Wetter (Nebel, Eis, Schauer): AN · Klick schaltet um', 'Weather (fog, ice, showers): ON · click to switch'], ['Wetter (Nebel, Eis, Schauer): AUS · Klick schaltet um', 'Weather (fog, ice, showers): OFF · click to switch'],
-  ['Zeitraffer', 'Fast-forward'], ['Zeitraffer aus', 'Fast-forward off'], ['Zeitraffer?', 'Fast-forward?'], ['Stimme zurück', 'Withdraw vote'],
+  ['Zeitraffer', 'Fast-forward'], ['Zeitraffer aus', 'Fast-forward off'], ['Stopp · Zeitraffer', 'Stop · fast-forward'], ['Zeitraffer anhalten: zurück auf Echtzeit', 'Stop fast-forward: back to real time'], ['Zeitraffer?', 'Fast-forward?'], ['Stimme zurück', 'Withdraw vote'],
   ['Zeitraffer ×6 bis zum nächsten Ereignis: neuer Kontakt, Alarm, Ausbildungsschritt', 'Fast-forward ×6 until the next event: new contact, alarm, training step'],
   ['Abstimmen: ×6 bis zum nächsten Ereignis, sobald alle an Bord eines Schiffes zugestimmt haben und niemand frischen Feindkontakt hat', 'Vote: ×6 until the next event, once everyone aboard a ship has agreed and nobody has a fresh hostile contact'],
   ['Zeitraffer nur mit eigenem Schiff', 'Fast-forward only with a ship of your own'],

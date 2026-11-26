@@ -42,19 +42,20 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   if (duel) {
     goal = 'Alle gegnerischen U-Boote versenken. Wer zuerst hört, gewinnt.';
     const e = enemies[0];
-    if (e) intel.push(`Gegner zuletzt gemeldet: etwa Peilung ${trueDeg3(w, bearing(ship.pos, e.pos) + (rnd() - 0.5) * 40)}, ${km(distance(ship.pos, e.pos) * (0.7 + rnd() * 0.6))}`);
+    if (e) intel.push(`Gegner zuletzt gemeldet: etwa Peilung ${trueDeg3(w, bearing(ship.pos, e.pos) + (rnd() - 0.5) * 40)}°, ${km(distance(ship.pos, e.pos) * (0.7 + rnd() * 0.6))}`);
   } else if (sub) {
     goal = harbour ? 'In die Bucht eindringen und die ankernden Frachter versenken.' : 'Die Hälfte der Konvoi-Tonnage versenken, bevor der Konvoi sein Ziel erreicht.';
     if (centre) {
       const b = bearing(ship.pos, centre) + (rnd() - 0.5) * 30;
-      intel.push(`Aufklärung: ${harbour ? 'Ankerplatz' : 'Konvoi'} etwa Peilung ${trueDeg3(w, b)}, ${km(distance(ship.pos, centre) * (0.75 + rnd() * 0.5))} (ungenau)`);
-      if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${String(Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9).replace('.', ',')} kn, Generalkurs ${trueDeg3(w, w.convoy?.guideHeading ?? 0, 10)}`);
+      intel.push(`Aufklärung: ${harbour ? 'Ankerplatz' : 'Konvoi'} etwa Peilung ${trueDeg3(w, b)}°, ${km(distance(ship.pos, centre) * (0.75 + rnd() * 0.5))} (ungenau)`);
+      if (!harbour) intel.push(`Konvoi: ${merchants.length} Frachter, etwa ${String(Math.round((merchants[0]!.speed / KN) * 10) / 10 || 9).replace('.', ',')} kn, Generalkurs ${trueDeg3(w, w.convoy?.guideHeading ?? 0, 10)}°`);
     }
     intel.push(`Eskorte: ${enemies.length} ${enemies.length === 1 ? 'Fregatte' : 'Fregatten'} mit Schleppsonar, Hubschrauber und U-Jagd-Raketen`);
   } else {
     goal = harbour ? 'Die Einfahrt halten, bis die Zeit abläuft.' : 'Den Konvoi ins Ziel bringen oder alle U-Boote versenken.';
-    if (centre) intel.push(`${harbour ? 'Ankerplatz' : 'Konvoi'}: Peilung ${trueDeg3(w, bearing(ship.pos, centre))}, ${km(distance(ship.pos, centre))}, ${merchants.length} Frachter`);
-    intel.push(`Bedrohung: ${enemies.length} ${enemies.length === 1 ? 'U-Boot' : 'U-Boote'}, vermutlich voraus des Konvois`);
+    if (centre) intel.push(`${harbour ? 'Ankerplatz' : 'Konvoi'}: Peilung ${trueDeg3(w, bearing(ship.pos, centre))}°, ${km(distance(ship.pos, centre))}, ${merchants.length} Frachter`);
+    const where = merchants.length ? 'vermutlich voraus des Konvois' : settings.mission === 'meerenge' ? 'vermutlich im Anlauf auf die Enge' : 'Standort unbekannt';
+    intel.push(`Bedrohung: ${enemies.length} ${enemies.length === 1 ? 'U-Boot' : 'U-Boote'}, ${where}`);
   }
   // Missions with goals beyond sinking (the strait runs along the route, game +y: named by its true direction)
   const to = compassStem(w, 0);
@@ -79,20 +80,23 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   const ai = enemies.find((e) => e.id.startsWith('p_bot-'));
   if (ai && rnd() < 0.6) intel.push(`Feindlagebild: Der gegnerische Kommandant ${ai.name} gilt als ${TRAITS[commanderTrait(ai.id, w.env.seed ?? 0)].de}`);
   if (sub && !duel) intel.push('Funksprüche der Führung alle 20 Minuten: Empfang auf höchstens 25 m oder mit Schleppantenne (bis 60 m, höchstens 6 kn)');
-  if ((settings.mission === 'hafen' || settings.mission === 'meerenge') && (!sub || w.weapons?.loadouts.get(ship.id)?.mines)) intel.push(sub ? 'Minen: Wo die Eskorte patrouilliert, sperren ein paar Minen ihr Fahrwasser (Feuerleitung, bis 300 m Wassertiefe)' : 'Minengefahr: Aktivsonar findet Minen voraus auf etwa 1 km');
+  if ((settings.mission === 'hafen' || settings.mission === 'meerenge') && (!sub || w.weapons?.loadouts.get(ship.id)?.mines)) intel.push(sub ? 'Minen: Wo die Eskorte patrouilliert, sperren ein paar Minen ihr Fahrwasser (Feuerleitung, bis 300 m Wassertiefe)' : 'Minengefahr: Minenmeidesonar (bis 15 kn) findet Minen voraus auf etwa 1,6 km, das Aktivsonar auf etwa 1 km');
   // Diesel boats: how much the patrol left in the battery and how long that lasts at a creep
   const cap = CLASSES[ship.cls].battery?.capacityKnH;
   if (cap && ship.battery !== undefined) {
     const pct = Math.round((100 * ship.battery) / cap);
     intel.push(`Batterie bei ${pct} %: bei 4 kn etwa ${Math.round(pct / batteryDrainPctH(4))} h getaucht, bei 10 kn etwa ${(pct / batteryDrainPctH(10)).toFixed(1).replace('.', ',')} h; Schnorcheln lädt`);
   }
+  // Without a convoy (the strait, the duel) the escorts guard a line, not a convoy
+  const convoy = merchants.length > 0;
+  const guard = settings.mission === 'meerenge' ? 'quer zur Enge patrouillieren' : 'das Gebiet absuchen';
   const steps = sub
     ? ['Langsam (unter 5 kn) und unter 100 m fahren und horchen', 'Kontakt wählen, klassifizieren, dann Kurswechsel für die Entfernung', 'Mit guter TMA-Lösung schießen, danach tief und schnell ablaufen']
     : hasHelicopter(ship.cls)
-      ? ['Schleppsonar ausbringen und zwischen U-Boot-Richtung und Konvoi bleiben', 'Sonarbojen voraus werfen, Kontakte klassifizieren', 'Entfernung per Ping oder Hubschrauber, dann U-Jagd-Rakete']
+      ? [convoy ? 'Schleppsonar ausbringen und zwischen U-Boot-Richtung und Konvoi bleiben' : `Schleppsonar ausbringen und ${guard}`, convoy ? 'Sonarbojen voraus werfen, Kontakte klassifizieren' : 'Sonarbojen als Sperre legen, Kontakte klassifizieren', 'Entfernung per Ping oder Hubschrauber, dann U-Jagd-Rakete']
       : CLASSES[ship.cls].vds
-        ? ['BT werfen, dann VDS unter die Schicht absenken und Schleppsonar ausbringen', 'Zwischen U-Boot-Richtung und Konvoi bleiben (unter 18 kn), Kontakte klassifizieren', 'Entfernung per Ping (im Flachwasser LFM) oder Kreuzpeilung, dann U-Jagd-Rakete']
-        : ['Schleppsonar ausbringen und die Flanke des Konvois sichern', 'Kontakte klassifizieren und über Datalink an die Fregatte melden', 'Entfernung per Ping oder Kreuzpeilung, dann U-Jagd-Rakete oder Wasserbomben'];
+        ? ['BT werfen, dann VDS unter die Schicht absenken und Schleppsonar ausbringen', convoy ? 'Zwischen U-Boot-Richtung und Konvoi bleiben (unter 18 kn), Kontakte klassifizieren' : 'Quer zur Enge patrouillieren (unter 18 kn), Kontakte klassifizieren', 'Entfernung per Ping (im Flachwasser LFM) oder Kreuzpeilung, dann U-Jagd-Rakete']
+        : [convoy ? 'Schleppsonar ausbringen und die Flanke des Konvois sichern' : 'Schleppsonar ausbringen und die Enge sperren', 'Kontakte klassifizieren und über Datalink an die Fregatte melden', 'Entfernung per Ping oder Kreuzpeilung, dann U-Jagd-Rakete oder Wasserbomben'];
   return {
     title: m.title, info: m.info, goal, intel, steps,
     timeLimitMin: settings.timeLimitMin, timeScale: settings.timeScale, seaMin: seaMinutes(settings), timeOfDay: settings.timeOfDay, ship: `${CLASSES[ship.cls].name} ${ship.name}`,

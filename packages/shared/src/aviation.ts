@@ -22,7 +22,7 @@ import type { World } from './world.js';
 
 export const HELO_SPEED = 120 * KN; // m/s
 /** Farthest task point from the own ship. */
-export const HELO_RANGE = 30_000; // m
+export const HELO_RANGE = 50_000; // m
 export const BUOY_LIFE = 1800; // s
 export const BUOY_BEARING_SD = 4; // deg (DIFAR)
 const BUOY_SHALLOW = 30;

@@ -1,4 +1,4 @@
-import { bearing, distance, targetPosAt, type HeloTaskKind, type Snapshot, type Vec2 } from '@tk/shared';
+import { HELO_RANGE, bearing, distance, targetPosAt, type HeloTaskKind, type Snapshot, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { btnState } from './btn-state.js';
@@ -21,7 +21,7 @@ let pickedAt = 0;
 /** Whether new helicopter tasks go to the end of the queue or replace it (the plot menu uses it too). */
 export const heloMode = (): Mode => mode;
 
-/** A map point for the helicopter's next task (plot menu "Hubschrauber-Ziel hier"). */
+/** A map point for the helicopter's next task (plot menu Hubschrauber ▸ "Ziel für die Aufträge hier"). */
 export function pickHeloPoint(p: Vec2): void {
   picked = { x: p.x, y: p.y };
   pickedAt = performance.now();
@@ -47,11 +47,23 @@ function aim(s: Snapshot): { p: Vec2; label?: string; what: string } | undefined
   if (picked && (!c || pickedAt >= lastSelect)) return { p: picked, what: 'KARTENPUNKT' };
   return c ? { ...c, what: c.label } : undefined;
 }
+
+/** Guessed range for a buoy line laid out along a bearing-only contact's bearing (m, line centre). */
+export const BEARING_LINE_RANGE = 8000;
+
+/** A selected contact with only a bearing (no fix, no TMA solution): its label and bearing. */
+function bearingOnly(s: Snapshot): { label: string; bearing: number } | undefined {
+  const c = store.selectedContact();
+  if (!c || contactPoint(s)) return undefined;
+  if (picked && pickedAt >= lastSelect) return undefined;
+  return { label: c.label, bearing: c.bearing };
+}
 let lastSelect = 0;
 let lastLabel: string | undefined;
 
 export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; dispose?(): void } {
-  const root = h(`<div class="panel helo-panel"><div class="hd"><span>Bordhubschrauber</span><span id="hp-st"></span></div>
+  const root = h(`<div class="helo-panel">
+    <div class="row hp-strow"><span class="dim">STATUS</span><span id="hp-st"></span></div>
     <div id="hp-rows"></div>
     <div class="row"><span class="dim">ZIEL</span><span id="hp-tgt" class="amber"></span></div>
     <div class="hp-opts">
@@ -79,21 +91,26 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
     if (!s) return;
     if (kind === 'return') return net.send({ t: 'helo', op: mode, kind });
     const a = aim(s);
-    if (!a) return;
+    if (!a) {
+      // Bearing only: the buoy line goes out along the bearing, centred at a guessed range
+      const b = kind === 'buoys' ? bearingOnly(s) : undefined;
+      if (b) net.send({ t: 'helo', op: mode, kind, bearing: b.bearing, range: BEARING_LINE_RANGE, axis: b.bearing, label: b.label, ...extra });
+      return;
+    }
     net.send({ t: 'helo', op: mode, kind, bearing: bearing(s.own, a.p), range: distance(s.own, a.p), label: a.label, ...extra });
   };
-  const check = () => {
+  const check = (kind?: HeloTaskKind) => {
     const s = snap;
     if (!s?.air?.helo) return { block: 'KEIN HUBSCHRAUBER' };
     const a = aim(s);
-    if (!a) return { block: 'KONTAKT ODER PUNKT WÄHLEN' };
-    if (distance(s.own, a.p) > 30_000) return { block: 'ZU WEIT (30 KM)' };
+    if (!a) return kind === 'buoys' && bearingOnly(s) ? {} : { block: bearingOnly(s) ? 'NUR PEILUNG' : 'KONTAKT ODER PUNKT WÄHLEN' };
+    if (distance(s.own, a.p) > HELO_RANGE) return { block: `ZU WEIT (${HELO_RANGE / 1000} KM)` };
     return {};
   };
   root.querySelectorAll<HTMLButtonElement>('[data-task]').forEach((b) => {
     const kind = b.dataset.task as HeloTaskKind;
     if (kind === 'return') b.onclick = () => send('return');
-    else guardFire(b, check, () => send(kind, kind === 'buoys' ? { count } : {}));
+    else guardFire(b, () => check(kind), () => send(kind, kind === 'buoys' ? { count } : {}));
   });
   guardFire(q<HTMLButtonElement>('#hp-att'), () => {
     const c = check();
@@ -135,8 +152,9 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
         return;
       }
       const doing = hv.doing ? KIND[hv.doing] : 'HÄLT POSITION';
-      st.className = hv.state === 'deck' && hv.readyInS > 0 ? 'amber' : '';
+      st.className = hv.state === 'deck' && (hv.readyInS > 0 || hv.launchInS !== undefined) ? 'amber' : '';
       st.textContent = hv.state === 'air' ? `IN DER LUFT · ${doing}${hv.working && hv.doing === 'dip' ? ' · SCHWEBT' : ''}`
+        : hv.launchInS !== undefined ? `STARTVORBEREITUNG ${mmss(hv.launchInS)}`
         : hv.readyInS > 0 ? `AN DECK · TANKEN/AUFMUNITIONIEREN · ${mmss(hv.readyInS)}` : 'AN DECK · BEREIT';
       const fuelMin = Math.floor(hv.fuelS / 60);
       setHtml(q('#hp-rows'), `
@@ -145,7 +163,10 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
         <div class="row"><span class="dim">LEICHTTORPEDOS</span><span>${hv.torps} AN BORD · ${hv.magTorps} IM MAGAZIN</span></div>`);
       btnState(q('#hp-att'), { label: String(hv.torps), tone: hv.torps || hv.magTorps ? undefined : 'empty' });
       const a = aim(s);
-      q('#hp-tgt').textContent = a ? `${a.what} · ${tdeg3(bearing(s.own, a.p))}° · ${km(distance(s.own, a.p))}` : 'KONTAKT ODER PUNKT WÄHLEN';
+      const bo = a ? undefined : bearingOnly(s);
+      q('#hp-tgt').textContent = a ? `${a.what} · ${tdeg3(bearing(s.own, a.p))}° · ${km(distance(s.own, a.p))}`
+        : bo ? `${bo.label} · ${tdeg3(bo.bearing)}° · NUR PEILUNG – PINGEN, TMA ODER KARTENPUNKT (RECHTSKLICK) · BOJENLINIE LÄNGS DER PEILUNG`
+        : 'KONTAKT ODER PUNKT WÄHLEN';
       // Rows are rebuilt only when the queue changes (the × buttons stay clickable); distance and ETA tick in place
       const rows = hv.queue.map((t, i) => {
         const detail = t.kind === 'dip' ? `${Math.min((t.step ?? 0) + 1, t.count ?? 1)}/${t.count ?? 1}`

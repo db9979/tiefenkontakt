@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookFor, createShip, createWorld, heloOf, installAir, installWeapons, stepWorld, type Ship, type World } from '@tk/shared';
+import { HELO_LAUNCH_PREP_S, bookFor, createShip, createWorld, heloOf, installAir, installWeapons, stepWorld, type Ship, type World } from '@tk/shared';
 import { newMemory, recordTrack, type BotMemory } from '../src/bots/common.js';
 import { thinkFrigate } from '../src/bots/frigate.js';
 import { heloProsecute } from '../src/bots/helo.js';
@@ -75,7 +75,8 @@ describe('AI escort helicopter works through the task queue', () => {
     stepWorld(w);
     heloProsecute(w, b, { x: u.pos.x + 1000, y: u.pos.y });
     expect(heloOf(w, b.id)!.queue).toHaveLength(0);
-    // Even without the team's commitment record: the other helicopter is seen at work there
+    // Even without the team's commitment record: the other helicopter is seen at work there (airborne after its launch preparation)
+    for (let i = 0; i < (HELO_LAUNCH_PREP_S + 2) * 10 && heloOf(w, a.id)!.state !== 'air'; i++) stepWorld(w);
     w.env.hunt.west!.helo = {};
     heloProsecute(w, b, { x: u.pos.x + 1000, y: u.pos.y });
     expect(heloOf(w, b.id)!.queue).toHaveLength(0);

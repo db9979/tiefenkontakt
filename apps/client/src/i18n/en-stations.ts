@@ -5,7 +5,7 @@ export const EN_STATIONS: [string, string][] = [
   ['Horchraum', 'Sonar room'], ['Sehrohr', 'Periscope'], ['Feuerleitung', 'Fire control'], ['Zentrale', 'Control room'],
   ['OPZ', 'CIC'], ['Sonar', 'Sonar'], ['Waffen', 'Weapons'], ['Radar/ESM', 'Radar/ESM'], ['Brücke', 'Bridge'],
   ['Horchraum · Breitband', 'Sonar room · broadband'], ['Bedrohung', 'Threat'], ['Aktiv', 'Active'], ['Kontakte', 'Contacts'], ['Analyse', 'Analysis'],
-  ['VDS/BT', 'VDS/BT'], ['Verband', 'Group'], ['Hubschrauber', 'Helicopter'], ['Mast · Radarwarner', 'Mast · radar warner'],
+  ['VDS/BT', 'VDS/BT'], ['ESM · Radar- und Funkpeilung', 'ESM · radar and radio DF'], ['OHNE RADAR BLEIBT DIE FREGATTE STILL. KURZ EINSCHALTEN, LAGE AUFNEHMEN, WIEDER AUS.', 'WITHOUT RADAR THE FRIGATE STAYS SILENT. SWITCH ON BRIEFLY, TAKE THE PICTURE, SWITCH OFF AGAIN.'], ['BT/Reichweite', 'BT/Range'], ['Bathythermograph, Minenmeiden, Hörreichweite (mit Tiefensonar: VDS)', 'Bathythermograph, mine avoidance, listening range (with variable-depth sonar: VDS)'], ['Verband', 'Group'], ['Hubschrauber', 'Helicopter'], ['Mast · Radarwarner', 'Mast · radar warner'],
   ['Feuerleitung · Lagebild', 'Fire control · tactical picture'], ['Draht · Täuschkörper', 'Wire · decoys'], ['Tiefenprofil', 'Depth profile'],
   ['Tiefe befehlen', 'Order depth'], ['Navigation · Echolot', 'Navigation · echo sounder'], ['Tiefenalarme', 'Depth alarms'], ['Befehle', 'Orders'],
   ['Zentrale · Koppeltisch', 'Control room · plotting table'], ['Operationszentrale · Lagebild', 'CIC · tactical picture'],
@@ -190,6 +190,7 @@ export const EN_STATIONS: [string, string][] = [
 
 /** Texts with figures in them. */
 export const EN_STATIONS_PHRASES: [RegExp, string][] = [
+  [/^RADARWARNER DER U-BOOTE HÖREN UNS BIS (\d+) SM\. SCHNORCHEL UND SEHROHRE ZEIGT DAS RADAR NUR AUF KURZE DISTANZ\.$/, 'THE SUBMARINES\' RADAR WARNERS HEAR US OUT TO $1 NM. RADAR SHOWS SNORKELS AND PERISCOPES ONLY AT SHORT RANGE.'],
   [/^NOCH (\d+) SALVEN$/, '$1 SALVOS LEFT'], [/^(\d+) VERFÜGBAR$/, '$1 AVAILABLE'], [/^(\d+) MIN$/, '$1 MIN'],
   [/^UNTER KIEL (\d+) M$/, 'UNDER KEEL $1 M'], [/^NUR AUF (\d+) M$/, 'ONLY AT $1 M'], [/^ZIEL (\S+)$/, 'TARGET $1'],
   [/^(\d+)\/(\d+) GELADEN · VORRAT (\d+)$/, '$1/$2 LOADED · STOCK $3'], [/^(\d+) FEINDKONTAKTE?$/, '$1 HOSTILE CONTACT(S)'],

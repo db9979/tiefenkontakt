@@ -44,7 +44,9 @@ export class RadarScope {
   /** Transmitting in the last update (draw shows the sweep only then). */
   private live = false;
 
-  constructor() {
+  /** keep: the tube stays dark in the light theme (its canvas carries .keep too), like a real PPI. */
+  constructor(opts: { keep?: boolean } = {}) {
+    if (opts.keep) this.phos.classList.add('keep');
     this.phos.width = S;
     this.phos.height = S;
     this.pc = this.phos.getContext('2d')!;

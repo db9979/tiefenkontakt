@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ATTACK_FROM_DIP_S, DIP_HOVER_S, DIP_STEP_M, HELO_BUOYS, HELO_ENDURANCE_S, HELO_REFUEL_S, HELO_SPEED, HELO_TORPS,
+  ATTACK_FROM_DIP_S, DIP_HOVER_S, DIP_STEP_M, HELO_BUOYS, HELO_ENDURANCE_S, HELO_LAUNCH_PREP_S, HELO_REFUEL_S, HELO_SPEED, HELO_TORPS,
   bookFor, buoyLine, createShip, dipDepth, createWorld, distance, heloClear, heloOf, heloOrder, heloRemove, heloView, installAir,
   installWeapons, restoreWorld, saveWorld, stepWorld, type World,
 } from '../src/index.js';
@@ -34,15 +34,22 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     expect(heloOrder(w, ffg, 'add', { kind: 'mad', at: { x: 0, y: 6000 } })).toBe(true);
     expect(heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 6000, y: 6000 }, count: 2 })).toBe(true);
     expect(heloOrder(w, ffg, 'add', { kind: 'return' })).toBe(true);
-    expect(heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 40_000, y: 0 } })).toMatch(/Reichweite/);
+    expect(heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 60_000, y: 0 } })).toMatch(/Reichweite/);
     const eta = heloView(w, ffg)!.queue.map((q) => q.etaS);
-    expect(eta[0]).toBeCloseTo(6000 / HELO_SPEED, -1);
+    // The ETA counts the launch preparation on deck
+    expect(eta[0]).toBeCloseTo(HELO_LAUNCH_PREP_S + 6000 / HELO_SPEED, -1);
     expect(eta[1]).toBeGreaterThan(eta[0]! + 360);
     expect(eta[2]).toBeGreaterThan(eta[1]! + 2 * DIP_HOVER_S);
-    // Takes off at once and flies the MAD task first
+    // Launch preparation first (about 2 min, counting down in the view), then it flies the MAD task
     run(w, 1);
     const h = heloOf(w, 'f')!;
+    expect(h.state).toBe('deck');
+    expect(heloView(w, ffg)!.launchInS).toBeCloseTo(HELO_LAUNCH_PREP_S - 1, -1);
+    run(w, HELO_LAUNCH_PREP_S - 5);
+    expect(h.state).toBe('deck');
+    run(w, 6);
     expect(h.state).toBe('air');
+    expect(heloView(w, ffg)!.launchInS).toBeUndefined();
     run(w, 120);
     expect(h.queue[0]!.kind).toBe('mad');
     expect(h.queue[0]!.phase).toBe('work');
@@ -64,7 +71,7 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     const { w, ffg } = world({ x: 40_000, y: 40_000 });
     heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 0, y: 5000 }, axis: 90, count: 2 });
     const h = heloOf(w, 'f')!;
-    run(w, 200, () => h.queue[0]?.phase === 'work');
+    run(w, 400, () => h.queue[0]?.phase === 'work');
     const t0 = w.time;
     while (h.queue[0]?.phase === 'work' && w.time < t0 + 400) {
 
@@ -141,7 +148,7 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     heloOrder(w, ffg, 'add', { kind: 'buoys', at: { x: 0, y: 12_000 }, axis: 90, count: 6 });
     heloOrder(w, ffg, 'add', { kind: 'buoys', at: { x: 0, y: 18_000 }, axis: 90, count: 4 });
     const h = heloOf(w, 'f')!;
-    run(w, 3000, () => h.state === 'deck' && w.time > 10);
+    run(w, 3000, () => h.state === 'deck' && w.time > HELO_LAUNCH_PREP_S + 10);
     // 12 buoys aboard: empty after two lines, home to rearm
     expect(h.state).toBe('deck');
     expect(w.air!.buoys).toHaveLength(12);
@@ -151,7 +158,11 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     expect(h.readyAt).toBeCloseTo(landed + HELO_REFUEL_S, 0);
     run(w, HELO_REFUEL_S - 5);
     expect(h.state).toBe('deck');
+    // Ready again: the launch preparation for the queued line, then airborne
     run(w, 10);
+    expect(h.state).toBe('deck');
+    expect(h.prepUntil).toBeDefined();
+    run(w, HELO_LAUNCH_PREP_S);
     expect(h.state).toBe('air');
     // Fuel: a long loiter far out ends in a landing before the tank is dry
     h.queue = [];
@@ -160,6 +171,25 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     expect(h.state).toBe('deck');
     expect(h.fuel).toBe(HELO_ENDURANCE_S);
     expect(w.events.some((e) => e.kind === 'boat' && e.text.includes('KRAFTSTOFF'))).toBe(true);
+  });
+
+  it('launch preparation: about 2 min from the order to lift-off; an emptied queue stands it down', () => {
+    const { w, ffg } = world({ x: 40_000, y: 40_000 });
+    const h = heloOf(w, 'f')!;
+    heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 0, y: 5000 } });
+    run(w, 30);
+    expect(h.state).toBe('deck');
+    expect(heloView(w, ffg)!.launchInS).toBeGreaterThan(HELO_LAUNCH_PREP_S - 40);
+    heloClear(w, ffg);
+    run(w, 1);
+    expect(h.prepUntil).toBeUndefined();
+    expect(heloView(w, ffg)!.launchInS).toBeUndefined();
+    // A new order starts the full preparation again
+    heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 0, y: 5000 } });
+    run(w, HELO_LAUNCH_PREP_S - 2);
+    expect(h.state).toBe('deck');
+    run(w, 4);
+    expect(h.state).toBe('air');
   });
 
   it('older saves: a helicopter sortie in flight becomes the airborne helicopter with that task, then home', () => {

@@ -9,7 +9,7 @@ describe('recognition book: threat sheet', () => {
   it('lists the frigate F-12 with helicopter, rockets, SAM, towed array and radar, ranges from the sim', () => {
     const t = threatSheet('ffg');
     expect(names('ffg')).toEqual(expect.arrayContaining(['Leichttorpedos', 'U-Jagd-Raketen', 'Wasserbomben', 'Flugabwehrraketen', 'Bordhubschrauber', 'Schleppsonar', 'Radar']));
-    expect(t.find((l) => l.name === 'Bordhubschrauber')?.rangeM).toBe(30_000);
+    expect(t.find((l) => l.name === 'Bordhubschrauber')?.rangeM).toBe(50_000);
     expect(t.find((l) => l.name === 'U-Jagd-Raketen')?.rangeM).toBe(18_000);
     // Six in the tubes, two reloads in the magazine (C10)
     expect(t.find((l) => l.name === 'Leichttorpedos')?.count).toBe(8);

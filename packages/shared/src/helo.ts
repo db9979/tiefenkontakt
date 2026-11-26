@@ -16,6 +16,8 @@ import { bookFor, type World } from './world.js';
 
 export const HELO_ENDURANCE_S = 90 * 60;
 export const HELO_REFUEL_S = 600;
+/** Launch preparation once a task is queued and the helicopter is ready: spot, spread rotors, start engines, run-up. */
+export const HELO_LAUNCH_PREP_S = 120;
 export const HELO_BUOYS = 12;
 export const HELO_TORPS = 2;
 /** Next dip this far on in the search direction (3–5 km). */
@@ -79,6 +81,8 @@ export interface Helo {
   /** On deck: refuelled and rearmed at this time. */
   readyAt: number;
   launchAt: number;
+  /** On deck with a task: airborne at this time (launch preparation running). */
+  prepUntil?: number;
   buoys: number;
   torps: number;
   queue: HeloTask[];
@@ -181,7 +185,7 @@ function orderCheck(w: World, ship: Ship, h: Helo | undefined, o: HeloOrder, que
   if (!ship.alive) return 'Schiff ist gesunken';
   if (o.kind === 'return') return undefined;
   if (!o.at) return 'Kein Zielpunkt';
-  if (distance(ship.pos, o.at) > HELO_RANGE) return 'Außer Reichweite des Hubschraubers (30 km)';
+  if (distance(ship.pos, o.at) > HELO_RANGE) return `Außer Reichweite des Hubschraubers (${HELO_RANGE / 1000} km)`;
   if (queued >= QUEUE_MAX) return 'Auftragsliste voll';
   const air = w.air!;
   if (o.kind === 'buoys' && h.buoys + (air.stock.get(ship.id) ?? 0) <= 0) return 'Keine Sonarbojen mehr';
@@ -443,7 +447,14 @@ function stepHelo(w: World, h: Helo, owner: Ship, dt: number): void {
     h.x = owner.pos.x;
     h.y = owner.pos.y;
     while (h.queue[0]?.kind === 'return') h.queue.shift();
-    if (!h.queue.length || w.time < h.readyAt) return;
+    if (!h.queue.length || w.time < h.readyAt) {
+      h.prepUntil = undefined;
+      return;
+    }
+    // Launch preparation (about 2 min) before it lifts off
+    h.prepUntil ??= w.time + HELO_LAUNCH_PREP_S;
+    if (w.time < h.prepUntil) return;
+    h.prepUntil = undefined;
     h.state = 'air';
     h.launchAt = w.time;
     restart(h);

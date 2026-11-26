@@ -1,6 +1,6 @@
 import { DIP_HOVER_S, HELO_SPEED, MAD_PATTERN_S } from './aviation.js';
 import type { Ship } from './entities.js';
-import { DIP_STEP_M, HELO_REFUEL_S, buoyLine, heloLow, heloOf, type Helo, type HeloTask, type HeloTaskKind } from './helo.js';
+import { DIP_STEP_M, HELO_LAUNCH_PREP_S, HELO_REFUEL_S, buoyLine, heloLow, heloOf, type Helo, type HeloTask, type HeloTaskKind } from './helo.js';
 import { distance, headingVec, type Vec2 } from './math.js';
 import type { World } from './world.js';
 
@@ -11,6 +11,8 @@ export interface HeloView {
   y: number;
   fuelS: number;
   readyInS: number;
+  /** On deck, launch preparation running: seconds to lift-off. */
+  launchInS?: number;
   buoys: number;
   torps: number;
   magBuoys: number;
@@ -61,7 +63,8 @@ export function heloView(w: World, ship: Ship): HeloView | undefined {
   if (!h) return undefined;
   const air = w.air!;
   let pos: Vec2 = { x: h.x, y: h.y };
-  let t = h.state === 'deck' ? Math.max(0, h.readyAt - w.time) : 0;
+  const prep = h.state === 'deck' && h.prepUntil !== undefined ? Math.max(0, Math.round(h.prepUntil - w.time)) : undefined;
+  let t = h.state === 'deck' ? (prep ?? Math.max(0, h.readyAt - w.time) + (h.queue.length ? HELO_LAUNCH_PREP_S : 0)) : 0;
   const queue: HeloView['queue'] = [];
   for (const task of h.queue) {
     const start = startPoint(pos, task, ship);
@@ -78,6 +81,7 @@ export function heloView(w: World, ship: Ship): HeloView | undefined {
   const first = h.queue[0];
   return {
     state: h.state, x: Math.round(h.x), y: Math.round(h.y), fuelS: Math.round(h.fuel), readyInS: h.state === 'deck' ? Math.max(0, Math.round(h.readyAt - w.time)) : 0,
+    ...(prep !== undefined ? { launchInS: prep } : {}),
     buoys: h.buoys, torps: h.torps, magBuoys: air.stock.get(ship.id) ?? 0, magTorps: air.heloTorps?.get(ship.id) ?? 0,
     doing: h.state === 'air' ? first?.kind : undefined, working: h.state === 'air' && (first?.phase === 'work' || !!heloLow(h)), queue,
   };

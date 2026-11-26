@@ -95,13 +95,13 @@ describe('C1 radar against masts: one roll per antenna turn', () => {
 });
 
 describe('C2 ESM range from the radio horizon', () => {
-  it('reach = min(40 nm, 1.35 × radio horizon)', () => {
+  it('reach = min(40 nm, 1.1 × radio horizon)', () => {
     expect(radioHorizon(20, 20)).toBeCloseTo(4120 * 2 * Math.sqrt(20));
-    expect(esmReach(3, 20) / NM).toBeCloseTo((1.35 * 4120 * (Math.sqrt(3) + Math.sqrt(20))) / NM);
-    expect(esmReach(3, 20) / NM).toBeGreaterThan(18);
-    expect(esmReach(3, 20) / NM).toBeLessThan(19.5);
-    expect(esmReach(20, 20) / NM).toBeGreaterThan(26);
-    expect(esmReach(20, 20) / NM).toBeLessThan(27.5);
+    expect(esmReach(3, 20) / NM).toBeCloseTo((1.1 * 4120 * (Math.sqrt(3) + Math.sqrt(20))) / NM);
+    expect(esmReach(3, 20) / NM).toBeGreaterThan(14.5);
+    expect(esmReach(3, 20) / NM).toBeLessThan(16);
+    expect(esmReach(20, 20) / NM).toBeGreaterThan(21);
+    expect(esmReach(20, 20) / NM).toBeLessThan(22.5);
     expect(esmReach(1000, 1000)).toBe(40 * NM);
   });
 
@@ -111,19 +111,19 @@ describe('C2 ESM range from the radio horizon', () => {
       ffg.radarOn = true;
       return runSensors(ctx([ffg, boat({ x: 0, y: 0 })], 10)).some((d) => d.observerId === 'u' && d.sensor === 'esm');
     };
-    expect(heard(18 * NM)).toBe(true);
-    expect(heard(20 * NM)).toBe(false);
+    expect(heard(14 * NM)).toBe(true);
+    expect(heard(16.5 * NM)).toBe(false);
   });
 
-  it('a frigate hears another frigate radar to about 27 nm', () => {
+  it('a frigate hears another frigate radar to about 22 nm', () => {
     const heard = (y: number) => {
       const a = createShip({ id: 'a', cls: 'ffg', name: 'A', pos: { x: 0, y: 0 }, heading: 0 });
       const b = createShip({ id: 'b', cls: 'ffg', name: 'B', team: 'east', pos: { x: 0, y }, heading: 0 });
       b.radarOn = true;
       return runSensors(ctx([a, b], 10)).some((d) => d.observerId === 'a' && d.sensor === 'esm');
     };
-    expect(heard(26 * NM)).toBe(true);
-    expect(heard(28 * NM)).toBe(false);
+    expect(heard(21 * NM)).toBe(true);
+    expect(heard(23 * NM)).toBe(false);
   });
 });
 

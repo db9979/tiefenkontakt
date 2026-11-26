@@ -1,4 +1,4 @@
-import { ROCKET_MIN_RANGE, bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
+import { HELO_RANGE, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
 import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -50,7 +50,7 @@ export function rocketAction(p: Vec2): MenuItem[] {
   const s = store.snap;
   if (!s || s.own.loadout.rockets <= 0) return [];
   const d = distance(s.own, p);
-  if (d < ROCKET_MIN_RANGE || d > 18_000) return [{ label: 'U-Jagd-Rakete: 1,8–18 km Reichweite', run: () => undefined }];
+  if (d < ROCKET_MIN_RANGE || d > ROCKET_MAX_RANGE) return [{ label: 'U-Jagd-Rakete: 1,8–18 km Reichweite', run: () => undefined }];
   return [{
     label: `${warnNear(s, p)}U-Jagd-Rakete hierher (${km(d)})`,
     danger: true,
@@ -75,22 +75,30 @@ export function buoyAction(p: Vec2): MenuItem[] {
   const d = distance(s.own, p);
   const hv = s.air.helo;
   if (!hv) return [];
-  if (d < 500 || d > 30_000) return [{ label: 'Hubschrauber: 0,5–30 km Reichweite', run: () => undefined }];
+  if (d < 500 || d > HELO_RANGE) return [{ label: `Hubschrauber: 0,5–${HELO_RANGE / 1000} km Reichweite`, run: () => undefined }];
   const b = bearing(s.own, p);
   // Tasks go into the helicopter's queue (at the end, or at once in SOFORT mode of the helicopter panel)
   const op = heloMode();
   const now = op === 'now' ? ' (sofort)' : '';
   const task = (kind: 'dip' | 'buoys' | 'mad' | 'attack', extra: { active?: boolean } = {}) => () => net.send({ t: 'helo', op, kind, bearing: b, range: d, ...extra });
-  return [
-    { label: `Hubschrauber-Ziel hier (${km(d)})`, run: () => pickHeloPoint(p) },
-    { label: `Hubschrauber: Tauchsonar hier${now}`, run: task('dip') },
+  // The submenu's title says "Hubschrauber": the lines name only the task
+  const items: MenuItem[] = [
+    { label: `Ziel für die Aufträge hier (${km(d)})`, run: () => pickHeloPoint(p) },
+    { label: `Tauchsonar hier${now}`, run: task('dip') },
     ...(hv.buoys + hv.magBuoys > 0 ? [
-      { label: `Hubschrauber: Bojenlinie hier${now}`, run: task('buoys') },
-      { label: 'Hubschrauber: aktive Bojenlinie (DICASS) · pingt, verrät sich', run: task('buoys', { active: true }) },
+      { label: `Bojenlinie hier${now}`, run: task('buoys') },
+      { label: 'Aktive Bojenlinie (DICASS) · pingt, verrät sich', run: task('buoys', { active: true }) },
     ] : []),
-    { label: `Hubschrauber: MAD-Suche hier (Kleeblatt, 6 min)${now}`, run: task('mad') },
-    ...(hv.torps + hv.magTorps > 0 ? [{ label: `${warnNear(s, p)}Hubschrauber: Torpedo hier (${hv.torps})${now}`, danger: true, run: task('attack') }] : []),
+    { label: `MAD-Suche hier (Kleeblatt, 6 min)${now}`, run: task('mad') },
+    ...(hv.torps + hv.magTorps > 0 ? [{ label: `${warnNear(s, p)}Torpedo hier (${hv.torps})${now}`, danger: true, run: task('attack') }] : []),
   ];
+  // One line in the chart menu, the tasks in a second menu (the chart menu stays short)
+  return [submenu(`Hubschrauber ▸ (${km(d)})`, `Hubschrauber · ${tdeg3(b)}° · ${km(d)}`, items)];
+}
+
+/** A menu line that opens a second menu where the first one was. */
+function submenu(label: string, title: string, items: MenuItem[]): MenuItem {
+  return { label, run: () => setTimeout(() => openMenu(lastPress.x, lastPress.y, items, title), 0) };
 }
 
 /** Maritime patrol aircraft: a buoy line across the line of sight at that point. */
@@ -127,7 +135,7 @@ export function escortOrderActions(p: Vec2): MenuItem[] {
       net.send({ t: 'convoy_order', order: 'course', course: Math.round(((Math.atan2(x - cx, y - cy) * 180) / Math.PI + 360) % 360) });
     },
   }] : [];
-  return [...convoyItems, ...cmd.escorts.map((e) => ({
+  const escortItems = cmd.escorts.map((e) => ({
     label: `Auftrag an ${e.name} …`,
     run: () => {
       const items: MenuItem[] = [
@@ -140,5 +148,8 @@ export function escortOrderActions(p: Vec2): MenuItem[] {
       // Opened after the first menu has closed
       setTimeout(() => openMenu(lastPress.x, lastPress.y, items, `Auftrag an ${e.name}`), 0);
     },
-  }))];
+  }));
+  const all = [...convoyItems, ...escortItems];
+  // More than one order for the group: one line "Verband ▸" in the chart menu
+  return all.length > 1 ? [submenu('Verband ▸', 'Verband · Befehle an diesen Punkt', all)] : all;
 }

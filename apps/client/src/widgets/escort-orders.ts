@@ -1,7 +1,7 @@
 import { gridRef, type EscortCommandView, type Snapshot } from '@tk/shared';
 import { gameDeg, trueDeg } from '../north.js';
 import { net } from '../net.js';
-import { esc, h, setHtml } from './format.js';
+import { esc, h, setHtml, setText } from './format.js';
 
 /**
  * Escort commander's panel (C15): convoy orders (emergency turn 45°, zigzag, speed ±2 kn, the
@@ -52,7 +52,7 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
     <div data-conv>
       <div class="row"><span class="dim">KONVOI</span><span data-cstate></span></div>
       <div class="row"><span class="dim">KURS BEFEHLEN</span><span class="seg">
-        <input data-crs type="number" min="0" max="359" step="5" placeholder="°" title="Neuer Generalkurs des Konvois (rechtweisend); auf der Karte: Rechtsklick → Konvoi-Kurs hierher" style="width:64px;text-align:right">
+        <input data-crs type="number" min="0" max="359" step="5" placeholder="°" title="Neuer Generalkurs des Konvois (rechtweisend); auf der Karte: Rechtsklick → Verband ▸ → Konvoi-Kurs hierher" style="width:64px;text-align:right">
         <button data-crs-go title="Den Konvoi auf diesen Kurs legen (gilt, bis er zurück auf die Route geschickt wird)">BEFEHLEN</button>
         <button data-crs-route title="Konvoi zurück auf die geplante Route">ROUTE</button></span></div>
       <div class="row"><span class="dim">NOTWENDE 45° · 10 MIN</span><span class="seg">
@@ -66,11 +66,12 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
         <button data-spd="-2" title="Konvoi 2 kn langsamer (leiser)">−2 KN</button>
         <button data-spd="0" title="Fahrt laut Route">ROUTE</button>
         <button data-spd="2" title="Konvoi 2 kn schneller (lauter, früher durch)">+2 KN</button></span></div>
-      <div class="row"><span class="dim">Konvoi umleiten</span><span data-detour-st class="dim"></span></div>
+      <div class="row"><span class="dim">KONVOI UMLEITEN</span><span data-detour-st class="dim"></span></div>
       <div class="steps">${DETOURS.map(([m, l]) => `<button data-detour="${m}" title="${m ? `Kurs des Konvois ${String(Math.abs(m) / 1000).replace('.', ',')} km nach ${m < 0 ? 'Backbord' : 'Steuerbord'} versetzen (z. B. um eine Minensperre)` : 'Zurück auf die befohlene Route'}">${l}</button>`).join('')}</div>
     </div>
+    <div class="dim" data-noconv style="display:none;margin-bottom:4px">KEIN KONVOI · NUR DIE GELEITSCHIFFE</div>
     <div data-esc></div>
-    <div class="dim" data-hint style="margin-top:4px">SEKTOR, DATUM, HUBSCHRAUBER, STATION AN EINEM PUNKT: RECHTSKLICK AUF DIE KARTE → AUFTRAG AN …</div>
+    <div class="dim" data-hint style="margin-top:4px">SEKTOR, DATUM, HUBSCHRAUBER, STATION AN EINEM PUNKT: RECHTSKLICK AUF DIE KARTE → VERBAND ▸</div>
   </div>`);
   el.appendChild(root);
   const send = net.send.bind(net);
@@ -78,7 +79,14 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
   const crsIn = root.querySelector<HTMLInputElement>('[data-crs]')!;
   const orderCourse = () => {
     const v = Number(crsIn.value);
-    if (crsIn.value === '' || !Number.isFinite(v)) return;
+    if (crsIn.value.trim() === '' || !Number.isFinite(v)) {
+      // Nothing to order: flash the field red so the click is not silently lost
+      crsIn.classList.remove('bad');
+      void crsIn.offsetWidth;
+      crsIn.classList.add('bad');
+      crsIn.focus();
+      return;
+    }
     send({ t: 'convoy_order', order: 'course', course: gameDeg(((Math.round(v) % 360) + 360) % 360) });
   };
   root.querySelector<HTMLButtonElement>('[data-crs-go]')!.onclick = orderCourse;
@@ -89,6 +97,8 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
   root.querySelectorAll<HTMLButtonElement>('[data-detour]').forEach((b) => (b.onclick = () => send({ t: 'convoy_detour', offset: Number(b.dataset.detour) })));
   let last: Snapshot | undefined;
   const onChange = (e: Event) => {
+    // Only the task pickers: the course field also fires change (on blur) and must keep its value
+    if (!(e.target as HTMLElement).matches('select[data-pick]')) return;
     const sel = e.target as HTMLSelectElement;
     const id = sel.dataset.pick;
     const v = sel.value;
@@ -107,10 +117,17 @@ export function mountEscortOrders(el: HTMLElement): { update(s: Snapshot): void;
     update(s: Snapshot) {
       last = s;
       const cmd = s.command;
-      root.style.display = cmd ? '' : 'none';
-      if (!cmd) return;
-      const c = cmd.convoy;
+      const c = cmd?.convoy;
       (root.querySelector('[data-conv]') as HTMLElement).style.display = c ? '' : 'none';
+      // No convoy (Meerenge) or nothing to command: say so instead of an empty tab
+      const noconv = root.querySelector('[data-noconv]') as HTMLElement;
+      noconv.style.display = c ? 'none' : '';
+      setText(noconv, cmd ? 'KEIN KONVOI · NUR DIE GELEITSCHIFFE' : 'KEIN KONVOI · KEINE KI-GELEITSCHIFFE IM VERBAND');
+      list.style.display = cmd ? '' : 'none';
+      if (!cmd) {
+        (root.querySelector('[data-hint]') as HTMLElement).style.display = 'none';
+        return;
+      }
       if (c) {
         root.querySelector('[data-cstate]')!.textContent = `${c.course !== undefined ? `KURS ${String(Math.round(trueDeg(c.course)) % 360).padStart(3, '0')}° · ` : 'AUF ROUTE · '}${c.speedKn.toFixed(0)} KN${c.zigzag ? ' · ZICKZACK' : ''}${c.turn ? ` · NOTWENDE ${c.turn.side < 0 ? 'BB' : 'STB'} NOCH ${Math.ceil(c.turn.leftS / 60)} MIN` : ''}`;
         root.querySelector<HTMLButtonElement>('[data-crs-route]')!.classList.toggle('on', c.course === undefined);

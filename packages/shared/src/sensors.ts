@@ -156,11 +156,12 @@ export function radioHorizon(hA: number, hB: number): number {
 }
 
 /**
- * How far an ESM receiver / radar warner at height hObs hears a radar at height hEmit: past
- * the radio horizon by a third (strong main beam, ducting), never beyond 40 nm.
+ * How far an ESM receiver / radar warner at height hObs hears a radar at height hEmit: a little
+ * past the radio horizon (strong main beam, the odd duct), never beyond 40 nm.
  */
+export const ESM_HORIZON_FACTOR = 1.1;
 export function esmReach(hObs: number, hEmit: number): number {
-  return Math.min(ESM_RANGE, 1.35 * radioHorizon(hObs, hEmit));
+  return Math.min(ESM_RANGE, ESM_HORIZON_FACTOR * radioHorizon(hObs, hEmit));
 }
 
 export interface SensorContext {
