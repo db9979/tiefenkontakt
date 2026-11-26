@@ -211,8 +211,11 @@ const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: num
   // The narrows favour their defender: the boat waits further up the fjord, 3 km off the deep
   // channel, so it has less time under the convoy (0.65/1.5 km: escorts 16:32 at 1000/5000)
   fjord: { subFrac: 0.8, spread: 1.2 },
-  // The anchorage lies about 3.5 km up the bay
-  hafen: { harbourSubY: 11_000 },
+  // The anchorage lies about 3.5 km up the bay, the escorts' gate at 6.5 km. With the paced AI the
+  // boats came in range too late for a second salvo: from 11 km the escorts held 53:19 (arena seeds
+  // 3/17/42 × 24); 10.3 km 40:32, 10.2 km 41:55, 10 km 25:47, 9.5 km 28:44. 10.25 km: 46:50 (seeds
+  // 3/17/42/77 × 24). The line is steep: one more salvo before the time runs out decides
+  hafen: { harbourSubY: 10_250 },
   meerenge: { straitStartY: 4800, straitExitY: 11_500 },
 };
 
