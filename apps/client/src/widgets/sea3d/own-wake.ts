@@ -93,7 +93,10 @@ void main() {
   float l2 = 1.0 - abs(noise(rl * 2.2 + vec2(5.3, uTime * 0.25)) * 2.0 - 1.0);
   float lace = l1 * l1 * 0.6 + l2 * l2 * 0.4;
   float speck = noise(r2 * vec2(9.0, 4.0) + uTime * 0.5);
-  float hi = mix(grain, lace * 0.7 + speck * 0.3, hk);
+  // (The coarse grain alone spreads far less than the lace, so thin foam eroded against it would
+  // vanish all at once along a line of equal pixel footprint, a straight cut across the wash
+  // astern: stretched to the lace's spread it breaks up the same way, only coarser)
+  float hi = mix(smoothstep(0.3, 0.68, grain), lace * 0.7 + speck * 0.3, hk);
   float n = grain * 0.35 + hi * 0.65;
   // Alpha erosion: dense foam stays solid, thinner foam keeps only the highs of the pattern, so
   // it breaks into lace and specks instead of thinning into a smear; what is left is crisp

@@ -1,4 +1,5 @@
-import { KN, type ClassChoice, type FriendlyView, type PlayerSlot, type SavedWorld, type ServerMsg, type Ship, type World } from '@tk/shared';
+import { KN, type FriendlyView, type PlayerSlot, type SavedWorld, type ServerMsg, type Ship, type World } from '@tk/shared';
+import type { SavedClasses } from './classes.js';
 import type { SavedCrew, BotState } from './bots/index.js';
 import type { Recorder, RecorderState } from './recorder.js';
 import type { ScenarioSettings } from './scenario.js';
@@ -32,7 +33,7 @@ export interface SavedMatch {
   tickCount: number;
   bots: SavedCrew | BotState[];
   recorder?: RecorderState;
-  classes: [string, [string, ClassChoice][]][];
+  classes: SavedClasses;
   extras: [string, Omit<PlayerExtras, 'reports'> & { reports: [string, FriendlyView][] }][];
 }
 

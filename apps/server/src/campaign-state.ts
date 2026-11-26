@@ -19,6 +19,8 @@ export interface CampStock {
   noisemakers: number;
   /** Naval mines (boats only; missing in runs saved before mines existed = full). */
   mines?: number;
+  /** Wake homers (the SSN, beside its heavyweights; missing in runs saved before they existed = full). */
+  wake?: number;
 }
 
 export interface CampShip {
@@ -110,7 +112,7 @@ export const sideOf = (cls: PlayableClass): CampSide => (CLASSES[cls].submarine 
 export function fullStock(cls: PlayableClass): CampStock {
   const l = createLoadout(cls);
   const inTubes = l.tubes.filter((t) => t.loaded).length;
-  return { torpedoes: (CLASSES[cls].submarine ? l.heavy : l.light) + inTubes, rockets: l.rockets, depthCharges: l.depthCharges, noisemakers: l.noisemakers, mines: l.mines ?? 0 };
+  return { torpedoes: (CLASSES[cls].submarine ? l.heavy : l.light) + inTubes, rockets: l.rockets, depthCharges: l.depthCharges, noisemakers: l.noisemakers, mines: l.mines ?? 0, wake: l.wake ?? 0 };
 }
 
 export function freshShip(cls: PlayableClass): CampShip {
@@ -270,6 +272,7 @@ export function briefingLines(run: CampaignRun): string[] {
   const full = fullStock(s.cls);
   if (s.stock.torpedoes < full.torpedoes) out.push(`Torpedos: ${s.stock.torpedoes} von ${full.torpedoes}`);
   if (s.stock.mines !== undefined && s.stock.mines < (full.mines ?? 0)) out.push(`Minen: ${s.stock.mines} von ${full.mines}`);
+  if (s.stock.wake !== undefined && s.stock.wake < (full.wake ?? 0)) out.push(`Kielwassertorpedos: ${s.stock.wake} von ${full.wake}`);
   return out;
 }
 

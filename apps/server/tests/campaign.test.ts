@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, createShip, createWorld, installWeapons, emptyDamage, type ServerMsg } from '@tk/shared';
+import { CLASSES, createShip, createWorld, fireTorpedo, installWeapons, emptyDamage, type ServerMsg } from '@tk/shared';
 import { AuthStore } from '../src/auth.js';
 import {
-  CAMPAIGN_MISSIONS, afterMission, crewLevel, dockDays, dockyard, enemySkill, fullStock, missionSettings, newRun,
+  CAMPAIGN_MISSIONS, afterMission, briefingLines, crewLevel, dockDays, dockyard, enemySkill, fullStock, missionSettings, newRun,
   type CampaignRun, type MissionOutcome,
 } from '../src/campaign-state.js';
 import { CampaignStore } from '../src/campaign-store.js';
@@ -59,6 +59,40 @@ describe('campaign state transitions', () => {
     installWeapons(w2);
     applyCarry(w2, w2.ships[0]!, old);
     expect(w2.weapons!.loadouts.get('u1')!.mines).toBe(4);
+  });
+
+  it('the SSN\'s wake homers carry over beside the heavyweights; resupply refills them, old runs start full', () => {
+    expect(fullStock('ssn')).toMatchObject({ torpedoes: 12, wake: 4 });
+    expect(fullStock('ssk').wake).toBe(0);
+    const boat = () => createShip({ id: 'u1', cls: 'ssn', name: 'U1', pos: { x: 0, y: 0 }, heading: 0, depth: 60 });
+    // A mission: one wake homer fired (the tube's heavyweight goes back on the rack)
+    const sub = boat();
+    const w = createWorld([sub], 3);
+    installWeapons(w);
+    applyCarry(w, sub, newRun('ssn'));
+    expect(typeof fireTorpedo(w, sub, { heading: 0, mode: 'wake' })).toBe('object');
+    expect(stockOf(w, sub)).toMatchObject({ torpedoes: 12, wake: 3 });
+    const r = afterMission({ ...newRun('ssn'), status: 'sea' }, outcome({ stock: stockOf(w, sub) }));
+    expect(r.ship.stock.wake).toBe(3);
+    // The next mission sails with what is left
+    const w2 = createWorld([boat()], 3);
+    installWeapons(w2);
+    applyCarry(w2, w2.ships[0]!, dockyard(r, { repair: 'keine', resupply: false }) as CampaignRun);
+    expect(w2.weapons!.loadouts.get('u1')!.wake).toBe(3);
+    // Spent to the last: none left to fire
+    const w3 = createWorld([boat()], 3);
+    installWeapons(w3);
+    applyCarry(w3, w3.ships[0]!, { ...r, ship: { ...r.ship, stock: { ...r.ship.stock, wake: 0 } } });
+    expect(fireTorpedo(w3, w3.ships[0]!, { heading: 0, mode: 'wake' })).toBe('Keine Kielwassertorpedos an Bord');
+    // Resupply refills them; the briefing counts them while short
+    expect(briefingLines({ ...r, status: 'ready' })).toContain('Kielwassertorpedos: 3 von 4');
+    expect((dockyard(r, { repair: 'keine', resupply: true }) as CampaignRun).ship.stock.wake).toBe(4);
+    // A run saved before wake homers were tracked: the boat sails with all of them
+    const old = { ...r, ship: { ...r.ship, stock: { ...r.ship.stock, wake: undefined } } };
+    const w4 = createWorld([boat()], 3);
+    installWeapons(w4);
+    applyCarry(w4, w4.ships[0]!, old);
+    expect(w4.weapons!.loadouts.get('u1')!.wake).toBe(4);
   });
 
   it('a lost mission keeps the stage; the next mission needs a dockyard decision first', () => {

@@ -24,8 +24,6 @@ import {
   towedGeometryDepth,
   type AlertView,
   type ContactTrack,
-  type ClassChoice,
-  type ClassId,
   type Realism,
   type FriendlyView,
   type RadioMsg,
@@ -54,6 +52,7 @@ import {
 import { huntFor } from './bots/escort-team.js';
 import { escortCommandFor } from './escort-command.js';
 import { correlate, linkedFriendly, logPositions, ownAt, pictureOf, reportedTrack, type Picture } from './datalink.js';
+import { markKey, shownMark, type ClassMark } from './classes.js';
 
 export interface PlayerExtras {
   /** Briefing already delivered on this connection. */
@@ -192,14 +191,16 @@ function periscopeView(tr: ContactTrack, hist: ContactTrack['history'], realism:
 }
 
 export function buildSnapshot(
-  w: World, own: Ship, x: PlayerExtras, score: ScoreInfo, classes?: ReadonlyMap<string, ClassChoice>, idents?: Readonly<Record<string, ClassId>>,
+  w: World, own: Ship, x: PlayerExtras, score: ScoreInfo, marks?: ReadonlyMap<string, ClassMark>,
   realism: Realism = 'einsteiger',
 ): Snapshot {
+  // FOG OF WAR: marks are per track (classes.ts), so a dual track of one boat shows none of the other's
+  const markOf = (ownerId: string, label: string) => marks?.get(markKey(ownerId, label));
   const l = w.weapons?.loadouts.get(own.id);
   const contacts: Snapshot['contacts'] = [];
   for (const [tid, tr] of w.books.get(own.id)?.entries() ?? []) {
     contacts.push({
-      ...tr, evidence: newEvidence(x, tr.label, tr), history: [], via: 'own', assigned: classes?.get(tid), assignedCls: idents?.[tid], wreck: seenOptically(tr, w.time) ? wreckOf(w, tid) : undefined,
+      ...tr, evidence: newEvidence(x, tr.label, tr), history: [], via: 'own', ...shownMark(markOf(own.id, tr.label)), wreck: seenOptically(tr, w.time) ? wreckOf(w, tid) : undefined,
       ...periscopeView(tr, newSamples(x, tr.label, tr.history, 120), realism, w.time),
     });
   }
@@ -219,25 +220,37 @@ export function buildSnapshot(
     const picture: Picture[] = (w.books.get(own.id)?.tracks() ?? []).map((tr) => pictureOf(tr, now, ownAt(w, own)));
     const was = (x.linkMerged ??= {});
     const merged: Record<string, string> = {};
+    // Each picture label's own mark, and the marks of the mates' tracks the gate merged into it
+    const markAt = new Map<string, ClassMark | undefined>((w.books.get(own.id)?.tracks() ?? []).map((tr) => [tr.label, markOf(own.id, tr.label)]));
+    const mergedMarks = new Map<string, ClassMark>();
     mates.forEach((m, i) => {
-      for (const [tid, raw] of w.books.get(m.id)?.entries() ?? []) {
+      for (const [, raw] of w.books.get(m.id)?.entries() ?? []) {
         const tr = reportedTrack(w, m, raw);
         if (!tr) continue;
         const label = `L${i + 1}-${raw.label}`;
         const p = { ...pictureOf(tr, now, () => m.pos), label };
         const into = correlate(p, picture, was[label]);
+        const mark = markOf(m.id, raw.label);
         if (into) {
           merged[label] = into;
+          if (mark && !mergedMarks.has(into)) mergedMarks.set(into, mark);
           continue;
         }
         picture.push(p);
+        markAt.set(label, mark);
         contacts.push({
-          ...tr, label, evidence: newEvidence(x, label, tr), history: [], via: 'datalink', assigned: classes?.get(tid), assignedCls: idents?.[tid],
+          ...tr, label, evidence: newEvidence(x, label, tr), history: [], via: 'datalink', ...shownMark(mark),
           ...periscopeView(tr, newSamples(x, label, tr.history, 30), realism, w.time),
         });
       }
     });
     x.linkMerged = merged;
+    // A mate's mark travels with his track only where the gate merged it, and only onto a track
+    // nobody of the group has marked (a mark cleared on purpose stays cleared)
+    for (const c of contacts) {
+      const inherited = !markAt.get(c.label) ? mergedMarks.get(c.label) : undefined;
+      if (inherited) Object.assign(c, shownMark(inherited));
+    }
   } else {
     friendlies.push(...x.reports.values());
   }

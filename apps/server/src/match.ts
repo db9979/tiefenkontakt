@@ -39,6 +39,7 @@ import { metrics } from './metrics.js';
 import { radioToTeam, spectateView, type Conn, type SavedMatch } from './match-io.js';
 
 export type { Conn, SavedMatch } from './match-io.js';
+import { restoreClasses, saveClasses, setMark, markKey, type ClassMarks } from './classes.js';
 import { briefingRng, buildSnapshot, classGroupKey, datalinkMates, type PlayerExtras } from './snapshot.js';
 import { FF_TICK_BUDGET_MS, FastForward } from './fast-forward.js';
 import { SANDBOX_MAX_SCALE } from './sandbox.js';
@@ -89,8 +90,8 @@ export class Match {
   private spectators = new Map<string, Conn>();
   /** Kept after the end so players reconnecting later still get the debrief. */
   private finished?: { result: MatchResult; debrief: Debrief };
-  /** Classification decisions per datalink group, keyed by hidden target id. */
-  private classes = new Map<string, Map<string, ClassChoice>>();
+  /** Classification decisions per classification group, keyed by track (owner and label, classes.ts). */
+  private classes = new Map<string, ClassMarks>();
   private tickCount = 0;
   /** "Zeitraffer bis Ereignis" (not in the sandbox: it has its own time controls). */
   readonly ff = new FastForward({
@@ -110,7 +111,7 @@ export class Match {
       v: 1, id: this.id, name: this.name, seed: this.seed, slots: this.slots, settings: this.settings,
       world: saveWorld(this.world), eventCursor: this.eventCursor, tickCount: this.tickCount, bots: this.bots.toJSON(),
       recorder: this.recorder.s,
-      classes: [...this.classes].map(([k, m]) => [k, [...m]]),
+      classes: saveClasses(this.classes),
       extras: [...this.extras].map(([k, x]) => [k, { ...x, reports: [...x.reports] }]),
     };
   }
@@ -125,7 +126,8 @@ export class Match {
     m.tickCount = d.tickCount;
     m.bots.restore(d.bots);
     if (d.recorder) m.recorder.s = d.recorder;
-    m.classes = new Map(d.classes.map(([k, entries]) => [k, new Map(entries)]));
+    const w = m.world;
+    m.classes = restoreClasses(d.classes, w, (id) => { const s = w.ships.find((x) => x.id === id); return s && classGroupKey(s); }, d.recorder?.ident);
     m.extras = new Map(d.extras.map(([k, x]) => [k, { ...x, reports: new Map(x.reports) }]));
     m.state = 'running';
     m.emptySince = Date.now();
@@ -421,12 +423,14 @@ export class Match {
       local = m[2]!;
     }
     const tid = bookOwner ? w.books.get(bookOwner.id)?.targetIdOf(local) : undefined;
-    if (!tid) return 'Kontakt nicht gefunden';
+    if (!bookOwner || !tid) return 'Kontakt nicht gefunden';
     const key = classGroupKey(ship);
     let map = this.classes.get(key);
     if (!map) this.classes.set(key, (map = new Map()));
+    // Graded against the truth (server only); the players see it on this track alone
     this.recorder.ident(key, tid, choice === 'unknown' ? undefined : cls);
-    return void (choice === 'unknown' ? map.delete(tid) : map.set(tid, choice));
+    setMark(map, markKey(bookOwner.id, local), choice, cls);
+    return undefined;
   }
 
   /** Team radio. Submarines must be at periscope depth with the mast up, and are DF'd. */
@@ -511,7 +515,7 @@ export class Match {
       // A congested link is skipped before building, so the delta bookkeeping only advances for what was sent
       if (!ship || !x || !c || c.congested?.()) continue;
       const full = !x.histSent;
-      const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), this.recorder.s.ident?.[classGroupKey(ship)], s.realism ?? 'einsteiger');
+      const snap = buildSnapshot(w, ship, x, score, this.classes.get(classGroupKey(ship)), s.realism ?? 'einsteiger');
       snap.full = full;
       snap.crew = this.aboard(ship.id).map((a) => a.callsign);
       snap.lesson = this.settings.lesson;

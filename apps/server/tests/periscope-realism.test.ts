@@ -35,7 +35,7 @@ function contact(s: Snapshot, label: string) {
 describe('periscope by realism mode', () => {
   it('Profi: no class and no periscope range reach the client, only the stadimeter angle and the hull to draw', () => {
     const { w, boat, label } = lookedAt(15);
-    const s = buildSnapshot(w, boat, extras(), score, undefined, undefined, 'profi');
+    const s = buildSnapshot(w, boat, extras(), score, undefined, 'profi');
     const c = contact(s, label);
     expect(c.classified).toBeUndefined();
     expect(c.range).toBeUndefined();
@@ -49,11 +49,11 @@ describe('periscope by realism mode', () => {
 
   it('Einsteiger: the range at once, the class after 10 s in the 6× optic', () => {
     const early = lookedAt(5);
-    const c1 = contact(buildSnapshot(early.w, early.boat, extras(), score, undefined, undefined, 'einsteiger'), early.label);
+    const c1 = contact(buildSnapshot(early.w, early.boat, extras(), score, undefined, 'einsteiger'), early.label);
     expect(c1.range).toBeGreaterThan(0);
     expect(c1.classified).toBeUndefined();
     const late = lookedAt(12);
-    const c2 = contact(buildSnapshot(late.w, late.boat, extras(), score, undefined, undefined, 'einsteiger'), late.label);
+    const c2 = contact(buildSnapshot(late.w, late.boat, extras(), score, undefined, 'einsteiger'), late.label);
     expect(c2.classified).toBe('merchant');
     expect(c2.history.some((h) => h.sensor === 'periscope' && h.r !== undefined)).toBe(true);
   });

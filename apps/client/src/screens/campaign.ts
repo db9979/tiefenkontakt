@@ -4,7 +4,7 @@ import { CLASS_NAME, esc, h } from '../widgets/format.js';
 import { post } from './account.js';
 
 type Cls = keyof typeof CLASS_NAME;
-interface Stock { torpedoes: number; rockets: number; depthCharges: number; noisemakers: number; mines?: number }
+interface Stock { torpedoes: number; rockets: number; depthCharges: number; noisemakers: number; mines?: number; wake?: number }
 interface LogEntry { n: number; day: number; title: string; cls: Cls; won: boolean; lost: boolean; reason: string; kills: number; tonnage: number; hullAfter: number; points: number }
 interface Run {
   status: 'dock' | 'ready' | 'sea' | 'complete' | 'lost';
@@ -61,6 +61,7 @@ export function campaignPanel(): HTMLElement {
           ${full.rockets ? `<div class="row"><span class="dim">RAKETEN · WABOS</span><span>${s.stock.rockets} / ${full.rockets} · ${s.stock.depthCharges} / ${full.depthCharges}</span></div>` : ''}
           ${full.noisemakers ? `<div class="row"><span class="dim">TÄUSCHKÖRPER</span><span>${s.stock.noisemakers} / ${full.noisemakers}</span></div>` : ''}
           ${full.mines ? `<div class="row"><span class="dim">MINEN</span><span>${s.stock.mines ?? full.mines} / ${full.mines}</span></div>` : ''}
+          ${full.wake ? `<div class="row"><span class="dim">KIELWASSERTORPEDOS</span><span>${s.stock.wake ?? full.wake} / ${full.wake}</span></div>` : ''}
         </div>
         <div>
           <div class="row"><span class="dim">BESATZUNG</span><span><span>${esc((v.crewLevel ?? '').toUpperCase())}</span> ${bar(r.crew.xp, 'var(--amber)')}</span></div>
