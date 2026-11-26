@@ -31,7 +31,7 @@ html[data-theme='light'] .st.opz .aswchip.amber { background: rgba(154, 88, 0, 0
 .wfpop { position: relative; }
 .wfpop > summary { list-style: none; cursor: pointer; padding: 0 9px; min-height: var(--btn-h); line-height: calc(var(--btn-h) - 2px); border: 1px solid var(--line2); border-radius: 3px;
   background: linear-gradient(180deg, #111b18, #0a1110); letter-spacing: 0.04em; text-transform: uppercase; color: var(--g2); white-space: nowrap; }
-.wfpop > summary:hover { border-color: var(--g); }
+@media (hover: hover) { .wfpop > summary:hover { border-color: var(--g); } }
 html[data-theme='light'] .wfpop > summary { background: linear-gradient(180deg, #ffffff, #e8eeeb); }
 .st.fsonar .foot > .tas-st { font-size: var(--fs-cap); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; cursor: help; }
 .st.fsonar .foot > .hint { flex: 1 0 100%; }

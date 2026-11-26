@@ -6,6 +6,16 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Jeder Tap zählt beim ersten Mal (Handy):** iOS Safari wertet einen Tap als „Hover“ und schickt keinen Klick, wenn
+  während des Tippens irgendwo auf der Seite ein Knopf neu eingefügt wird. Der Client fügte ständig Knöpfe neu ein:
+  die Klassifizierungsknöpfe in Horchraum und Sonar viermal pro Sekunde, die Filterchips und Sortierköpfe der
+  Kontaktlisten bei jeder Änderung von Zähler oder Peilung, und die Meldungsliste baute sich in einer Schleife mit der
+  Barrierefreiheits-Schicht 2–4× pro Sekunde neu auf. Diese Teile werden jetzt nur noch neu geschrieben, wenn sich ihr
+  eigener Inhalt ändert. Die Meldungszeilen reagieren beim Loslassen statt auf den Klick. Lobby-Updates warten, bis
+  der Klick des Taps angekommen ist (vorher 50 ms nach dem Loslassen, iOS klickt oft später). Hover-Regeln gelten nur
+  noch für echte Mauszeiger, und Zeilen, Sortierköpfe und Panel-Reiter haben `touch-action: manipulation`.
+  Touch-Prüfung mit 390 × 844 vorher → nachher: U-Boot 17 → 55 von 55, Geleitschutz 24 → 46 von 46, Lobby-Timing
+  0 → 4 von 4; Lobby, Briefing und Handy-Sehrohr waren schon in Ordnung, die Maus am Desktop unverändert.
 - **Eigenes Schiff, vierte Runde:** gedämpfte rote Lichtkegel unter den Lampen auf Nocks, Niedergängen und Flugdeck
   statt rot getöntem Deck, dunkles Schanzkleid bei Nacht, fein aufgebrochener Schaum an der Wasserlinie,
   Hitzeflimmern über den Abgasrohren bei hoher Fahrt.

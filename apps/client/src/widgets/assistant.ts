@@ -1,6 +1,6 @@
 import { CLASSES, ownLegChange, type Snapshot, type StationId } from '@tk/shared';
 import { store } from '../store.js';
-import { esc } from './format.js';
+import { esc, setHtml } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { solutionQuality } from './speed-prior.js';
 import { lang } from '../i18n/index.js';
@@ -87,7 +87,7 @@ export function mountAssistant(host: HTMLElement, go: (station: StationId) => vo
       el.classList.toggle('urgent', !!hint.urgent);
       el.title = station !== undefined ? 'Klick: zur passenden Station' : '';
       const html = `<span class="assist-k">${L('NÄCHSTER SCHRITT', 'NEXT STEP')}</span> ${esc(hint.text)}`;
-      if (el.innerHTML !== html) el.innerHTML = html;
+      setHtml(el, html);
     },
   };
 }

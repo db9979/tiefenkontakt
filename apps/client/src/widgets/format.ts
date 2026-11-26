@@ -109,6 +109,22 @@ export function setHtml(el: Element, html: string): void {
   el.innerHTML = html;
 }
 
+/**
+ * Several pieces of one container, each written only when its own HTML changed. Controls in one
+ * piece (chips, buttons) are not replaced because a number in another piece moved: iOS Safari
+ * drops a tap (treats it as a hover) when a control is inserted anywhere while the finger is down.
+ * The pieces are `display: contents` wrappers, so the container's layout sees their children.
+ */
+export function setParts(el: Element, parts: string[]): void {
+  const kids = el.children;
+  // A later setHtml on the container itself must not think its old content is still there
+  written.delete(el);
+  if (kids.length !== parts.length || [...kids].some((k) => !k.classList.contains('part'))) {
+    el.innerHTML = parts.map(() => '<div class="part"></div>').join('');
+  }
+  parts.forEach((html, i) => setHtml(kids[i]!, html));
+}
+
 /** Set textContent only when it changed. */
 export function setText(el: Element, text: string): void {
   if (el.textContent !== text) el.textContent = text;

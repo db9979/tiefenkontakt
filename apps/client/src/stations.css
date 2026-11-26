@@ -115,7 +115,7 @@ html[data-theme='light'] button.primary.st-busy[data-bst]::after { background: #
 .tut-why summary { cursor: pointer; color: var(--amber); font-size: var(--fs-cap); letter-spacing: 0.06em; text-transform: uppercase; }
 .tut-why > div { margin-top: 2px; line-height: 1.4; }
 .tut-acts { display: flex; justify-content: flex-end; gap: var(--sp2); margin-top: var(--sp2); }
-.tut-go:hover { color: var(--amber); }
+@media (hover: hover) { .tut-go:hover { color: var(--amber); } }
 .tut-pulse { outline: 2px solid var(--amber) !important; outline-offset: 2px; animation: tut-pulse 0.8s ease-in-out 2; }
 @keyframes tut-pulse { 0%, 100% { outline-color: var(--amber); } 50% { outline-color: transparent; } }
 @media (prefers-reduced-motion: reduce) { .tut-pulse { animation: none; } }

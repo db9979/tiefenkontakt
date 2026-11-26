@@ -39,14 +39,14 @@ button, input, select {
   border-radius: 3px; padding: 5px 9px;
 }
 button { cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em; }
-button:hover { border-color: var(--g); }
+@media (hover: hover) { button:hover { border-color: var(--g); } }
 button.on { background: #12302a; border-color: var(--g); color: #d8fff0; }
 button.warn { border-color: #6b4a1a; color: var(--amber); }
 button.fire { border-color: #7a2a2a; color: var(--red); }
 /* Button hierarchy: primary (the one action of a panel), default, segmented group, fire (red fill only when armed) */
 :where(button) { min-height: var(--btn-h); }
 button.primary { min-height: 30px; border-color: var(--g); color: #e6fff6; background: linear-gradient(180deg, #1d5446, #133a30); }
-button.primary:hover { border-color: var(--g2); }
+@media (hover: hover) { button.primary:hover { border-color: var(--g2); } }
 .seg { display: inline-flex; align-items: stretch; }
 .seg > button { border-radius: 0; margin-left: -1px; }
 .seg > button:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
@@ -103,7 +103,7 @@ canvas { display: block; width: 100%; image-rendering: pixelated; }
 .ctxmenu { position: fixed; z-index: 50; background: #0b1311; border: 1px solid var(--g); border-radius: 4px; padding: 4px 0;
   display: flex; flex-direction: column; min-width: 220px; }
 .ctxmenu button { border: 0; border-radius: 0; text-align: left; padding: 6px 10px; background: transparent; }
-.ctxmenu button:hover { background: #12302a; }
+@media (hover: hover) { .ctxmenu button:hover { background: #12302a; } }
 /* F18: a line that only says why not (out of reach, not ready) is no button */
 .ctxmenu button.info, .ctxmenu button.info:hover { color: var(--amber); background: transparent; cursor: default; opacity: 1; }
 .steps { display: flex; gap: 3px; flex-wrap: wrap; margin: 4px 0; }
@@ -111,7 +111,7 @@ canvas { display: block; width: 100%; image-rendering: pixelated; }
 .ctable { display: grid; grid-template-columns: 52px 1.2fr 0.8fr 0.9fr 1.4fr; gap: 6px; }
 .ctable span:last-child { text-align: right; }
 .clickable { cursor: pointer; }
-.clickable:hover { background: #0e1a17; }
+@media (hover: hover) { .clickable:hover { background: #0e1a17; } }
 .selrow { background: #1a1608; }
 /* Torpedo alarm: a strip above the station in place of the hint bar (in the page flow, nothing under it) */
 .banner { flex: none; padding: 5px 12px; border: 2px solid var(--red); background: #2a0d0d; color: #ffd0d0; font-size: 1.1667rem; letter-spacing: 0.1em;
@@ -157,7 +157,8 @@ body.crt .hd, body.crt .title { text-shadow: 0 0 4px rgba(93, 202, 165, 0.45); }
 button.danger { border-color: #7a2a22; color: #e0705f; }
 button.link { background: none; border: none; color: var(--dim, #6f8a78); text-transform: none; padding: 0; cursor: pointer; text-decoration: underline; }
 .rline .racts { display: none; margin-left: 6px; }
-.rline:hover .racts { display: inline; }
+/* Hover only where there is a real pointer: on iOS a :hover that shows content turns the first tap into a hover */
+@media (hover: hover) { .rline:hover .racts { display: inline; } }
 .rline .racts button { font-size: 0.8333rem; padding: 0 4px; margin-left: 2px; }
 .authgrid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start; }
 
@@ -193,7 +194,7 @@ button.link { background: none; border: none; color: var(--dim, #6f8a78); text-t
   .ctxmenu button { padding: 10px 12px; }
 }
 .langbtn { position: fixed; left: 8px; bottom: 8px; z-index: 80; font-size: 0.8333rem; padding: 2px 6px; opacity: 0.7; }
-.langbtn:hover { opacity: 1; }
+@media (hover: hover) { .langbtn:hover { opacity: 1; } }
 /* In a match language and theme live in the ⚙ menu: no floating buttons over the console */
 body:has(.game) .langbtn { display: none; }
 .langbtn, button.link, .rline .racts button, .chip { min-height: 0; }
@@ -202,7 +203,7 @@ body:has(.game) .langbtn { display: none; }
 .station-wrap { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
 .station-wrap > .station { flex: 1; }
 .assist { border: 1px solid var(--line2); border-left: 3px solid var(--g); background: #0a1512; padding: 6px 10px; cursor: pointer; line-height: 1.4; }
-.assist:hover { border-color: var(--g); }
+@media (hover: hover) { .assist:hover { border-color: var(--g); } }
 .assist.urgent { border-left-color: var(--red); color: #ffd6d6; background: #1d0b0b; animation: blink 1.2s steps(2) infinite; }
 .assist-k { color: var(--amber); letter-spacing: 0.1em; font-size: 0.8333rem; margin-right: 6px; }
 .brief-panel { width: min(640px, 94vw); padding: 22px 26px !important; border-color: var(--g) !important; }
@@ -322,7 +323,7 @@ body.hit::after { content: ''; position: fixed; inset: 0; z-index: 90; pointer-e
 @media (max-width: 600px) { .mcards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tl { position: relative; height: 14px; margin: 2px 0 4px; border-bottom: 1px solid var(--line2); }
 .tl i { position: absolute; bottom: 0; width: 3px; margin-left: -1px; cursor: pointer; opacity: 0.85; }
-.tl i:hover { opacity: 1; width: 5px; margin-left: -2px; }
+@media (hover: hover) { .tl i:hover { opacity: 1; width: 5px; margin-left: -2px; } }
 .tip { padding: 3px 0; line-height: 1.4; color: var(--amber); }
 .tip.good { color: var(--g); }
 .panel.menu-panel { position: fixed !important; }
@@ -339,7 +340,7 @@ body.hit::after { content: ''; position: fixed; inset: 0; z-index: 90; pointer-e
 .newmatch input#mname { flex: 1 1 160px; min-width: 0; }
 .newmatch label { display: flex; align-items: center; gap: 4px; }
 @media (max-width: 600px) { .newmatch button { flex: 1 1 40%; } .slot { flex-wrap: wrap; gap: 6px; } }
-button, a, label, select, input { touch-action: manipulation; -webkit-tap-highlight-color: rgba(93, 202, 165, 0.25); }
+button, a, label, select, input, textarea, summary, [role=button], .clickable, .sorth, [data-c], [data-log], [data-ptab] { touch-action: manipulation; -webkit-tap-highlight-color: rgba(93, 202, 165, 0.25); }
 /* Phone: language switch sits at the top of the page instead of floating over content; in game it lives in the menu */
 @media (max-width: 600px) {
   .langbtn { position: absolute; top: 10px; right: 10px; left: auto; bottom: auto; }
@@ -350,10 +351,13 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 }
 /* Sortable headers and filter chips */
 .sorth { cursor: pointer; user-select: none; }
-.sorth:hover, .sorth.on { color: var(--g2); }
+.sorth.on { color: var(--g2); }
+@media (hover: hover) { .sorth:hover { color: var(--g2); } }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 2px 0 6px; }
 .chip { font-size: 0.8333rem; padding: 2px 7px; min-height: 0 !important; border-radius: 10px; letter-spacing: 0.08em; }
 .chipcount { margin-left: auto; font-size: 0.8333rem; }
+/* setParts() pieces: invisible to the layout */
+.part { display: contents; }
 .ltable { display: grid; grid-template-columns: 28px 1.4fr 0.8fr 0.9fr 0.8fr 0.7fr 0.8fr; gap: 6px; }
 .ltable span:not(:nth-child(2)) { text-align: right; }
 .ltable span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -441,7 +445,7 @@ button, a, label, select, input { touch-action: manipulation; -webkit-tap-highli
 
 /* Download link styled like a small console button */
 a.btnlink { color: var(--g); border: 1px solid var(--line2); border-radius: 3px; padding: 2px 8px; text-decoration: none; letter-spacing: 0.06em; }
-a.btnlink:hover { background: #12302a; }
+@media (hover: hover) { a.btnlink:hover { background: #12302a; } }
 
 /* Voice radio */
 .voice { margin-top: 8px; border-top: 1px solid var(--line2); padding-top: 6px; }

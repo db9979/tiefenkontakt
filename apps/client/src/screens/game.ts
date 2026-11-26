@@ -12,7 +12,7 @@ import { opsCenterStation } from '../stations/frigate/ops-center.js';
 import { frigateSonarStation } from '../stations/frigate/sonar.js';
 import { weaponsStation } from '../stations/frigate/weapons.js';
 import { radarEsmStation } from '../stations/frigate/radar-esm.js';
-import { CLASS_LABEL, clock, esc, h, mastState, shortClock, tdeg3 } from '../widgets/format.js';
+import { CLASS_LABEL, clock, esc, h, mastState, setHtml, shortClock, tdeg3 } from '../widgets/format.js';
 import { closeMenu } from '../widgets/menu.js';
 import { renderDamage } from '../widgets/damage-panel.js';
 import { mountTutorial } from '../widgets/tutorial.js';
@@ -188,7 +188,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
         const n = e.count ? `<b class="lcnt">${e.count}×</b> ` : '';
         return `<div class="logrow ${color} ${fresh && e.level === 'alarm' ? 'blink' : ''} ${go ? 'clickable' : ''}${e.whole ? ' whole' : ''}" data-log="${i}" title="${esc(`${at} ${e.count ? `${e.count}× ` : ''}${e.text}`)}"><span class="lt">${at}</span><span class="ltx">${n}<span>${esc(e.text)}</span></span></div>`;
       }).join('');
-    if (q('#alerts').innerHTML !== logHtml) q('#alerts').innerHTML = logHtml;
+    // Compared with what was written, not with innerHTML: a11y.ts adds role/tabindex to the rows,
+    // so innerHTML never matched and the log was rebuilt several times a second
+    setHtml(q('#alerts'), logHtml);
   };
   logChips();
   bindSortable(q('#alert-chips'), LOG_ID, { key: 'time', dir: -1 }, () => {
@@ -271,9 +273,9 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
   let tutorial: ReturnType<typeof mountTutorial> | undefined;
   callouts.reset();
   // Event log: a click selects the contact and/or opens the station the report belongs to
-  q('#alerts').addEventListener('click', (e) => {
-    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-log]');
-    const entry = row ? callouts.log[Number(row.dataset.log)] : undefined;
+  // (on release, not click: the rows are rewritten whenever a report comes in, even mid-tap)
+  onTap(q('#alerts'), '[data-log]', (row) => {
+    const entry = callouts.log[Number(row.dataset.log)];
     if (!entry) return;
     if (entry.label) store.selected = entry.label;
     if (entry.station !== undefined) go(entry.station);

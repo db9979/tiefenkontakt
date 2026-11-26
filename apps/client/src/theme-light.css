@@ -63,9 +63,11 @@ html[data-theme='light'] body.crt .station-wrap::after { display: none; }
 html[data-theme='light'] .title { text-shadow: none; }
 
 html[data-theme='light'] .ctxmenu { background: #ffffff; box-shadow: 0 6px 20px rgba(30, 50, 45, 0.25); }
-html[data-theme='light'] .ctxmenu button:hover,
-html[data-theme='light'] a.btnlink:hover { background: var(--on-bg); }
-html[data-theme='light'] .clickable:hover { background: #e3eeea; }
+@media (hover: hover) {
+  html[data-theme='light'] .ctxmenu button:hover,
+  html[data-theme='light'] a.btnlink:hover { background: var(--on-bg); }
+  html[data-theme='light'] .clickable:hover { background: #e3eeea; }
+}
 html[data-theme='light'] .selrow { background: #fbf0d6; }
 html[data-theme='light'] .overlay { background: rgba(40, 55, 50, 0.45); }
 html[data-theme='light'] .menu-panel { box-shadow: 0 10px 30px rgba(30, 50, 45, 0.3); }

@@ -1,5 +1,5 @@
 import { onTap } from './touch.js';
-import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setHtml, tbrg, tdeg3 } from './format.js';
+import { CHOICE_LABEL, CLASS_LABEL, esc, kmNum, setParts, setText, tbrg, tdeg3 } from './format.js';
 import { isFriendlyContact } from './friendly.js';
 import { fixRange } from './contact-pos.js';
 import { store } from '../store.js';
@@ -122,10 +122,12 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
     { key: 'g:visual', label: sub ? 'OPTIK' : 'SICHT' },
   ]);
   // The count stands outside the scrolling chip strip, so a narrow column never cuts it ("17/1", N3)
-  const chipRow = `<div class="chiprow">${chips}<span class="dim chipcount" title="Gezeigt / alle Kontakte">${rows.length}/${all.length}</span></div>`;
+  // The count is written as text below: the chips stay the same nodes while it changes
+  const chipRow = `<div class="chiprow">${chips}<span class="dim chipcount" title="Gezeigt / alle Kontakte"></span></div>`;
   const head = `<div class="row dim ctable">${sortHead(ID, 'label', 'KONTAKT', DEF)}${sortHead(ID, 'brg', 'PEILUNG', DEF)}${ranged ? `<span title="Entfernung in km · ≈ aus der TMA-Lösung">${sortHead(ID, 'range', 'KM', DEF)}</span>` : ''}<span title="${esc(GLYPH_TITLE)}">${sortHead(ID, 'sensor', 'SENS', DEF)}</span>${sortHead(ID, 'cls', 'KLASSE', DEF)}<span title="Signalpegel in dB · ALT: Zeit seit der letzten Peilung">${sortHead(ID, 'lvl', 'PEGEL', DEF)}</span></div>`;
-  setHtml(el, chipRow + (rows.length
-    ? head + rows.map(({ c, own, fresh }) => {
+  // Chips, header and rows apart: the header's sort buttons stay put while the rows move
+  setParts(el, [chipRow, rows.length ? head : '', (rows.length
+    ? rows.map(({ c, own, fresh }) => {
       const age = s.time - c.lastSeen;
       const sol = store.solutions.get(c.label);
       const cls = c.label === store.selected ? 'amber selrow' : own ? 'mute' : age > 30 ? 'dim' : '';
@@ -166,7 +168,8 @@ export function renderContactList(el: HTMLElement, filter: (via: string) => bool
         <span class="lvl${age > 30 ? ' dim' : ''}">${levelOf(c)}</span>
       </div>`;
     }).join('') + torpRows(s, ranged)
-    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>` + torpRows(s, ranged)));
+    : `<div class="dim">${all.length ? 'KEINE KONTAKTE FÜR DIESEN FILTER' : 'KEINE KONTAKTE'}</div>` + torpRows(s, ranged))]);
+  setText(el.querySelector('.chipcount')!, `${rows.length}/${all.length}`);
   if (!el.dataset.bound) {
     // Delegated mousedown: rows are rebuilt on every snapshot, so per-row handlers would lose clicks
     el.dataset.bound = '1';
