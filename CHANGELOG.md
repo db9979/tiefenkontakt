@@ -6,6 +6,14 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Echter Sternenhimmel:** 986 Sterne aus dem Yale Bright Star Catalogue an ihren wirklichen Orten für Seegebiet,
+  Monat und Bordzeit (Großer Wagen, Orion, Skorpion …), Größe und Helligkeit nach Magnitude, Farbe nach B–V,
+  Funkeln und Verblassen zum Horizont, Wolken, Nebel, Regen und Dämmerung verdecken sie, schwache Milchstraße in
+  klaren dunklen Nächten; im Fernglas und Sehrohr mehr schwache Sterne statt größerer Punkte.
+- **KI greift realistisch an:** KI-U-Boote feuern erst nach Klassifizierung, zwei TMA-Schenkeln und stabiler Lösung
+  innerhalb 8 km; Geleitschiffe und Hubschrauber erst nach gehaltenem Kontakt und zwei aktiven Ortungen.
+- **Handy:** Ton auf iOS (Freigabe bei jeder Berührung, Stumm-Schalter), jedes Tippen zählt beim ersten Mal.
+- **Radar im Hellmodus** wieder hell, Echos pixelgenau umgefärbt.
 - **Jeder Tap zählt beim ersten Mal (Handy):** iOS Safari wertet einen Tap als „Hover“ und schickt keinen Klick, wenn
   während des Tippens irgendwo auf der Seite ein Knopf neu eingefügt wird. Der Client fügte ständig Knöpfe neu ein:
   die Klassifizierungsknöpfe in Horchraum und Sonar viermal pro Sekunde, die Filterchips und Sortierköpfe der
