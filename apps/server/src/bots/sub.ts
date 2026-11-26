@@ -1,4 +1,5 @@
 import {
+  angleDiff,
   crewOf,
   mastRaised,
   CLASSES,
@@ -28,7 +29,8 @@ import {
 } from '@tk/shared';
 import { HARBOUR_ANCHORAGE } from '../scenario.js';
 import { considerMine } from './mines.js';
-import { SKILL, isFriendly, isNeutral, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
+import { PACE, captainPace, legsRun, looked, plotFrom, subWaits } from './pacing.js';
+import { SKILL, isFriendly, isNeutral, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
 
 export interface PackReport {
   t: number;
@@ -38,7 +40,8 @@ export interface PackReport {
   team: string;
 }
 
-const LEG_S = 180;
+/** A TMA leg runs at least this long once the boat is on it (s); the crew's pace adds to it. */
+const LEG_MIN_S = 120;
 const SHOT_COOLDOWN = 150;
 const REPORT_EVERY = 900;
 /** A periscope look: this long with the mast up (s), and at most this long to come up for it. */
@@ -197,23 +200,48 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     return;
   }
 
+  // The crew's pace (pacing.ts): time on each leg, listening, the solution settling
+  const pace = PACE[skill];
+  const pf = captainPace(s.id, w.env.seed ?? 0, commanderTrait(s.id, w.env.seed ?? 0));
+  const legS = Math.max(LEG_MIN_S, Math.round(pace.legS * pf) + 30);
   // Legs across the line of sight make the range observable for the TMA (a long patrol leg
   // from the search ends at once: the plot needs the turns)
-  if (m.legUntil > now + LEG_S) m.legUntil = now;
-  if (now > m.legUntil) {
+  // (an own timer: a contact that drops out for a moment and the search's zigzag don't cut a leg short)
+  if ((m.tmaLegUntil ?? 0) > now + legS) m.tmaLegUntil = now;
+  if (now > (m.tmaLegUntil ?? 0)) {
     m.legSign = -m.legSign;
-    m.legUntil = now + LEG_S;
+    m.tmaLegUntil = now + legS;
+    // The captain's leg log for the TMA (the last half hour)
+    const starts = (m.legStarts ??= []);
+    starts.push(now);
+    while (starts.length > 12) starts.shift();
   }
+  // The leg's clock runs only once the boat has come round onto it (a slow boat turns for minutes),
+  // but no leg lasts more than twice its time
+  const legStart = m.legStarts?.[m.legStarts.length - 1] ?? now;
+  if (Math.abs(angleDiff(s.heading, s.order.heading)) > 15) m.tmaLegUntil = Math.min(Math.max(m.tmaLegUntil ?? 0, now + legS), legStart + 2 * legS);
   const choice = voted(m, target);
   const solved = solveFor(m, target, now, choice);
   // The fast nuclear boat shoots on a rougher solution (arena, base setup 60 games: 43:17 -> 33:27, West mixed 30:30 -> 32:28)
-  const goodTma = solved && solved.q >= k.tmaQuality + tr.tma - (s.cls === 'ssn' ? SSN_TMA_RELIEF : 0);
+  const qMin = k.tmaQuality + tr.tma - (s.cls === 'ssn' ? SSN_TMA_RELIEF : 0);
+  const goodTma = !!solved && solved.q >= qMin;
+  // How long the solution has held above the threshold (a single lucky fit doesn't count)
+  const qs = (m.qualSince ??= {});
+  if (goodTma) qs[target.label] ??= now;
+  else delete qs[target.label];
   // Against boats there's no periscope range: shoot on a good TMA (or a close, loud contact)
   const close = duel && target.se > 18 ? 4000 : undefined;
   const measured = target.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : undefined;
   const range = close ?? measured ?? (goodTma ? distance(s.pos, targetPosAt(solved!.sol, now)) : undefined);
+  const held = now - target.firstSeen;
+  const seen = looked(target);
+  const legs = legsRun(m.legStarts ?? [], plotFrom(pace, pf, target.firstSeen, now), now, pace.legS * pf);
+  const settled = goodTma ? now - qs[target.label]! : 0;
+  const wait = subWaits(pace, pf, { held, seen, legs, q: solved?.q, qMin, settled, range, maxRange: guard ? GUARD_FIRE_M : 8000, measured: measured !== undefined, close: close !== undefined });
+  // Solution in hand but out of reach: close in on a narrower weave (the plot keeps its legs)
+  const approach = wait === 'range' && range !== undefined;
   // Hunted: close in under the merchants' noise instead of legging across the line of sight
-  s.order.heading = wrap360(target.bearing + (threatNear && !duel ? 8 : 40) * m.legSign);
+  s.order.heading = wrap360(target.bearing + (threatNear && !duel ? 8 : approach ? 20 : 40) * m.legSign);
   s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
   // Reconnaissance: an escort seen through the periscope gets reported at once
@@ -246,7 +274,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const fouled = guard && !!aimAt && w.ships.some((x) => x.alive && x.id !== s.id && (x.team === s.team || x.team === 'neutral') && distance(x.pos, aimAt) < GUARD_CLEAR_M);
   // Outside the launch envelope (too fast, too deep) the boat slows and comes up first: no shot yet
   const envelope = !launchBlock(s.cls, s.speed / KN, s.depth);
-  if (range !== undefined && range < (guard ? GUARD_FIRE_M : 8000) && !fouled && envelope && now - m.lastShot > SHOT_COOLDOWN) {
+  if (wait === undefined && range !== undefined && !fouled && envelope && now - m.lastShot > SHOT_COOLDOWN) {
     // Long passive shots run slow: quieter, and the seeker hears more without flow noise
     const runKn = !duel && range > 4000 ? 30 : 40;
     const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
@@ -257,12 +285,19 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     const shot = fireSalvo(w, s, { heading: wrap360(aim), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn }, salvo, spread);
     const fired = typeof shot === 'string' ? 0 : shot.length;
     if (fired) {
+      traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: close !== undefined ? 'close' : measured !== undefined ? 'measured' : 'tma', q: solved?.q, settled, range, held, span: spanOf(m, target.label, now), legs });
       m.lastShot = now;
       // Shoot and scoot: turn away, go deep, open the range
       m.evadeUntil = now + 180;
       s.order = { heading: wrap360(target.bearing + 150 * m.legSign), speedKn: 8, depth: hide };
     }
   }
+}
+
+/** Time span of the captain's bearing plot on a contact (s). */
+function spanOf(m: BotMemory, label: string, now: number): number {
+  const f = m.blog?.[label]?.fixes;
+  return f?.length ? now - f[0]!.t : 0;
 }
 
 /** Sectors of an all-round look at 1.5× (32° field each, a little overlap). */
@@ -368,6 +403,7 @@ function harbourRun(w: World, m: BotMemory, s: Ship, threatNear: boolean, maxSaf
   const brg = seen?.bearing ?? toAnch;
   const shot = fireSalvo(w, s, { heading: brg, enableAfter: Math.max(600, r * 0.7), mode: 'passive', searchDepth: 8, speedKn: 30 }, Math.max(2, salvo), 4);
   if (typeof shot !== 'string' && shot.length) {
+    traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: 'harbour', range: r, held: seen ? now - seen.firstSeen : undefined });
     m.lastShot = now;
     m.peekUp = undefined;
     s.mastUp = false;

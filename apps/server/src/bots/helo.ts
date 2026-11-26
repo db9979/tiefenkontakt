@@ -1,5 +1,5 @@
 import { HELO_SPEED, bearing, depthAt, distance, heloOf, heloOrder, trackFix, type ContactTrack, type Ship, type Vec2, type World } from '@tk/shared';
-import { isFriendly, voted, type BotMemory } from './common.js';
+import { isFriendly, traceShot, voted, type BotMemory } from './common.js';
 import { commitHelo, heloCovered } from './escort-team.js';
 
 /**
@@ -59,14 +59,17 @@ export function heloAttack(w: World, s: Ship, fix: Vec2, label?: string, off?: V
   const h = heloOf(w, s.id);
   if (!h || h.torps <= 0 || h.queue[0]?.kind === 'attack') return false;
   if (h.state === 'deck' && w.time < h.readyAt) return false;
-  return heloOrder(w, s, 'now', { kind: 'attack', at: fix, track: label, off }) === true;
+  const ok = heloOrder(w, s, 'now', { kind: 'attack', at: fix, track: label, off }) === true;
+  // The order, not the drop: the helicopter still has to fly there
+  if (ok) traceShot({ t: w.time, shooter: s.id, team: s.team, weapon: 'helo', basis: label ? 'track' : 'fix', range: distance(s.pos, fix) });
+  return ok;
 }
 
 /**
  * The own dipping sonar holds a submarine: attack its latest fix (a minute from the dip contact).
- * Only on a track the captain takes for a submarine, never near own ships.
+ * Only on a track the captain takes for a submarine and has localized (`ready`), never near own ships.
  */
-export function heloOnDipContact(w: World, m: BotMemory, s: Ship, tracks: ContactTrack[], friends: Ship[], off: () => Vec2 | undefined): boolean {
+export function heloOnDipContact(w: World, m: BotMemory, s: Ship, tracks: ContactTrack[], friends: Ship[], off: () => Vec2 | undefined, ready: (t: ContactTrack) => boolean = () => true): boolean {
   const h = heloOf(w, s.id);
   if (!h?.fix || w.time - h.fix.t > 30 || h.queue[0]?.kind !== 'dip' || h.torps <= 0) return false;
   const fix = h.fix;
@@ -75,7 +78,7 @@ export function heloOnDipContact(w: World, m: BotMemory, s: Ship, tracks: Contac
     const f = trackFix(w, s, x.label, 30);
     return !!f && distance(f.pos, fix) < 1500;
   });
-  if (!t || friends.some((f) => distance(f.pos, fix) < 3000)) return false;
+  if (!t || !ready(t) || friends.some((f) => distance(f.pos, fix) < 3000)) return false;
   return heloAttack(w, s, fix, t.label, off());
 }
 

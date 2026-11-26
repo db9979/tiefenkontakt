@@ -1,3 +1,4 @@
+import { traceShot } from './common.js';
 import { SSM_SPECS, bearing, distance, fireSsm, headingVec, ssmLeft, type ContactTrack, type Ship, type Vec2, type World } from '@tk/shared';
 
 /**
@@ -36,5 +37,5 @@ export function thinkStrike(w: World, s: Ship, tracks: ContactTrack[], convoyMid
   if (!aim || distance(aim.at, convoyMid) > 6000) return;
   // Aim a little short so the seeker opens on the near side of the formation
   const back = headingVec(bearing(aim.at, s.pos));
-  fireSsm(w, s, { x: aim.at.x + back.x * 1500, y: aim.at.y + back.y * 1500 });
+  if (fireSsm(w, s, { x: aim.at.x + back.x * 1500, y: aim.at.y + back.y * 1500 }) === true) traceShot({ t: w.time, shooter: s.id, team: s.team, weapon: 'ssm', basis: 'radar', range: aim.r });
 }
