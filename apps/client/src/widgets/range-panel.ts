@@ -1,5 +1,6 @@
 import { predictRanges, predictionSummary, rowRange, type RangePrediction, type Snapshot } from '@tk/shared';
 import { COL, esc, fitCanvas, FONT, h, setHtml, setText } from './format.js';
+import { plateText } from './canvas-text.js';
 
 /**
  * Listening-range prediction ("Reichweitenvorhersage"): a range × depth section from the
@@ -150,7 +151,7 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     ctx.setLineDash([]);
     ctx.fillStyle = COL.amber;
     ctx.textAlign = 'right';
-    ctx.fillText(`SCHICHT ${p.layerDepth} M`, g.l + g.w - 4, y(p.layerDepth!) - 3);
+    plateText(ctx, `SCHICHT ${p.layerDepth} M`, g.l + g.w - 4, y(p.layerDepth!) - 3, COL.bg, 2);
   }
   // Convergence zones: the annuli where sound comes up again from the deep; before the first the shadow zone
   ctx.font = FONT.tick;
@@ -166,7 +167,7 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     ctx.setLineDash([]);
     ctx.fillStyle = COL.amber;
     ctx.textAlign = 'center';
-    ctx.fillText(`${k + 1}. KZ`, x((a + b) / 2), g.t + 11);
+    plateText(ctx, `${k + 1}. KZ`, x((a + b) / 2), g.t + 11, COL.bg, 2);
   }
   const first = p.czRings[0];
   if (first) {
@@ -176,7 +177,7 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     if (x(first[0]) - x(dp) > 80) {
       ctx.fillStyle = COL.dim;
       ctx.textAlign = 'center';
-      ctx.fillText('SCHATTENZONE', (x(dp) + x(first[0])) / 2, g.t + 11);
+      plateText(ctx, 'SCHATTENZONE', (x(dp) + x(first[0])) / 2, g.t + 11, COL.bg, 2);
     }
   }
   // Seabed when it is inside the section
@@ -185,12 +186,12 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     ctx.fillRect(g.l, g.t + g.h - 2, g.w, 2);
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'right';
-    ctx.fillText(`GRUND ${Math.round(p.bottom)} M`, g.l + g.w - 4, g.t + g.h - 5);
+    plateText(ctx, `GRUND ${Math.round(p.bottom)} M`, g.l + g.w - 4, g.t + g.h - 5, COL.bg, 2);
   } else {
     // The section ends at the deepest the boat can go; say so, and where the bottom really is
     ctx.fillStyle = COL.dim;
     ctx.textAlign = 'right';
-    ctx.fillText(`TAUCHGRENZE ${p.axis === 'own' ? 'EIGENES BOOT' : 'U-BOOT'} · GRUND ${Math.round(p.bottom)} M`, g.l + g.w - 4, g.t + g.h - 5);
+    plateText(ctx, `TAUCHGRENZE ${p.axis === 'own' ? 'EIGENES BOOT' : 'U-BOOT'} · GRUND ${Math.round(p.bottom)} M`, g.l + g.w - 4, g.t + g.h - 5, COL.bg, 2);
   }
   // Own depth marker (boats: the row we are on; ships: own hull at the surface)
   ctx.fillStyle = COL.g2;
@@ -209,6 +210,7 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     ctx.stroke();
     ctx.setLineDash([]);
   }
+  // Labels inside the section stand on a plate: over the red hatching they were unreadable
   ctx.textAlign = 'left';
-  ctx.fillText(p.axis === 'own' ? `EIGENE TIEFE ${Math.round(ownDepth)} M` : 'EIGENES SCHIFF', g.l + 4, Math.max(g.t + 10, oy - 3));
+  plateText(ctx, p.axis === 'own' ? `EIGENE TIEFE ${Math.round(ownDepth)} M` : 'EIGENES SCHIFF', g.l + 4, Math.max(g.t + 10, oy - 3), COL.bg, 2);
 }

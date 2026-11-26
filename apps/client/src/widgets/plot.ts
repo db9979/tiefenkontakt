@@ -496,8 +496,10 @@ export class Plot {
         // The label at the line's end only when there is no fix to carry it (F29: it was drawn twice)
         if ((hist.length || cur !== undefined) && !fix) {
           const lb = headingVec(cur ?? c.bearing);
-          const me = ownNow();
-          const lp = P({ x: me.x + lb.x * 60 * this.scale, y: me.y + lb.y * 60 * this.scale });
+          // On the line it labels: a buoy's or a datalink mate's line starts at its origin, not at the own ship
+          const lo = latest?.ox !== undefined && latest.oy !== undefined ? { x: latest.ox, y: latest.oy }
+            : c.originX !== undefined && c.originY !== undefined ? { x: c.originX, y: c.originY } : ownNow();
+          const lp = P({ x: lo.x + lb.x * 60 * this.scale, y: lo.y + lb.y * 60 * this.scale });
           chartLabel(ctx, c.sensors.includes('esm') ? esmPlotLabel(c.label, c.emitter) : c.label, lp.x + 4, lp.y - 4, 8);
         }
       }

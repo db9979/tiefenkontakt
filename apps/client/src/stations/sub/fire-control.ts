@@ -511,6 +511,7 @@ export function fireControlStation(): Station {
         const data = row.querySelector<HTMLElement>('.wr-data')!;
         const figures = `${tdeg1(t.heading)}° · GELAUFEN ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">REST ${t.leftS !== undefined ? mmss(t.leftS) : '—'}</span>`;
         setHtml(data, t.wireWarn ? `<span class="amber">${t.wireWarn}</span>` : figures);
+        data.classList.toggle('wr-warn', !!t.wireWarn);
         data.title = t.wireWarn ? `Draht gefährdet: ${t.wireWarn}` : 'Kurs · gelaufene Strecke · Restlaufzeit (Brennstoff)';
       });
       btnState(q('#tr-nm'), { label: String(lo.noisemakers), tone: lo.noisemakers ? undefined : 'empty' });

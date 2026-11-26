@@ -13,6 +13,8 @@ const STALE_S = 60;
  * (150–400 m per unit, apps/server/src/datalink.ts) is in it; a mate's track compares two units' frames. */
 const POS_ERR_M = 330;
 const POS_ERR_LINK_M = 700;
+/** A warship this close to a datalink track's origin is the unit that reported it (m). */
+const REPORTER_M = 1000;
 
 type Cand = Pick<ContactTrack, 'bearing' | 'range' | 'classified' | 'sensors'> & Partial<Pick<ContactTrack, 'originX' | 'originY'>> & { assigned?: ClassChoice; label?: string; via?: 'own' | 'datalink' };
 
@@ -38,6 +40,9 @@ function lineUps(c: Cand, s: Snapshot, extra: number): { i: number; score: numbe
     if (!f.alive || s.time - f.reportedAt > 30) return;
     if (c.classified && c.classified !== f.cls) return;
     if (c.assigned && c.assigned !== 'unknown' && c.assigned !== CHOICE_OF_CLASS[f.cls]) return;
+    // A mate's track never is the mate itself: the reporting warship sits at the track's origin
+    // (within its gridlock error), where any bearing lined up with it ("EIGEN" on every mate track)
+    if (c.via === 'datalink' && CHOICE_OF_CLASS[f.cls] === 'warship' && Math.hypot(f.x - o.x, f.y - o.y) < REPORTER_M) return;
     const tol = Math.max(tolerance(s, f, o, c.via === 'datalink'), extra);
     const err = Math.abs(angleDiff(bearing(o, f), c.bearing));
     if (err > tol) return;

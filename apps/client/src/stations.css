@@ -51,6 +51,8 @@ html[data-theme='light'] button.primary.st-busy[data-bst]::after { background: #
 /* Tabbed panel: segmented tabs as the header title, one pane at a time */
 .tabbed > .hd { overflow: visible; }
 .ptabs > button { padding: 2px 8px; min-height: 22px; font-size: var(--fs-cap); }
+/* In a header the tabs keep their width; the status beside them gives way (the Doppler label pushed ANALYSE out) */
+.hd > .ptabs { flex: none; }
 .ptabs .cnt { display: inline-block; min-width: 12px; margin-left: 3px; padding: 0 3px; border-radius: 6px; line-height: 13px;
   background: var(--c-attn); color: var(--bg); letter-spacing: 0; }
 .ptabs .cnt:empty { display: none; }

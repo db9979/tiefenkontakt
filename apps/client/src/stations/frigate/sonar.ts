@@ -36,7 +36,8 @@ export function frigateSonarStation(): Station {
         <div class="fill" id="hull-box" title="Klick auf eine Spur wählt den Kontakt"><canvas id="hull"></canvas></div>
       </div>
       <div class="panel grow"><div class="hd"><span title="Schleppsonar: Peilung links/rechts mehrdeutig">Schleppsonar</span>
-          <span class="hd-r"><span id="ts" class="dim"></span><span class="seg hdseg" title="Kabellänge in Metern (lang = unter der Sprungschicht)">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? `${l} m` : 'Einholen'}</button>`).join('')}</span></span></div>
+          <span class="hd-r"><span class="seg hdseg" title="Kabellänge in Metern (lang = unter der Sprungschicht)">${[0, 300, 600, 900, 1200].map((l) => `<button data-len="${l}" title="${l ? 'Kabellänge ' + l + ' m (lang = unter der Sprungschicht)' : 'Schleppsonar einholen'}">${l ? `${l} m` : 'Einholen'}</button>`).join('')}</span></span></div>
+        <div id="ts" class="tow-st dim"></div>
         <div class="fill" id="tow-box"><canvas id="tow"></canvas></div>
         <div class="foot">
           <details class="wfpop"><summary title="Anzeige beider Wasserfälle: Normalisierer, Mittelung, Helligkeit, Kontrast">Anzeige ▾</summary><div id="wf-ctl"></div></details>

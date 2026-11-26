@@ -62,7 +62,8 @@ export function drawFriendlies(ctx: CanvasRenderingContext2D, s: Snapshot, P: (p
       const hv = screenDir(f.heading);
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + hv.x * 14, p.y + hv.y * 14); ctx.stroke();
       const age = s.time - f.reportedAt;
-      ctx.fillText(age > 5 ? `${f.name} (−${Math.round(age / 60)} MIN)` : f.name, p.x + 8, p.y + 4);
+      // Datalink reports are 3–15 s old: an age only once it says something ("−0 MIN" read as a fault)
+      ctx.fillText(age >= 30 ? `${f.name} (−${Math.max(1, Math.round(age / 60))} MIN)` : f.name, p.x + 8, p.y + 4);
     }
   }
 }

@@ -51,3 +51,5 @@ html[data-theme='light'] .sub-central .c-air { background: #ffe3e3; }
 /* F16: a torpedo off the wire (broken, or never connected): name and reason over the full width, no steering */
 .sub-fc .fc-wire > #wires .wire-row.wr-cut { grid-template-areas: 'name name' 'data data'; justify-content: stretch; }
 .sub-fc .fc-wire > #wires .wire-row.wr-cut > .wr-data { justify-self: start; text-align: left; }
+/* A wire warning and a broken wire's reason wrap instead of losing their end ("DRAHT: MAX. 12 …") */
+.sub-fc .fc-wire > #wires .wr-data.wr-warn, .sub-fc .fc-wire > #wires .wire-row.wr-cut > .wr-data { white-space: normal; overflow: visible; text-wrap: balance; }
