@@ -1,20 +1,25 @@
 /**
  * Dev-only page: the own ship's close-range model seen from her bridge, for render checks.
- * ?cls=ffg|ffv|kor,b=bearing rel. to the bow &pitch &light &hour &kn &sea &t &fov
+ * ?cls=ffg|ffv|kor|sub,b=bearing rel. to the bow &pitch &light &hour &kn &sea &t &fov
+ * &region=faroebank (sea area: places the sun and stars) &month=1..12 &rain=1
  * &cam=x:y:z:tx:ty:tz (free camera in ship coordinates, bow +z). Not part of the build.
  * window.__done once drawn; __shot() redraws, __bench(n) gives ms per frame, __info() draw stats.
  */
 import * as THREE from 'three';
+import { REGIONS, type RegionId } from '@tk/shared';
 import { Periscope3D } from '../src/widgets/periscope3d.js';
 
 // Commas work as separators too (the DevTools /json/new endpoint swallows '&')
 const p = new URLSearchParams(location.search.replace(/,/g, '&'));
 const num = (k: string, d: number) => (p.has(k) ? Number(p.get(k)) : d);
-const cls = (p.get('cls') ?? 'ffg') as 'ffg' | 'ffv' | 'kor';
+const cls = (p.get('cls') ?? 'ffg') as 'ffg' | 'ffv' | 'kor' | 'sub';
 const canvas = document.getElementById('c') as HTMLCanvasElement;
-const v = new Periscope3D(canvas, { eye: 20, own: cls });
+// cls=sub: the U-boat's periscope, 4 m over the water, no own ship in the picture
+const v = new Periscope3D(canvas, cls === 'sub' ? { eye: 4 } : { eye: 20, own: cls });
 let t = num('t', 10);
-const opts = () => ({
+const region = p.get('region') as RegionId | null;
+const place = region && REGIONS[region] ? { lat: REGIONS[region].lat, month: num('month', 10), turn: REGIONS[region].bearing } : undefined;
+const opts = () => ({ place, rain: num('rain', 0) > 0,
   bearing: (num('b', 0) + 360) % 360, fovDeg: num('fov', 60), t, sea: num('sea', 3), light: num('light', 1), targets: [],
   hour: num('hour', 11), pitchDeg: num('pitch', -8), ownHeading: 0, ownKn: num('kn', 15), own: { x: 0, y: 0 },
 });
@@ -72,7 +77,7 @@ w.__bench = (n: number) => {
 w.__info = () => {
   const r = vv.renderer as THREE.WebGLRenderer;
   let tris = 0;
-  (vv.own.g as THREE.Group).traverse((o) => {
+  (vv.own?.g as THREE.Group | undefined)?.traverse((o) => {
     const m = o as THREE.Mesh;
     if (m.isMesh && m.geometry) tris += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position!.count) / 3;
   });

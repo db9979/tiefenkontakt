@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { ClassId, MetCells, PlaneKind, SamView, SeabedSpec, Sighting, Vec2, WreckView } from '@tk/shared';
+import { REGIONS, type ClassId, type MetCells, type PlaneKind, type SamView, type SeabedSpec, type Sighting, type Vec2, type WreckView } from '@tk/shared';
+import type { SkyPlace } from './sea3d/astro.js';
 import { Terrain } from './sea3d/terrain.js';
 import { WeatherFx } from './sea3d/weather3d.js';
 import { MissileTrails } from './sea3d/missiles.js';
@@ -289,6 +290,15 @@ export class Periscope3D {
     }
   }
 
+  /** The match's sea area and month, for the stars. */
+  private skyPlace(seabed?: SeabedSpec): SkyPlace | undefined {
+    const env = store.snap?.env;
+    const region = (seabed ?? env?.seabed)?.region;
+    if (!region) return undefined;
+    const r = REGIONS[region];
+    return { lat: r.lat, month: env?.month ?? 10, turn: r.bearing };
+  }
+
   render(o: {
     bearing: number; fovDeg: number; t: number; sea: number; light: number; targets: PeriscopeTarget[];
     rain?: boolean; hour?: number; effects?: PeriscopeEffect[]; pitchDeg?: number; ownKn?: number; ownHeading?: number;
@@ -303,6 +313,8 @@ export class Periscope3D {
     stabilize?: boolean;
     /** Hand-held binoculars: tremor amplitude (degrees), grows with magnification. */
     shake?: number;
+    /** Latitude, month and map turn for the stars (default: from the match's sea area). */
+    place?: SkyPlace;
   }): void {
     if (o.own) this.ownPos = o.own;
     this.terrain.update(o.seabed, this.ownPos);
@@ -372,7 +384,8 @@ export class Periscope3D {
     const inFog = this.wx.update(o.met, o.own, o.t, o.light);
     const sky = this.skyFx.update({
       t: o.t, light: o.light, hour: o.hour ?? 12, sun: store.snap?.env.sun, sea: o.sea, rain: !!o.rain, inFog, met: o.met, own: this.ownPos,
-      ownKn: o.ownKn ?? 0, ownHeading: o.ownHeading ?? 0, camera: this.camera,
+      ownKn: o.ownKn ?? 0, ownHeading: o.ownHeading ?? 0, camera: this.camera, place: o.place ?? this.skyPlace(o.seabed),
+      fovDeg: o.fovDeg, dpr: this.renderer.getPixelRatio(),
     });
     u.uFog!.value = sky.haze;
     (u.uSky!.value as THREE.Color).copy(sky.reflect);

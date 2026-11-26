@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import { inSquall, metVisibility, type MetCells, type Vec2 } from '@tk/shared';
+import { inSquall, metVisibility, sunPosition, type MetCells, type Vec2 } from '@tk/shared';
 import { NOISE } from './shaders.js';
 import { lightningSeen } from '../lightning.js';
+import { StarField } from './stars.js';
+import type { SkyPlace } from './astro.js';
 
 /**
  * Sky and precipitation of the 3D sea view. The cloud deck lies on a plane about 1.8 km up,
@@ -9,7 +11,7 @@ import { lightningSeen } from '../lightning.js';
  * a few fair-weather clouds in a calm, a broken deck in a stiff breeze, overcast under and near
  * rain squalls. Clouds are lit from the sun side (bright tops, grey bases, silver lining), the
  * sky has a sun halo, a dusk glow on the sun's side only and a haze band at the horizon that
- * widens in rain and fog. Stars only show through gaps. Rain falls in streaks slanted by the
+ * widens in rain and fog. The real stars (stars.ts) and a faint Milky Way only show through gaps. Rain falls in streaks slanted by the
  * wind and the ship's own speed; in cold water it snows. Showers with thunder flash.
  */
 
@@ -61,8 +63,15 @@ const SKY_VERT = `varying vec3 vDir; void main() { vDir = normalize(position); g
 const SKY_FRAG = `${NOISE}${CLOUD_GLSL}
 uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uHaze; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uSunCol;
 uniform float uLight; uniform float uSunUp; uniform float uDusk; uniform float uOvercast; uniform float uHazeK; uniform float uFlash;
-uniform vec2 uWindDir;
+uniform vec2 uWindDir; uniform vec3 uGalN; uniform vec3 uGalC; uniform float uMilky;
 varying vec3 vDir;
+/** Milky Way brightness along galactic longitude and latitude (radians): star clouds, dark lanes, a fine grain. */
+float mwClouds(float lon, float b) {
+  vec2 gp = vec2(lon, b) * 16.0;
+  float clump = smoothstep(0.25, 0.75, fbm(gp + vec2(17.0, 3.0)));
+  float lane = smoothstep(0.45, 0.7, fbm(gp * 1.7 + vec2(5.0, 11.0)));
+  return (0.35 + 1.1 * clump) * (1.0 - 0.5 * lane) * (0.85 + 0.3 * noise(gp * 8.75));
+}
 void main() {
   vec3 d = normalize(vDir);
   float h = max(d.y, 0.0);
@@ -82,6 +91,26 @@ void main() {
   col += vec3(1.0, 0.92, 0.78) * smoothstep(0.99975, 0.9999, s) * 5.0 * uSunUp * (1.0 - uOvercast * 0.95);
   float m = max(dot(d, normalize(uMoon)), 0.0);
   col += vec3(0.85, 0.88, 0.95) * (smoothstep(0.99955, 0.9997, m) + pow(m, 200.0) * 0.08) * (1.0 - uSunUp) * (1.0 - uOvercast);
+  // Milky Way: a faint, mottled band along the galactic plane, wider and brighter toward Sagittarius,
+  // split by the dark rift; only on clear dark nights (uMilky), under the clouds and the haze below
+  if (uMilky > 0.002 && d.y > 0.0) {
+    float b = dot(d, uGalN);
+    vec3 pl = d - uGalN * b;
+    float l = dot(normalize(pl + 1e-5), uGalC);
+    float toC = 0.5 + 0.5 * l;
+    float w = 0.09 + 0.09 * toC * toC;
+    // Off the band: nothing to add (most of the sky)
+    if (abs(b) < 2.0 * w) {
+      float band = exp(-b * b / (w * w));
+      float lon = atan(dot(pl, cross(uGalN, uGalC)), dot(pl, uGalC));
+      // Star clouds and dark lanes a few degrees across; across the anticentre the two ends blend
+      float cl = mwClouds(lon, b);
+      if (abs(lon) > 2.7) cl = mix(cl, mwClouds(lon - sign(lon) * 6.2832, b), 0.5 * smoothstep(2.7, 3.1416, abs(lon)));
+      float rift = 1.0 - 0.6 * exp(-pow((b - 0.015) / 0.025, 2.0)) * smoothstep(-0.3, 0.7, l);
+      float mw = (0.35 + 0.65 * toC * toC) * band * cl * rift;
+      col += vec3(0.72, 0.78, 0.92) * mw * uMilky * 0.022 * smoothstep(0.0, 0.25, d.y);
+    }
+  }
   // High cirrus: thin streaks along the wind in fair weather
   if (d.y > 0.0) {
     vec2 p = d.xz / max(d.y, 0.05) * 0.25 + uCloudOff * 0.37;
@@ -111,15 +140,6 @@ void main() {
   col += vec3(0.35, 0.38, 0.45) * uFlash * hz;
   gl_FragColor = vec4(col, 1.0);
   #include <colorspace_fragment>
-}`;
-
-const STAR_VERT = `uniform float uPx; varying vec3 vDir; void main() { vDir = normalize(position); gl_PointSize = uPx; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`;
-const STAR_FRAG = `${NOISE}${CLOUD_GLSL}
-uniform float uStars; varying vec3 vDir;
-void main() {
-  float a = uStars * (1.0 - cloudAt(normalize(vDir))) * smoothstep(0.02, 0.15, vDir.y);
-  if (a < 0.01) discard;
-  gl_FragColor = vec4(vec3(1.0), a);
 }`;
 
 /** Drops or flakes in a box around the eye; the box offset wraps, so they never run out. */
@@ -189,7 +209,14 @@ export interface SkyInput {
   /** Fog density at the eye (0..1). */
   inFog: number;
   met?: MetCells; own: Vec2; ownKn: number; ownHeading: number; camera: THREE.Camera;
+  /** Where and in which month the match is set (map north turned from true north); places the stars and, without `sun`, the sun. */
+  place?: SkyPlace;
+  /** The optic's horizontal field of view (degrees) and the canvas's pixel ratio: star size. */
+  fovDeg?: number; dpr?: number;
 }
+
+/** A match off the real charts: a northern sea at the equinox, when the generic sun rises at six and sets at eighteen. */
+export const DEFAULT_PLACE: SkyPlace = { lat: 56, month: 3, turn: 0 };
 
 /** What the rest of the scene takes from the sky. */
 export interface SkyLight {
@@ -203,7 +230,7 @@ export interface SkyLight {
 
 export class SkyFx {
   readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
-  private stars: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  private stars: StarField;
   private rain = precip(false);
   private snow = precip(true);
   private cloud: Record<string, THREE.IUniform> = { uCloudOff: { value: new THREE.Vector2() }, uCover: { value: 0.3 } };
@@ -225,22 +252,12 @@ export class SkyFx {
           uSun: { value: new THREE.Vector3(0, 1, 0) }, uMoon: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color() },
           uLight: { value: 1 }, uSunUp: { value: 1 }, uDusk: { value: 0 }, uOvercast: { value: 0 }, uHazeK: { value: 40 },
           uFlash: { value: 0 }, uWindDir: { value: new THREE.Vector2(1, 0) },
+          uGalN: { value: new THREE.Vector3(0, 1, 0) }, uGalC: { value: new THREE.Vector3(1, 0, 0) }, uMilky: { value: 0 },
         },
       }),
     );
-    const sp: number[] = [];
-    for (let i = 0; i < 1400; i++) {
-      const az = Math.random() * Math.PI * 2;
-      const el = Math.asin(Math.random() * 0.95 + 0.02);
-      sp.push(Math.cos(el) * Math.sin(az) * 45_000, Math.sin(el) * 45_000, -Math.cos(el) * Math.cos(az) * 45_000);
-    }
-    this.stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)),
-      new THREE.ShaderMaterial({
-        vertexShader: STAR_VERT, fragmentShader: STAR_FRAG, transparent: true, depthWrite: false,
-        uniforms: { ...this.cloud, uStars: { value: 0 }, uPx: { value: 1.6 } },
-      }));
-    this.stars.frustumCulled = false;
-    scene.add(this.mesh, this.stars, this.rain, this.snow);
+    this.stars = new StarField(this.cloud, CLOUD_GLSL);
+    scene.add(this.mesh, this.stars.points, this.stars.faint, this.rain, this.snow);
   }
 
   update(o: SkyInput): SkyLight {
@@ -273,9 +290,11 @@ export class SkyFx {
     const lit = 0.06 + 0.94 * light * light;
     const dusk = light > 0.15 && light < 0.9 ? 1 - Math.abs(light - 0.5) * 2 : 0;
     let sunDir: THREE.Vector3, sunEl: number;
-    if (o.sun) {
+    // Without the server's sun, a known place puts it where the stars expect it
+    const sunPos = o.sun ?? (o.place ? (({ el, az }) => ({ el, az: az - o.place!.turn }))(sunPosition(o.place.lat, o.place.month, o.hour)) : undefined);
+    if (sunPos) {
       // Bearing in the map frame: x east of the map, -z its north
-      const a = (o.sun.az * Math.PI) / 180, e = (o.sun.el * Math.PI) / 180;
+      const a = (sunPos.az * Math.PI) / 180, e = (sunPos.el * Math.PI) / 180;
       sunEl = Math.sin(e);
       sunDir = new THREE.Vector3(Math.sin(a) * Math.cos(e), sunEl, -Math.cos(a) * Math.cos(e)).normalize();
     } else {
@@ -317,8 +336,14 @@ export class SkyFx {
     su.uOvercast!.value = over;
     su.uHazeK!.value = THREE.MathUtils.lerp(THREE.MathUtils.lerp(45, 14, Math.max(pr, over * 0.5)), 2, o.inFog);
     su.uFlash!.value = flash;
-    this.stars.material.uniforms.uStars!.value = Math.max(0, 1 - light * 3) * 0.9;
-    this.stars.material.uniforms.uPx!.value = Math.min(2, window.devicePixelRatio || 1) * 1.2;
+    const hazeK = su.uHazeK!.value as number;
+    su.uMilky!.value = this.stars.update({
+      place: o.place ?? DEFAULT_PLACE, hour: o.hour, t: o.t, sunEl: (Math.asin(Math.max(-1, Math.min(1, sunDir.y))) * 180) / Math.PI, light,
+      moonDir, moon: Math.max(0, Math.min(1, moonDir.y * 4)) * (1 - over), overcast: over, precip: pr, fog: o.inFog, hazeK,
+      fovDeg: o.fovDeg ?? 60, dpr: o.dpr ?? Math.min(2, window.devicePixelRatio || 1),
+    });
+    (su.uGalN!.value as THREE.Vector3).copy(this.stars.galPole);
+    (su.uGalC!.value as THREE.Vector3).copy(this.stars.galCentre);
 
     // Precipitation around the eye: drops fall at 8 m/s, flakes at 1.2; both drift with the wind
     // and stream past the moving ship
