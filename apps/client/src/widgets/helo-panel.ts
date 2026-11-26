@@ -4,7 +4,7 @@ import { store } from '../store.js';
 import { btnState } from './btn-state.js';
 import { lastFix } from './contact-pos.js';
 import { guardFire, targetCheck } from './fire-guard.js';
-import { esc, h, km, setHtml, setText, tdeg3 } from './format.js';
+import { esc, h, setHtml, setText, sm, tdeg3 } from './format.js';
 
 /**
  * Ship's helicopter (C11): one airframe, airborne with a task queue the crew edits at any time.
@@ -31,7 +31,7 @@ const KIND: Record<HeloTaskKind, string> = { dip: 'TAUCHSONAR', buoys: 'BOJENLIN
 /** Buoy patterns (F15) as named in the panel and the queue. */
 export const PATTERN_NAME: Record<BuoyPattern, string> = { line: 'LINIE', barrier: 'SPERRE', circle: 'KREIS', chevron: 'KEIL' };
 const PATTERN_TITLE: Record<BuoyPattern, string> = {
-  line: 'Linie quer zur Sichtlinie, 2,5 km Abstand',
+  line: 'Linie quer zur Sichtlinie, 1,3 sm (2,5 km) Abstand',
   barrier: 'Sperre: zwei versetzte Reihen quer zum Anmarschweg, die Lücken der einen deckt die andere',
   circle: 'Kreis um das Datum (1,5 sm Radius): das Boot kann nach keiner Seite unbemerkt ablaufen',
   chevron: 'Keil vor einem schnellen Boot: Spitze voraus auf seinem Kurs (TMA), die Schenkel laufen zurück',
@@ -102,7 +102,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
     <div class="row"><span class="dim">MUSTER</span><span class="seg">${(Object.keys(PATTERN_NAME) as BuoyPattern[]).map((p) => `<button data-pat="${p}" title="${PATTERN_TITLE[p]}">${PATTERN_NAME[p]}</button>`).join('')}</span></div>
     <div class="row" id="hp-deck" style="display:none"><span id="hp-deck-t"></span><button id="hp-deck-go" title="Den Kurs ans Ruder geben: Wind im Flugdeckbereich (30° beiderseits des Bugs)">FLUGKURS STEUERN</button></div>
     <div class="grid2" style="gap:4px">
-      <button class="primary" data-task="dip" title="Je Tauchstelle etwa 4–5 min: einschweben, Dom fieren (4,5 m/s), über und unter der gemessenen Schicht pingen, Dom hieven, dann 4 km weiter in Suchrichtung (3 Tauchstellen)">Tauchsonar</button>
+      <button class="primary" data-task="dip" title="Je Tauchstelle etwa 4–5 min: einschweben, Dom fieren (4,5 m/s), über und unter der gemessenen Schicht pingen, Dom hieven, dann gut 2 sm weiter in Suchrichtung (3 Tauchstellen)">Tauchsonar</button>
       <button class="primary" data-task="buoys" title="Passive Bojen im gewählten Muster über dem Ziel, abwechselnd über und unter der Schicht">Bojen legen</button>
       <button class="primary" data-task="mad" title="Magnetsonde: Kleeblatt über dem Punkt (6 min), findet getauchte Boote nur sehr nah">MAD</button>
       <button id="hp-att" class="fire" title="Leichttorpedo auf die letzte gehaltene Position des Kontakts (aus dem Schweben etwa 1 min)">Angriff</button>
@@ -144,7 +144,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
     if (!s?.air?.helo) return { block: 'KEIN HUBSCHRAUBER' };
     const a = aim(s);
     if (!a) return kind === 'buoys' && bearingOnly(s) ? {} : { block: bearingOnly(s) ? 'NUR PEILUNG' : 'KONTAKT ODER PUNKT WÄHLEN' };
-    if (distance(s.own, a.p) > HELO_RANGE) return { block: `ZU WEIT (${HELO_RANGE / 1000} KM)` };
+    if (distance(s.own, a.p) > HELO_RANGE) return { block: `ZU WEIT (${sm(HELO_RANGE)})` };
     return {};
   };
   root.querySelectorAll<HTMLButtonElement>('[data-task]').forEach((b) => {
@@ -225,16 +225,16 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
       // With no new target picked but a task running, the row names that task instead of asking (amber only when idle)
       const run = hv.queue[0];
       const busy = !a && !bo && run !== undefined && run.kind !== 'return';
-      q('#hp-tgt').textContent = a ? `${a.what} · ${tdeg3(bearing(s.own, a.p))}° · ${km(distance(s.own, a.p))}`
+      q('#hp-tgt').textContent = a ? `${a.what} · ${tdeg3(bearing(s.own, a.p))}° · ${sm(distance(s.own, a.p))}`
         : bo ? `${bo.label} · ${tdeg3(bo.bearing)}° · NUR PEILUNG – PINGEN, TMA ODER KARTENPUNKT (RECHTSKLICK) · BOJENLINIE LÄNGS DER PEILUNG`
-        : busy ? `AUFTRAG: ${KIND[run.kind]}${run.track ? ` · ${run.track}` : ''} · ${tdeg3(bearing(s.own, run))}° · ${km(distance(s.own, run))}`
+        : busy ? `AUFTRAG: ${KIND[run.kind]}${run.track ? ` · ${run.track}` : ''} · ${tdeg3(bearing(s.own, run))}° · ${sm(distance(s.own, run))}`
         : 'KONTAKT ODER PUNKT WÄHLEN';
       q('#hp-tgt').className = busy ? '' : 'amber';
       // Rows are rebuilt only when the queue changes (the × buttons stay clickable); distance and ETA tick in place
       const rows = hv.queue.map((t, i) => {
         const detail = t.kind === 'dip' ? `${Math.min((t.step ?? 0) + 1, t.count ?? 1)}/${t.count ?? 1}`
           : t.kind === 'buoys' ? `${t.pattern ? `${PATTERN_NAME[t.pattern]} · ` : ''}${t.step ?? 0}/${t.count ?? 1}${t.active ? ' · AKTIV' : ''}` : t.track ? esc(t.track) : '';
-        const where = t.kind === 'return' ? '' : km(distance(s.own, t));
+        const where = t.kind === 'return' ? '' : sm(distance(s.own, t));
         const when = i === 0 && hv.state === 'air' && hv.working ? 'LÄUFT' : t.etaS > 0 ? `ETA ${mmss(t.etaS)}` : 'JETZT';
         return { key: `${t.id}:${detail}`, html: `<span><span class="dim">${i + 1}</span> <span>${KIND[t.kind]}${detail ? ` · ${detail}` : ''}</span></span>`, where, when, id: t.id };
       });

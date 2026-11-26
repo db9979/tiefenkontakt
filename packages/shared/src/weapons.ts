@@ -451,7 +451,9 @@ function seek(w: World, t: Torpedo): Candidate | undefined {
 function damage(w: World, target: Ship, amount: number, byId: string, at?: Vec2): void {
   target.hp -= amount;
   w.events.push({ kind: 'hit', time: w.time, shipId: target.id, byId, x: at?.x ?? target.pos.x, y: at?.y ?? target.pos.y });
-  if (target.hp > 0) applyHitDamage(target, amount, w.rng, { at, byId, w });
+  // A sinking hit still opens the hull where it struck (the damage panel and the wreck show it);
+  // only the crew's reports stay quiet, the ship is going down
+  applyHitDamage(target, amount, w.rng, { at, byId, w: target.hp > 0 ? w : undefined });
   target.lastHitBy = byId;
   crippleIfMerchant(target, w.time);
   if (target.hp <= 0 && target.alive) {

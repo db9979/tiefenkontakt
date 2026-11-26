@@ -120,7 +120,9 @@ export function renderDamage(el: HTMLElement): void {
   const layout = compartmentLayout(o.cls);
   if (selected !== undefined && selected >= comps.length) selected = undefined;
   const hp = Math.max(0, (100 * o.hp) / CLASSES[o.cls].hp);
-  setHtml(el.querySelector('#dp-hp')!, `<span class="${hp < 50 ? 'red' : hp < 80 ? 'amber' : 'dim'}">${hp.toFixed(0)} %</span>`);
+  // Sunk: no hull points left to show; the compartments keep the state she went down with
+  const sunk = !o.alive;
+  setHtml(el.querySelector('#dp-hp')!, sunk ? '<span class="red" style="font-weight:bold">GESUNKEN</span>' : `<span class="${hp < 50 ? 'red' : hp < 80 ? 'amber' : 'dim'}">${hp.toFixed(0)} %</span>`);
   const w = o.wreck;
   const list = w?.list ?? 0;
   // Trim angle as the Zentrale shows it (flooding plus the weight out of trim on a boat)
@@ -129,9 +131,10 @@ export function renderDamage(el: HTMLElement): void {
   const burning = comps.filter((c) => c.fire > 0.02).length;
   const val = (label: string, v: string, cls = '') => `<span><b>${label}</b><span class="${cls}">${v}</span></span>`;
   setHtml(el.querySelector('#dp-state')!, [
+    sunk ? `<span class="red" style="flex:1 1 100%;font-weight:bold">${CLASSES[o.cls].submarine ? 'BOOT' : 'SCHIFF'} GESUNKEN · LAGE BEIM UNTERGANG</span>` : '',
     val('SCHLAGSEITE', `${Math.abs(list).toFixed(0)}°${list > 0.5 ? ' STB' : list < -0.5 ? ' BB' : ''}`, Math.abs(list) > 10 ? 'red' : Math.abs(list) > 3 ? 'amber' : ''),
     val('TRIMM', trimText(trim), Math.abs(trim) > 3 ? 'red' : Math.abs(trim) > 1 ? 'amber' : ''),
-    val('WASSER', `${water} %${water > 70 ? ' SINKT' : ''}`, water > 50 ? 'red' : water > 15 ? 'amber' : ''),
+    sunk ? '' : val('WASSER', `${water} %${water > 70 ? ' SINKT' : ''}`, water > 50 ? 'red' : water > 15 ? 'amber' : ''),
     burning ? val('BRAND', `${burning} ABT.`, 'red') : '',
   ].join(''));
   const at = o.dcAt;
@@ -163,8 +166,8 @@ export function renderDamage(el: HTMLElement): void {
     ].filter(Boolean).join(' · ') || 'KLAR';
     // The state line (water %) changes all the time, the two buttons stay the same nodes
     setParts(el.querySelector('#dp-act')!, [`<span class="dp-state"><b style="color:${compColour(pc)}">${pick + 1}</b> ${ps.name.toUpperCase()} <span class="dim">${state}</span></span>`,
-      `<button data-cact="party" data-ci="${pick}" class="${pick === at ? 'on' : ''}" ${pc.sealed || pick === at ? 'disabled' : ''} title="Schadenstrupp hierher: Lecks dichten, lenzen, Brand löschen, reparieren">${pick === at ? 'TRUPP IST HIER' : 'TRUPP HIERHER'}</button>
-      <button data-cact="seal" data-ci="${pick}" class="warn" title="${pc.sealed ? 'Schott öffnen: der Trupp kann wieder hinein' : 'Schotten schließen: Wasser und Feuer gehen nicht weiter, aber Stationen und Systeme darin fallen aus'}">${pc.sealed ? 'SCHOTT ÖFFNEN' : 'ABSCHOTTEN'}</button>`]);
+      `<button data-cact="party" data-ci="${pick}" class="${pick === at ? 'on' : ''}" ${sunk || pc.sealed || pick === at ? 'disabled' : ''} title="Schadenstrupp hierher: Lecks dichten, lenzen, Brand löschen, reparieren">${pick === at ? 'TRUPP IST HIER' : 'TRUPP HIERHER'}</button>
+      <button data-cact="seal" data-ci="${pick}" class="warn" ${sunk ? 'disabled' : ''} title="${pc.sealed ? 'Schott öffnen: der Trupp kann wieder hinein' : 'Schotten schließen: Wasser und Feuer gehen nicht weiter, aber Stationen und Systeme darin fallen aus'}">${pc.sealed ? 'SCHOTT ÖFFNEN' : 'ABSCHOTTEN'}</button>`]);
   }
   const d = o.damage;
   setHtml(el.querySelector('#dp-sys')!, SYSTEMS.map((k) => {

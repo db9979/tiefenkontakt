@@ -212,7 +212,7 @@ export function phoneScreen(root: HTMLElement, code: string): void {
         bearing: bearing(), fovDeg: isSub ? f * (w / Math.min(w, hgt)) : f, t, sea: s.env.seaState, light: s.env.light ?? 1,
         targets: isSub ? periscopeTargets(s) : bridgeTargets(s), rain: s.env.rain, hour: s.env.clock,
         pitchDeg: isSub ? elev : glass ? elev - 0.15 : elev - 8, met: s.env.met, own, seabed: s.env.seabed, ownHeading: own.heading, ownKn: s.own.speedKn,
-        stabilize: stab, shake: !isSub && glass ? 0.012 * mag : 0,
+        stabilize: stab, shake: !isSub && glass ? 0.012 * mag : 0, glowTracks: s.glowTracks,
       });
     }
     // Optic: a round periscope field or the binocular mask with its reticle

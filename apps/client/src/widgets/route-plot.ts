@@ -2,7 +2,7 @@ import { CLASSES, KN, PERISCOPE_DEPTH, bearing, distance, headingVec, type Snaps
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { btnState } from './btn-state.js';
-import { COL, km, tdeg3 } from './format.js';
+import { COL, chartDist, tdeg3 } from './format.js';
 import type { MenuItem } from './menu.js';
 import { ownNow } from './smooth.js';
 
@@ -189,7 +189,7 @@ export class RoutePlot {
         ctx.lineWidth = 1;
         // Leg: true course and distance at the middle
         const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
-        if (Math.hypot(p.x - q.x, p.y - q.y) > 60) ctx.fillText(`${tdeg3(bearing(prev, w))}° · ${km(distance(prev, w))}`, mx + 6, my - 4);
+        if (Math.hypot(p.x - q.x, p.y - q.y) > 60) ctx.fillText(`${tdeg3(bearing(prev, w))}° · ${chartDist(distance(prev, w), !!store.snap && !CLASSES[store.snap.own.cls].submarine)}`, mx + 6, my - 4);
       }
       ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, 7); ctx.stroke();
       ctx.textAlign = 'center';

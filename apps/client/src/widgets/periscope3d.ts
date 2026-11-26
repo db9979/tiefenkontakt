@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { REGIONS, type ClassId, type MetCells, type PlaneKind, type SamView, type SeabedSpec, type Sighting, type Vec2, type WreckView } from '@tk/shared';
+import { REGIONS, type ClassId, type GlowTrackView, type MetCells, type PlaneKind, type SamView, type SeabedSpec, type Sighting, type Vec2, type WreckView } from '@tk/shared';
 import type { SkyPlace } from './sea3d/astro.js';
 import { Terrain } from './sea3d/terrain.js';
 import { WeatherFx } from './sea3d/weather3d.js';
@@ -14,6 +14,7 @@ import { wakeUniforms } from './sea3d/wake.js';
 import { bridgeFront, cullNear, handShake } from './sea3d/own-ship.js';
 import { ownDetail, type OwnFx } from './sea3d/own-detail.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
+import { GlowTracks, styleGlowSighting } from './sea3d/glow-trails.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
 import { store } from '../store.js';
@@ -142,6 +143,9 @@ export class Periscope3D {
   private wx: WeatherFx;
   /** Surface-to-air missiles: smoke trails, flames, bursts. */
   private missiles = new MissileTrails(this.scene);
+  /** Sighted torpedoes' glowing tracks at night; screen pixels per radian of the view this frame. */
+  private glowTracks = new GlowTracks(this.scene);
+  private pxPerRad = 1000;
 
   constructor(private canvas: HTMLCanvasElement, opts: { eye?: number; own?: ClassId } = {}) {
     this.eye = opts.eye ?? 4;
@@ -318,6 +322,8 @@ export class Periscope3D {
     shake?: number;
     /** Latitude, month and map turn for the stars (default: from the match's sea area). */
     place?: SkyPlace;
+    /** Torpedo tracks the lookouts see glowing (snapshot glowTracks). */
+    glowTracks?: GlowTrackView[];
   }): void {
     if (o.own) this.ownPos = o.own;
     this.terrain.update(o.seabed, this.ownPos);
@@ -336,6 +342,7 @@ export class Periscope3D {
     const hf = (o.fovDeg * Math.PI) / 180;
     this.camera.fov = (2 * Math.atan(Math.tan(hf / 2) / aspect) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
+    this.pxPerRad = w / hf;
     // The sea, fixed to the map: wind from the weather, phases from the own position
     const sw = (this.waves = seaWaves(o.sea, o.met?.wind, this.ownPos, o.t));
     const amp = sw.amp;
@@ -415,6 +422,7 @@ export class Periscope3D {
     this.scene.fog = new THREE.FogExp2(sky.haze, sky.fogDensity);
     this.updateEffects(o.effects ?? [], o.light);
     this.place(o.targets, o.t, o.sea, amp, o.light);
+    this.glowTracks.update(o.glowTracks, { own: this.ownPos, cam: this.camera.position, waves: sw, eye: this.eye, pxPerRad: this.pxPerRad, light: o.light, t: o.t });
     this.slicks = updateSlicks(this.slicks, this.scene, o.t, this.ownPos.x, this.ownPos.y, o.light);
     this.fire.intensity = this.glow * 4;
     this.missiles.update(o.missiles?.list ?? [], o.missiles?.me ?? { x: 0, y: 0 }, o.t, o.light);
@@ -496,6 +504,7 @@ export class Periscope3D {
       s.bearing = tg.bearing;
       // Newly sighted: it comes out of the haze over a few seconds instead of popping in
       fadeModel(s.g, Math.min(1, (t - (s.born ?? -Infinity)) / FADE_IN_S));
+      if (tg.sighting === 'glow') styleGlowSighting(s.g, { range: tg.range, rel: (((tg.course ?? 0) - tg.bearing) * Math.PI) / 180, kn: tg.speedKn ?? 6, eye: this.eye, pxPerRad: this.pxPerRad, light });
       if (tg.plane) {
         // Aircraft: at its height (earth curvature taken off), nose along the course, rotors turning
         const b = (tg.bearing * Math.PI) / 180;

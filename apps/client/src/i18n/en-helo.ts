@@ -43,8 +43,10 @@ export const EN_HELO: [string, string][] = [
 export const EN_HELO_PHRASES: [RegExp, string][] = [
   [/\b(\d+) AN BORD\b/g, '$1 ABOARD'], [/\b(\d+) IM MAGAZIN\b/g, '$1 IN THE MAGAZINE'],
   [/^Hubschrauber ▸ \(([\d,.]+) KM\)$/, 'Helicopter ▸ ($1 KM)'], [/^Hubschrauber · (\d{3})° · ([\d,.]+) KM$/, 'Helicopter · $1° · $2 KM'],
+  [/^Hubschrauber ▸ \(([\d,.]+) SM\)$/, 'Helicopter ▸ ($1 NM)'], [/^Hubschrauber · (\d{3})° · ([\d,.]+) SM$/, 'Helicopter · $1° · $2 NM'],
   [/^Hubschrauber: 0,5–(\d+) km Reichweite$/, 'Helicopter: 0.5–$1 km range'],
-  [/^Ziel für die Aufträge hier \(([\d,.]+) KM\)$/, 'Target for the tasks here ($1 KM)'], [/^Tauchsonar hier/, 'Dipping sonar here'], [/^Bojenlinie hier/, 'Buoy line here'],
+  [/^Hubschrauber: (\S+) SM–(\S+) SM Reichweite$/, 'Helicopter: $1 NM–$2 NM range'], [/^ZU WEIT \((\S+) SM\)$/, 'TOO FAR ($1 NM)'],
+  [/^Ziel für die Aufträge hier \(([\d,.]+) KM\)$/, 'Target for the tasks here ($1 KM)'], [/^Ziel für die Aufträge hier \(([\d,.]+) SM\)$/, 'Target for the tasks here ($1 NM)'], [/^Tauchsonar hier/, 'Dipping sonar here'], [/^Bojenlinie hier/, 'Buoy line here'],
   [/^Aktive Bojenlinie \(DICASS\) · pingt, verrät sich$/, 'Active buoy line (DICASS) · pings, gives itself away'], [/^MAD-Suche hier \(Kleeblatt, 6 min\)/, 'MAD search here (cloverleaf, 6 min)'],
   [/^(⚠ EIGENE IN DER NÄHE · )?Torpedo hier \((\d+)\)/, '$1Torpedo here ($2)'],
   [/^Hubschrauber-Ziel hier \(([\d,.]+) KM\)$/, 'Helicopter target here ($1 KM)'],

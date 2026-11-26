@@ -1,6 +1,9 @@
 import { CLASSES, HAVEN_M, bearing, distance, groundsOf, lanesOf, type RegionId, type Snapshot, type Vec2 } from '@tk/shared';
 import { store } from '../store.js';
-import { deg3, FONT, km, LW } from './format.js';
+import { chartDist, deg3, FONT, LW } from './format.js';
+
+/** A length in the chart's unit: sea miles on a surface ship, kilometres on the boat (F19). */
+const dist = (m: number) => chartDist(m, !!store.snap && !CLASSES[store.snap.own.cls].submarine);
 import { trueDeg } from '../north.js';
 
 /**
@@ -116,7 +119,7 @@ export class ChartMarks {
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         for (const q of [a, b]) { ctx.beginPath(); ctx.arc(q.x, q.y, 2.5, 0, 7); ctx.fill(); }
         ctx.textAlign = 'center';
-        ctx.fillText(`${deg3(trueDeg(bearing(s.a, s.b)))}° · ${km(distance(s.a, s.b))}`, (a.x + b.x) / 2, (a.y + b.y) / 2 - 6);
+        ctx.fillText(`${deg3(trueDeg(bearing(s.a, s.b)))}° · ${dist(distance(s.a, s.b))}`, (a.x + b.x) / 2, (a.y + b.y) / 2 - 6);
       } else {
         const c = P(s.c);
         ctx.setLineDash([6, 4]);
@@ -124,7 +127,7 @@ export class ChartMarks {
         ctx.setLineDash([]);
         ctx.beginPath(); ctx.arc(c.x, c.y, 2.5, 0, 7); ctx.fill();
         ctx.textAlign = 'center';
-        ctx.fillText(`R ${km(s.r)}`, c.x, c.y - s.r / scale - 5);
+        ctx.fillText(`R ${dist(s.r)}`, c.x, c.y - s.r / scale - 5);
       }
     }
     ctx.restore();

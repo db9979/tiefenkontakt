@@ -50,6 +50,7 @@ import {
   pingRangeOf,
 } from '@tk/shared';
 import { huntFor } from './bots/escort-team.js';
+import { glowTracksFor } from './glow-tracks.js';
 import { escortCommandFor } from './escort-command.js';
 import { correlate, linkedFriendly, logPositions, ownAt, pictureOf, reportedTrack, type Picture } from './datalink.js';
 import { markKey, shownMark, type ClassMark } from './classes.js';
@@ -343,6 +344,7 @@ export function buildSnapshot(
     friendlies,
     torpedoes,
     ...(wireLost.length ? { wireLost } : {}),
+    ...(() => { const g = glowTracksFor(w, own); return g ? { glowTracks: g } : {}; })(),
     // Delta: only entries this player hasn't received yet
     radio: (() => {
       const d = newEntries(x.radio, x.radioDropped, x.radioSent, 30);
