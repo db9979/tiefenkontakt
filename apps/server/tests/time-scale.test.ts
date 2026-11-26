@@ -29,6 +29,14 @@ describe('time compression', () => {
     expect(startGeometry('meerenge', 1 / 3).straitExitY).toBeLessThan(16_500);
   });
 
+  it('keeps the arena-balanced short geometry of fjord and schelf', () => {
+    // Fjord: the boat waits far up the narrows and off the channel; schelf: 3.6 km off the route
+    expect(startGeometry('fjord', 1 / 3)).toMatchObject({ subFrac: 0.8, spread: 1.2 });
+    expect(startGeometry('schelf', 1 / 3).spread).toBeCloseTo(0.3);
+    // The designed long battle is unchanged
+    expect(startGeometry('fjord', 1)).toMatchObject({ subFrac: 0.45, spread: 1 });
+  });
+
   it('puts the wolfpack within reach of the convoy at 1×', () => {
     const slots = [
       { playerId: 'w', callsign: 'W', team: 'west' as const, cls: 'ffg' as const, ready: true },
