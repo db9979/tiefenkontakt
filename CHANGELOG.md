@@ -6,6 +6,11 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Eigenes Schiff, dritte Runde:** Schornsteinrauch als weiche, mit dem scheinbaren Wind ziehende Abgasfahne statt
+  grauer Kugeln (bei Marschfahrt kaum sichtbar, bei hoher Fahrt deutlich); Bugwelle, Schaum an der Bordwand und
+  Schraubenwasser achteraus, mit der Fahrt skaliert; Nockdeck mit rutschfestem Anstrich, Plattenfugen, Wassergang,
+  Speigatten und Holzgrätings; abgeblendetes Schiff bei Nacht (Positionslaternen leuchten, gedämpftes Rotlicht auf
+  Nocks, Niedergängen und Hangar); Torpedorohre nach außen geschwenkt; Täuschkörperwerfer; Heckspiegel geschlossen.
 - **Eigenes Schiff, zweite Runde (mit dem Fregattenkapitän):** offene Brücke mit geschlossenem Schanzkleid (kein
   Durchblick mehr), Nocks bis zur vollen Breite mit Peilaufsatz, Signallampen und Seitenlichtschirmen, Fensterfront mit
   Klarsichtscheiben und Wischern, Flaggenkästen und Signalleinen; sichtbares Geschützrohr, Werfer auf Drehsockel mit
