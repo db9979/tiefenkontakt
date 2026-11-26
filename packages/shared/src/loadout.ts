@@ -19,11 +19,15 @@ export interface Loadout {
   mines?: number;
   /** Surface-to-air missiles left (escorts; undefined = full magazine, airdef.ts). */
   sams?: number;
+  /** Wake-homing torpedoes in the rack (east SSN; fired in place of a tube's heavyweight). */
+  wake?: number;
 }
 
 const NONE = { heavy: 0, light: 0, rockets: 0, depthCharges: 0, noisemakers: 0, tubeCount: 0, reloadTime: 0, towedDecoy: false, xbt: 0 };
 const TEMPLATES: Record<ClassId, Omit<Loadout, 'tubes'> & { tubeCount: number }> = {
-  ssn: { heavy: 16, light: 0, rockets: 0, depthCharges: 0, noisemakers: 8, tubeCount: 4, reloadTime: 90, towedDecoy: false, xbt: 0 },
+  // Project 9 (Victor III / Akula type): 4 of its 16 weapons are wake homers of the 65-76 type
+  // (650 mm, anti-ship); the rest passive/active heavyweights
+  ssn: { heavy: 12, light: 0, rockets: 0, depthCharges: 0, noisemakers: 8, tubeCount: 4, reloadTime: 90, towedDecoy: false, xbt: 0, wake: 4 },
   // Kilo-type: two torpedo stowages hold four mines instead
   ssk: { heavy: 10, light: 0, rockets: 0, depthCharges: 0, noisemakers: 6, tubeCount: 6, reloadTime: 120, towedDecoy: false, xbt: 0, mines: 4 },
   // Coastal boat: eight bow tubes and no reloads (Type-206 style)

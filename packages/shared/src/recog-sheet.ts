@@ -107,6 +107,7 @@ export function threatSheet(cls: ClassId): ThreatLine[] {
   if (spec.submarine) {
     const t = TORPEDO_SPECS.heavy;
     out.push({ kind: 'waffe', name: 'Schwere Torpedos', count: l.heavy + loaded, details: [`${tubes} Rohre`, `${t.speedKn} kn`, `drahtgelenkt bis ${kmText(WIRE_MAX_RANGE)}`], rangeM: t.maxRun });
+    if (l.wake) out.push({ kind: 'waffe', name: 'Kielwassertorpedos', count: l.wake, details: ['läuft die Hecksee hoch', 'Täuschkörper wirken nicht', 'harte Wende hilft'], rangeM: t.maxRun });
     if (l.mines) out.push({ kind: 'waffe', name: 'Minen', count: l.mines, details: [`Wassertiefe ${MINE_MIN_WATER}–${MINE_MAX_WATER} m`] });
   } else {
     const t = TORPEDO_SPECS.light;

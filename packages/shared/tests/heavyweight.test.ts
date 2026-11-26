@@ -31,14 +31,16 @@ function duel(sub = { speedKn: 3, depth: 60 }) {
 
 describe('heavyweight torpedo (C8)', () => {
   it('reaches 25 km at 30 kn and 15 km at 40 kn', () => {
-    expect(heavyRange(30)).toBe(25_000);
-    expect(heavyRange(40)).toBe(15_000);
-    expect(heavyRange(35)).toBe(20_000);
+    expect(heavyRange(30)).toBeCloseTo(25_000, 3);
+    expect(heavyRange(40)).toBeCloseTo(15_000, 3);
+    // In between: fuel burnt per metre ∝ v^1.78 (F17), so 35 kn reaches about 19 km
+    expect(heavyRange(35)).toBeGreaterThan(18_500);
+    expect(heavyRange(35)).toBeLessThan(19_500);
     const { w, u } = duel();
     const slow = fireTorpedo(w, u, { heading: 0, speedKn: 30 }) as Torpedo;
     const fast = fireTorpedo(w, u, { heading: 0, speedKn: 40 }) as Torpedo;
-    expect(slow.maxRun).toBe(25_000);
-    expect(fast.maxRun).toBe(15_000);
+    expect(slow.maxRun).toBeCloseTo(25_000, 3);
+    expect(fast.maxRun).toBeCloseTo(15_000, 3);
     // Run time left: the fuel at the run speed
     expect(runTimeLeft(fast)).toBeCloseTo(15_000 / (40 * KN), 0);
   });

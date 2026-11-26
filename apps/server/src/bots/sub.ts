@@ -7,6 +7,8 @@ import {
   depthAt,
   distance,
   interceptHeading,
+  heavyPreset,
+  twoSpeedMeanKn,
   targetPosAt,
   transmit,
   wrap360,
@@ -314,14 +316,18 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Outside the launch envelope (too fast, too deep) the boat slows and comes up first: no shot yet
   const envelope = !launchBlock(s.cls, s.speed / KN, s.depth);
   if (wait === undefined && range !== undefined && !fouled && envelope && now - m.lastShot > SHOT_COOLDOWN) {
-    // Long passive shots run slow: quieter, and the seeker hears more without flow noise
-    const runKn = !duel && range > 4000 ? 30 : 40;
+    // Long passive shots run slow (quieter, the seeker hears more without flow noise); long active
+    // shots transit at 30 kn and sprint at 40 once the seeker opens (heavyPreset, F17)
+    const mode = duel ? 'active' : 'passive';
+    const enableAfter = Math.max(800, range * 0.6);
+    const plan = heavyPreset(range, mode);
+    const runKn = twoSpeedMeanKn(plan.transitKn, plan.speedKn, enableAfter, range);
     const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
     // A guarding boat alternates two and one torpedo (arena, both sides mixed: always two 42:18, always one 18:42, alternating 38:22)
     const salvo = guard ? ((m.guardShots = (m.guardShots ?? 0) + 1) % 2 === 1 ? 2 : 1) : k.salvo;
     // One salvo, fanned by the target's length at that range and the TMA's error
     const spread = defaultSpreadDeg(range, solved ? Math.min(3, Math.max(1, (100 - solved.q) / 15)) : 2);
-    const shot = fireSalvo(w, s, { heading: wrap360(aim), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn }, salvo, spread);
+    const shot = fireSalvo(w, s, { heading: wrap360(aim), enableAfter, mode, searchDepth: duel ? Math.max(40, s.depth) : 15, ...plan }, salvo, spread);
     const fired = typeof shot === 'string' ? 0 : shot.length;
     if (fired) {
       traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: close !== undefined ? 'close' : measured !== undefined ? 'measured' : 'tma', q: solved?.q, settled, range, held, span: spanOf(m, target.label, now), legs });

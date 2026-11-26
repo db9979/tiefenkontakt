@@ -105,7 +105,8 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
     t: z.literal('fire'), heading: deg, enableAfter: z.number().finite().min(0).max(30_000),
-    mode: z.enum(['passive', 'active']), searchDepth: z.number().finite().min(5).max(500), speedKn: z.number().finite().min(20).max(50),
+    mode: z.enum(['passive', 'active', 'wake']), searchDepth: z.number().finite().min(5).max(500), speedKn: z.number().finite().min(20).max(50),
+    transitKn: z.number().finite().min(20).max(50).optional(),
     salvo: z.number().int().min(1).max(4).optional(), spread: z.number().finite().min(0).max(10).optional(),
   }),
   z.object({ t: z.literal('steer'), torpId: z.string().max(20), heading: deg }),
@@ -267,7 +268,7 @@ export function applyCommand(w: World, s: Ship, m: GameCommand): string | undefi
       return;
     }
     case 'fire': {
-      const o = { heading: m.heading, enableAfter: m.enableAfter, mode: m.mode, searchDepth: m.searchDepth, speedKn: m.speedKn };
+      const o = { heading: m.heading, enableAfter: m.enableAfter, mode: m.mode, searchDepth: m.searchDepth, speedKn: m.speedKn, transitKn: m.transitKn };
       const r = fireSalvo(w, s, o, m.salvo ?? 1, m.spread ?? 0);
       return typeof r === 'string' ? r : undefined;
     }

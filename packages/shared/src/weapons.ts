@@ -10,11 +10,15 @@ import { KN, angleDiff, approach, bearing, clamp, distance, headingVec, wrap360,
 import { depthAt } from './seabed.js';
 import { towedArrayDepth, towedArrayReady } from './sensors.js';
 import { measureLayer, type World } from './world.js';
+import { recordWakes, steerWake, type WakePt, type WakeSeeker } from './wake-homing.js';
+import { WIRE_MAX_RANGE, stepWire, wireChannels, type WireState } from './wire.js';
+import { HEAVY_FUEL, HEAVY_MAX_KN, HEAVY_MIN_KN, burnPerM, twoSpeedRange } from './torpedo-run.js';
 
 export type TorpedoKind = 'heavy' | 'light';
-export type SeekerMode = 'passive' | 'active';
+/** 'wake': the east SSN's wake homer (wake-homing.ts), heavyweights only. */
+export type SeekerMode = 'passive' | 'active' | 'wake';
 
-export interface Torpedo {
+export interface Torpedo extends WireState, WakeSeeker {
   id: string;
   kind: TorpedoKind;
   ownerId: string;
@@ -27,8 +31,11 @@ export interface Torpedo {
   mode: SeekerMode;
   run: number; // m travelled
   maxRun: number;
-  wire: boolean;
   homingOn?: string; // target or decoy id
+  /** Heavyweights: fuel left in metres at the reference speed (heavyRange). */
+  fuel?: number;
+  /** Two-speed run: the speed it switches to when the seeker opens (or on acquisition); until then speedKn is the transit speed. */
+  attackKn?: number;
   launchedAt: number;
   alerted: string[]; // ship ids already warned
   /** Decoys the seeker has already classified as false targets. */
@@ -67,23 +74,34 @@ export interface WeaponsState {
   pending: DelayedEffect[];
   loadouts: Map<string, Loadout>;
   nextId: number;
+  /** Surface ships' recent tracks, for wake-homing torpedoes. */
+  wakes?: Map<string, WakePt[]>;
 }
 
 const SPEC: Record<TorpedoKind, { speedKn: number; maxRun: number; damage: number; turn: number }> = {
-  heavy: { speedKn: 40, maxRun: 25_000, damage: 80, turn: 10 },
+  heavy: { speedKn: HEAVY_MAX_KN, maxRun: HEAVY_FUEL, damage: 80, turn: 10 },
   light: { speedKn: 45, maxRun: 8_000, damage: 55, turn: 14 },
 };
 const SEEKER_HALF_ANGLE = 45;
 const HIT_RADIUS = 35;
-const WIRE_MAX_RANGE = 18_000;
-const WIRE_MAX_OWNER_KN = 12;
 const ALERT_RANGE = 8_000;
 const ROCKET_MAX_RANGE = 18_000;
 /** Inside this the rocket's trajectory can't bring the torpedo down (and it would land on the own wake). */
 const ROCKET_MIN_RANGE = 1800;
-/** Where the lightweight actually enters the water: aim point ± this (σ per axis, m). */
-const ROCKET_SCATTER = 150;
-const ROCKET_FLIGHT = 40;
+/**
+ * ASW rocket flight time (s) by range: a short boost, then the ballistic arc and the parachute.
+ * ASROC: about 10 s at 2 km, 35–40 s at 9 km; Malafon-type winged carriers ~230 m/s further out.
+ */
+export function rocketFlightS(rangeM: number): number {
+  return 5 + rangeM / 300;
+}
+/**
+ * Where the lightweight actually enters the water: aim point ± this (σ per axis, m). The
+ * ballistic scatter grows with range (CEP about 1 % of range) on top of the parachute drift.
+ */
+export function rocketScatterM(rangeM: number): number {
+  return 60 + 0.008 * rangeM;
+}
 /**
  * Ahead-throwing ASW mortar (replaces dropped depth charges): a salvo of charges laid in a line
  * 400–800 m ahead on the own heading, sinking to the set depth. Lethal within 20 m, damage to 60 m.
@@ -93,7 +111,8 @@ export const MORTAR_MAX = 800;
 const MORTAR_CHARGES = 6;
 const MORTAR_LATERAL = 40;
 const MORTAR_FLIGHT_S = 8;
-const DC_SINK_RATE = 6;
+/** Sink rate of the mortar charges (m/s): Limbo about 13, RBU-6000 about 11.5. */
+export const DC_SINK_RATE = 12;
 const DC_LETHAL = 20;
 const DC_DAMAGE_R = 60;
 /** Lightweight search: one circle (8°/s) at each of the two depths in turn. */
@@ -115,21 +134,21 @@ const SNAKE_DEG = 25;
 const SNAKE_PERIOD_S = 6;
 /** A heavyweight on a merchant: one hit cripples (110 hp), two sink; escorts take the class damage. */
 const MERCHANT_HIT = 95;
+/**
+ * F19: a heavyweight's influence fuse fires under the keel of an escort (the torpedo passes
+ * below the keel, within UNDER_KEEL_WINDOW m): the gas bubble breaks the hull girder (Khukri
+ * 1971). Contact hits on the side (torpedo set shallower than the keel) keep the class damage.
+ */
+export const UNDER_KEEL_FACTOR = 1.5;
+const UNDER_KEEL_WINDOW = 15;
+/** A heavyweight set deeper than the keel holds at most this far below it on the attack (m). */
+const UNDER_KEEL_RUN = 8;
 /** Launch envelope of a submarine: tubes can't be fired faster or deeper than this. */
 export const LAUNCH_MAX_KN = 15;
 export const LAUNCH_DEPTH_FRAC = 0.8;
 /** Most torpedoes in one salvo, and the widest angle between two of them (deg). */
 export const SALVO_MAX = 4;
 export const SPREAD_MAX_DEG = 10;
-
-/**
- * Heavyweight reach by run speed: 25 km at 30 kn or slower, 15 km at 40 kn (the battery
- * runs down faster at high speed), linear in between.
- */
-export function heavyRange(speedKn: number): number {
-  const f = clamp((speedKn - 30) / 10, 0, 1);
-  return 25_000 - f * 10_000;
-}
 
 /** Why a submarine can't fire now, with the limit that would make it possible; undefined = clear to fire. */
 export function launchBlock(cls: Ship['cls'], speedKn: number, depth: number): { why: 'speed' | 'depth'; limit: number } | undefined {
@@ -179,7 +198,10 @@ export interface FireOptions {
   enableAfter?: number;
   mode?: SeekerMode;
   searchDepth?: number;
+  /** Heavyweights: the attack/search speed; with `transitKn` the speed once the seeker opens. */
   speedKn?: number;
+  /** Heavyweights: a slower transit speed until the seeker opens (default: speedKn). */
+  transitKn?: number;
 }
 
 /** Fire a torpedo from a loaded tube. Returns the torpedo or an error string. */
@@ -195,21 +217,42 @@ export function fireTorpedo(w: World, shooter: Ship, o: FireOptions): Torpedo | 
       ? `Abschuss nur bis ${block.limit} kn (jetzt ${Math.round(shooter.speed / KN)} kn)`
       : `Abschuss nur bis ${block.limit} m Tiefe (jetzt ${Math.round(shooter.depth)} m)`;
   }
+  const kind: TorpedoKind = CLASSES[shooter.cls].submarine ? 'heavy' : 'light';
+  const wake = o.mode === 'wake' && kind === 'heavy';
+  if (wake && !(l.wake ?? 0)) return 'Keine Kielwassertorpedos an Bord';
   const tube = l.tubes.find((t) => t.loaded);
   if (!tube) return 'Kein Rohr geladen';
   tube.loaded = false;
-  const kind: TorpedoKind = CLASSES[shooter.cls].submarine ? 'heavy' : 'light';
+  // The wake homer goes in place of the tube's heavyweight, which goes back on the rack
+  if (wake) {
+    l.wake! -= 1;
+    l.heavy += 1;
+  }
   const sp = SPEC[kind];
+  const attackKn = clamp(o.speedKn ?? sp.speedKn, HEAVY_MIN_KN, sp.speedKn);
+  // The wake homer runs one speed (no wire to order the sprint); lightweights always one
+  const transitKn = kind === 'heavy' && !wake ? clamp(o.transitKn ?? attackKn, HEAVY_MIN_KN, sp.speedKn) : attackKn;
   const t: Torpedo = {
     id: `T${st.nextId++}`, kind, ownerId: shooter.id, pos: { ...shooter.pos },
     depth: Math.max(shooter.depth, 10), heading: wrap360(o.heading),
-    speedKn: clamp(o.speedKn ?? sp.speedKn, 25, sp.speedKn),
+    speedKn: transitKn,
     searchDepth: o.searchDepth ?? (kind === 'heavy' ? shooter.depth : 100),
-    enableAfter: Math.max(o.enableAfter ?? 1500, 500), mode: o.mode ?? 'passive',
-    run: 0, maxRun: sp.maxRun, wire: kind === 'heavy', launchedAt: w.time, alerted: [shooter.id],
+    enableAfter: Math.max(o.enableAfter ?? 1500, 500), mode: wake ? 'wake' : o.mode === 'active' ? 'active' : 'passive',
+    run: 0, maxRun: sp.maxRun, wire: kind === 'heavy' && !wake, launchedAt: w.time, alerted: [shooter.id],
   };
-  if (kind === 'heavy') t.maxRun = heavyRange(t.speedKn);
-  else {
+  if (kind === 'heavy') {
+    t.fuel = HEAVY_FUEL;
+    if (transitKn !== attackKn) t.attackKn = attackKn;
+    t.maxRun = twoSpeedRange(transitKn, attackKn, t.enableAfter);
+    // The wake sensor looks up at the trail from just under the keels
+    if (wake) t.searchDepth = clamp(o.searchDepth ?? 12, 8, 20);
+    // F16: the console guides only so many wires; a further torpedo leaves without one
+    const guided = st.torpedoes.filter((x) => x.ownerId === shooter.id && x.wire).length;
+    if (t.wire && guided >= wireChannels(shooter.cls)) {
+      t.wire = false;
+      t.wireLost = { at: w.time, why: `OHNE DRAHT · FEUERLEITUNG FÜHRT NUR ${wireChannels(shooter.cls)}`, x: t.pos.x, y: t.pos.y };
+    } else if (wake) t.wireLost = { at: w.time, why: 'KIELWASSERTORPEDO · OHNE DRAHT', x: t.pos.x, y: t.pos.y };
+  } else {
     t.searchDepths = lightSearchDepths(shooter.btLayer);
     t.searchDepth = t.searchDepths[0];
   }
@@ -240,9 +283,22 @@ export function fireSalvo(w: World, shooter: Ship, o: FireOptions, count: number
   return out;
 }
 
-/** Seconds a torpedo still runs before its fuel is gone. */
-export function runTimeLeft(t: Pick<Torpedo, 'run' | 'maxRun' | 'speedKn'>): number {
-  return Math.max(0, (t.maxRun - t.run) / (t.speedKn * KN));
+/** Seconds a torpedo still runs before its fuel is gone (a pending sprint counted at its speed). */
+export function runTimeLeft(t: Pick<Torpedo, 'run' | 'maxRun' | 'speedKn'> & Partial<Pick<Torpedo, 'attackKn' | 'enableAfter'>>): number {
+  const left = Math.max(0, t.maxRun - t.run);
+  if (t.attackKn === undefined || t.enableAfter === undefined) return left / (t.speedKn * KN);
+  const transit = Math.min(left, Math.max(0, t.enableAfter - t.run));
+  return transit / (t.speedKn * KN) + (left - transit) / (t.attackKn * KN);
+}
+
+/** Planned reach (m) from the fuel left: the rest of the transit, then the sprint. */
+function plannedRun(t: Torpedo): number {
+  if (t.fuel === undefined) return t.maxRun;
+  const burnNow = burnPerM(t.kind, t.speedKn);
+  if (t.attackKn === undefined) return t.run + t.fuel / burnNow;
+  const transit = Math.max(0, t.enableAfter - t.run);
+  if (transit * burnNow >= t.fuel) return t.run + t.fuel / burnNow;
+  return t.run + transit + (t.fuel - transit * burnNow) / burnPerM(t.kind, t.attackKn);
 }
 
 export function dropXbt(w: World, ship: Ship): true | string {
@@ -260,7 +316,10 @@ export function steerTorpedo(w: World, shooter: Ship, torpId: string, heading: n
   t.heading = wrap360(heading);
   t.homingOn = undefined;
   t.searchCourse = undefined;
-  if (enableAfter !== undefined) t.enableAfter = Math.max(t.run + 200, enableAfter);
+  if (enableAfter !== undefined) {
+    t.enableAfter = Math.max(t.run + 200, enableAfter);
+    t.maxRun = plannedRun(t);
+  }
   return true;
 }
 
@@ -274,9 +333,10 @@ export function launchAswRocket(w: World, shooter: Ship, aim: Vec2): true | stri
   if (haven) return haven;
   l.rockets -= 1;
   w.events.push({ kind: 'weapon', time: w.time, sourceId: shooter.id, what: 'rocket' });
-  // The rocket's ballistics and the parachute scatter the drop point around the aim
-  const drop = { x: aim.x + w.rng.gauss(0, ROCKET_SCATTER), y: aim.y + w.rng.gauss(0, ROCKET_SCATTER) };
-  ws(w).pending.push({ at: w.time + ROCKET_FLIGHT, kind: 'rocket', ownerId: shooter.id, pos: drop, depth: 0 });
+  // The rocket's ballistics and the parachute scatter the drop point around the aim, more the further out
+  const sd = rocketScatterM(r);
+  const drop = { x: aim.x + w.rng.gauss(0, sd), y: aim.y + w.rng.gauss(0, sd) };
+  ws(w).pending.push({ at: w.time + rocketFlightS(r), kind: 'rocket', ownerId: shooter.id, pos: drop, depth: 0 });
   return true;
 }
 
@@ -404,13 +464,68 @@ function damage(w: World, target: Ship, amount: number, byId: string, at?: Vec2)
 /** The common hit entry point for other weapons (mines): hull damage, system damage, sinking. */
 export { damage as weaponHit };
 
+/**
+ * Damage of a torpedo hit. A heavyweight passing under an escort's keel fires its influence
+ * fuse there (×UNDER_KEEL_FACTOR); a contact hit on the side, or any other target, takes the
+ * class damage (merchants: MERCHANT_HIT).
+ */
+export function torpedoDamage(kind: TorpedoKind, torpDepth: number, ship: Pick<Ship, 'cls' | 'depth'>): { amount: number; underKeel: boolean } {
+  if (kind !== 'heavy') return { amount: SPEC[kind].damage, underKeel: false };
+  if (ship.cls === 'merchant') return { amount: MERCHANT_HIT, underKeel: false };
+  const below = torpDepth - ship.depth;
+  const underKeel = isEscort(ship.cls) && !CLASSES[ship.cls].submarine && below > 1 && below <= UNDER_KEEL_WINDOW;
+  return { amount: SPEC.heavy.damage * (underKeel ? UNDER_KEEL_FACTOR : 1), underKeel };
+}
+
+function torpedoHits(w: World, t: Torpedo, ship: Ship): void {
+  const d = torpedoDamage(t.kind, t.depth, ship);
+  damage(w, ship, d.amount, t.ownerId, t.pos);
+  if (d.underKeel && ship.alive) w.events.push({ kind: 'boat', time: w.time, shipId: ship.id, what: 'underkeel', text: 'TORPEDOTREFFER UNTER DEM KIEL · SCHWERE SCHÄDEN' });
+}
+
+/** Attack depth on a ship: under the keel when set deeper than it (influence fuse), else the ship's depth. */
+function attackDepth(t: Torpedo, target: { depth: number; decoy: boolean; id: string }, w: World): number {
+  if (t.kind !== 'heavy' || target.decoy) return target.depth;
+  const ship = w.ships.find((s) => s.id === target.id);
+  if (!ship || CLASSES[ship.cls].submarine) return target.depth;
+  return t.searchDepth > target.depth + 1 ? Math.min(t.searchDepth, target.depth + UNDER_KEEL_RUN) : target.depth;
+}
+
+/** F16: wire guidance per tick; a break is logged aboard the boat with its reason. */
+function stepTorpedoWire(w: World, t: Torpedo, dt: number): void {
+  if (!t.wire) return;
+  const owner = w.ships.find((s) => s.id === t.ownerId);
+  const why = stepWire(t, owner, t.pos, dt);
+  if (!why) return;
+  t.wire = false;
+  t.wireWarn = undefined;
+  t.wireLost = { at: w.time, why, x: t.pos.x, y: t.pos.y };
+  if (owner?.alive) w.events.push({ kind: 'boat', time: w.time, shipId: owner.id, what: 'wire', text: `DRAHT GERISSEN · ${t.id} · ${why}` });
+}
+
+/** The wake homer after its seeker opens: up the trail, then into the stern. False = it hit. */
+function stepWakeHomer(w: World, t: Torpedo, dt: number): boolean {
+  const st = ws(w);
+  if (!(st.wakes instanceof Map)) st.wakes = new Map();
+  const g = steerWake(t, w.ships, st.wakes, w.time, w.rng);
+  if (g.want !== undefined) t.heading = wrap360(t.heading + clamp(angleDiff(t.heading, g.want), -SPEC.heavy.turn * dt, SPEC.heavy.turn * dt));
+  t.depth = approach(t.depth, t.searchDepth, 5 * dt);
+  if (g.target && Math.hypot(distance(t.pos, g.target.pos), t.depth - g.target.depth) < HIT_RADIUS) {
+    torpedoHits(w, t, g.target);
+    return false;
+  }
+  return true;
+}
+
 function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   const sp = SPEC[t.kind];
-  const owner = w.ships.find((s) => s.id === t.ownerId);
-  if (t.wire && (!owner?.alive || distance(owner.pos, t.pos) > WIRE_MAX_RANGE || owner.speed / KN > WIRE_MAX_OWNER_KN)) {
-    t.wire = false;
-  }
-  if (t.run >= t.enableAfter) {
+  stepTorpedoWire(w, t, dt);
+  // Two-speed run: the sprint starts when the seeker opens
+  if (t.attackKn !== undefined && t.speedKn !== t.attackKn && t.run >= t.enableAfter) t.speedKn = t.attackKn;
+  if (t.mode === 'wake') {
+    if (t.run < t.enableAfter) t.depth = approach(t.depth, t.searchDepth, 5 * dt);
+    else if (!stepWakeHomer(w, t, dt)) return false;
+  } else if (t.run >= t.enableAfter) {
     const c = seek(w, t);
     const r = c ? distance(t.pos, c.pos) : Infinity;
     // A decoy is unmasked when the torpedo runs through it, or earlier by an active seeker (no hull echo)
@@ -426,10 +541,10 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
       t.searchCourse = undefined;
       const want = leadBearing(t.pos, t.speedKn * KN, c.pos, c.vel);
       t.heading = wrap360(t.heading + clamp(angleDiff(t.heading, want), -sp.turn * dt, sp.turn * dt));
-      t.depth = approach(t.depth, c.depth, 8 * dt);
+      t.depth = approach(t.depth, attackDepth(t, c, w), 8 * dt);
       if (Math.hypot(r, t.depth - c.depth) < HIT_RADIUS) {
         const ship = w.ships.find((s) => s.id === c.id);
-        if (ship) damage(w, ship, t.kind === 'heavy' && ship.cls === 'merchant' ? MERCHANT_HIT : sp.damage, t.ownerId, t.pos);
+        if (ship) torpedoHits(w, t, ship);
         return false;
       }
     } else {
@@ -460,6 +575,10 @@ function stepTorpedo(w: World, t: Torpedo, dt: number): boolean {
   t.pos.x += v.x * step + c.x * dt;
   t.pos.y += v.y * step + c.y * dt;
   t.run += step;
+  if (t.fuel !== undefined) {
+    t.fuel -= step * burnPerM(t.kind, t.speedKn);
+    t.maxRun = plannedRun(t);
+  }
   // Into the shore: the torpedo strikes the rocks and detonates there
   if (w.env.seabed && depthAt(w.env.seabed, t.pos.x, t.pos.y) < 2) {
     w.events.push({ kind: 'transient', time: w.time, sourceId: t.ownerId, x: t.pos.x, y: t.pos.y, what: 'blow' });
@@ -515,6 +634,9 @@ function resolvePending(w: World, e: DelayedEffect): void {
 /** World system: advances torpedoes, decoys, rockets, depth charges and reloads. */
 export function weaponsSystem(w: World, dt: number): void {
   const st = ws(w);
+  // (A restored save carries the map as a plain object: the trails rebuild within minutes)
+  if (!(st.wakes instanceof Map)) st.wakes = new Map();
+  recordWakes(st.wakes, w.ships, w.time);
   st.torpedoes = st.torpedoes.filter((t) => stepTorpedo(w, t, dt));
   const due = st.pending.filter((e) => e.at <= w.time);
   st.pending = st.pending.filter((e) => e.at > w.time);

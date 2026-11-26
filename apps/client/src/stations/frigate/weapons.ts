@@ -1,4 +1,4 @@
-import { MORTAR_MAX, MORTAR_MIN, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, angleDiff, bearing, distance, headingVec, lightSearchDepths, targetPosAt } from '@tk/shared';
+import { DC_SINK_RATE, MORTAR_MAX, MORTAR_MIN, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, rocketFlightS, rocketScatterM, angleDiff, bearing, distance, headingVec, lightSearchDepths, targetPosAt } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, tubeTag } from '../../widgets/btn-state.js';
 import { friendNear, guardFire, targetCheck, type GuardCheck } from '../../widgets/fire-guard.js';
@@ -24,7 +24,7 @@ function aim(): { bearing: number; range: number; source: string } | undefined {
   if (fix) return { bearing: bearing(s.own, fix.pos), range: distance(s.own, fix.pos), source: 'ORTUNG' };
   const sol = store.solutions.get(c.label);
   if (sol) {
-    const p = targetPosAt(sol, s.time + 40);
+    const p = targetPosAt(sol, s.time + rocketFlightS(distance(s.own, targetPosAt(sol, s.time))));
     return { bearing: bearing(s.own, p), range: distance(s.own, p), source: 'TMA-LÖSUNG' };
   }
   return undefined;
@@ -39,7 +39,7 @@ export function weaponsStation(): Station {
       <div class="panel"><div class="hd"><span>Waffenleitstand · Ziel</span><span id="src" class="dim"></span></div><div id="target"></div></div>
       <div class="wgrid">
         <div class="panel wcard"><div class="hd"><span>ASW-Rakete</span></div>
-          <div class="wbody"><div id="rk" class="wstat"></div><div class="row"><span class="dim">REICHWEITE</span><span id="rkr"></span></div><div class="dim">LEICHTGEWICHTSTORPEDO, FLUGZEIT CA. 40&nbsp;S, STREUUNG ETWA 150&nbsp;M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.</div></div>
+          <div class="wbody"><div id="rk" class="wstat"></div><div class="row"><span class="dim">REICHWEITE</span><span id="rkr"></span></div><div class="dim" id="rk-note"></div></div>
           <button id="rocket" class="fire">Rakete auf Ziel${keycap('rocket')}</button>
         </div>
         <div class="panel wcard"><div class="hd"><span>Torpedorohre</span></div>
@@ -47,7 +47,7 @@ export function weaponsStation(): Station {
           <button id="tube" class="fire" title="Leichttorpedo aus dem Rohr auf die Zielpeilung">Torpedo auf Ziel</button>
         </div>
         <div class="panel wcard"><div class="hd"><span>Werfer</span></div>
-          <div class="wbody"><div id="dcn" class="wstat"></div><div class="dim">ZIEL 400–800&nbsp;M VORAUS AUF EIGENEM KURS</div><div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div><div class="dim wcap">SALVE AUF TIEFE ▸</div></div>
+          <div class="wbody"><div id="dcn" class="wstat"></div><div class="dim">ZIEL 400–800&nbsp;M VORAUS AUF EIGENEM KURS · SINKT ${DC_SINK_RATE}&nbsp;M/S</div><div class="row"><span class="dim">ZIEL</span><span id="dcz"></span></div><div class="dim wcap">SALVE AUF TIEFE ▸</div></div>
           <span class="seg wide" title="Salve aus dem Werfer: sechs Wasserbomben 400–800 m voraus, auf diese Tiefe eingestellt">${[50, 100, 150, 200].map((d) => `<button data-dc="${d}" class="fire">${d}&nbsp;m</button>`).join('')}</span>
         </div>
         <div class="panel wcard"><div class="hd"><span>Torpedoabwehr</span></div>
@@ -138,6 +138,11 @@ export function weaponsStation(): Station {
       q('#ssmp').style.display = fk ? '' : 'none';
       if (fk) q('#ssmn').textContent = `${fk.left} AN BORD${fk.readyInS ? ` · LÄDT ${fk.readyInS} S` : ''}`;
       q('#rk').textContent = `${l.rockets} VERFÜGBAR`;
+      // F20: flight time and scatter grow with the range (for the aim, else the span over the envelope)
+      const rr0 = a ? Math.min(ROCKET_MAX_RANGE, Math.max(ROCKET_MIN_RANGE, a.range)) : undefined;
+      q('#rk-note').textContent = rr0 !== undefined
+        ? `LEICHTGEWICHTSTORPEDO, FLUGZEIT CA. ${Math.round(rocketFlightS(rr0))} S, STREUUNG ETWA ${Math.round(rocketScatterM(rr0) / 10) * 10} M. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.`
+        : `LEICHTGEWICHTSTORPEDO, FLUGZEIT ${Math.round(rocketFlightS(ROCKET_MIN_RANGE))}–${Math.round(rocketFlightS(ROCKET_MAX_RANGE))} S JE NACH ENTFERNUNG. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT.`;
       q('#tb').textContent = `${l.tubes.filter((t) => t.loaded).length}/${l.tubes.length} GELADEN · VORRAT ${l.light}`;
       bank.update(l.tubes);
       q('#dcn').textContent = `NOCH ${l.depthCharges} SALVEN`;

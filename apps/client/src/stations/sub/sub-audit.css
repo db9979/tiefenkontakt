@@ -48,3 +48,6 @@
 .sub-central .c-air[hidden] { display: none; }
 .sub-central .c-air button { min-height: 32px; }
 html[data-theme='light'] .sub-central .c-air { background: #ffe3e3; }
+/* F16: a torpedo off the wire (broken, or never connected): name and reason over the full width, no steering */
+.sub-fc .fc-wire > #wires .wire-row.wr-cut { grid-template-areas: 'name name' 'data data'; justify-content: stretch; }
+.sub-fc .fc-wire > #wires .wire-row.wr-cut > .wr-data { justify-self: start; text-align: left; }
