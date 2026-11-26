@@ -10,6 +10,7 @@ import { planeTargets } from '../../widgets/air-targets.js';
 import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
+import { moonRow } from '../../widgets/moon-line.js';
 import { CLASS_LABEL, esc, fitCanvas, h, km, setHtml, setParts, setText, tdeg3 } from '../../widgets/format.js';
 import { LazyGl } from '../../widgets/lazy-gl.js';
 import { onRelease, onTap } from '../../widgets/touch.js';
@@ -262,7 +263,7 @@ export function bridgeStation(): Station {
     },
     snap() {
       const s = store.snap!;
-      const env = { layerDepth: 0, layerLoss: 0, seaState: s.env.seaState, light: s.env.light, rain: s.env.rain };
+      const env = { layerDepth: 0, layerLoss: 0, seaState: s.env.seaState, light: s.env.light, rain: s.env.rain, moon: s.env.moon };
       const fog = fogAt(s.env.met, s.own);
       const r = lookoutRanges(env, fog);
       const quality = r.mast > 1500 ? 'GUT' : r.mast > 600 ? 'MÄSSIG' : 'SCHLECHT';
@@ -271,7 +272,7 @@ export function bridgeStation(): Station {
         <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${fog > 0.3 ? ' · NEBEL' : ''}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
         <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
         <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
-        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>`,
+        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>${moonRow(s)}`,
         airLine(s),
         selLine(),
       ]);

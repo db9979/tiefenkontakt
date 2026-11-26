@@ -15,6 +15,8 @@ import {
   seaLayer,
   startHourFor,
   sunPosition,
+  matchDay,
+  envMoonlight,
   type Season,
   CLASSES,
   depthAt,
@@ -309,6 +311,9 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   // Lay the area's shipping lanes over the chart once (cached), before traffic spawns on them
   lanesOf(region);
   w.env.lat = REGIONS[region].lat;
+  // The date: the day of the month from the seed (the moon's age, moon.ts)
+  w.env.lon = REGIONS[region].lon;
+  w.env.day = matchDay(month, seed);
   // Where the tide stands at the start: any hour of the 12-hour cycle
   w.env.tidePhase = ((seed * 2654435761) % 1000) / 1000 * Math.PI * 2;
   if (mission === 'fuehlung') {
@@ -320,6 +325,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   const hour = startHourFor(w.env.lat, month, tod);
   w.env.weather = initWeather(w.env, hour, settings.weather !== 'stabil');
   w.env.light = lightFromSun(sunPosition(w.env.lat, month, hour).el);
+  w.env.moon = envMoonlight(w.env);
   // Fog and ice as the area has them in that season
   const clim = seaClimate(region, month);
   w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: clim.ice, fogBanks: mission === 'groenland' ? 3 : Math.max(clim.fogBanks, seed % 2) });

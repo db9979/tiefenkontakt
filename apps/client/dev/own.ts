@@ -1,7 +1,7 @@
 /**
  * Dev-only page: the own ship's close-range model seen from her bridge, for render checks.
  * ?cls=ffg|ffv|kor|sub,b=bearing rel. to the bow &pitch &light &hour &kn &sea &t &fov
- * &region=faroebank (sea area: places the sun and stars) &month=1..12 &rain=1
+ * &region=faroebank (sea area: places the sun, moon and stars) &month=1..12 &day=1..31 (the moon's age) &rain=1
  * &cam=x:y:z:tx:ty:tz (free camera in ship coordinates, bow +z). Not part of the build.
  * window.__done once drawn; __shot() redraws, __bench(n) gives ms per frame, __info() draw stats.
  */
@@ -18,7 +18,7 @@ const canvas = document.getElementById('c') as HTMLCanvasElement;
 const v = new Periscope3D(canvas, cls === 'sub' ? { eye: 4 } : { eye: 20, own: cls });
 let t = num('t', 10);
 const region = p.get('region') as RegionId | null;
-const place = region && REGIONS[region] ? { lat: REGIONS[region].lat, month: num('month', 10), turn: REGIONS[region].bearing } : undefined;
+const place = region && REGIONS[region] ? { lat: REGIONS[region].lat, lon: REGIONS[region].lon, month: num('month', 10), day: p.has('day') ? num('day', 15) : undefined, turn: REGIONS[region].bearing } : undefined;
 const opts = () => ({ place, rain: num('rain', 0) > 0,
   bearing: (num('b', 0) + 360) % 360, fovDeg: num('fov', 60), t, sea: num('sea', 3), light: num('light', 1), targets: [],
   hour: num('hour', 11), pitchDeg: num('pitch', -8), ownHeading: 0, ownKn: num('kn', 15), own: { x: 0, y: 0 },

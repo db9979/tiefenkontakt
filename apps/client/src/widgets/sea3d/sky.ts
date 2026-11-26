@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { inSquall, metVisibility, sunPosition, type MetCells, type Vec2 } from '@tk/shared';
+import { cloudCover, inSquall, metVisibility, moonlight, moonSky, sunPosition, type MetCells, type Vec2 } from '@tk/shared';
 import { NOISE } from './shaders.js';
 import { lightningSeen } from '../lightning.js';
 import { StarField } from './stars.js';
@@ -11,7 +11,9 @@ import type { SkyPlace } from './astro.js';
  * a few fair-weather clouds in a calm, a broken deck in a stiff breeze, overcast under and near
  * rain squalls. Clouds are lit from the sun side (bright tops, grey bases, silver lining), the
  * sky has a sun halo, a dusk glow on the sun's side only and a haze band at the horizon that
- * widens in rain and fog. The real stars (stars.ts) and a faint Milky Way only show through gaps. Rain falls in streaks slanted by the
+ * widens in rain and fog. The moon stands where it really is on the match's date (moon.ts), lit on
+ * the sun's side with its real phase, the dark part faint in earthshine, a halo round it; low down
+ * it is reddish and dim, by day a pale disc, behind clouds gone. The real stars (stars.ts) and a faint Milky Way only show through gaps. Rain falls in streaks slanted by the
  * wind and the ship's own speed; in cold water it snows. Showers with thunder flash.
  */
 
@@ -35,6 +37,8 @@ THREE.ShaderChunk.fog_fragment = `
 export const extinction = (visM: number) => 3.912 / Math.max(30, visM);
 
 const CLOUD_H = 1800;
+/** Drawn radius of the moon (radians): about twice the real 0.26°, the size it seems to the eye at sea. */
+const MOON_R = (0.5 * Math.PI) / 180;
 /** Metres per cloud noise unit. */
 const CLOUD_SCALE = 2500;
 /** The cloud noise repeats every 1024 units (hash period), twice that for the warp. */
@@ -64,7 +68,27 @@ const SKY_FRAG = `${NOISE}${CLOUD_GLSL}
 uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uHaze; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uSunCol;
 uniform float uLight; uniform float uSunUp; uniform float uDusk; uniform float uOvercast; uniform float uHazeK; uniform float uFlash;
 uniform vec2 uWindDir; uniform vec3 uGalN; uniform vec3 uGalC; uniform float uMilky;
+uniform vec3 uMoonCol; uniform float uMoonR; uniform float uMoonGlow; uniform float uEarth;
 varying vec3 vDir;
+/** The moon's disc in direction d: phase from the sun's side, maria, earthshine; 0 off the disc. */
+vec3 moonDisc(vec3 d, vec3 md, vec3 sd) {
+  vec3 ex = normalize(cross(md, abs(md.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec3 ey = cross(ex, md);
+  vec2 q = vec2(dot(d, ex), dot(d, ey)) / uMoonR;
+  float r = length(q);
+  if (r > 1.3) return vec3(0.0);
+  // The visible half of the sphere faces the eye: lit where its surface faces the sun
+  float z = sqrt(max(0.0, 1.0 - r * r));
+  vec3 n = ex * q.x + ey * q.y - md * z;
+  float lit = smoothstep(-0.05, 0.07, dot(n, sd));
+  // Maria: the dark seas in the north-west half and the bright southern highlands, a grain of craters
+  vec2 g = vec2(dot(q, vec2(0.8, 0.6)), dot(q, vec2(-0.6, 0.8)));
+  float mare = smoothstep(0.42, 0.62, fbm(g * 1.7 + vec2(2.3, 7.1))) * smoothstep(-0.9, 0.2, g.y + 0.3 * g.x);
+  float alb = (1.0 - 0.38 * mare) * (0.9 + 0.2 * noise(g * 9.0 + 3.0)) * (0.82 + 0.18 * z);
+  float aa = max(0.06, fwidth(r) * 1.5);
+  float edge = 1.0 - smoothstep(1.0 - aa, 1.0, r);
+  return uMoonCol * alb * (lit + uEarth * (1.0 - lit)) * edge;
+}
 /** Milky Way brightness along galactic longitude and latitude (radians): star clouds, dark lanes, a fine grain. */
 float mwClouds(float lon, float b) {
   vec2 gp = vec2(lon, b) * 16.0;
@@ -89,8 +113,11 @@ void main() {
   float clear = 1.0 - 0.85 * uOvercast;
   col += uSunCol * (pow(s, 6.0) * 0.18 + pow(s, 60.0) * 0.35) * uSunUp * clear;
   col += vec3(1.0, 0.92, 0.78) * smoothstep(0.99975, 0.9999, s) * 5.0 * uSunUp * (1.0 - uOvercast * 0.95);
-  float m = max(dot(d, normalize(uMoon)), 0.0);
-  col += vec3(0.85, 0.88, 0.95) * (smoothstep(0.99955, 0.9997, m) + pow(m, 200.0) * 0.08) * (1.0 - uSunUp) * (1.0 - uOvercast);
+  // The moon: its halo (forward scattering, more in haze), then the disc in its phase
+  vec3 md = normalize(uMoon);
+  float m = max(dot(d, md), 0.0);
+  if (uMoonGlow > 0.0) col += uMoonCol * (pow(m, 2500.0) * 0.12 + pow(m, 260.0) * 0.07 + pow(m, 24.0) * 0.012) * uMoonGlow;
+  if (m > 0.995 && dot(uMoonCol, uMoonCol) > 0.0) col += moonDisc(d, md, sd);
   // Milky Way: a faint, mottled band along the galactic plane, wider and brighter toward Sagittarius,
   // split by the dark rift; only on clear dark nights (uMilky), under the clouds and the haze below
   if (uMilky > 0.002 && d.y > 0.0) {
@@ -128,8 +155,11 @@ void main() {
     vec3 cc = mix(base, top, shade);
     // Dusk lights the cloud undersides on the sun's side
     cc = mix(cc, cc * vec3(1.35, 0.85, 0.6), uDusk * pow(az, 2.0) * 0.8 * (1.0 - uOvercast));
-    // Silver lining where thin cloud covers the sun
+    // Silver lining where thin cloud covers the sun; by night the moon lights the cloud edges and the deck round it
     cc += uSunCol * pow(s, 14.0) * (1.0 - c) * 1.2 * uSunUp;
+    cc += uMoonCol * (pow(m, 14.0) * (1.0 - c) * 0.5 + pow(m, 3.0) * 0.05 + 0.025) * uMoonGlow;
+    // Behind a cloud the moon still shows as a bright smudge, gone where the deck is thick
+    cc += uMoonCol * (pow(m, 3000.0) * 0.55 + pow(m, 400.0) * 0.18) * (1.0 - 0.8 * c) * uMoonGlow;
     cc *= lit;
     cc += vec3(0.55, 0.6, 0.75) * uFlash;
     col = mix(col, cc, c);
@@ -221,6 +251,8 @@ export const DEFAULT_PLACE: SkyPlace = { lat: 56, month: 3, turn: 0 };
 /** What the rest of the scene takes from the sky. */
 export interface SkyLight {
   sunDir: THREE.Vector3; moonDir: THREE.Vector3; sunUp: number; sunColor: THREE.Color;
+  /** Moonlight on the sea at night (0..1: phase, height, clouds) and its colour (reddish low down). */
+  moonK: number; moonColor: THREE.Color;
   /** Fog colour, and what the sea mirrors at a grazing look. */
   haze: THREE.Color; reflect: THREE.Color; reflectTop: THREE.Color;
   dusk: number; overcast: number; precip: number; flash: number;
@@ -253,6 +285,7 @@ export class SkyFx {
           uLight: { value: 1 }, uSunUp: { value: 1 }, uDusk: { value: 0 }, uOvercast: { value: 0 }, uHazeK: { value: 40 },
           uFlash: { value: 0 }, uWindDir: { value: new THREE.Vector2(1, 0) },
           uGalN: { value: new THREE.Vector3(0, 1, 0) }, uGalC: { value: new THREE.Vector3(1, 0, 0) }, uMilky: { value: 0 },
+          uMoonCol: { value: new THREE.Color(0, 0, 0) }, uMoonR: { value: MOON_R }, uMoonGlow: { value: 0 }, uEarth: { value: 0 },
         },
       }),
     );
@@ -275,7 +308,7 @@ export class SkyFx {
       near = Math.max(near, 1 - Math.max(0, d) / 18_000);
     }
     const wet = o.rain || inSquall(met, o.own) ? 1 : 0;
-    const overTarget = Math.min(1, Math.max(0.12 + (o.sea - 1) * 0.11, near * 0.85, wet * 0.95, o.inFog * 0.9));
+    const overTarget = Math.min(1, Math.max(cloudCover(o.sea, wet), near * 0.85, o.inFog * 0.9));
     if (this.overK < 0) { this.overK = overTarget; this.precipK = wet; }
     this.overK += (overTarget - this.overK) * Math.min(1, dt * 0.05);
     this.precipK += (wet - this.precipK) * Math.min(1, dt * 0.3);
@@ -302,7 +335,11 @@ export class SkyFx {
       sunEl = Math.sin(((o.hour - 6) / 12) * Math.PI) * 0.8;
       sunDir = new THREE.Vector3(Math.cos(sunAz), sunEl, Math.sin(sunAz)).normalize();
     }
-    const moonDir = new THREE.Vector3(-sunDir.x, 0.35, -sunDir.z).normalize();
+    // The real moon on the match's date (a place without a date: the middle of the month)
+    const place = o.place ?? DEFAULT_PLACE;
+    const moon = moonSky({ lat: place.lat, lon: place.lon, month: place.month, day: place.day ?? 15 }, o.hour);
+    const ma = ((moon.az - place.turn) * Math.PI) / 180, me = (moon.el * Math.PI) / 180;
+    const moonDir = new THREE.Vector3(Math.sin(ma) * Math.cos(me), Math.sin(me), -Math.cos(ma) * Math.cos(me)).normalize();
     const sunUp = Math.max(0, Math.min(1, sunEl * 6 + 0.2)) * (1 - 0.95 * over) * (1 - 0.9 * pr) * (1 - 0.8 * o.inFog);
     const sunColor = new THREE.Color(0xfff4e0).lerp(new THREE.Color(0xffa060), dusk);
 
@@ -323,12 +360,29 @@ export class SkyFx {
     const haze = new THREE.Color(0x93a5ad).lerp(new THREE.Color(0x737d82), pr * 0.7).lerp(new THREE.Color(0xc4cdd1), o.inFog)
       .lerp(new THREE.Color(0xc89a80), dusk * 0.25 * (1 - over)).multiplyScalar(lit);
     const su = this.mesh.material.uniforms;
-    (su.uTop!.value as THREE.Color).copy(top);
-    (su.uHorizon!.value as THREE.Color).copy(horizon);
-    (su.uHaze!.value as THREE.Color).copy(haze);
     (su.uSunCol!.value as THREE.Color).copy(sunColor);
     (su.uSun!.value as THREE.Vector3).copy(sunDir);
     (su.uMoon!.value as THREE.Vector3).copy(moonDir);
+    // Moon: the night's own light (phase, height) in a clear sky, then what the clouds leave of it
+    const night = THREE.MathUtils.smoothstep(0.45 - light, 0, 0.3);
+    const mClear = moonlight(moon, 0);
+    const moonK = moonlight(moon, over) * (1 - 0.9 * pr) * (1 - 0.8 * o.inFog) * night;
+    // Low down the air reddens and dims it; by day it is a pale disc against the blue
+    const low = THREE.MathUtils.smoothstep(moon.el, -1, 14);
+    const moonColor = new THREE.Color(1.0, 0.62, 0.4).lerp(new THREE.Color(0.96, 0.95, 0.9), low).multiplyScalar(0.35 + 0.65 * low);
+    const discK = moon.el < -1 ? 0 : THREE.MathUtils.lerp(0.32, 0.86, night) * (1 - 0.5 * pr) * (1 - o.inFog);
+    (su.uMoonCol!.value as THREE.Color).copy(moonColor).multiplyScalar(discK);
+    su.uMoonGlow!.value = moonK > 0.002 ? Math.min(1.5, mClear * 1.2 + 0.15) * night * (1 - 0.6 * over) : 0;
+    // Earthshine: the dark part of a crescent shows faintly (the earth is nearly full seen from the moon)
+    su.uEarth!.value = 0.035 * (1 - moon.frac) ** 2 * night;
+    // A moonlit sky is a dim blue, the horizon a little lighter
+    const skyMoon = mClear * night * (1 - 0.5 * over);
+    top.add(new THREE.Color(0.018, 0.03, 0.052).multiplyScalar(skyMoon));
+    horizon.add(new THREE.Color(0.03, 0.04, 0.055).multiplyScalar(skyMoon));
+    haze.add(new THREE.Color(0.028, 0.034, 0.042).multiplyScalar(skyMoon));
+    (su.uTop!.value as THREE.Color).copy(top);
+    (su.uHorizon!.value as THREE.Color).copy(horizon);
+    (su.uHaze!.value as THREE.Color).copy(haze);
     (su.uWindDir!.value as THREE.Vector2).set(wsx / wspd, wsz / wspd);
     su.uLight!.value = light;
     su.uSunUp!.value = sunUp;
@@ -338,8 +392,9 @@ export class SkyFx {
     su.uFlash!.value = flash;
     const hazeK = su.uHazeK!.value as number;
     su.uMilky!.value = this.stars.update({
-      place: o.place ?? DEFAULT_PLACE, hour: o.hour, t: o.t, sunEl: (Math.asin(Math.max(-1, Math.min(1, sunDir.y))) * 180) / Math.PI, light,
-      moonDir, moon: Math.max(0, Math.min(1, moonDir.y * 4)) * (1 - over), overcast: over, precip: pr, fog: o.inFog, hazeK,
+      place, hour: o.hour, t: o.t, sunEl: (Math.asin(Math.max(-1, Math.min(1, sunDir.y))) * 180) / Math.PI, light,
+      // Stars wash out even in a half moon's light: the square root of its brightness, behind clouds less
+      moonDir, moon: Math.sqrt(mClear) * night * (1 - over), overcast: over, precip: pr, fog: o.inFog, hazeK,
       fovDeg: o.fovDeg ?? 60, dpr: o.dpr ?? Math.min(2, window.devicePixelRatio || 1),
     });
     (su.uGalN!.value as THREE.Vector3).copy(this.stars.galPole);
@@ -372,6 +427,6 @@ export class SkyFx {
     const fogDensity = extinction(vis);
     const reflect = horizon.clone().lerp(top, 0.25).lerp(haze, 0.3);
     const reflectTop = top.clone().lerp(horizon, 0.25);
-    return { sunDir, moonDir, sunUp, sunColor, haze, reflect, reflectTop, dusk, overcast: over, precip: pr, flash, fogDensity, visibility: vis };
+    return { sunDir, moonDir, sunUp, sunColor, moonK, moonColor, haze, reflect, reflectTop, dusk, overcast: over, precip: pr, flash, fogDensity, visibility: vis };
   }
 }

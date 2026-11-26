@@ -35,6 +35,8 @@ for (let g = 0; g < games; g++) {
     ...(process.env.ARENA_VAR ? { variation: process.env.ARENA_VAR as ArenaSetup['variation'] } : {}),
     // ARENA_SEASON=winter|fruehling|sommer|herbst: fix the month (default: drawn per match)
     ...(process.env.ARENA_SEASON ? { season: process.env.ARENA_SEASON as ArenaSetup['season'] } : {}),
+    // ARENA_TOD=tag|daemmerung|nacht: time of day (default day)
+    ...(process.env.ARENA_TOD ? { timeOfDay: process.env.ARENA_TOD as ArenaSetup['timeOfDay'] } : {}),
     // ARENA_SCALE=1|2|3: the lobby's time scale (sea time = 40 min × scale; default 1× real time)
     ...(process.env.ARENA_SCALE ? { timeScale: Number(process.env.ARENA_SCALE) } : {}) };
   const t0 = Date.now();

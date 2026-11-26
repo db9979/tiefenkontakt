@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sunPosition } from '@tk/shared';
+import { moonSky, sunPosition } from '@tk/shared';
 import { starCatalog, starPlace, sunRa } from '../src/widgets/sea3d/astro.js';
 
 const angle = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
@@ -39,6 +39,20 @@ describe('night sky', () => {
         const ref = sunPosition(60, month, hour);
         expect(Math.abs(s.el - ref.el)).toBeLessThan(1);
         expect(angle(s.az, ref.az)).toBeLessThan(2);
+      }
+    }
+  });
+
+  it('the moon stands on the same sky as the stars (its parallax aside)', () => {
+    for (const day of [3, 11, 19, 27]) {
+      for (const hour of [1, 9, 17, 23]) {
+        const at = { lat: 60.7, lon: -8.3, month: 10, day };
+        const m = moonSky(at, hour);
+        const s = starPlace(m.ra, m.dec, { lat: at.lat, month: at.month, turn: 0 }, hour);
+        // Seen from the surface the moon stands up to a degree lower than from the earth's centre
+        expect(s.el - m.el).toBeGreaterThan(0.3);
+        expect(s.el - m.el).toBeLessThan(1.1);
+        expect(angle(s.az, m.az) * Math.cos((m.el * Math.PI) / 180)).toBeLessThan(0.3);
       }
     }
   });

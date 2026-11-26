@@ -29,6 +29,11 @@ export interface Environment {
   /** Month (1–12) and latitude of the area: the sun follows them (climate.ts). */
   month?: number;
   lat?: number;
+  /** Longitude of the area (degrees east) and the day of the month (the moon's age, moon.ts); the day rolls on past midnight. */
+  lon?: number;
+  day?: number;
+  /** Moonlight at the sea now (0..1: phase, height, clouds; moon.ts). Unset = no moon data (the plain night). */
+  moon?: number;
   /** Incidents at sea (driftnets, whales, fronts); present only in full matches. */
   incidents?: IncidentState;
   /** Aircraft: civil traffic and the Ostpakt's long-range reconnaissance. */

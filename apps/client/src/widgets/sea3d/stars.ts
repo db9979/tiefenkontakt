@@ -30,8 +30,8 @@ void main() {
   // Air mass (Kasten-Young-like): 1 overhead, about 38 at the horizon
   float X = 1.0 / (s + 0.025 * exp(-11.0 * s));
   float m = aMag + uExt * (X - 1.0);
-  // The moon lifts the sky's glow: fewer faint stars, none right beside it
-  float lim = uLim - uMoonK * (0.4 + 3.0 * pow(max(dot(d, uMoon), 0.0), 12.0));
+  // The moon lifts the sky's glow: a full moon takes about two magnitudes, none show right beside it
+  float lim = uLim - uMoonK * (1.6 + 3.0 * pow(max(dot(d, uMoon), 0.0), 12.0));
   // Below the horizon or too faint: nothing to draw (most of the faint scatter, most of the time)
   if (d.y < 0.0 || m > lim + 0.3) { vA = 0.0; vSize = 0.0; gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
   float ph = fract(sin(dot(position.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831;
@@ -68,7 +68,7 @@ export interface StarInput {
   place: SkyPlace; hour: number; t: number;
   /** Sun elevation (degrees) and the scene's daylight (0..1). */
   sunEl: number; light: number;
-  /** Moon direction (scene) and how much of it shows (0..1). */
+  /** Moon direction (scene) and how much its light brightens the sky (0..1: phase, height, clouds). */
   moonDir: THREE.Vector3; moon: number;
   /** Overcast, rain and fog (0..1), haze steepness of the sky dome. */
   overcast: number; precip: number; fog: number; hazeK: number;
@@ -134,8 +134,8 @@ export class StarField {
     (u.uMoon!.value as THREE.Vector3).copy(o.moonDir);
     u.uMoonK!.value = o.moon;
     this.points.visible = clear > 0.01 && lim > -1.6;
-    this.faint.visible = this.points.visible && lim - 0.4 * o.moon > 4.5;
-    // Milky Way: only well after twilight, on a clear night; the moon washes most of it out
-    return clear * THREE.MathUtils.smoothstep(lim, 3.8, 4.8) * (1 - 0.6 * o.moon);
+    this.faint.visible = this.points.visible && lim - 1.6 * o.moon > 4.5;
+    // Milky Way: only well after twilight, on a clear night; a half moon washes most of it out, a full moon all
+    return clear * THREE.MathUtils.smoothstep(lim, 3.8, 4.8) * Math.max(0, 1 - 1.3 * o.moon);
   }
 }

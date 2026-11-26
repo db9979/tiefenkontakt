@@ -6,12 +6,14 @@ import { isSnorkeling } from './kinematics.js';
 import { KN, NM, bearing, distance, wrap360 } from './math.js';
 import type { Rng } from './rng.js';
 import { FOG_SIGHT_K, fogAt, sightPenalty } from './met.js';
+import { seeingLight } from './moon.js';
 
 /**
  * Bridge lookouts on surface escorts: binoculars from about 20 m eye height.
  * What gives a submarine away to the eye is rarely the boat itself but the white
  * "feather" a raised periscope cuts at speed, the snorkel's exhaust haze, or a
- * surfaced conning tower. Night, rain and whitecaps cut these ranges hard.
+ * surfaced conning tower. Night, rain and whitecaps cut these ranges hard; a bright moon gives
+ * some of it back, a moonless night takes a little more.
  */
 
 export type Sighting = 'mast' | 'snorkel' | 'surfaced';
@@ -25,9 +27,9 @@ const WAKE_RANGE = 2_000;
 /** In thick fog a torpedo track is seen at a tenth of the range. */
 const FOG_WAKE = 9;
 
-/** Daylight and rain factor for visual search (1 = clear day). */
+/** Daylight (and at night the moon) and rain factor for visual search (1 = clear day). */
 export function visibility(env: Environment): number {
-  return (0.2 + 0.8 * (env.light ?? 1)) * (env.rain ? 0.5 : 1);
+  return (0.2 + 0.8 * seeingLight(env)) * (env.rain ? 0.5 : 1);
 }
 
 /** Small objects vanish among whitecaps as the sea builds. */

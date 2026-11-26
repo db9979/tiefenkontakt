@@ -4,6 +4,7 @@ import { BearingRangeFilter, easeAngle, ownNow, simNow } from '../../widgets/smo
 import { planeTargets } from '../../widgets/air-targets.js';
 import type { Periscope3D } from '../../widgets/periscope3d.js';
 import { blasts } from '../../widgets/blasts.js';
+import { moonRow } from '../../widgets/moon-line.js';
 import { net } from '../../net.js';
 import { btnState, depthBtn, mastBtn } from '../../widgets/btn-state.js';
 import { subRadarPanel } from '../../widgets/sub-radar-panel.js';
@@ -312,7 +313,7 @@ export function periscopeStation(): Station {
         : `<div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>`,
         air ? '<div class="row peri-air"><span class="red">FLIEGERALARM</span><button data-crash class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">ALARMTAUCHEN</button></div>' : '',
         `<div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
-        <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>`,
+        <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>${moonRow(s)}`,
       ]);
       // Mast block: how long it has been up and what the radar warner hears (only with the mast up)
       setHtml(el.querySelector('#mast-rows')!, `

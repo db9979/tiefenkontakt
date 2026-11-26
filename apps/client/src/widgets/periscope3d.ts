@@ -26,6 +26,8 @@ import { store } from '../store.js';
  */
 
 const EARTH_R = 6_371_000;
+/** Moonlight: a cold, faintly blue white. */
+const MOONLIGHT = new THREE.Color(0xb8c6e8);
 /** Stable 0…2π phase from a label, so every ship keeps its own rhythm. */
 function phaseOf(label: string): number {
   let h = 0;
@@ -158,6 +160,7 @@ export class Periscope3D {
           ...waveUniforms(), uCell: { value: grid.cell }, uTime: { value: 0 }, uDeep: { value: new THREE.Color(0x10303a) }, uSky: { value: new THREE.Color(0x5a7078) }, uSkyTop: { value: new THREE.Color(0x3d5560) },
           uSun: { value: new THREE.Vector3(0.3, 0.5, -0.8) }, uMoon: { value: new THREE.Vector3(-0.3, 0.4, 0.8) }, uFog: { value: new THREE.Color(0x4b5f67) },
           uFogDensity: { value: 0.00006 }, uLight: { value: 1 }, uFoam: { value: 0 }, uSunUp: { value: 1 }, uRain: { value: 0 }, uSpin: { value: 0 },
+          uMoonCol: { value: new THREE.Color() }, uMoonK: { value: 0 },
         },
       }),
     );
@@ -290,13 +293,13 @@ export class Periscope3D {
     }
   }
 
-  /** The match's sea area and month, for the stars. */
+  /** The match's sea area and date, for the stars and the moon. */
   private skyPlace(seabed?: SeabedSpec): SkyPlace | undefined {
     const env = store.snap?.env;
     const region = (seabed ?? env?.seabed)?.region;
     if (!region) return undefined;
     const r = REGIONS[region];
-    return { lat: r.lat, month: env?.month ?? 10, turn: r.bearing };
+    return { lat: r.lat, lon: r.lon, month: env?.month ?? 10, day: env?.day, turn: r.bearing };
   }
 
   render(o: {
@@ -392,14 +395,19 @@ export class Periscope3D {
     (u.uSkyTop!.value as THREE.Color).copy(sky.reflectTop);
     u.uSun!.value = sky.sunDir;
     u.uMoon!.value = sky.moonDir;
+    (u.uMoonCol!.value as THREE.Color).copy(sky.moonColor);
+    u.uMoonK!.value = sky.moonK;
     u.uSunUp!.value = sky.sunUp;
     u.uRain!.value = sky.precip;
     u.uSpin!.value = Math.max(0, Math.min(1, (o.sea - 4) / 2));
-    this.sun.position.copy(sky.sunDir).multiplyScalar(10).setY(Math.max(0.3, sky.sunDir.y * 10));
-    this.sun.color = sky.sunColor;
+    // By night a bright moon takes over the key light: from its side, cold, as strong as its phase and height allow
+    const byMoon = sky.moonK > 0.05 && sky.sunDir.y < 0;
+    const key = byMoon ? sky.moonDir : sky.sunDir;
+    this.sun.position.copy(key).multiplyScalar(10).setY(Math.max(0.3, key.y * 10));
+    this.sun.color = byMoon ? MOONLIGHT.clone().lerp(sky.moonColor, 0.3) : sky.sunColor;
     // Overcast: flat, shadowless light; lightning lights everything for a blink
-    this.hemi.intensity = (0.2 + 1.0 * o.light) * (1 - 0.3 * sky.overcast) + sky.flash * 1.5;
-    this.sun.intensity = 1.2 * o.light * (1 - 0.75 * sky.overcast) * (1 - 0.8 * inFog);
+    this.hemi.intensity = (0.2 + 1.0 * o.light) * (1 - 0.3 * sky.overcast) + 0.25 * sky.moonK + sky.flash * 1.5;
+    this.sun.intensity = 1.2 * o.light * (1 - 0.75 * sky.overcast) * (1 - 0.8 * inFog) + (byMoon ? 0.55 * sky.moonK : 0);
     u.uFogDensity!.value = sky.fogDensity;
     (wakeUniforms.uFog!.value as THREE.Color).copy(sky.haze);
     wakeUniforms.uFogDensity!.value = sky.fogDensity;

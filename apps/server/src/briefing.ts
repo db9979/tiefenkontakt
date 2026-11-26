@@ -14,6 +14,7 @@ import {
   REGIONS,
   currentNote,
   lightNote,
+  moonNote,
   trueDeg3,
   compassStem,
   batteryDrainPctH,
@@ -71,6 +72,11 @@ export function buildBriefing(w: World, ship: Ship, settings: ScenarioSettings, 
   if (region && w.env.month) {
     const ln = lightNote(REGIONS[region].lat, w.env.month);
     intel.push(`${MONTH_NAME[w.env.month - 1]} im Gebiet ${REGIONS[region].name}${ln ? ` · ${ln}` : ''}`);
+    // The moon of that night: dark nights hide a periscope, a full moon helps the lookouts
+    if (w.env.day !== undefined && w.env.weather) {
+      const r = REGIONS[region];
+      intel.push(`Mond: ${moonNote({ lat: r.lat, lon: r.lon, month: w.env.month, day: w.env.day }, w.env.weather.clock)}`);
+    }
     const cn = currentNote(region);
     if (cn) intel.push(`Strömung: ${cn}`);
   }

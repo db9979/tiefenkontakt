@@ -9,6 +9,7 @@ import {
   distance,
   horizonRange,
   mastRaised,
+  seeingLight,
   type ClassId,
   type ClientMsg,
   type PhotoRecord,
@@ -54,7 +55,7 @@ interface Candidate {
 
 /** Visibility for the eye: sea state, daylight and rain (1 = clear day, calm sea). */
 export function photoVisibility(w: World): number {
-  const light = w.env.light ?? 1;
+  const light = seeingLight(w.env);
   return Math.max(0.05, (1 - w.env.seaState * 0.08) * (0.3 + 0.7 * light) * (w.env.rain ? 0.5 : 1));
 }
 

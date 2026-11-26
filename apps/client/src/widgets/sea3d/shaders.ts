@@ -32,7 +32,7 @@ export const OCEAN_FRAG = `${NOISE}${WAVES}
 uniform float uTime; uniform vec2 uWind; uniform vec2 uOffR; uniform vec2 uOffW;
 uniform vec3 uDeep; uniform vec3 uSky; uniform vec3 uSkyTop; uniform vec3 uSun; uniform vec3 uMoon; uniform vec3 uFog;
 uniform float uFogDensity; uniform float uLight; uniform float uFoam; uniform float uSunUp; uniform float uRain; uniform float uSpin;
-uniform vec4 uIce[4];
+uniform vec4 uIce[4]; uniform vec3 uMoonCol; uniform float uMoonK;
 varying vec3 vPos;
 void main() {
   vec3 view = normalize(cameraPosition - vPos);
@@ -72,10 +72,13 @@ void main() {
   // Sun glitter: a sharp core and a broad sheen, a long path when the sun is low
   float sd = max(dot(r, normalize(uSun)), 0.0);
   col += vec3(1.0, 0.92, 0.8) * (pow(sd, 400.0) * 1.4 + pow(sd, 30.0) * 0.12) * uSunUp;
-  // Moonlight path at night
-  float md = max(dot(r, normalize(uMoon)), 0.0);
-  col += vec3(0.75, 0.8, 0.9) * pow(md, 160.0) * (1.0 - uSunUp) * 0.9;
-  col *= 0.12 + 0.88 * uLight * uLight;
+  col *= 0.12 + 0.88 * uLight * uLight + 0.3 * uMoonK;
+  // Moonlight path: glints on the facets that mirror the moon, a long glittering road when it is
+  // low, a broad sheen round it; added after the night's dimming, the moon is a light of its own
+  if (uMoonK > 0.0) {
+    float md = max(dot(r, normalize(uMoon)), 0.0);
+    col += uMoonCol * (pow(md, 700.0) * 2.2 + pow(md, 90.0) * 0.22 + pow(md, 14.0) * 0.03) * uMoonK;
+  }
   // Whitecaps: small breaking patches on the steep short crests, scattered by a patch field and
   // drawn out downwind; far off they blend into a faint mean brightening (no shimmer)
   if (uFoam > 0.0) {

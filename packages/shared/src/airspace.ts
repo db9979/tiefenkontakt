@@ -290,11 +290,12 @@ function radarHorizon(antenna: number, alt: number): number {
   return 4120 * (Math.sqrt(antenna) + Math.sqrt(alt));
 }
 
-/** Eye range (m) to an aircraft: day by size or contrail, night only its lights. */
-function eyeRange(p: Plane, light: number, rain: boolean, lit: boolean): number {
+/** Eye range (m) to an aircraft: day by size or contrail, night only its lights (and, darkened, the moon). */
+export function eyeRange(p: Pick<Plane, 'kind'>, light: number, rain: boolean, lit: boolean, moon?: number): number {
   const day = { airliner: 45_000, recon: 18_000, mpa: 15_000, helo: 9000, light: 6000 }[p.kind];
-  // At night only navigation lights carry far; a darkened aircraft is a noise and a shadow close by
-  const night = lit ? 25_000 : 2500;
+  // At night only navigation lights carry far; a darkened aircraft is a noise and a shadow close by,
+  // against a bright moonlit sky a silhouette a little farther (no moon data: the plain night)
+  const night = lit ? 25_000 : moon === undefined ? 2500 : 2000 + 3000 * moon;
   const r = light > 0.4 ? day : light > 0.15 ? Math.max(day * 0.6, night * 0.6) : night;
   return r * (rain ? 0.4 : 1);
 }
@@ -314,7 +315,7 @@ export function planesFor(w: World, own: Ship): PlaneView[] {
     // Own aircraft over the datalink: surface ships always, boats only with the mast up
     if (p.team === own.team && (!sub || mastRaised(own))) via.push('datalink');
     if (radarOn && d < Math.min(110_000, radarHorizon(30, p.alt))) via.push('radar');
-    if (eyeUp && d < Math.min(eyeRange(p, light, !!w.env.rain || inSquall(w.env.met, own.pos), lit) * (1 - 0.9 * fogAt(w.env.met, own.pos)), radarHorizon(sub ? 2 : 20, p.alt))) via.push('visual');
+    if (eyeUp && d < Math.min(eyeRange(p, light, !!w.env.rain || inSquall(w.env.met, own.pos), lit, w.env.moon) * (1 - 0.9 * fogAt(w.env.met, own.pos)), radarHorizon(sub ? 2 : 20, p.alt))) via.push('visual');
     if (esmUp && p.radar && p.team !== own.team && d < AIR_RADAR_M * 2) via.push('esm');
     if (!via.length) continue;
     const fix = via.some((v) => v !== 'esm');

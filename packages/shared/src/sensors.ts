@@ -14,6 +14,7 @@ import {
 } from './acoustics.js';
 import { isSnorkeling } from './kinematics.js';
 import { lookoutSweep, type Sighting } from './lookout.js';
+import { seeingLight } from './moon.js';
 import { crewNoiseDb, crewSonarDb } from './crew.js';
 import { measureEvidence, sigKeyOf, type Evidence, type SigKey } from './signatures.js';
 import { SHALLOW_M } from './seabed.js';
@@ -456,8 +457,8 @@ function periscope(obs: Ship, ctx: SensorContext, out: Detection[]): void {
   // Only what is inside the optic's field of view. Until the player trains it, the watch keeps
   // the periscope on the bow at low power (a raised scope is always manned)
   const scope = obs.scope ?? { bearing: obs.heading, mag: 1.5 as const };
-  // Night cuts visual range sharply (darkened ships, no moon assumed)
-  const light = ctx.env.light ?? 1;
+  // Night cuts visual range sharply (darkened ships); a bright moon gives some of it back
+  const light = seeingLight(ctx.env);
   // As far as the horizon allows and the air carries (spray haze, rain); night cuts it to a third
   const air = Math.min(horizonRange(1.5, 30), metVisibility(ctx.env.seaState, !!ctx.env.rain)) * (1 - ctx.env.seaState * 0.03);
   const vis = 0.3 + 0.7 * light;

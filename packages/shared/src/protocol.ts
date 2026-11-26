@@ -474,6 +474,9 @@ export interface Snapshot {
     /** Sun: elevation and bearing in the map frame (degrees); month of the match. */
     sun?: { el: number; az: number };
     month?: number;
+    /** Day of the month (rolls on past midnight; the moon's age) and moonlight at the sea now (0..1, moon.ts). */
+    day?: number;
+    moon?: number;
     /** Tidal stream: strength now, flood or ebb, seconds to the next slack water. */
     tide?: { kn: number; flood: boolean; turnsInS: number };
   };

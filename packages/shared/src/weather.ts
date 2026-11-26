@@ -1,6 +1,7 @@
 import type { Environment } from './acoustics.js';
 import type { Rng } from './rng.js';
 import { lightFromSun, sunPosition } from './climate.js';
+import { envMoonlight } from './moon.js';
 
 /**
  * Changing weather: the clock runs (daylight follows it), sea state drifts,
@@ -52,8 +53,13 @@ export function initWeather(env: Environment, startHour: number, dynamic: boolea
 export function stepWeather(env: Environment & { weather?: WeatherState; rain?: boolean }, time: number, dt: number, rng: Rng): void {
   const wx = env.weather;
   if (!wx) return;
-  wx.clock = (wx.clock + dt / 3600) % 24;
+  const next = wx.clock + dt / 3600;
+  // Past midnight the date rolls on (the moon's age)
+  if (next >= 24 && env.day !== undefined) env.day += Math.floor(next / 24);
+  wx.clock = next % 24;
   env.light = env.lat !== undefined && env.month ? lightFromSun(sunPosition(env.lat, env.month, wx.clock).el) : daylight(wx.clock);
+  // Moonlight changes slowly: every half minute, or at once when it is not set yet
+  if (env.day !== undefined && (env.moon === undefined || Math.floor((time - dt) / 30) !== Math.floor(time / 30))) env.moon = envMoonlight(env);
   if (!wx.dynamic || Math.floor((time - dt) / STEP_S) === Math.floor(time / STEP_S)) return;
   env.rain = time < wx.rainUntil;
   if (time >= wx.nextChange) {

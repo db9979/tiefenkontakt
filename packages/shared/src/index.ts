@@ -52,6 +52,7 @@ export * from './badges.js';
 export * from './terrain.js';
 export * from './currents.js';
 export * from './climate.js';
+export * from './moon.js';
 export * from './navfix.js';
 export * from './bottom-echo.js';
 export * from './lanes.js';

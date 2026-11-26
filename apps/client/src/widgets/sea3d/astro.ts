@@ -1,3 +1,4 @@
+import { siderealDeg } from '@tk/shared';
 import { STAR_COUNT, STARS_B64 } from './star-catalog.js';
 
 /**
@@ -9,26 +10,11 @@ import { STAR_COUNT, STARS_B64 } from './star-catalog.js';
 const rad = (d: number) => (d * Math.PI) / 180;
 const deg = (r: number) => (r * 180) / Math.PI;
 const wrap360 = (d: number) => ((d % 360) + 360) % 360;
-/** Obliquity of the ecliptic. */
-const EPS = rad(23.44);
-/** Day of the year in the middle of each month, as climate.ts takes it. */
-const MID_DOY = [15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349];
-const midMonthDoy = (month: number) => MID_DOY[(((Math.round(month) - 1) % 12) + 12) % 12]!;
+/** Where the sky is set up for: latitude, month (1..12) and how far the map's north is turned from true north (degrees); the moon also wants the day and the longitude. */
+export interface SkyPlace { lat: number; month: number; turn: number; day?: number; lon?: number }
 
-/** Where the sky is set up for: latitude, month (1..12) and how far the map's north is turned from true north (degrees). */
-export interface SkyPlace { lat: number; month: number; turn: number }
-
-/** The sun's right ascension (degrees) in the middle of a month, on the same orbit sunPosition assumes. */
-export function sunRa(month: number): number {
-  // sunPosition takes the declination as -23.44° · cos(2π (doy + 10) / 365): ecliptic longitude θ - 90°
-  const lam = rad((360 / 365) * (midMonthDoy(month) + 10) - 90);
-  return wrap360(deg(Math.atan2(Math.cos(EPS) * Math.sin(lam), Math.cos(lam))));
-}
-
-/** Local sidereal time (degrees): the right ascension on the meridian at the local solar hour. */
-export function siderealDeg(month: number, hour: number): number {
-  return wrap360(sunRa(month) + 15 * (hour - 12));
-}
+// The game's sun and its sidereal time live in the shared package (moon.ts), where the moon is placed on the same sky
+export { siderealDeg, sunRa } from '@tk/shared';
 
 /**
  * Rotation (row-major 3×3) from the equatorial unit vector (x to the vernal equinox, z to the

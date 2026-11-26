@@ -338,13 +338,13 @@ function currentView(w: World, own: Ship): { current?: { set: number; kn: number
   };
 }
 
-/** Where the sun stands over the real area (map frame) and the month of the match. */
-function sunView(w: World): { sun?: { el: number; az: number }; month?: number } {
-  const { lat, month, weather, seabed } = w.env;
+/** Where the sun stands over the real area (map frame), the date of the match and the moonlight. */
+function sunView(w: World): { sun?: { el: number; az: number }; month?: number; day?: number; moon?: number } {
+  const { lat, month, weather, seabed, day, moon } = w.env;
   if (lat === undefined || !month || !weather) return {};
   const p = sunPosition(lat, month, weather.clock);
   const turn = seabed?.region ? REGIONS[seabed.region].bearing : 0;
-  return { sun: { el: Math.round(p.el * 10) / 10, az: Math.round(wrap360(p.az - turn)) }, month };
+  return { sun: { el: Math.round(p.el * 10) / 10, az: Math.round(wrap360(p.az - turn)) }, month, ...(day !== undefined ? { day, moon } : {}) };
 }
 
 /** The briefing's own random stream: the same text after a reconnect, the sim's stream untouched. */
