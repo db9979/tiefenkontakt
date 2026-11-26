@@ -1,6 +1,7 @@
 import type { SoundVoice } from '@tk/shared';
 import type { Fx } from './audio-fx.js';
 import { BioCalls } from './audio-bio.js';
+import { TorpedoEar } from './audio-torpedo-ear.js';
 
 /**
  * The hydrophone in the operator's headphones, synthesised (no recordings):
@@ -62,6 +63,8 @@ export class SonarVoice {
   private bio: { songG: GainNode; clicks: AudioBufferSourceNode; clickG: GainNode; whistleG: GainNode; snap: GainNode; pulse: OscillatorNode; pulseG: GainNode; pulseAm: OscillatorNode; calls: BioCalls };
   private whine: { o: OscillatorNode; g: GainNode; vib: OscillatorNode };
   private t0: number;
+  /** Torpedoes in the water besides the contact (audio-torpedo-ear.ts), in the same headphones. */
+  readonly ear: TorpedoEar;
 
   constructor(private fx: Fx, dest: AudioNode) {
     const c = fx.ctx;
@@ -69,6 +72,7 @@ export class SonarVoice {
     this.out = c.createGain();
     this.out.gain.value = 0;
     this.out.connect(dest);
+    this.ear = new TorpedoEar(fx, this.out);
     const noise = (type: BiquadFilterType, hz: number, q = 0.7) => {
       const s = c.createBufferSource();
       s.buffer = fx.noise; s.loop = true;

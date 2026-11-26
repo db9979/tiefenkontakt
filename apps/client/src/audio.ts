@@ -1,10 +1,11 @@
-import { detonation, hullCreak, makeReverb, motor, sinkingNoises, sonarPing, torpedoLaunch, type Fx } from './audio-fx.js';
+import { detonation, makeReverb, motor, sinkingNoises, sonarPing, torpedoLaunch, type Fx } from './audio-fx.js';
 import { inSquall, type Snapshot } from '@tk/shared';
 import { WeatherSound } from './audio-weather.js';
 import { SonarVoice, type SonarHearing } from './audio-sonar.js';
 import { breakUpSequence } from './audio-sinking.js';
 import { Diesel, seekerPing, wireSnap } from './audio-boat.js';
 import { onLightning } from './widgets/lightning.js';
+import { Aboard } from './audio-aboard.js';
 
 export type ListenMode = 'breitband' | 'gefiltert' | 'ueberlagerung';
 
@@ -25,8 +26,7 @@ class Audio {
   private winch?: (on: number) => void;
   private lastMastExt?: number;
   private lastTowed?: number;
-  private lastDepth?: number;
-  private nextCreak = 0;
+  private aboard?: Aboard;
   private lastOrder?: number;
   private engineChangedAt = 0;
   private seenAlerts = new Set<string>();
@@ -37,6 +37,7 @@ class Audio {
   private seeker?: { bearing?: number; at: number };
   private nextSeekerAt = 0;
   private weather?: WeatherSound;
+  private timeScale = 1;
   /** How much of the weather the crew hears (1 on deck … 0 deep down). */
   private exposure = 0;
   muted = localStorage.getItem('tk_muted') === '1';
@@ -382,6 +383,8 @@ class Audio {
     if (!this.fx || !this.master) return;
     this.sonar ??= new SonarVoice(this.fx, this.master);
     this.sonar.update(c);
+    // Torpedoes in the water the own ship knows of, besides the contact listened to
+    this.sonar.ear.update(c ? this.aboard?.heardTorpedo : undefined, c?.voice === 'torpedo', this.timeScale);
   }
 
   /** Drive continuous sounds and fire one-shots for new events in the snapshot. */
@@ -417,7 +420,10 @@ class Audio {
         }
       }
     }
+    this.timeScale = Math.max(1, s.timeScale);
     this.ambience(s, submarine);
+    this.aboard ??= new Aboard(this.fx!, this.master!, (p) => this.out(p));
+    this.aboard.update(s, submarine, on, swell);
     // A guidance wire parting: the torpedo is still running, but no longer on the wire
     for (const t of s.torpedoes) if (!t.wire && this.wired.has(t.id) && this.fx) wireSnap(this.fx, this.out(0.3));
     this.wired = new Set(s.torpedoes.filter((t) => t.wire).map((t) => t.id));
@@ -438,6 +444,7 @@ class Audio {
       if (this.seenAlerts.has(key)) continue;
       this.seenAlerts.add(key);
       if (s.time - a.time > 3) continue;
+      this.aboard?.alert(a);
       const pan = this.panFor(s, a.bearing);
       if (a.kind === 'torpedo') {
         this.torpedoAlarm(pan);
@@ -459,7 +466,7 @@ class Audio {
     this.mastMotor ??= motor(this.fx, this.master, 190, 0.6);
     // Snorkel diesel: runs while the snorkel head is up
     this.diesel ??= new Diesel(this.fx, this.master);
-    this.diesel.set(!!s.own.snorkel && (s.own.snorkelExt ?? 0) >= 1, s.own.speedKn);
+    this.diesel.set(!!this.aboard?.diesel(s), s.own.speedKn);
     this.winch ??= motor(this.fx, this.master, 95, 0.25);
     const ext = s.own.mastExt ?? (s.own.mastUp ? 1 : 0);
     this.mastMotor(this.lastMastExt !== undefined && Math.abs(ext - this.lastMastExt) > 0.001 ? 1 : 0);
@@ -479,17 +486,6 @@ class Audio {
       exposure: s.own.alive ? this.exposure : 0, seaState: s.env.seaState, windMs,
       rain: s.env.rain || inSquall(met, s.own) ? 1 : 0,
     });
-    if (submarine && s.own.alive) {
-      // Creaks: rare at periscope depth, frequent deep down, and whenever the depth changes
-      const changing = this.lastDepth !== undefined ? Math.abs(s.own.depth - this.lastDepth) : 0;
-      this.lastDepth = s.own.depth;
-      const now = this.ctx!.currentTime;
-      if (now > this.nextCreak && s.own.depth > 40) {
-        hullCreak(this.fx, this.out((Math.random() - 0.5) * 1.4), s.own.depth);
-        const rate = s.own.depth / 400 + changing * 0.6;
-        this.nextCreak = now + 3 + Math.random() * 14 / Math.max(0.2, rate);
-      }
-    }
   }
 
   stopAll(): void {
@@ -501,6 +497,8 @@ class Audio {
     this.hum = undefined;
     this.sonar = undefined;
     this.weather = undefined;
+    this.aboard = undefined;
+    this.diesel = undefined;
     onLightning(undefined);
     this.seenAlerts.clear();
     this.lastPing = -1;
