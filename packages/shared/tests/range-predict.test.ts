@@ -40,6 +40,21 @@ describe('listening-range prediction', () => {
     for (let j = 0; j < mid.depths.length; j++) expect(czBand(mid, mid.hear[0], j)).toBeUndefined();
   });
 
+  it('shows the shadow zone and the CZ annulus of the sea area', () => {
+    // Lofoten basin: the CZ about 40–44 km; a boat below the layer loses the frigate in the shadow before it
+    const p = predictRanges({ ...sub, ownDepth: 150, layerDepth: 80, bottom: 3200, region: 'lofotenbasin' });
+    expect(p.czRings.length).toBe(1);
+    expect(p.czRings[0]![0]).toBeGreaterThan(38_000);
+    expect(p.czRings[0]![1]).toBeLessThan(46_000);
+    const dp = rowRange(p, p.hear[0], p.ownRow);
+    const cz = czBand(p, p.hear[0], p.ownRow)!;
+    expect(dp).toBeLessThan(25_000);
+    expect(cz[0]).toBeGreaterThan(dp + 10_000);
+    expect(predictionSummary(p)).toMatch(/SCHATTENZONE \d+–\d+ KM · KONVERGENZZONE/);
+    // A shallow-water area of the same depth (narrows): no rings
+    expect(predictRanges({ ...sub, bottom: 700, seabedKind: 'fjord', region: 'gibraltar' }).czRings).toEqual([]);
+  });
+
   it('unknown layer is evaluated without one and flagged; results are cached', () => {
     const p = predictRanges({ ...sub, layerDepth: undefined });
     expect(p.layerKnown).toBe(false);

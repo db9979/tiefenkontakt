@@ -182,6 +182,33 @@ export interface Evidence {
   cav?: boolean;
   /** What the ear makes of it without instruments: whale calls, clicks, a torpedo's whine. */
   voice?: SoundVoice;
+  /**
+   * Doppler of the strongest line against its known rest frequency (Hz, + = higher = closing),
+   * as the analyst reads it off the frequency-line tracker. Absent without a usable line.
+   */
+  dopplerHz?: number;
+}
+
+/** Speed of sound for the Doppler shift (m/s). */
+export const SOUND_SPEED = 1500;
+/** Line-frequency measurement noise (Hz): coarse on a weak line, fine once it stands clear (SNR ≥ 6 dB). */
+const LINE_SD_WEAK = 0.25;
+const LINE_SD_STRONG = 0.05;
+export function lineSigmaHz(snr: number): number {
+  return LINE_SD_STRONG + (LINE_SD_WEAK - LINE_SD_STRONG) * Math.max(0, Math.min(1, (6 - snr) / 6));
+}
+
+/** Readout of a line's Doppler, e.g. "+0,8 HZ · NÄHERT", "−0,4 HZ · ENTFERNT SICH". */
+export function dopplerLabel(hz: number): string {
+  const v = Math.round(hz * 10) / 10;
+  const num = Math.abs(v).toFixed(1).replace('.', ',');
+  if (v === 0) return `±${num} HZ · KEINE RADIALFAHRT`;
+  return v > 0 ? `+${num} HZ · NÄHERT` : `−${num} HZ · ENTFERNT SICH`;
+}
+
+/** Doppler shift (Hz) of a line for a radial closing speed (m/s, + = closing): f' − f ≈ f·v/c. */
+export function dopplerShift(hz: number, closingMps: number): number {
+  return hz * (closingMps / SOUND_SPEED);
 }
 
 /** Characteristic sounds a trained ear recognises at once. */
@@ -200,15 +227,22 @@ export function shaftHz(sig: Signature, speedKn: number): number {
  * lines get their own SNR; DEMON needs a moving, sufficiently loud target.
  */
 export function measureEvidence(
-  key: SigKey, speedKn: number, se: number, opts: { cavitating?: boolean; snorkel?: boolean }, rng: Rng,
+  key: SigKey, speedKn: number, se: number, opts: { cavitating?: boolean; snorkel?: boolean; closingMps?: number }, rng: Rng,
 ): Evidence {
   const sig = SIGNATURES[key];
   const tonals: Evidence['tonals'] = [];
+  // Radial motion shifts every line by f·v/c (a 300 Hz line at 10 kn closing: +1,0 Hz)
+  const v = opts.closingMps ?? 0;
+  let top: { shift: number; snr: number } | undefined;
   for (const t of [...sig.tonals, ...(opts.snorkel ? sig.snorkelTonals ?? [] : [])]) {
     const snr = se + t.level + rng.gauss(0, 1.5);
-    if (snr > 0) tonals.push({ hz: Math.round((t.hz + rng.gauss(0, 0.25)) * 10) / 10, snr: Math.round(snr * 10) / 10 });
+    if (snr <= 0) continue;
+    const hz = Math.round((t.hz + dopplerShift(t.hz, v) + rng.gauss(0, lineSigmaHz(snr))) * 10) / 10;
+    tonals.push({ hz, snr: Math.round(snr * 10) / 10 });
+    if (!top || snr > top.snr) top = { shift: hz - t.hz, snr };
   }
   const ev: Evidence = { tonals };
+  if (top && opts.closingMps !== undefined) ev.dopplerHz = Math.round(top.shift * 10) / 10;
   if (opts.cavitating && se > -2) ev.cav = true;
   const voice = VOICE[key] ?? (sig.choice === 'torpedo' ? 'torpedo' : undefined);
   if (voice && se > -3) ev.voice = voice;

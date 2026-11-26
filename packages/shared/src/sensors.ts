@@ -10,6 +10,7 @@ import {
   beamNoise,
   sourceLevelToward,
   transmissionLoss,
+  closingSpeedMps,
   sonarDepth,
 } from './acoustics.js';
 import { isBroaching, isSnorkeling } from './kinematics.js';
@@ -391,7 +392,7 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
     if (se > 0 && !(domeDropoutP(obs, ctx.env.seaState) > 0 && ctx.rng.next() < domeDropoutP(obs, ctx.env.seaState))) {
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'hull', time: ctx.time,
-        bearing: noisyBearing(trueB, se, ctx.rng, biasOf(ctx, obs.id, tgt.id, 'hull')), se, evidence: shipEvidence(tgt, se, ctx),
+        bearing: noisyBearing(trueB, se, ctx.rng, biasOf(ctx, obs.id, tgt.id, 'hull')), se, evidence: shipEvidence(tgt, se, ctx, obs),
       });
     }
   }
@@ -412,14 +413,16 @@ function passive(obs: Ship, tgt: Ship, ctx: SensorContext, out: Detection[]): vo
       const alt = wrap360(obs.heading - measuredRel);
       out.push({
         observerId: obs.id, targetId: tgt.id, sensor: 'towed', time: ctx.time,
-        bearing: b, bearingAlt: alt, se, evidence: shipEvidence(tgt, se, ctx),
+        bearing: b, bearingAlt: alt, se, evidence: shipEvidence(tgt, se, ctx, obs),
       });
     }
   }
 }
 
-function shipEvidence(tgt: Ship, se: number, ctx: SensorContext): Evidence {
-  return measureEvidence(sigKeyOf(tgt.cls), tgt.speed / KN, se, { cavitating: isCavitating(tgt), snorkel: isSnorkeling(tgt) }, ctx.rng);
+function shipEvidence(tgt: Ship, se: number, ctx: SensorContext, obs?: Ship): Evidence {
+  // Radial motion Doppler-shifts the tonals (acoustics.ts closingSpeedMps)
+  const closingMps = obs ? closingSpeedMps(tgt, obs) : undefined;
+  return measureEvidence(sigKeyOf(tgt.cls), tgt.speed / KN, se, { cavitating: isCavitating(tgt), snorkel: isSnorkeling(tgt), closingMps }, ctx.rng);
 }
 
 /** Passive looks at torpedoes and other emitters (hull array only, no towed self-noise model needed). */

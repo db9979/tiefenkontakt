@@ -1,4 +1,4 @@
-import { SIGNATURES, bearing, distance, iceCover, inSquall, shaftHz, type Evidence } from '@tk/shared';
+import { SIGNATURES, bearing, distance, dopplerLabel, iceCover, inSquall, shaftHz, type Evidence } from '@tk/shared';
 import { audio, type ListenMode } from '../audio.js';
 import { store } from '../store.js';
 import { COL, fitCanvas, FONT, h } from './format.js';
@@ -337,7 +337,10 @@ export class AcousticAnalysis {
     q('#a-cur').textContent = !store.selected ? '' : `CURSOR ${this.cursor[this.page].toFixed(1).replace('.', ',')} HZ · ${db === undefined ? 'PEGEL —' : `${db >= 0 ? '+' : '−'}${Math.abs(db)} DB`}`;
     q('#a-cur').title = 'Pegel am Cursor in dB über dem Rauschgrund';
     const m = store.selected ? store.marks.get(store.selected) : undefined;
+    // Line tracker: Doppler of the strongest tonal against its rest frequency (an extra TMA cue: closing or opening)
+    const dop = store.selected ? store.selectedContact()?.evidence?.dopplerHz : undefined;
     q('#a-markinfo').textContent = [
+      dop !== undefined ? `DOPPLER ${dopplerLabel(dop)}` : '',
       m?.tonalHz ? `GRUNDTON ${hz1(m.tonalHz)} HZ` : '', m?.shaftHz ? `WELLE ${hz1(m.shaftHz)} HZ` : '', m?.bladeHz ? `BLATT ${hz1(m.bladeHz)} HZ` : '',
     ].filter(Boolean).join(' · ');
     renderVerdict(q('#a-verdict'));
@@ -487,4 +490,11 @@ export class AcousticAnalysis {
       }
     }
   }
+}
+
+/** Header label of the selected contact with its Doppler ("S3 · +0,8 HZ · NÄHERT"). */
+export function labWithDoppler(): string {
+  if (!store.selected) return '';
+  const dop = store.selectedContact()?.evidence?.dopplerHz;
+  return dop === undefined ? store.selected : `${store.selected} · ${dopplerLabel(dop)}`;
 }

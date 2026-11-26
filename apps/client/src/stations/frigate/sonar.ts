@@ -3,7 +3,7 @@ import { net } from '../../net.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { AcousticAnalysis } from '../../widgets/analysis.js';
+import { AcousticAnalysis, labWithDoppler } from '../../widgets/analysis.js';
 import { activeScope } from '../../widgets/active-scope.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { fillBox } from '../../widgets/fill.js';
@@ -142,7 +142,7 @@ export function frigateSonarStation(): Station {
         btnState(b, winch ? { on: true, label: `${o.towedLength} M`, pct: (100 * o.towedLength) / Math.max(1, len, o.towedLength), tone: 'busy' }
           : { on: true, label: len && !o.towedReady ? 'STAB…' : '✓', tone: len && !o.towedReady ? 'busy' : undefined });
       });
-      setText(q('#lab'), store.selected ?? '');
+      setText(q('#lab'), labWithDoppler());
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));

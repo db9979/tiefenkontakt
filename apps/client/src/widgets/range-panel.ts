@@ -1,4 +1,4 @@
-import { predictRanges, predictionSummary, type RangePrediction, type Snapshot } from '@tk/shared';
+import { predictRanges, predictionSummary, rowRange, type RangePrediction, type Snapshot } from '@tk/shared';
 import { COL, esc, fitCanvas, FONT, h, setHtml, setText } from './format.js';
 
 /**
@@ -59,7 +59,7 @@ export function rangePanel(opts: { height?: () => number } = {}): { el: HTMLElem
       pred = predictRanges({
         ownCls: o.cls, ownTeam: o.team === 'east' ? 'east' : 'west', ownDepth: o.depth, ownSpeedKn: o.speedKn,
         towedLength: o.towedLength, vdsDepth: o.vdsDepth, seaState: s.env.seaState, rain: s.env.rain,
-        layerDepth: s.env.layerDepth, bottom: s.env.bottom, seabedKind: s.env.seabed?.kind,
+        layerDepth: s.env.layerDepth, bottom: s.env.bottom, seabedKind: s.env.seabed?.kind, region: s.env.seabed?.region,
       });
       setText(el.querySelector('#rp-cond')!, `· ${Math.round(o.speedKn)} KN · SEEGANG ${s.env.seaState}`);
       // Each part on one line ("~30 KM" never splits from its unit)
@@ -151,6 +151,33 @@ function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void
     ctx.fillStyle = COL.amber;
     ctx.textAlign = 'right';
     ctx.fillText(`SCHICHT ${p.layerDepth} M`, g.l + g.w - 4, y(p.layerDepth!) - 3);
+  }
+  // Convergence zones: the annuli where sound comes up again from the deep; before the first the shadow zone
+  ctx.font = FONT.tick;
+  for (const [k, [a, b]] of p.czRings.entries()) {
+    ctx.strokeStyle = COL.amber;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    for (const r of [a, b]) {
+      ctx.moveTo(Math.round(x(r)) + 0.5, g.t);
+      ctx.lineTo(Math.round(x(r)) + 0.5, g.t + g.h);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = COL.amber;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${k + 1}. KZ`, x((a + b) / 2), g.t + 11);
+  }
+  const first = p.czRings[0];
+  if (first) {
+    // The gap between the direct path (at the reference row) and the first zone
+    const row = p.axis === 'own' ? p.ownRow : Math.floor(rows / 2);
+    const dp = Math.max(rowRange(p, p.hear[0], row), rowRange(p, p.heard, row));
+    if (x(first[0]) - x(dp) > 80) {
+      ctx.fillStyle = COL.dim;
+      ctx.textAlign = 'center';
+      ctx.fillText('SCHATTENZONE', (x(dp) + x(first[0])) / 2, g.t + 11);
+    }
   }
   // Seabed when it is inside the section
   if (p.bottom - 5 <= p.maxDepth + 1) {

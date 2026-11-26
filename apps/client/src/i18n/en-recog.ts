@@ -5,7 +5,7 @@ export const EN_RECOG: [string, string][] = [
   ['GITTER 10 M', 'GRID 10 M'], ['GITTER 5 M', 'GRID 5 M'], ['VERGLEICH', 'COMPARE'], ['BUG ×2', 'BOW ×2'],
   ['TIEFGANG', 'DRAUGHT'], ['VERWECHSLUNGSGEFAHR', 'EASILY CONFUSED WITH'],
   ['SIGNATUR', 'SIGNATURE'], ['FLÜGEL', 'BLADES'], ['U/MIN JE KN', 'RPM PER KN'], ['TYPISCHE FAHRT', 'TYPICAL SPEED'],
-  ['WELLE · BLATT (DEMON)', 'SHAFT · BLADE (DEMON)'], ['KAVITATION AB (OBERFLÄCHE)', 'CAVITATES FROM (SURFACE)'], ['AIP BIS', 'AIP UP TO'],
+  ['WELLE · BLATT (DEMON)', 'SHAFT · BLADE (DEMON)'], ['KAVITATION AB', 'CAVITATES FROM'], ['AIP BIS', 'AIP UP TO'],
   ['SCHMALBAND (LOFAR) 0–500 HZ', 'NARROWBAND (LOFAR) 0–500 HZ'], ['LINIEN', 'LINES'], ['SCHNORCHEL (DIESEL)', 'SNORKEL (DIESEL)'],
   ['SO KLINGT ES', 'WHAT IT SOUNDS LIKE'], ['keine Angaben', 'no data'],
   ['Welle und Blatt bei typischer Fahrt; Blatt ÷ Welle = Flügelzahl. Die Balkenhöhe zeigt, wie stark eine Linie ist; gelb nur beim Schnorcheln.', 'Shaft and blade at typical speed; blade ÷ shaft = number of blades. Bar height shows how strong a line is; yellow only while snorkelling.'],

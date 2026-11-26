@@ -71,7 +71,9 @@ describe('recognition book: acoustic sheet', () => {
   it('carries the snorkel lines of diesel boats and the cavitation speed', () => {
     const a = acousticSheet('ssk')!;
     expect(a.snorkel.map((t) => t.hz)).toEqual([24, 48, 72]);
-    expect(a.cavKn).toBe(CLASSES.ssk.cavKn);
+    // Cavitation at periscope depth and deep: the deep figure is far higher (√pressure)
+    expect(a.cavKn).toBeGreaterThan(5.5);
+    expect(a.cavDeepKn).toBeGreaterThan(a.cavKn! * 2.4);
     expect(acousticSheet('ssa')!.aipKn).toBe(5);
     expect(acousticSheet('ffg')!.snorkel).toEqual([]);
   });

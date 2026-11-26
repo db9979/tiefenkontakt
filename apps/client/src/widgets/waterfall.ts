@@ -1,4 +1,4 @@
-import { angleDiff, bearing, iceCover, type Snapshot } from '@tk/shared';
+import { angleDiff, bearing, dopplerLabel, iceCover, type Snapshot } from '@tk/shared';
 import { COL, deg3, fitCanvas } from './format.js';
 import { gameDeg, trueDeg } from '../north.js';
 import { Fader, beamWidth, dbToAmp, showChance } from './signal-display.js';
@@ -284,6 +284,13 @@ export class Waterfall {
         ctx.lineTo(bx, pt + ph);
         ctx.stroke();
         ctx.setLineDash([]);
+        // Readout of the line tracker: Doppler of the contact's strongest tonal (closing = higher)
+        const dop = c.torp ? undefined : s.contacts.find((k) => k.label === c.label)?.evidence?.dopplerHz;
+        if (dop !== undefined) {
+          const t = dopplerLabel(dop);
+          ctx.fillStyle = COL.amber;
+          plateText(ctx, t, clampTextX(ctx, t, bx, pl + 2, pl + pw - 2), pt + 24);
+        }
       }
     }
   }

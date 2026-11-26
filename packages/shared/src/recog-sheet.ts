@@ -1,7 +1,9 @@
+import { cavitationSpeedAt } from './acoustics.js';
 import { SAM_SPECS } from './airdef.js';
 import { SSM_SPECS } from './antiship.js';
 import { DIP_RANGE, HELO_RANGE } from './aviation.js';
 import { CLASSES, hasHelicopter, isEscort, type ClassId } from './classes.js';
+import { PERISCOPE_DEPTH } from './entities.js';
 import { createLoadout } from './loadout.js';
 import { MINE_MAX_WATER, MINE_MIN_WATER } from './mines.js';
 import { RADAR_MAST_RANGE, RADAR_RANGE, SUB_RADAR_RANGE } from './sensors.js';
@@ -51,10 +53,13 @@ export interface AcousticSheet {
   /** DEMON rates at the typical speed (Hz). */
   shaftHz: number;
   bladeHz: number;
-  /** Submarines: cavitation onset at the surface (kn) and the AIP speed limit. */
+  /** Submarines: cavitation onset at periscope depth and at 150 m (kn; it grows with √pressure), and the AIP speed limit. */
   cavKn?: number;
+  cavDeepKn?: number;
   aipKn?: number;
 }
+
+const r1 = (v: number) => Math.round(v * 10) / 10;
 
 export function acousticSheet(cls: ClassId): AcousticSheet | undefined {
   const sig = SIGNATURES[cls];
@@ -66,7 +71,8 @@ export function acousticSheet(cls: ClassId): AcousticSheet | undefined {
     name: sig.name, blades: sig.blades, rpmPerKn: sig.rpmPerKn, tonals: sig.tonals, snorkel: sig.snorkelTonals ?? [],
     desc: SOUND_DESC[cls], typicalKn: kn, maxKn: spec.maxSpeedKn,
     shaftHz: Math.round(shaft * 100) / 100, bladeHz: Math.round(shaft * (sig.blades[0] ?? 0) * 100) / 100,
-    cavKn: spec.cavKn, aipKn: spec.aipKn,
+    cavKn: spec.cavKn === undefined ? undefined : r1(cavitationSpeedAt(cls, PERISCOPE_DEPTH)),
+    cavDeepKn: spec.cavKn === undefined ? undefined : r1(cavitationSpeedAt(cls, 150)), aipKn: spec.aipKn,
   };
 }
 
