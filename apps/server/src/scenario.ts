@@ -204,8 +204,12 @@ export function startGeometry(mission: MissionId, k: number): { subFrac: number;
  */
 const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: number; harbourSubY?: number; straitStartY?: number; straitExitY?: number }>> = {
   groenland: { subFrac: 0.6, spread: 0.6 },
-  schelf: { subFrac: 0.45, spread: 1 / 3 },
-  fjord: { subFrac: 0.65, spread: 0.6 },
+  // Shallow water and reverberation hurt the boats: they wait 3.6 km off the route, not 4 km
+  // (arena seeds 1000/5000/11000: 4 km 27:21 at 1000/5000, 3.6 km 35:37 in all)
+  schelf: { subFrac: 0.45, spread: 0.3 },
+  // The narrows favour their defender: the boat waits further up the fjord, 3 km off the deep
+  // channel, so it has less time under the convoy (0.65/1.5 km: escorts 16:32 at 1000/5000)
+  fjord: { subFrac: 0.8, spread: 1.2 },
   // The anchorage lies about 3.5 km up the bay
   hafen: { harbourSubY: 11_000 },
   meerenge: { straitStartY: 4800, straitExitY: 11_500 },
