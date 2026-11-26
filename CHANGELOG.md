@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Auto-TMA nutzt gemessene Entfernungen:** Eine frische Entfernung (Sehrohr-Stadimeter, Aktiv-Ping, höchstens 60 s
+  alt) legt die Entfernung fest; Kurs und Fahrt werden bei ihr gesucht. Vorher blieb die Güte nach einem Sehrohrblick
+  und einem kurzen zweiten Schenkel bei 29 % („ENTFERNUNG UNBESTIMMT“), obwohl die Entfernung gemessen war.
 - **Handbuch, Hilfe und Tutorials** auf dem Stand von Runde 5: neue Hilfe-Rubrik „Regeln, die man kennen muss“,
   Handbuchkapitel zu Tiefwasser, Peilfehler, Doppler, Draht, Kielwasser-Torpedo, Batterie, Seegang, Mond und
   Meeresleuchten, Zickzackplänen, Flugkurs, Bojenmustern und Datenlink; veraltete Angaben (Raketenflugzeit, Mörser,

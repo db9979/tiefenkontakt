@@ -242,6 +242,22 @@ describe('Auto-TMA after a weak second leg (audit 4)', () => {
     expect(distance(own, targetPosAt(nearHint, 600))).toBeCloseTo(TMA_NOMINAL_M, -2);
   });
 
+  it('a fresh measured range (periscope, ping) anchors the solution: range not open, Güte not capped', () => {
+    for (const seed of [1, 2, 3]) {
+      const { truth, track, hist, own } = weakLeg(12, 10_000, seed);
+      const trueR = distance(own, targetPosAt(truth, 600));
+      // A periscope look 30 s before the last bearing measured the range (5 % stadimeter error)
+      const looked = hist.map((h) => (h.t === 570 ? { ...h, r: distance(track.find((f) => f.t === 570)!, targetPosAt(truth, 570)) * 1.05, sensor: 'periscope' as const } : h));
+      const prior = speedPrior({ choice: 'merchant' });
+      const sol = solveInPrior(looked, track, prior, (kn) => lsqSolve(looked, track, kn, 'merchant')?.sol)!;
+      expect(rangeUndetermined(sol)).toBe(false);
+      expect(Math.abs(distance(own, targetPosAt(sol, 600)) - trueR)).toBeLessThan(1200);
+      // An old range (5 min) does not count
+      const old = hist.map((h) => (h.t === 300 ? { ...h, r: 9000 } : h));
+      expect(rangeUndetermined(solveInPrior(old, track, prior)!)).toBe(true);
+    }
+  });
+
   it('an observable second leg is solved as before, not marked', () => {
     const { truth, track, hist } = scenario();
     const sol = solveInPrior(hist, track, speedPrior({ choice: 'merchant' }), () => truth)!;

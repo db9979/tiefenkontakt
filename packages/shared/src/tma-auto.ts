@@ -40,6 +40,14 @@ export function solveInPrior(
   const me = last ? ownPosAt(track, last.t) : undefined;
   const rangeOf = (sol: TmaSolution) => (last && me ? distance(me, targetPosAt(sol, last.t)) : undefined);
   const rate = (sol: TmaSolution) => ({ sol, rms: evaluateSolution(sol, hist, track).rmsDeg, band: inBand(sol), range: rangeOf(sol) });
+  // A range measured lately (periscope stadimeter, active ping) pins the range: course and speed
+  // are searched at it, whatever the bearing geometry says (the open-range check below ignored it,
+  // and a fixed target kept Güte at 29 % after the periscope look)
+  const ranged = last ? [...hist].reverse().find((h) => h.r !== undefined && h.r > 0) : undefined;
+  if (ranged && last && last.t - ranged.t <= TMA_RANGE_FRESH_S) {
+    const fixed = autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5, fixedRange: ranged.r! });
+    if (fixed) return fixed;
+  }
   // One leg only: every range on the bearing line fits as well, and the solvers slide to the
   // nearest one (0,4-0,9 km). Then a near-range answer is only taken when nothing else fits as well.
   const oneLeg = ownLegChange(hist, track) < TMA_LEG_MIN_DEG;
@@ -69,6 +77,9 @@ export function solveInPrior(
   if (g) cands.push(rate(g));
   return pickSolution(cands, oneLeg)?.sol;
 }
+
+/** A measured range this fresh (s) anchors Auto-TMA. */
+export const TMA_RANGE_FRESH_S = 60;
 
 /** Ranges (m) of the profile Auto-TMA fits at to see whether the bearings pin the range down. */
 const PROFILE_M = [700, 1000, 1500, 2000, 3000, 4500, 6500, 9000, 13_000, 18_000];
