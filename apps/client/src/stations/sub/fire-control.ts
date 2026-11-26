@@ -6,6 +6,7 @@ import {
   boundedQuality,
   lsqSolve,
   solveInPrior,
+  rangeUndetermined,
   betterSolution,
   speedAtBound,
   type SpeedPrior,
@@ -60,6 +61,8 @@ const mmss = (t: number) => {
 
 export { priorFor };
 
+/** Why Auto-TMA kept the range (audit 4: a weak second leg no longer collapses to 0,5-1 km). */
+const VAGUE_TIP = 'ENTFERNUNG UNBESTIMMT: die Peilungen passen zu jeder Entfernung (der Kurswechsel ändert die Peilrate kaum, oder das Ziel hat selbst gezackt). Auto-TMA behält die Entfernung bei; Kurs um 30–60° ändern und länger peilen';
 const PRIOR_BY: Record<SpeedPrior['by'], string> = { class: 'KLASSE', demon: 'DEMON', tonals: 'TONALE', none: 'SUCHGRENZE' };
 
 /** Residual plot: one row per hypothesis (dot-stack) or a single scatter (hypothesis). */
@@ -259,10 +262,15 @@ export function fireControlStation(): Station {
     // tonals (a freighter can't make 24 kn). Least squares over the whole plot (both legs)
     // first; the grid search inside the prior when that leaves it or finds nothing
     // (no own-ship bearings, unresolved towed array)
-    const sol = solveInPrior(c.history, store.ownTrack, priorFor(c), (maxKn) => lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol);
+    // A weak second leg leaves the range open: then the range already set is kept (audit 4)
+    const old = store.solutions.get(c.label);
+    const last = c.history[c.history.length - 1];
+    const me = last && ownPosAt(store.ownTrack, last.t);
+    const rangeHint = old && last && me ? distance(me, targetPosAt(old, last.t)) : undefined;
+    const sol = solveInPrior(c.history, store.ownTrack, priorFor(c), (maxKn) => lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol, { rangeHint });
     if (!sol) return;
     // N8: never store a solution that fits the plot worse than the one already there
-    if (betterSolution(sol, store.solutions.get(c.label), c.history, store.ownTrack)) store.solutions.set(c.label, sol);
+    if (betterSolution(sol, old, c.history, store.ownTrack)) store.solutions.set(c.label, sol);
     else store.lastError = 'Auto-TMA: keine bessere Lösung als die vorhandene';
   };
   q<HTMLButtonElement>('#clear').onclick = () => {
@@ -401,7 +409,10 @@ export function fireControlStation(): Station {
         const fit = evaluateSolution(sol, c.history, store.ownTrack);
         const now = targetPosAt(sol, s.time);
         const rng = distance(s.own, now);
-        q('#v-rng').textContent = km(rng);
+        // A kept range (the bearings leave it open): the number amber and marked ≈; the
+        // observability row says ENTFERNUNG UNBESTIMMT
+        setHtml(q('#v-rng'), rangeUndetermined(sol) ? `<span class="amber">≈${km(rng)}</span>` : km(rng));
+        q('#v-rng').title = rangeUndetermined(sol) ? VAGUE_TIP : '';
         q('#v-crs').textContent = `${tdeg3(sol.course)}°`;
         q('#v-spd').textContent = kn(sol.speedKn);
         q('#v-spd').className = atEdge ? 'amber' : '';
@@ -439,7 +450,9 @@ export function fireControlStation(): Station {
       }
       el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => b.classList.toggle('on', b.dataset.method === method));
       const leg = c ? ownLegChange(c.history, store.ownTrack) : 0;
-      setHtml(q('#v-obs'), !c ? '—' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="amber">NEIN · EIGENEN KURS ÄNDERN</span>');
+      const vague = !!(c && sol && rangeUndetermined(sol));
+      q('#v-obs').title = vague ? VAGUE_TIP : '';
+      setHtml(q('#v-obs'), !c ? '—' : vague ? '<span class="amber">ENTFERNUNG UNBESTIMMT</span>' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="amber">NEIN · EIGENEN KURS ÄNDERN</span>');
       const ek = method === 'ekelund' && c ? ekelundRange(c.history, store.ownTrack) : undefined;
       q('#ekel-row').style.display = method === 'ekelund' ? '' : 'none';
       q('#ekel-take').style.display = method === 'ekelund' && ek ? '' : 'none';

@@ -28,13 +28,16 @@ export class RoutePlot {
   /** Sent but not yet back in a snapshot: shown meanwhile so the chart does not flicker. */
   private pending?: { wps: Waypoint[]; at: number };
   private runBtn: HTMLButtonElement;
+  private bar: HTMLElement;
 
   constructor(host: HTMLElement, private canvas: HTMLCanvasElement, private P: P) {
     const bar = document.createElement('div');
-    bar.style.cssText = 'position:absolute;top:6px;left:6px;display:flex;gap:3px;flex-wrap:wrap;max-width:70%';
-    bar.innerHTML = '<button data-r="tool" title="Wegpunkte setzen: Klick auf die Karte hängt einen an, Ziehen verschiebt, Rechtsklick auf einen Punkt für Fahrt, Tiefe, Löschen">⚑ WEGPUNKTE</button>'
-      + '<button data-r="run" title="Route fahren: der Rudergänger steuert Wegpunkt für Wegpunkt ab. Kurs von Hand schaltet ab">ROUTE FAHREN</button>'
-      + '<button data-r="lead" title="Vorausvektor: wo das Schiff in N Minuten steht (Klick schaltet die Dauer um)"></button>';
+    // Phones (class compact): icon and short words, one row (audit 4: two rows of long buttons hid labels)
+    bar.className = 'route-bar';
+    bar.innerHTML = '<button data-r="tool" title="Wegpunkte setzen: Klick auf die Karte hängt einen an, Ziehen verschiebt, Rechtsklick auf einen Punkt für Fahrt, Tiefe, Löschen" aria-label="Wegpunkte">⚑<span class="rl"> WEGPUNKTE</span></button>'
+      + '<button data-r="run" title="Route fahren: der Rudergänger steuert Wegpunkt für Wegpunkt ab. Kurs von Hand schaltet ab" aria-label="Route fahren"><span class="rl">ROUTE FAHREN</span><span class="rs">ROUTE</span></button>'
+      + '<button data-r="lead" title="Vorausvektor: wo das Schiff in N Minuten steht (Klick schaltet die Dauer um)" aria-label="Vorausvektor"></button>';
+    this.bar = bar;
     const [tool, run, lead] = [...bar.querySelectorAll<HTMLButtonElement>('button')];
     this.runBtn = run!;
     tool!.onclick = () => {
@@ -43,13 +46,21 @@ export class RoutePlot {
       canvas.style.cursor = this.tool ? 'copy' : 'crosshair';
     };
     run!.onclick = () => net.send({ t: 'route', active: !store.snap?.own.route?.active });
-    const showLead = () => (lead!.textContent = leadMin() ? `VORAUS ${leadMin()} MIN` : 'VORAUS AUS');
+    const showLead = () => {
+      const v = leadMin() ? `${leadMin()} MIN` : 'AUS';
+      lead!.innerHTML = `<span class="rl">VORAUS ${v}</span><span class="rs">↗ ${v}</span>`;
+    };
     lead!.onclick = () => {
       localStorage.setItem('tk_lead', String(LEADS[(LEADS.indexOf(leadMin()) + 1) % LEADS.length]));
       showLead();
     };
     showLead();
     host.appendChild(bar);
+  }
+
+  /** Narrow chart (phone): the bar shows icons and short words. */
+  compact(on: boolean): void {
+    if (this.bar.classList.contains('compact') !== on) this.bar.classList.toggle('compact', on);
   }
 
   /** The waypoints as shown: while dragging, then what was just sent, else the server's. */

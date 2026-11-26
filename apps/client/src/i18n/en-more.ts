@@ -17,6 +17,8 @@ export const EN_MORE: [string, string][] = [
   ['MAST UNTEN', 'MAST DOWN'], ['MAST EINGEFAHREN', 'MAST LOWERED'], ['MAST OBEN', 'MAST UP'], ['DÄMMERUNG', 'DUSK'], ['TAG', 'DAY'], ['NACHT', 'NIGHT'],
   ['NACHT · SICHT STARK EINGESCHRÄNKT', 'NIGHT · VISIBILITY SEVERELY LIMITED'], ['TMA-LÖSUNG', 'TMA SOLUTION'], ['UNBEKANNT · PINGEN ODER TMA', 'UNKNOWN · PING OR TMA'],
   ['VERFÜGBAR', 'AVAILABLE'], ['Entfernung nicht beobachtbar: erst einen eigenen Kurswechsel fahren', 'Range not observable: make an own course change first'],
+  ['ENTFERNUNG UNBESTIMMT', 'RANGE UNDETERMINED'],
+  ['ENTFERNUNG UNBESTIMMT: die Peilungen passen zu jeder Entfernung (der Kurswechsel ändert die Peilrate kaum, oder das Ziel hat selbst gezackt). Auto-TMA behält die Entfernung bei; Kurs um 30–60° ändern und länger peilen', 'RANGE UNDETERMINED: the bearings fit any range (the course change hardly alters the bearing rate, or the target zigzagged itself). Auto-TMA keeps the range; turn 30–60° and keep taking bearings'],
   ['Kontakt wählen (Liste, Karte oder Wasserfall)', 'Select a contact (list, map or waterfall)'], ['Peilungen sammeln, dabei einmal den Kurs um 30–60° ändern', 'Collect bearings, changing course once by 30–60°'],
   ['Auto-TMA oder gelben Kreis auf der Karte ziehen', 'Auto TMA or drag the yellow circle on the map'], ['Güte über 60 % bringen', 'Get quality above 60 %'],
   ['Lösung übernehmen und Feuer', 'Use solution and fire'], ['DIESEL / SCHNORCHEL', 'DIESEL / SNORKEL'], ['E-MASCHINE', 'ELECTRIC MOTOR'], ['REAKTOR', 'REACTOR'],

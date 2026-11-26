@@ -98,6 +98,8 @@ export interface SolveOptions {
    * leg every range fits, and the plain search kept the first, nearest one (N8).
    */
   nominalRange?: number;
+  /** Search course and speed only, with the target at this range (m) on the latest bearing. */
+  fixedRange?: number;
 }
 
 /** Grid fits within this RMS (°) count as equally good (nominal-range tie-break). */
@@ -116,10 +118,13 @@ export function autoSolve(
   const sample = subsample(hist, opts.samples ?? 24);
   const bearings = last.alt !== undefined ? [last.b, last.alt] : [last.b];
   const nominal = opts.nominalRange;
+  const ranges: number[] = [];
+  if (opts.fixedRange !== undefined) ranges.push(opts.fixedRange);
+  else for (let r = 500; r <= 60_000; r *= rangeFactor) ranges.push(r);
   let best: { sol: TmaSolution; rms: number; r: number } | undefined;
   for (const b0 of bearings) {
     const dir = headingVec(b0);
-    for (let r = 500; r <= 60_000; r *= rangeFactor) {
+    for (const r of ranges) {
       const x0 = own.x + dir.x * r;
       const y0 = own.y + dir.y * r;
       for (let c = 0; c < 360; c += courseStep) {
@@ -356,73 +361,4 @@ export function speedPrior(inp: SpeedPriorInput): SpeedPrior {
 /** The solution's speed sits on a bound of the prior: the data don't fix it, the bound does. */
 export function speedAtBound(sol: Pick<TmaSolution, 'speedKn'>, prior: SpeedPrior): boolean {
   return sol.speedKn >= prior.hi - SPEED_EDGE_KN || (prior.lo > SPEED_EDGE_KN && sol.speedKn <= prior.lo + SPEED_EDGE_KN);
-}
-
-/** Güte shown for a solution: capped below 30 % while the speed is only a bound. */
-export function boundedQuality(quality: number, sol: Pick<TmaSolution, 'speedKn'>, prior: SpeedPrior): number {
-  return speedAtBound(sol, prior) ? Math.min(quality, EDGE_QUALITY_MAX) : quality;
-}
-
-/** A least-squares result that fits this well (RMS °) inside the prior is taken without a grid search. */
-export const TMA_GOOD_RMS_DEG = 2;
-/** An in-band candidate is preferred over an out-of-band one that fits at most this much better (°). */
-export const TMA_BAND_SLACK_DEG = 1.5;
-
-/**
- * Auto-TMA inside the speed prior: the preferred solver (least squares) first; if its speed
- * leaves the prior's band, or it fits badly, the grid search restricted to that band too.
- * N8: candidates are compared by their RMS over the whole plot, and a worse one is never taken
- * (after a second leg the grid in a wrong band gave 0,9 km at RMS 88° while least squares had 4°).
- * Inside the band wins unless an outside candidate fits clearly better.
- */
-export function solveInPrior(
-  hist: readonly BearingSample[], track: readonly OwnFix[], prior: SpeedPrior,
-  first?: (maxKn: number) => TmaSolution | undefined,
-): TmaSolution | undefined {
-  const inBand = (s: TmaSolution) => s.speedKn <= prior.hi + 0.25 && s.speedKn >= prior.lo - 0.25;
-  const last = hist[hist.length - 1];
-  const me = last ? ownPosAt(track, last.t) : undefined;
-  const rangeOf = (sol: TmaSolution) => (last && me ? distance(me, targetPosAt(sol, last.t)) : undefined);
-  const rate = (sol: TmaSolution) => ({ sol, rms: evaluateSolution(sol, hist, track).rmsDeg, band: inBand(sol), range: rangeOf(sol) });
-  // One leg only: every range on the bearing line fits as well, and the solvers slide to the
-  // nearest one (0,4-0,9 km). Then a near-range answer is only taken when nothing else fits as well.
-  const oneLeg = ownLegChange(hist, track) < TMA_LEG_MIN_DEG;
-  const a = first?.(prior.hi);
-  const cands = a ? [rate(a)] : [];
-  if (cands[0]?.band && cands[0].rms <= TMA_GOOD_RMS_DEG && !(oneLeg && (cands[0].range ?? Infinity) < TMA_NEAR_M)) return a;
-  const g = autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5, ...(oneLeg ? { nominalRange: TMA_NOMINAL_M } : {}) });
-  if (g) cands.push(rate(g));
-  return pickSolution(cands, oneLeg)?.sol;
-}
-
-/** Own course change (°) below which the range is not observable (one leg). */
-export const TMA_LEG_MIN_DEG = 6;
-/** A one-leg solution closer than this (m) counts as the near-range collapse. */
-export const TMA_NEAR_M = 1500;
-/** On one leg the grid prefers, among equally good ranges, the one nearest to this (m). */
-export const TMA_NOMINAL_M = 8000;
-
-/**
- * The best candidate by RMS; one inside the speed band is preferred while it fits nearly as well.
- * With `avoidNear` (one leg), a candidate beyond TMA_NEAR_M is preferred over a nearer one that
- * fits only as well (within the band slack).
- */
-export function pickSolution<T extends { rms: number; band: boolean; range?: number }>(cands: readonly T[], avoidNear = false): T | undefined {
-  const ok = cands.filter((c) => Number.isFinite(c.rms));
-  const lowest = (xs: T[]) => xs.reduce<T | undefined>((m, c) => (!m || c.rms < m.rms ? c : m), undefined);
-  const best = lowest(ok);
-  if (!best) return undefined;
-  let pool = ok.filter((c) => c.rms <= best.rms + TMA_BAND_SLACK_DEG);
-  if (avoidNear && pool.some((c) => (c.range ?? Infinity) >= TMA_NEAR_M)) pool = pool.filter((c) => (c.range ?? Infinity) >= TMA_NEAR_M);
-  const banded = lowest(pool.filter((c) => c.band));
-  return banded ?? lowest(pool) ?? best;
-}
-
-/**
- * Keep the stored solution when a new one fits the plot worse (N8): Auto-TMA never replaces a
- * good solution with a worse one. True when `next` should be stored.
- */
-export function betterSolution(next: TmaSolution, old: TmaSolution | undefined, hist: readonly BearingSample[], track: readonly OwnFix[]): boolean {
-  if (!old) return true;
-  return evaluateSolution(next, hist, track).rmsDeg <= evaluateSolution(old, hist, track).rmsDeg + 0.05;
 }

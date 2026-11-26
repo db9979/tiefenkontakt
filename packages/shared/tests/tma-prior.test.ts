@@ -11,11 +11,16 @@ import {
   evaluateSolution,
   pickSolution,
   hasMerchantTonals,
+  lsqSolve,
+  ownLegChange,
+  rangeObservable,
+  rangeUndetermined,
   shaftHz,
   solveInPrior,
   speedAtBound,
   speedPrior,
   TMA_NEAR_M,
+  TMA_NOMINAL_M,
   targetPosAt,
   type BearingSample,
   type OwnFix,
@@ -160,5 +165,87 @@ describe('Auto-TMA keeps the best fit (N8)', () => {
     expect(betterSolution(near, truth, hist, track)).toBe(false);
     expect(betterSolution(truth, near, hist, track)).toBe(true);
     expect(betterSolution(near, undefined, hist, track)).toBe(true);
+  });
+});
+
+describe('Auto-TMA after a weak second leg (audit 4)', () => {
+  /** Seeded normal noise, so the plots are the same on every run. */
+  function noise(seed: number) {
+    let s = seed;
+    const u = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    return () => Math.sqrt(-2 * Math.log(u() + 1e-12)) * Math.cos(2 * Math.PI * u());
+  }
+  /** Own ship 5 min north at 4 kn, then `turn`° to starboard; a freighter at 8 kn, `r0` m off at the start; 1° bearing noise. */
+  function weakLeg(turn: number, r0: number, seed: number) {
+    const g = noise(seed * 97 + turn);
+    const truth: TmaSolution = { t0: 0, x0: r0 * Math.sin(1), y0: r0 * Math.cos(1), course: 250, speedKn: 8 };
+    const track: OwnFix[] = [];
+    const hist: BearingSample[] = [];
+    let x = 0;
+    let y = 0;
+    for (let t = 0; t <= 600; t += 5) {
+      const hdg = ((t < 300 ? 0 : turn) * Math.PI) / 180;
+      track.push({ t, x, y });
+      hist.push({ t, b: (bearing({ x, y }, targetPosAt(truth, t)) + g() + 360) % 360, sensor: 'hull' });
+      x += 4 * KN * 5 * Math.sin(hdg);
+      y += 4 * KN * 5 * Math.cos(hdg);
+    }
+    return { truth, track, hist, own: track[track.length - 1]! };
+  }
+
+  it('a small own turn against a far target does not make the range observable', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const { track, hist } = weakLeg(12, 10_000, seed);
+      expect(ownLegChange(hist, track)).toBeGreaterThanOrEqual(6);
+      expect(rangeObservable(hist, track)).toBe(false);
+    }
+    // A clean plot with a 90° turn does
+    const { track, hist } = scenario();
+    expect(rangeObservable(hist, track)).toBe(true);
+    // Sonobuoy bearings: not judged here
+    expect(rangeObservable(hist.map((h) => ({ ...h, ox: 0, oy: 0 })), track)).toBeUndefined();
+  });
+
+  it('keeps the range instead of collapsing to 0,5-1 km (target 6-10 km)', () => {
+    let collapsedBefore = 0;
+    let undetermined = 0;
+    for (const turn of [8, 12, 20, 45]) {
+      for (const r0 of [8000, 10_000]) {
+        for (const seed of [1, 2, 3, 4]) {
+          const { track, hist, own } = weakLeg(turn, r0, seed);
+          const prior = speedPrior({ choice: 'merchant' });
+          // Least squares alone slides to the near ranges in most of these plots
+          const lsq = lsqSolve(hist, track, prior.hi, 'merchant')!.sol;
+          if (distance(own, targetPosAt(lsq, 600)) < TMA_NEAR_M) collapsedBefore++;
+          const sol = solveInPrior(hist, track, prior, (kn) => lsqSolve(hist, track, kn, 'merchant')?.sol)!;
+          expect(distance(own, targetPosAt(sol, 600))).toBeGreaterThan(TMA_NEAR_M);
+          if (rangeObservable(hist, track) === false) {
+            // Kept, said so, and still fitting the bearings about as well as the truth does
+            expect(rangeUndetermined(sol)).toBe(true);
+            undetermined++;
+          }
+          if (rangeUndetermined(sol)) expect(evaluateSolution(sol, hist, track).rmsDeg).toBeLessThan(1.5);
+        }
+      }
+    }
+    expect(collapsedBefore).toBeGreaterThan(6);
+    expect(undetermined).toBeGreaterThan(12);
+  });
+
+  it('keeps the previous range when one is given, and never a near one', () => {
+    const { track, hist, own } = weakLeg(12, 10_000, 2);
+    const prior = speedPrior({ choice: 'merchant' });
+    const sol = solveInPrior(hist, track, prior, undefined, { rangeHint: 6500 })!;
+    expect(rangeUndetermined(sol)).toBe(true);
+    expect(distance(own, targetPosAt(sol, 600))).toBeCloseTo(6500, -2);
+    const nearHint = solveInPrior(hist, track, prior, undefined, { rangeHint: 600 })!;
+    expect(distance(own, targetPosAt(nearHint, 600))).toBeCloseTo(TMA_NOMINAL_M, -2);
+  });
+
+  it('an observable second leg is solved as before, not marked', () => {
+    const { truth, track, hist } = scenario();
+    const sol = solveInPrior(hist, track, speedPrior({ choice: 'merchant' }), () => truth)!;
+    expect(sol).toBe(truth);
+    expect(rangeUndetermined(sol)).toBe(false);
   });
 });

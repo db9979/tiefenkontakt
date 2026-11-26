@@ -105,7 +105,7 @@ export const EN_UX: [string, string][] = [
   ['Wiederholung nicht gefunden oder abgelaufen', 'Replay not found or expired'], ['Keine beendete Partie von dir zum Teilen', 'No finished match of yours to share'],
   ['Zu viele Anfragen, versuch es später', 'Too many requests, try again later'], ['Aufzeichnung zu groß zum Teilen', 'Recording too large to share'],
   // Plotted route and lead vector (route-plot.ts)
-  ['⚑ WEGPUNKTE', '⚑ WAYPOINTS'], ['ROUTE FAHREN', 'FOLLOW ROUTE'], ['VORAUS AUS', 'LEAD OFF'], ['Wegpunkt hier anhängen', 'Append waypoint here'],
+  ['⚑ WEGPUNKTE', '⚑ WAYPOINTS'], ['ROUTE FAHREN', 'FOLLOW ROUTE'], ['VORAUS AUS', 'LEAD OFF'], ['WEGPUNKTE', 'WAYPOINTS'], ['↗ AUS', '↗ OFF'], ['Wegpunkt hier anhängen', 'Append waypoint here'],
   ['Route fahren', 'Follow route'], ['Route anhalten', 'Stop following route'], ['Route löschen', 'Clear route'], ['Keine Wegpunkte geplottet', 'No waypoints plotted'],
   ['Wegpunkte setzen: Klick auf die Karte hängt einen an, Ziehen verschiebt, Rechtsklick auf einen Punkt für Fahrt, Tiefe, Löschen', 'Set waypoints: a click on the chart appends one, drag moves it, right-click a point for speed, depth, delete'],
   ['Route fahren: der Rudergänger steuert Wegpunkt für Wegpunkt ab. Kurs von Hand schaltet ab', 'Follow route: the helmsman steers waypoint by waypoint. A course by hand switches it off'],

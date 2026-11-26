@@ -50,6 +50,19 @@ describe('chart label pass (S19, F4)', () => {
     expect(330 + at[0]!.dx + 60).toBeLessThanOrEqual(360);
   });
 
+  it('an aircraft label under the route bar steps out below it (phone OPZ)', () => {
+    // Route bar across the top 2/3 of a 390 px chart, two rows of buttons high
+    const bar = { x: 4, y: 4, w: 260, h: 64 };
+    const wide = { x: 0, y: 0, w: 390, h: 500 };
+    const at = L.placeLabels([
+      { box: box(60, 20, 90, 14), prio: L.PRIO.air, seq: 0 },
+    ], wide, [bar]);
+    const y = 20 + at[0]!.dy;
+    const x = 60 + at[0]!.dx;
+    const clear = y >= bar.y + bar.h || y + 14 <= bar.y || x >= bar.x + bar.w || x + 90 <= bar.x;
+    expect(clear).toBe(true);
+  });
+
   it('leaves a minor label out when nothing is free, but always draws a contact', () => {
     const wall = [{ x: 0, y: 0, w: 400, h: 300 }];
     const at = L.placeLabels([{ box: box(100, 100), prio: L.PRIO.depth, seq: 0 }, { box: box(200, 200), prio: L.PRIO.contact, seq: 1 }], bounds, wall);
@@ -119,6 +132,30 @@ describe('datalink correlation holds (F6)', () => {
     expect(fr.isFriendlyContact(buoy, s)).toBe(true);
     expect(fr.isFriendlyContact({ bearing: 0, sensors: ['buoy'] }, s)).toBe(false);
     expect(fr.isFriendlyContact({ bearing: 45, sensors: ['hull'] }, s)).toBe(true);
+  });
+
+  it('a hull track and a buoy track of one merchant both stay EIGEN, no swap (one per sensor origin)', () => {
+    // Merchant 10 km north of the own ship; the buoy lies 10 km east: 000° from the ship, 315° from the buoy.
+    // Both line up at first, then they wobble in turn: one of them 8° off (outside the 5° hold gate).
+    const rows: Record<'S5' | 'S9', boolean[]> = { S5: [], S9: [] };
+    for (let k = 0; k < 40; k++) {
+      const even = k % 2 === 0;
+      const contacts = [
+        { label: 'S5', bearing: even || k === 1 ? 0 : 8, sensors: ['hull', 'towed'], via: 'own', lastSeen: 5000 + k },
+        { label: 'S9', bearing: even && k > 0 ? 323 : 315, sensors: ['buoy'], originX: 10_000, originY: 0, via: 'own', lastSeen: 5000 + k },
+      ];
+      const s = { ...snap(5000 + k, 0), contacts } as unknown as Snapshot;
+      for (const c of contacts) rows[c.label as 'S5' | 'S9'].push(fr.isFriendlyContact(c as never, s));
+    }
+    expect(rows.S5.every(Boolean)).toBe(true);
+    expect(rows.S9.every(Boolean)).toBe(true);
+    // Two own-ship tracks of one merchant still share one tag (F7)
+    const two = [
+      { label: 'S5', bearing: 0.2, sensors: ['hull'], via: 'own', lastSeen: 6000 },
+      { label: 'S6', bearing: 0.4, sensors: ['towed'], via: 'own', lastSeen: 6000 },
+    ];
+    const s2 = { ...snap(6000, 0), contacts: two } as unknown as Snapshot;
+    expect(two.filter((c) => fr.isFriendlyContact(c as never, s2)).length).toBe(1);
   });
 });
 

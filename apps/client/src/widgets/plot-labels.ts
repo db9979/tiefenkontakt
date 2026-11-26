@@ -34,6 +34,9 @@ export interface PlaceItem {
   seq: number;
 }
 
+/** Overlap with a button or legend costs this much more than overlap with another label. */
+const OBSTACLE_WEIGHT = 8;
+
 /** Offsets tried for a label (dx, dy), its own spot first. */
 function candidates(b: Box): [number, number][] {
   const lh = b.h + 1;
@@ -68,10 +71,20 @@ export function placeLabels(items: readonly PlaceItem[], bounds: Box, obstacles:
     const b = it.box;
     if (b.x + b.w <= bounds.x || b.x >= bounds.x + bounds.w || b.y + b.h <= bounds.y || b.y >= bounds.y + bounds.h) continue;
     let best: { box: Box; cost: number } | undefined;
-    for (const [dx, dy] of candidates(it.box)) {
+    const spots = candidates(it.box);
+    // A label that must be drawn may also step out from under a button or legend in its way
+    // (beside or below it): under the route bar it was hidden (audit 4, phone OPZ)
+    if (it.prio >= MUST) {
+      for (const o of obstacles) {
+        if (!overlap(b, o)) continue;
+        spots.push([0, o.y + o.h + 1 - b.y], [o.x + o.w + 1 - b.x, 0], [o.x - b.w - 1 - b.x, 0], [0, o.y - b.h - 1 - b.y]);
+      }
+    }
+    for (const [dx, dy] of spots) {
       const box = clampBox({ x: it.box.x + dx, y: it.box.y + dy, w: it.box.w, h: it.box.h }, bounds);
       let cost = 0;
-      for (const o of obstacles) cost += overlap(box, o);
+      // Under a button the text is gone; over another label it is only crowded
+      for (const o of obstacles) cost += OBSTACLE_WEIGHT * overlap(box, o);
       for (const t of taken) cost += overlap(box, t);
       if (cost === 0) {
         best = { box, cost };

@@ -47,11 +47,25 @@ function lineUps(c: Cand, s: Snapshot, extra: number): { i: number; score: numbe
 
 const eligible = (c: Cand, s: Snapshot) => c.assigned !== 'torpedo' && s.friendlies.length > 0 && !c.sensors.includes('esm');
 
+/** Sensors measured from the own ship (any of them puts a track on the ship's own picture). */
+const SHIP_SENSORS = new Set(['hull', 'towed', 'active', 'intercept', 'periscope', 'radar', 'visual', 'mad']);
+
+/**
+ * Where a track's bearings come from: the sonobuoy field or the ship itself. A buoy track and a
+ * hull or towed-array track of the same merchant are both genuinely that friendly, so each origin
+ * gets its own share of the friendly (one EIGEN row per origin): competing for one tag they
+ * swapped EIGEN back and forth with every bearing wobble. Keyed on the sensor set, which only
+ * grows, not on the latest measurement's origin, so a track does not hop between the two.
+ */
+function sensorOrigin(c: Pick<ContactTrack, 'sensors'>): 'ship' | 'buoy' {
+  return c.sensors.includes('buoy') && !c.sensors.some((k) => SHIP_SENSORS.has(k)) ? 'buoy' : 'ship';
+}
+
 /** Per snapshot: the labels tagged own (each friendly accounts for at most one contact). */
 const owned = new WeakMap<Snapshot, Set<string>>();
 
 /**
- * F6/F7: one friendly is one contact. Every contact that lines up with a friendly bids for it;
+ * F6/F7: one friendly is one contact per picture and sensor origin. Every contact that lines up with a friendly bids for it;
  * contacts already held go first (hysteresis), then the closest bearing. A contact that lost
  * its friendly to a better one is no longer own (no "10 EIGEN rows for 8 merchants"); one that
  * lined up with nothing keeps the tag for HOLD_S (a short bearing excursion).
@@ -72,7 +86,7 @@ function assignment(s: Snapshot): Set<string> {
     const was = held.get(c.label);
     const ups = lineUps(c, s, was !== undefined ? LOOSE_DEG : 0);
     if (ups.length) lined.add(c.label);
-    const pool = c.via === 'own' ? 'own' : c.label.split('-')[0];
+    const pool = `${c.via === 'own' ? 'own' : c.label.split('-')[0]}/${sensorOrigin(c)}`;
     // A track not heard for a minute bids last: it must not keep a fresh one off its friendly
     const stale = s.time - c.lastSeen > STALE_S;
     for (const u of ups) bids.push({ label: c.label, i: `${pool}:${u.i}`, score: u.score + (stale ? 2 : was !== undefined ? -1 : 0) });

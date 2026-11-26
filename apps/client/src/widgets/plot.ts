@@ -266,16 +266,24 @@ export class Plot {
     ctx.fillRect(0, 0, w, height);
     // Narrow chart (phone): the tool column folds to zoom and ⋯
     this.tools.classList.toggle('compact', w < 420);
+    this.route?.compact(w < 560);
     if (!s) return;
     const P = (p: Vec2) => this.toScreen(p);
     const c = this.center();
     const L = this.labels;
     L.begin();
-    // Labels keep clear of the buttons over the chart (tools, route bar)
+    // Labels keep clear of the buttons over the chart (tools, route bar, legends): each button of
+    // a bar on its own (a wrapped bar leaves room between), measured against the canvas itself
+    const cr = this.canvas.getBoundingClientRect();
+    const keepOut = (e: Element) => {
+      const r = e.getBoundingClientRect();
+      if (r.width && r.height) L.avoid({ x: r.left - cr.left - 2, y: r.top - cr.top - 2, w: r.width + 4, h: r.height + 4 });
+    };
     for (const el of this.el.children) {
-      const b = el as HTMLElement;
-      if (b === this.canvas || !b.offsetWidth || !b.offsetHeight) continue;
-      L.avoid({ x: b.offsetLeft - 2, y: b.offsetTop - 2, w: b.offsetWidth + 4, h: b.offsetHeight + 4 });
+      if (el === this.canvas) continue;
+      const kids = [...el.children].filter((k) => k instanceof HTMLButtonElement || k instanceof HTMLDetailsElement);
+      if (kids.length) kids.forEach(keepOut);
+      else keepOut(el);
     }
 
     L.prio = PRIO.depth;
