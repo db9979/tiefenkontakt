@@ -11,7 +11,7 @@ import { SkyFx } from './sea3d/sky.js';
 import { applyWaves, hullOnSea, oceanGrid, ownRoll, seaWaves, waveHeight, waveUniforms, type Waves } from './sea3d/waves.js';
 import { wakeUniforms } from './sea3d/wake.js';
 import { bridgeFront, cullNear, handShake } from './sea3d/own-ship.js';
-import { ownDetail } from './sea3d/own-detail.js';
+import { ownDetail, type OwnFx } from './sea3d/own-detail.js';
 import { createAftermath, updateAftermath } from './sea3d/aftermath.js';
 import { addSlick, applyWreck, startSinking, stepSinking, updateSlicks, type Sinking, type Slick } from './sea3d/wreck.js';
 import { dprGl, oceanSegments } from './perf.js';
@@ -404,6 +404,8 @@ export class Periscope3D {
       const bow = g.getObjectByName('bow');
       if (bow) bow.scale.setScalar(Math.max(0.2, (o.ownKn ?? 12) / 12));
       g.getObjectByName('wake')?.scale.set(1, 1, Math.max(0.05, (o.ownKn ?? 12) / 10));
+      // Close-range model: exhaust plume, foam around the hull, darkened-ship lights
+      (g.userData.ownFx as OwnFx | undefined)?.update(o.t, o.ownKn ?? 12, o.light, this.waves.wind, o.sea);
     }
     this.renderer.render(this.scene, this.camera);
     if (this.nearCam) {

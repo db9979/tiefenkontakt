@@ -184,3 +184,147 @@ export function deckTile(seed: number): THREE.CanvasTexture {
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }
+
+/**
+ * Open-bridge deck (own-bridge.ts): painted non-skid steel over the wheelhouse roof and the
+ * wings, mapped once over the whole deck (u across from −wing to +wing, v from the after edge
+ * z0 to the front zf). Welded plate seams where the wings join the roof and across them, a
+ * darker waterway along the foot of the bulwark with rust-stained drain holes, worn paths
+ * from the ladder well out to the wings and where the lookouts stand.
+ */
+export function bridgeDeckTexture(o: { wing: number; hw: number; z0: number; zf: number; spots: [number, number][]; seed: number }): THREE.CanvasTexture {
+  const W = 2 * o.wing;
+  const D = o.zf - o.z0;
+  const cw = 1024;
+  const ppm = cw / W;
+  const ch = Math.round(D * ppm);
+  const c = document.createElement('canvas');
+  c.width = cw;
+  c.height = ch;
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const r = rng(o.seed);
+  const X = (m: number) => (m + o.wing) * ppm;
+  const Y = (z: number) => (o.zf - z) * ppm;
+  x.fillStyle = '#545b5e';
+  x.fillRect(0, 0, cw, ch);
+  // Patchy coating: touched-up areas a shade off
+  for (let i = 0; i < 40; i++) {
+    const px = r() * cw;
+    const py = r() * ch;
+    const rr = (0.4 + r() * 1.4) * ppm;
+    const g = x.createRadialGradient(px, py, 0, px, py, rr);
+    g.addColorStop(0, r() > 0.5 ? 'rgba(140,148,150,0.10)' : 'rgba(18,22,24,0.12)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g;
+    x.fillRect(px - rr, py - rr, rr * 2, rr * 2);
+  }
+  // Worn paths: from the ladder well (aft, middle) out to both wings, along the front, and where the lookouts stand
+  x.lineCap = 'round';
+  for (const [wd, a] of [[1.1, 0.05], [0.6, 0.06]] as const) {
+    x.strokeStyle = `rgba(165,170,170,${a})`;
+    x.lineWidth = wd * ppm;
+    for (const m of [-1, 1]) {
+      x.beginPath();
+      x.moveTo(X(0), Y(o.z0 + 0.3));
+      x.quadraticCurveTo(X(m * o.hw * 0.6), Y(o.z0 + D * 0.55), X(m * (o.wing - 1.0)), Y(o.z0 + D * 0.6));
+      x.stroke();
+    }
+    x.beginPath();
+    x.moveTo(X(-o.wing + 1), Y(o.zf - 0.8));
+    x.lineTo(X(o.wing - 1), Y(o.zf - 0.8));
+    x.stroke();
+  }
+  for (const [sx, sz] of o.spots) {
+    const g = x.createRadialGradient(X(sx), Y(sz), 0, X(sx), Y(sz), 0.8 * ppm);
+    g.addColorStop(0, 'rgba(170,174,174,0.09)');
+    g.addColorStop(1, 'rgba(170,174,174,0)');
+    x.fillStyle = g;
+    x.fillRect(X(sx) - ppm, Y(sz) - ppm, 2 * ppm, 2 * ppm);
+  }
+  // Welded seams: a dark line with a faint bead beside it
+  const seam = (x0: number, z0: number, x1: number, z1: number) => {
+    for (const [col, wd, d] of [['rgba(20,24,26,0.4)', 1.6, 0], ['rgba(150,156,158,0.18)', 1.2, 1.6]] as const) {
+      x.strokeStyle = col;
+      x.lineWidth = wd;
+      x.beginPath();
+      x.moveTo(X(x0) + d, Y(z0) + d);
+      x.lineTo(X(x1) + d, Y(z1) + d);
+      x.stroke();
+    }
+  };
+  for (const m of [-1, 1]) {
+    seam(m * o.hw, o.z0, m * o.hw, o.zf);
+    for (let z = o.z0 + 1.8; z < o.zf - 0.5; z += 1.8) seam(m * o.hw, z, m * o.wing, z);
+    seam(m * (o.hw + (o.wing - o.hw) / 2), o.z0, m * (o.hw + (o.wing - o.hw) / 2), o.zf);
+  }
+  seam(-o.hw, o.z0 + D * 0.5, o.hw, o.z0 + D * 0.5);
+  seam(0, o.z0 + D * 0.5, 0, o.zf);
+  // Waterway along the bulwark: darker and grimy, rust stains at the drain holes
+  const edge: [number, number, number, number][] = [[-o.wing, o.zf, o.wing, o.zf]];
+  for (const m of [-1, 1]) edge.push([m * o.wing, o.z0, m * o.wing, o.zf], [m * o.hw, o.z0, m * o.wing, o.z0]);
+  for (const [wd, a] of [[0.34, 0.16], [0.14, 0.32]] as const) {
+    x.strokeStyle = `rgba(16,18,18,${a})`;
+    x.lineWidth = wd * 2 * ppm;
+    for (const [x0, z0, x1, z1] of edge) {
+      x.beginPath();
+      x.moveTo(X(x0), Y(z0));
+      x.lineTo(X(x1), Y(z1));
+      x.stroke();
+    }
+  }
+  for (const [x0, z0, x1, z1] of edge) for (const f of drains(Math.hypot(x1 - x0, z1 - z0))) {
+    const px = X(x0 + (x1 - x0) * f);
+    const py = Y(z0 + (z1 - z0) * f);
+    const g = x.createRadialGradient(px, py, 0, px, py, 0.45 * ppm);
+    g.addColorStop(0, 'rgba(96,60,36,0.5)');
+    g.addColorStop(1, 'rgba(96,60,36,0)');
+    x.fillStyle = g;
+    x.fillRect(px - 0.45 * ppm, py - 0.45 * ppm, 0.9 * ppm, 0.9 * ppm);
+  }
+  // Scuffs: boot marks and darker smears
+  for (let i = 0; i < 70; i++) {
+    x.strokeStyle = `rgba(20,22,22,${0.05 + r() * 0.08})`;
+    x.lineWidth = (0.03 + r() * 0.05) * ppm;
+    const px = r() * cw;
+    const py = r() * ch;
+    const a = r() * Math.PI;
+    const l = (0.1 + r() * 0.25) * ppm;
+    x.beginPath();
+    x.moveTo(px, py);
+    x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l);
+    x.stroke();
+  }
+  grain(x, cw, ch, r, 12);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/** Drain holes along a waterway of length len: fractions along it (about every 1.6 m). */
+export function drains(len: number): number[] {
+  const n = Math.max(1, Math.round(len / 1.6));
+  return Array.from({ length: n }, (_, i) => (i + 0.5) / n);
+}
+
+/** Fine non-skid relief (bump map, tiles about every metre): grains of aggregate in the paint. */
+export function nonSkidBump(seed: number): THREE.CanvasTexture {
+  const n = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = n;
+  const x = c.getContext('2d', { willReadFrequently: true })!;
+  const r = rng(seed);
+  const img = x.createImageData(n, n);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const s = r();
+    const v = 128 + (r() - 0.5) * 50 + (s > 0.93 ? 70 : s < 0.05 ? -50 : 0);
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}

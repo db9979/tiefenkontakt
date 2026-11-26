@@ -3,12 +3,13 @@ import type { Hull } from './hullkit.js';
 import { MARK, UNIT, base } from './warkit.js';
 import { C, Kit, P, facet } from './own-kit.js';
 import type { Deck } from './own-fittings.js';
+import type { Lamp } from './own-lights.js';
 
 /**
  * Aft and amidships detail for the own ship's close-range model (own-detail.ts): what the bridge
  * sees looking aft and from the wings — foremast fittings (yard whips, surface and navigation
  * radar, ESM, masthead light, platform rails, halyards), funnel exhausts, boats in davits,
- * life-raft canisters, torpedo-tube mounts, hangar door and landing-control cab, flight-deck
+ * life-raft canisters, torpedo tubes trained outboard, decoy launchers, hangar door and landing-control cab, flight-deck
  * markings and nets, quarterdeck gear and the ensign. Positions follow the generic models
  * (escorts.ts, warships.ts) of each class. Bow +z, port +x.
  */
@@ -22,7 +23,12 @@ export interface Aft {
   rafts: [number, number, number][];
   /** 01-deck roof edge rails: half width, height, z from, z to. */
   roofRail?: { half: number; y: number; z0: number; z1: number };
+  /** Triple torpedo tubes (ffg, on the 01 deck): pivot x (port side), deck y, z. */
   tubes?: { z: number; x: number; y: number };
+  /** Twin heavy tubes on turntables (kor, main deck): pivot x, turntable top y, z. */
+  twin?: { z: number; x: number; y: number };
+  /** Six-barrel decoy launchers, port side [x, deck y, z] (mirrored to starboard). */
+  decoys: [number, number, number][];
   hangar?: { half: number; aft: number; floor: number; top: number };
   flight?: { y: number; z0: number; z1: number; spot: number; half: number };
   winch?: [number, number];
@@ -40,7 +46,9 @@ export function aftLayout(cls: 'ffg' | 'ffv' | 'kor', h: Hull, top: (z: number) 
       boats: { x: 3.9, y: l1, z: -11, len: 6.4, davit: 4.9 },
       rafts: [[4.7, l1, -17.6], [-4.7, l1, -17.6], [4.7, l1, 1.6], [-4.7, l1, 1.6]],
       roofRail: { half: 5.45, y: l1, z0: -19.5, z1: 3.5 },
-      tubes: { z: -6, x: h.halfBeamAt(-6, h.deckAt(-6)) - 1.3, y: h.deckAt(-6) + 0.25 },
+      // The generic tubes stand fore and aft in the narrow waterway beside the house: trained out they need the 01 deck
+      tubes: { z: -3.7, x: 4.15, y: l1 },
+      decoys: [[4.75, l1, 5.3], [4.75, l1, 7.5]],
       hangar: { half: 5.8, aft: -44, floor: y0, top: l1 + 3.4 },
       flight: { y: h.deckAt(-55), z0: -66, z1: -44.5, spot: -55, half: 0 },
       winch: [3.0, -63.8],
@@ -54,6 +62,7 @@ export function aftLayout(cls: 'ffg' | 'ffv' | 'kor', h: Hull, top: (z: number) 
       funnel: { z: 2.5, y: r1 - 0.45, h: 6.8, rake: 0.08, rx: 2.6, rz: 4.0 },
       boats: { x: 3.7, y: r1, z: 2.6, len: 6.4, davit: 4.6 },
       rafts: [[4.2, r1, -9.2], [-4.2, r1, -9.2]],
+      decoys: [[3.9, r1, -2.5], [3.9, r1, -4.7]],
       roofRail: { half: 4.65, y: r1, z0: -11.5, z1: 10 },
       hangar: { half: 4.3, aft: -28.5, floor: yf, top: yf + 4.2 },
       flight: { y: yf + 0.04, z0: -46.8, z1: -29, spot: -38.5, half: 5.3 },
@@ -65,6 +74,8 @@ export function aftLayout(cls: 'ffg' | 'ffv' | 'kor', h: Hull, top: (z: number) 
     mast: { z: 0.8, yardY: r1 + 12, yardHalf: 2.6, top: r1 + 13.5, plat: 0.85, raise: 6 },
     funnel: { z: -6.3, y: r1 - 0.35, h: 3.05, rake: 0.1, rx: 1.8, rz: 2.6 },
     rafts: [[2.75, r1, -8.6], [-2.75, r1, -8.6]],
+    twin: { z: -15.5, x: 2.6, y: base(h, -18.5, -12.5) + 0.4 },
+    decoys: [[2.85, r1, -4.7]],
     roofRail: { half: 3.55, y: r1, z0: -9.8, z1: -1.5 },
   };
 }
@@ -85,6 +96,9 @@ export function stripAft(g: THREE.Group, a: Aft): void {
     // The bare lattice foremast gives way to a tripod
     if (a.mast.tripod !== undefined && m.geometry === UNIT && Math.abs(c.z - a.mast.z) < 2.4 && c.y > a.mast.tripod && c.y < a.mast.top + 0.5) drop.push(o);
     if (m.material === MARK && a.flight && c.z < a.flight.z1 + 1) drop.push(o);
+    // Generic torpedo tubes (fore and aft): rebuilt trained outboard
+    const cg = m.geometry as THREE.CylinderGeometry;
+    if (cg.type === 'CylinderGeometry' && ((cg.parameters.height === 3.2 && cg.parameters.radiusTop === 0.25) || (cg.parameters.height === 6.2 && cg.parameters.radiusTop === 0.33))) drop.push(o);
     const b = a.boats;
     if (b && Math.max(s.x, s.y, s.z) < b.len + 0.5 && Math.abs(Math.abs(c.x) - (b.x + b.davit) / 2) < 1.3 && c.y > b.y - 0.05 && c.y < b.y + 3.2 && Math.abs(c.z - b.z) < b.len / 2 + 0.6) drop.push(o);
   }
@@ -146,19 +160,23 @@ function mast(k: Kit, m: Aft['mast']): THREE.Vector3[] {
   const ly = p ? p.top - 0.6 : t + 2.2;
   k.box(0.22, 0.3, 0.22, 0, ly, pz + 0.15, C.chain, P.metal);
   k.box(0.16, 0.16, 0.02, 0, ly + 0.02, pz + 0.27, C.white, P.glass);
-  return [V(-m.yardHalf + 0.2, m.yardY, m.z), V(m.yardHalf - 0.2, m.yardY, m.z)];
+  return [V(-m.yardHalf + 0.2, m.yardY, m.z), V(m.yardHalf - 0.2, m.yardY, m.z), V(0, ly + 0.02, pz + 0.32)];
 }
 
-/** Exhaust uptakes with caps and a grille over the funnel's black top. */
-function funnel(k: Kit, f: Aft['funnel']): void {
+/** Exhaust uptakes with caps and a grille over the funnel's black top; returns the pipe mouths. */
+function funnel(k: Kit, f: Aft['funnel']): { p: THREE.Vector3; r: number }[] {
   const g = k.group(0, f.y, f.z, 0, -f.rake);
   const yt = f.h - 0.35;
+  const pipes: { p: THREE.Vector3; r: number }[] = [];
+  const tilt = new THREE.Euler(-f.rake, 0, 0, 'YXZ');
   for (const [x, z, r] of [[-0.55, -0.4, 0.34], [0.55, -0.4, 0.34], [0, 0.6, 0.26]] as const) {
+    pipes.push({ p: V(x, yt + 1.3, z * (f.rz / 3.5)).applyEuler(tilt).add(V(0, f.y, f.z)), r });
     k.cyl(r, 1.3, x, yt - 0.2, z * (f.rz / 3.5), C.chain, P.metal, 12, r, g);
     k.lathe([[r + 0.04, 0], [r + 0.1, 0.12], [r + 0.1, 0.18], [r - 0.03, 0.18]], x, yt + 1.1, z * (f.rz / 3.5), C.dark, P.matte, 12, g);
   }
   for (let i = -3; i <= 3; i++) k.box(0.04, 0.05, f.rz * 0.9, (i * f.rx) / 4.5, yt + 0.12, 0, C.dark, P.matte, g);
   k.box(0.1, 0.5, 0.1, 0, f.h * 0.55, f.rz - 0.05, C.steel, P.metal, g);
+  return pipes;
 }
 
 /** Motor whaler under a canvas cover in a pair of luffing davits, falls to its hooks, winch between. */
@@ -212,21 +230,82 @@ function rafts(k: Kit, x: number, y: number, z: number): void {
   }
 }
 
-/** Fittings and paint on the triple torpedo tubes (both sides). */
+/**
+ * Triple torpedo tubes on a pedestal each side, trained outboard about 40° from the beam
+ * (muzzles out and forward, as kept ready at sea): stacked tubes in two frames, breech
+ * caps, muzzle covers, a training handwheel and the firing-gear box.
+ */
 function tubes(k: Kit, t: NonNullable<Aft['tubes']>): void {
   for (const sx of [-1, 1]) {
-    const x = sx * t.x;
-    k.box(0.9, 0.08, 2.8, x, t.y - 0.27, t.z, C.hazeD);
-    for (const dz of [-1.0, 1.0]) k.box(0.62, 1.55, 0.12, x, t.y + 0.5, t.z + dz, C.haze);
+    const g = k.group(sx * t.x, t.y, t.z, sx * 0.87);
+    k.cyl(0.55, 0.08, 0, 0, 0, C.hazeD, P.paint, 16, 0.55, g);
+    k.cyl(0.3, 0.42, 0, 0.08, 0, C.haze, P.paint, 12, 0.24, g);
+    k.cyl(0.5, 0.07, 0, 0.5, 0, C.hazeD, P.paint, 16, 0.5, g);
+    for (const dz of [-0.95, 0.95]) {
+      k.box(0.66, 1.62, 0.1, 0, 0.57 + 0.81, dz, C.haze, P.paint, g);
+      k.box(0.7, 0.06, 0.16, 0, 0.57 + 1.62, dz, C.hazeD, P.paint, g);
+    }
     for (let i = 0; i < 3; i++) {
-      const y = t.y + i * 0.5;
-      const back = k.mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.2, 12), C.chain, P.metal);
+      const y = 0.83 + i * 0.5;
+      const tb = k.mesh(new THREE.CylinderGeometry(0.25, 0.25, 3.2, 14, 1, true), C.haze, P.paint, g);
+      tb.rotation.x = Math.PI / 2;
+      tb.position.set(0, y, 0);
+      const back = k.mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 14), C.chain, P.metal, g);
       back.rotation.x = Math.PI / 2;
-      back.position.set(x, y, t.z - 1.7);
-      const lid = k.mesh(new THREE.CircleGeometry(0.24, 12), C.hazeD);
-      lid.position.set(x, y, t.z + 1.61);
+      back.position.set(0, y, -1.7);
+      const lid = k.mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.06, 14), C.hazeD, P.paint, g);
+      lid.rotation.x = Math.PI / 2;
+      lid.position.set(0, y, 1.62);
+      k.box(0.05, 0.12, 0.06, sx * 0.2, y + 0.2, 1.62, C.chain, P.metal, g);
+    }
+    k.box(0.35, 0.4, 0.3, -sx * 0.45, 1.3, -1.45, C.hazeD, P.paint, g);
+    const hw = k.torus(0.16, 0.02, C.chain, P.metal, 4, 12, Math.PI * 2, g);
+    hw.rotation.y = Math.PI / 2;
+    hw.position.set(-sx * 0.42, 0.75, -0.6);
+  }
+}
+
+/** Twin heavy tubes on the corvette's turntables, trained outboard (muzzles out and forward). */
+function twinTubes(k: Kit, t: NonNullable<Aft['twin']>): void {
+  for (const sx of [-1, 1]) {
+    const g = k.group(sx * t.x, t.y, t.z, sx * 0.55);
+    for (const dz of [-1.8, 0.4, 2.4]) k.box(1.5, 0.42, 0.14, 0, 0.21, dz, C.hazeD, P.paint, g);
+    for (const dx of [-0.36, 0.36]) {
+      const tb = k.mesh(new THREE.CylinderGeometry(0.33, 0.33, 6.2, 16, 1, true), C.haze, P.paint, g);
+      tb.rotation.x = Math.PI / 2;
+      tb.position.set(dx, 0.75, 0);
+      for (const bz of [-2.2, 0, 2.2]) {
+        const band = k.mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16), C.hazeD, P.paint, g);
+        band.rotation.x = Math.PI / 2;
+        band.position.set(dx, 0.75, bz);
+      }
+      const door = k.mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 16), C.hazeD, P.paint, g);
+      door.rotation.x = Math.PI / 2;
+      door.position.set(dx, 0.75, 3.12);
+      const dome = k.lathe([[0.34, 0], [0.3, 0.18], [0.12, 0.3], [0.01, 0.32]], dx, 0.75, -3.1, C.chain, P.metal, 16, g);
+      dome.rotation.x = -Math.PI / 2;
     }
   }
+}
+
+/**
+ * Six-barrel decoy launcher (chaff/flares): base plate, pedestal, a 2 × 3 block of barrels at
+ * 45° elevation trained outboard (fore or aft of the beam by `swing`), dark muzzles.
+ */
+function decoy(k: Kit, x: number, y: number, z: number, sx: number, swing: number): void {
+  k.box(0.95, 0.05, 0.95, x, y + 0.025, z, C.hazeD);
+  k.box(0.42, 0.45, 0.42, x, y + 0.27, z, C.haze);
+  const g = k.group(x, y + 0.62, z, sx * (Math.PI / 2 - swing), -0.78);
+  k.box(0.56, 0.36, 0.12, 0, 0, -0.33, C.hazeD, P.paint, g);
+  for (const ox of [-0.29, 0.29]) k.box(0.04, 0.4, 0.75, ox, 0, 0.02, C.haze, P.paint, g);
+  for (const by of [-0.085, 0.085]) for (const bx of [-0.17, 0, 0.17]) {
+    const b = k.mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.8, 10), C.haze, P.paint, g);
+    b.rotation.x = Math.PI / 2;
+    b.position.set(bx, by, 0.05);
+    const mz = k.mesh(new THREE.CircleGeometry(0.055, 10), C.dark, P.matte, g);
+    mz.position.set(bx, by, 0.452);
+  }
+  k.box(0.5, 0.025, 0.6, 0, 0.19, 0.05, C.hazeD, P.paint, g);
 }
 
 /** Hangar door slats, landing-control cab; flight deck: dark non-skid, edge lines, yellow circle, deck-lock grid, nets. */
@@ -274,8 +353,8 @@ function flightDeck(k: Kit, d: Deck, hg: NonNullable<Aft['hangar']>, f: NonNulla
 }
 const sx1 = (hg: NonNullable<Aft['hangar']>) => (hg.half > 5 ? 1 : -1);
 
-/** Ensign staff at the stern with the (fictional) ensign flying aft, bitts and the stern light. */
-function quarterdeck(k: Kit, d: Deck, L: number, winch?: [number, number]): void {
+/** Ensign staff at the stern with the (fictional) ensign flying aft, bitts and the stern light (returned). */
+function quarterdeck(k: Kit, d: Deck, L: number, winch?: [number, number]): THREE.Vector3 {
   const z = -L + 0.6;
   const y = d.y(0, z);
   k.cyl(0.1, 0.35, 0, y - 0.05, z, C.hazeD, P.paint, 8);
@@ -304,10 +383,19 @@ function quarterdeck(k: Kit, d: Deck, L: number, winch?: [number, number]): void
     k.box(0.9, 0.5, 0.6, -wx * 0.15, wy + 0.25, -L + 0.9, C.hazeD);
     k.cyl(0.18, 0.7, -wx * 0.15, wy + 0.5, -L + 0.9, C.steel, P.metal, 10).rotation.z = Math.PI / 2;
   }
+  return V(0, y + 0.6, z - 0.2);
+}
+
+export interface AftOut {
+  lines: THREE.LineSegments;
+  /** Exhaust pipe mouths (smoke), darkened-ship lamps, the spot for a red light over the after decks. */
+  pipes: { p: THREE.Vector3; r: number }[];
+  lamps: Lamp[];
+  pool: { p: THREE.Vector3; range: number };
 }
 
 /** All aft detail; `ends` are the flag-locker points the halyards run down to. */
-export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, ends: THREE.Vector3[]): THREE.LineSegments {
+export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, ends: THREE.Vector3[]): AftOut {
   const m = a.mast;
   if (m.raise) {
     const y0 = m.top - m.raise;
@@ -331,7 +419,7 @@ export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, en
     k.cyl(0.3, 0.8, 0, m.top, m.z, C.hazeD, P.paint, 8);
   }
   const yard = mast(k, a.mast);
-  funnel(k, a.funnel);
+  const pipes = funnel(k, a.funnel);
   if (a.boats) for (const sx of [-1, 1]) boat(k, a.boats, sx);
   for (const [x, y, z] of a.rafts) rafts(k, x, y, z);
   if (a.hangar) for (const sx of [-1, 1]) {
@@ -340,8 +428,31 @@ export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, en
   }
   if (a.roofRail) for (const sx of [-1, 1]) rail(k, V(sx * a.roofRail.half, a.roofRail.y, a.roofRail.z0), V(sx * a.roofRail.half, a.roofRail.y, a.roofRail.z1));
   if (a.tubes) tubes(k, a.tubes);
+  if (a.twin) twinTubes(k, a.twin);
+  a.decoys.forEach(([x, y, z], i) => {
+    for (const sx of [-1, 1]) decoy(k, sx * x, y, z, sx, a.decoys.length > 1 ? (i ? -0.35 : 0.35) : 0.2);
+  });
   if (a.hangar && a.flight) flightDeck(k, d, a.hangar, a.flight);
-  quarterdeck(k, d, L, a.winch);
+  const stern = quarterdeck(k, d, L, a.winch);
+  // Darkened ship: masthead and stern lights, red lamps over the ladders, red floods on the flight deck
+  const lamps: Lamp[] = [{ p: yard[2]!, color: 0xfff2dc, kind: 'nav' }, { p: stern, color: 0xfff2dc, kind: 'nav' }];
+  const rr = a.roofRail;
+  if (rr) for (const sx of [-1, 1]) {
+    // On top of the rail's end stanchion, shining down onto the ladder head
+    const p = V(sx * rr.half, rr.y + 0.98, rr.z0 - 0.06);
+    k.box(0.12, 0.09, 0.14, p.x, rr.y + 1.04, rr.z0, C.chain, P.metal);
+    lamps.push({ p, color: 0xff1a0a, kind: 'red' });
+  }
+  let pool = { p: V(0, (rr?.y ?? d.y(0, 0)) + 3, (rr?.z0 ?? 0) - 2), range: 12 };
+  const hg = a.hangar;
+  if (hg && a.flight) {
+    for (const sx of [-1, 1]) {
+      const p = V(sx * (hg.half - 0.7), hg.top - 0.5, hg.aft - 0.2);
+      k.box(0.3, 0.2, 0.22, p.x, p.y + 0.05, hg.aft - 0.11, C.chain, P.metal);
+      lamps.push({ p, color: 0xff2010, kind: 'flood' });
+    }
+    pool = { p: V(0, a.flight.y + 4.5, hg.aft - 3), range: 20 };
+  }
   // Signal halyards: yardarm down to the flag lockers, three a side
   const pts: number[] = [];
   ends.forEach((e, i) => {
@@ -352,5 +463,5 @@ export function aftDetail(k: Kit, g: THREE.Group, d: Deck, a: Aft, L: number, en
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
   const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x1c2022 }));
   lines.name = 'own-halyards';
-  return lines;
+  return { lines, pipes, lamps, pool };
 }

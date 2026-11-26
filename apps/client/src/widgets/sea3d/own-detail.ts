@@ -8,6 +8,9 @@ import { openBridge } from './own-bridge.js';
 import { aftDetail, aftLayout, stripAft } from './own-aft.js';
 import { deckTile, foredeckTexture } from './own-deck-tex.js';
 import * as F from './own-fittings.js';
+import { ownSmoke } from './own-smoke.js';
+import { ownWake } from './own-wake.js';
+import { ownLights } from './own-lights.js';
 
 /**
  * Close-range detail for the OWN ship in the bridge view (only there: ships seen at range keep
@@ -19,6 +22,12 @@ import * as F from './own-fittings.js';
  */
 
 export type OwnDetailCls = 'ffg' | 'kor' | 'ffv';
+
+/** What the own ship animates each frame (bridge view): funnel plume, foam, darkened-ship lights. */
+export interface OwnFx {
+  /** wind: downwind unit vector in scene x/z; sea: sea state (sets the wind speed). */
+  update(t: number, kn: number, light: number, wind: [number, number], sea: number): void;
+}
 
 interface Layout {
   spec: HullSpec;
@@ -160,12 +169,34 @@ export function ownDetail(g: THREE.Group, cls: OwnDetailCls, eye: number, eyeZ: 
   const dk = deck(g, k, s, inner, deckY, zA, fc?.z0, lay.gun ? [lay.gun.z + 2, lay.gun.z + 2 + (lay.gun.twin ? 6.5 : 7.7)] : undefined);
   // The bridge the eye stands on (its near parts in a second pass), then aft and amidships
   const kn = new Kit();
-  const ends = openBridge(k, kn, dk.tile, g, { eye, ze: eyeZ, hw: lay.hw, wing: lay.wing, roof: roofBelow(g, eye, eyeZ) });
+  const br = openBridge(k, kn, g, { eye, ze: eyeZ, hw: lay.hw, wing: lay.wing, roof: roofBelow(g, eye, eyeZ) });
   const aft = aftLayout(cls, h, top);
   stripAft(g, aft);
-  g.add(aftDetail(k, g, d, aft, L, ends));
-  // Funnel smoke seen from close by: rounder puffs
-  for (const p of (g.userData.smoke as { puffs?: THREE.Mesh[] } | undefined)?.puffs ?? []) p.geometry = new THREE.SphereGeometry(1, 16, 12);
+  const out = aftDetail(k, g, d, aft, L, br.ends);
+  g.add(out.lines);
+  // The generic puffs, wake and navigation lights are made to be seen from afar: close-range ones instead
+  for (const p of (g.userData.smoke as { puffs?: THREE.Mesh[] } | undefined)?.puffs ?? []) p.removeFromParent();
+  delete g.userData.smoke;
+  for (const name of ['wake', 'bow', 'navlights']) g.getObjectByName(name)?.removeFromParent();
+  const smoke = ownSmoke(g, out.pipes);
+  const stem = L - (s.rake ?? 6) * (1 - s.draft / (top(L) + s.draft));
+  const wake = ownWake(g, (z) => h.halfBeamAt(z, 0), stem, -L, s.beam);
+  const lights = ownLights(g, [...br.lamps, ...out.lamps], [{ p: br.pool, near: true, range: 9 }, { p: out.pool.p, near: false, range: out.pool.range }]);
+  const air = new THREE.Vector3();
+  const inv = new THREE.Quaternion();
+  const fx: OwnFx = {
+    update(t, speed, light, wind, sea) {
+      // Apparent wind over the deck: the true wind (about a sea state's worth) less her own way
+      const ws = 2 + 2 * sea;
+      air.set(wind[0] * ws, 0, wind[1] * ws).applyQuaternion(inv.copy(g.quaternion).invert());
+      air.y = 0;
+      air.z -= speed * 0.514;
+      smoke.update(t, speed, light, air);
+      wake.update(speed, g);
+      lights.update(light);
+    },
+  };
+  g.userData.ownFx = fx;
   return k.bake(g, 0) + kn.bake(g, 1) + dk.tris;
 }
 
@@ -221,17 +252,29 @@ function buildHull(k: Kit, s: HullSpec, top: (z: number) => number, width: (z: n
     const b = rings[i + 1]!;
     for (let j = 0; j < a.length - 1; j++) idx.push(a[j]!, a[j + 1]!, b[j]!, a[j + 1]!, b[j + 1]!, b[j]!);
   }
-  // Transom: a fan, both ways round
+  // Transom: a flat fan (both ways round) on vertices of its own, so it shades as one plate
+  // instead of borrowing the sides' normals
   const st = rings[0]!;
+  const t0 = pos.length / 3;
+  for (const v of st) {
+    pos.push(pos[v * 3]!, pos[v * 3 + 1]!, pos[v * 3 + 2]!);
+    col.push(col[v * 3]!, col[v * 3 + 1]!, col[v * 3 + 2]!);
+  }
   const c = pos.length / 3;
   pos.push(0, top(-L) * 0.4 - dr * 0.3, -L);
   col.push(cTop.r, cTop.g, cTop.b);
-  for (let j = 0; j < st.length - 1; j++) idx.push(c, st[j]!, st[j + 1]!, c, st[j + 1]!, st[j]!);
+  // (closed across the top too: the ring runs keel-round from one deck edge to the other)
+  for (let j = 0; j < st.length; j++) {
+    const j1 = (j + 1) % st.length;
+    idx.push(c, t0 + j, t0 + j1, c, t0 + j1, t0 + j);
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
+  const nrm = geo.attributes.normal!;
+  for (let i = t0; i <= c; i++) nrm.setXYZ(i, 0, 0, -1);
   k.mesh(geo, C.haze);
 }
 
@@ -271,7 +314,7 @@ function anchor(k: Kit, sx: number, width: (z: number, y: number) => number, z: 
 }
 
 /** Non-skid deck: textured foredeck from zA to the stem, tiled grain aft of it. */
-function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number, deckY: (x: number, z: number) => number, zA: number, fcZ0?: number, gap?: [number, number]): { tris: number; tile: THREE.Material } {
+function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number, deckY: (x: number, z: number) => number, zA: number, fcZ0?: number, gap?: [number, number]): { tris: number } {
   const L = s.len / 2;
   const zs = stations(L, zA - 6, fcZ0);
   const W = s.beam * 1.3;
@@ -308,7 +351,7 @@ function deck(g: THREE.Group, k: Kit, s: HullSpec, inner: (z: number) => number,
   part(zs.filter((z) => z >= zA), (x, z) => [x / W + 0.5, (z - zA) / (L - zA)], new THREE.MeshStandardMaterial({ map: fore, roughness: 0.93, metalness: 0.04 }), 'own-foredeck');
   const tileMat = new THREE.MeshStandardMaterial({ map: tile, roughness: 0.93, metalness: 0.04 });
   part(zs.filter((z, i) => z <= zA || (zs[i - 1] ?? -Infinity) < zA), (x, z) => [x / 3, z / 3], tileMat, 'own-deck');
-  return { tris, tile: tileMat };
+  return { tris };
 }
 
 /** Height of the generic bridge roof under the eye (the new bridge structure stands on it). */

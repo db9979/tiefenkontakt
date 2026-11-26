@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import { C, Kit, P, facet } from './own-kit.js';
+import { bridgeDeckTexture, drains, nonSkidBump } from './own-deck-tex.js';
+import type { Lamp } from './own-lights.js';
 
 /**
  * The bridge the eye stands on (own ship, close-range model): a closed wheelhouse with a sloped
  * window band, sun brow and clear-view screens, solid plating down to the deckhouse below, and
  * on its roof the open bridge: deck, a closed 1.2 m bulwark with wooden capping all round,
  * wings out to the full beam, pelorus and gyro repeater, signal lamps, flag lockers and the
- * sidelight screens. The parts around the eye go into `near` (drawn in a second pass with a
+ * sidelight screens; underfoot painted non-skid with welded seams, a waterway with drain holes
+ * along the bulwark and teak gratings where the lookouts stand. The parts around the eye go into `near` (drawn in a second pass with a
  * short near plane, so nothing is cut open by the camera's clipping); the rest into `far`.
  * Bow +z; eye at (0, eye, ze).
  */
@@ -26,8 +29,12 @@ const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const EYE_OVER_DECK = 1.65;
 const BULWARK = 1.1;
 
-/** Builds the bridge; returns where the flag-locker halyards end (port, starboard). */
-export function openBridge(far: Kit, near: Kit, floor: THREE.Material, g: THREE.Group, b: BridgeSpec): THREE.Vector3[] {
+/**
+ * Builds the bridge; returns where the flag-locker halyards end (port, starboard), the
+ * darkened-ship lamps and the spot for a dim red light over the deck.
+ */
+export function openBridge(far: Kit, near: Kit, g: THREE.Group, b: BridgeSpec): { ends: THREE.Vector3[]; lamps: Lamp[]; pool: THREE.Vector3 } {
+  const lamps: Lamp[] = [];
   const yF = b.eye - EYE_OVER_DECK;
   const yW = yF - 2.6;
   const zf = b.ze + 0.25;
@@ -84,15 +91,13 @@ export function openBridge(far: Kit, near: Kit, floor: THREE.Material, g: THREE.
   const deckPts: [number, number][] = [[-b.wing, z0], [b.wing, z0], [b.wing, zf], [-b.wing, zf]];
   const slab = near.mesh(facet([{ y: yF - 0.25, pts: deckPts }, { y: yF - 0.01, pts: deckPts }]), C.hazeD);
   slab.userData.ao = 0;
-  const top = new THREE.PlaneGeometry(2 * b.wing, zf - z0);
-  top.rotateX(-Math.PI / 2);
-  const uv = top.attributes.uv!;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * 2 * b.wing) / 3, (uv.getY(i) * (zf - z0)) / 3);
-  const fm = new THREE.Mesh(top, floor);
-  fm.position.set(0, yF, (z0 + zf) / 2);
-  fm.name = 'own-bridge-deck';
-  fm.layers.set(1);
-  g.add(fm);
+  const pel = [-1, 1].map((sx) => [sx * (b.hw + 0.7), b.ze - 0.3] as [number, number]);
+  g.add(floor(b, z0, zf, yF, pel));
+  // Teak gratings where the lookouts stand at the pelorus and the gyro repeater
+  for (const [px, pz] of pel) {
+    for (const ox of [-0.38, 0.38]) near.box(0.06, 0.035, 1.0, px + ox, yF + 0.0175, pz, C.wood, P.matte);
+    for (let i = 0; i < 9; i++) near.box(1.0, 0.025, 0.075, px, yF + 0.047, pz - 0.44 + i * 0.11, 0x5f5547, P.matte).userData.ao = 0.1;
+  }
   // Bulwark all round (front, wing ends, after edge either side of the ladder well) with capping and stiffeners
   const wall = (a: THREE.Vector3, c: THREE.Vector3, inward: THREE.Vector3) => {
     const len = a.distanceTo(c);
@@ -102,6 +107,9 @@ export function openBridge(far: Kit, near: Kit, floor: THREE.Material, g: THREE.
     near.box(0.06, BULWARK, len + 0.06, 0, BULWARK / 2, 0, C.haze, P.paint, grp).userData.ao = 0.25;
     near.box(0.13, 0.07, len + 0.13, side * 0.02, BULWARK + 0.035, 0, C.wood, P.matte, grp);
     for (let s = -len / 2 + 0.35; s < len / 2; s += 0.7) near.box(0.08, BULWARK - 0.15, 0.05, side * 0.07, (BULWARK - 0.15) / 2, s, C.hazeD, P.paint, grp);
+    // Waterway: a low flat bar inboard of the bulwark foot, drain holes through the plating
+    near.box(0.015, 0.05, len - 0.3, side * 0.2, 0.025, 0, C.hazeD, P.paint, grp).userData.ao = 0;
+    for (const f of drains(len)) near.box(0.012, 0.07, 0.2, side * 0.032, 0.035, (f - 0.5) * len, C.dark, P.matte, grp).userData.ao = 0;
   };
   wall(V(-b.wing, 0, zf - 0.03), V(b.wing, 0, zf - 0.03), V(0, 0, -1));
   for (const sx of [-1, 1]) {
@@ -138,7 +146,19 @@ export function openBridge(far: Kit, near: Kit, floor: THREE.Material, g: THREE.
     near.box(0.06, 0.75, 1.0, sx * (b.wing + 0.35), yF + 0.55, sz, C.dark, P.matte);
     near.box(0.4, 0.06, 1.0, sx * (b.wing + 0.18), yF + 0.15, sz, C.hazeD);
     near.box(0.28, 0.32, 0.28, sx * (b.wing + 0.18), yF + 0.6, sz + 0.2, sx > 0 ? C.red : C.green, P.glass);
+    lamps.push({ p: V(sx * (b.wing + 0.18), yF + 0.62, sz + 0.36), color: sx > 0 ? 0xff2a1a : 0x2aff7a, kind: 'nav', near: true });
+    // Dim red deck lamps under the capping: one forward, one on the wing end
+    for (const [lx2, lz2, ry] of [[sx * (b.hw + 1.5), zf - 0.13, 0], [sx * (b.wing - 0.13), (z0 + zf) / 2 + 0.6, Math.PI / 2]] as const) {
+      const lg = near.group(lx2, yF + BULWARK - 0.16, lz2, ry);
+      near.box(0.16, 0.09, 0.07, 0, 0, 0, C.chain, P.metal, lg);
+      lamps.push({ p: V(lx2 - (ry ? sx * 0.06 : 0), yF + BULWARK - 0.2, lz2 - (ry ? 0 : 0.06)), color: 0xff1a0a, kind: 'red', near: true });
+    }
+    // The compass cards glow faintly under their glass
+    lamps.push({ p: V(sx * (b.hw + 0.7), yF + 1.13, b.ze - 0.3), color: 0xff5a2a, kind: 'card', near: true });
   }
+  // Over the ladder well: a hooded lamp low on the rail post, lighting the treads
+  near.box(0.14, 0.08, 0.1, 0, yF + 0.42, z0 + 0.03, C.chain, P.metal);
+  lamps.push({ p: V(0, yF + 0.36, z0 - 0.02), color: 0xff1a0a, kind: 'red', near: true });
   // Flag lockers in the wings' after corners: pigeonholes with rolled flags facing inboard, canvas cover on top
   const ends: THREE.Vector3[] = [];
   const flagCols = [0xb0261e, 0xd6b23a, 0x1f3a6b, 0xe2e4e0, 0x2c2c2c, 0x2f6b3a];
@@ -156,5 +176,35 @@ export function openBridge(far: Kit, near: Kit, floor: THREE.Material, g: THREE.
     near.box(2.0, 0.05, 0.7, 0, 0.98, 0, C.canvas, P.matte, grp).rotation.x = -0.1;
     ends.push(V(lx, yF + 1.0, lz));
   }
-  return ends;
+  return { ends, lamps, pool: V(0, yF + 2.4, (z0 + zf) / 2) };
+}
+
+/**
+ * The open-bridge deck: one painted non-skid texture over the whole deck (seams, waterway,
+ * drain stains, worn paths) with a fine bump of aggregate tiled over it (second UV set).
+ */
+function floor(b: BridgeSpec, z0: number, zf: number, yF: number, spots: [number, number][]): THREE.Mesh {
+  const D = zf - z0;
+  const geo = new THREE.PlaneGeometry(2 * b.wing, D, 8, 4);
+  geo.rotateX(-Math.PI / 2);
+  const p = geo.attributes.position!;
+  const uv = geo.attributes.uv!;
+  const uv1 = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) {
+    uv.setXY(i, (p.getX(i) + b.wing) / (2 * b.wing), (p.getZ(i) + D / 2) / D);
+    uv1[i * 2] = p.getX(i) / 0.9;
+    uv1[i * 2 + 1] = p.getZ(i) / 0.9;
+  }
+  geo.setAttribute('uv1', new THREE.BufferAttribute(uv1, 2));
+  const bump = nonSkidBump(41);
+  bump.channel = 1;
+  const mat = new THREE.MeshStandardMaterial({
+    map: bridgeDeckTexture({ wing: b.wing, hw: b.hw, z0, zf, spots, seed: Math.round(b.wing * 97) }),
+    bumpMap: bump, bumpScale: 1.2, roughness: 0.9, metalness: 0.05,
+  });
+  const fm = new THREE.Mesh(geo, mat);
+  fm.position.set(0, yF, (z0 + zf) / 2);
+  fm.name = 'own-bridge-deck';
+  fm.layers.set(1);
+  return fm;
 }
