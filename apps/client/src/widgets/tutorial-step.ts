@@ -26,5 +26,6 @@ export interface Lesson {
   sequential?: boolean;
 }
 
-/** Helm telegraph buttons by speed name (index in screens/helm.ts TELEGRAPH). */
+/** Helm telegraph buttons by speed name (index in screens/helm-tel.ts: TEL_SUB for boats, TEL_SURF for ships, which has no creep step). */
 export const TEL = { schleich: '#h-tel [data-tel="4"]', langsam: '#h-tel [data-tel="5"]', halbe: '#h-tel [data-tel="6"]' } as const;
+export const TEL_SHIP = { langsam: '#h-tel [data-tel="4"]', halbe: '#h-tel [data-tel="5"]' } as const;

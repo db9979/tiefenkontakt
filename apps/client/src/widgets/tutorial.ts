@@ -45,7 +45,7 @@ export const LESSON_STEPS: Record<string, Lesson> = {
     steps: [
       { station: 'feuerleitung', where: 'Lösung', target: '#auto', do: 'Wähle einen Frachter und erstelle eine TMA-Lösung.', why: 'Ohne eigenen Kurswechsel bleibt die Entfernung unbestimmt.', done: () => bestQuality() > 40 },
       { station: 'feuerleitung', where: 'Torpedo', target: '#calc', do: '„Lösung übernehmen“, dann „Feuer“ (oder Rechtsklick auf die Karte „Torpedo hierher“).', why: '„Lösung übernehmen“ berechnet Schusskurs und Suchkopf-Distanz.', done: (s) => s.torpedoes.length > 0 },
-      { station: 'feuerleitung', where: 'Draht', target: '#wires', do: 'Unter 12 kn bleiben und mit ◀ ▶ korrigieren, bis „ZIEL ERFASST“ erscheint.', why: 'Schneller reißt der Draht.', done: (s) => s.torpedoes.some((t) => t.homing) },
+      { station: 'feuerleitung', where: 'Draht', target: '#wires', do: 'Unter 12 kn bleiben und mit ◀ ▶ korrigieren, bis „ZIEL ERFASST“ erscheint.', why: 'Schneller, bei Kurswechseln über 30° je Minute oder mit dem Torpedo achteraus reißt der Draht.', done: (s) => s.torpedoes.some((t) => t.homing) },
       { where: 'Meldungen', target: TEL.halbe, do: 'Warte auf den Treffer, dann ablaufen: erst Fahrt erhöhen, dann tiefer gehen.', why: 'Ohne Fahrt tauchen die Tiefenruder kaum.', done: (s) => s.score.sunkTons > 0 },
     ],
   },
@@ -53,7 +53,7 @@ export const LESSON_STEPS: Record<string, Lesson> = {
     title: 'U-Jagd mit Fregatte',
     steps: [
       { station: 'sonar', where: 'Schleppsonar', target: '[data-len="900"]', do: 'Bringe das Schleppsonar mit 900 m aus.', why: 'Lang liegt es unter der Sprungschicht. Die Winde braucht knapp 4 Minuten; danach 60 s Kurs halten.', done: (s) => s.own.towedLength >= 600 },
-      { station: 'opz', where: 'Sonarboje', target: '#plot', do: 'Rechtsklick vor den Konvoi: „Sonarboje tief“.', done: (s) => (s.air?.buoys.length ?? 0) > 0 },
+      { station: 'opz', where: 'Sonarboje', target: '#plot', do: 'Rechtsklick vor den Konvoi: „Hubschrauber ▸“, „Bojenlinie hier“.', why: 'Der Hubschrauber startet nur auf Flugkurs (Wind höchstens 30° vom Bug, Schiff ohne Drehung). Meldet das Flugdeck „FLUGKURS NÖTIG“: Reiter „Hubschrauber“, „FLUGKURS STEUERN“.', done: (s) => (s.air?.buoys.length ?? 0) > 0 },
       { station: 'sonar', where: 'Klassifizieren', target: '[data-ptab="ana"]', do: 'Finde den leisen Kontakt und klassifiziere ihn per LOFAR/DEMON als U-Boot.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine') },
       { station: 'sonar', where: 'Aktiv', target: '#as-one', do: 'Reiter „Aktiv“: LFM und 16 KM wählen, dann Einzelpings, bis eine Entfernung steht.', why: 'Der Ping gibt die Entfernung (LFM ist genauer), verrät aber die Fregatte.', done: (s) => s.contacts.some((c) => c.assigned === 'submarine' && c.range !== undefined) },
       { station: 'waffen', where: 'Rakete', target: '#rocket', do: 'U-Jagd-Rakete auf das U-Boot (Knopf oder Rechtsklick auf die Karte).', done: (s) => s.own.loadout.rockets < 8 },

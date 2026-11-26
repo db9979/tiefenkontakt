@@ -50,8 +50,8 @@ export function figCz(): string {
     ${shipIcon(40, 40, 0.7)}
     <ellipse cx="330" cy="44" rx="26" ry="10" fill="${LIGHT}" stroke="${GREY}"/>${text(330, 72, '1. Konvergenzzone', { anchor: 'middle', size: 11 })}
     <ellipse cx="620" cy="46" rx="26" ry="10" fill="${LIGHT}" stroke="${GREY}"/>${text(620, 74, '2. Zone', { anchor: 'middle', size: 11 })}
-    ${text(185, 130, 'Schattenzone: hier hört man nichts', { anchor: 'middle', size: 11, fill: GREY })}
-    ${text(330, 222, 'Nur in tiefem Wasser (über 2000 m): Kontakte in ca. 55 km Abstand, dazwischen Stille', { anchor: 'middle', size: 11 })}`);
+    ${text(185, 130, 'Schattenzone: leise, nur Bodenreflexion', { anchor: 'middle', size: 11, fill: GREY })}
+    ${text(330, 222, 'Nur über tiefem Wasser (1800–3000 m je Seegebiet): 1. Zone nach 40–60 km, 2. Zone doppelt so weit', { anchor: 'middle', size: 11 })}`);
 }
 
 /** Top view: baffles astern, towed array mirror bearing; side view: blind cone below the hull. */

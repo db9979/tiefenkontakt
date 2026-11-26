@@ -60,7 +60,7 @@ Sprechfunk mit Verbindungsgüte; ein grüner Punkt heißt: er spricht gerade.</p
 </table>
 <h2>Lektionen</h2>
 <p>Für den Einstieg führt <b>„Erste Feindfahrt“</b> (Lobby, Ausbildung) durch einen ganzen Angriff auf einen einzelnen Frachter: Tiefe, Schleichfahrt, Horchen, Schenkel für die TMA, Sehrohr, Schuss, Drahtlenkung und Ablaufen – jeder Schritt mit Haken, „Weiter“ überspringt.</p>
-<p>Das Gegenstück für die Fregatte ist <b>„Erste Geleitfahrt“</b>: drei Frachter folgen der Fregatte, voraus läuft ein einzelnes Diesel-U-Boot tief und auf festem Kurs an. Die Lektion führt durch Fahrt verringern, Schleppsonar auf 900 m ausbringen und einschwingen lassen, Sonarboje vor den Konvoi werfen, den leisen Kontakt finden und als U-Boot klassifizieren, den Konvoi umleiten, mit kurzem LFM-Ping die Entfernung holen und die U-Jagd-Rakete schießen. Geschafft ist sie, wenn das U-Boot getroffen ist.</p>
+<p>Das Gegenstück für die Fregatte ist <b>„Erste Geleitfahrt“</b>: drei Frachter folgen der Fregatte, voraus läuft ein einzelnes Diesel-U-Boot tief und auf festem Kurs an. Die Lektion führt durch Fahrt verringern, Schleppsonar auf 900 m ausbringen und einschwingen lassen, Bojenlinie vom Hubschrauber vor den Konvoi legen lassen, den leisen Kontakt finden und als U-Boot klassifizieren, den Konvoi umleiten, mit kurzem LFM-Ping die Entfernung holen und die U-Jagd-Rakete schießen. Geschafft ist sie, wenn das U-Boot getroffen ist.</p>
 <p>Die geführten Lektionen bringen jede Station Schritt für Schritt bei: Horchen, Peilen, TMA, Torpedoangriff, Schleppsonar, Hubschrauber und Ausweichen.
 Ein gelber Hinweis zeigt immer den nächsten sinnvollen Schritt. Die Stufe „Einsteiger“ beschriftet Linien und bietet Auto-Marken und Auto-TMA,
 „Profi“ verzichtet darauf.</p>
@@ -104,24 +104,47 @@ ${fig(figSonarEq(), 'Abb. 2 · Sonargleichung als Pegeltreppe.')}
 <table class="grid">
 <tr><th>Faktor</th><th>Was ihn erhöht (schlecht für den Gehörten)</th><th>Was ihn senkt</th></tr>
 <tr><td>Quellpegel SL</td><td>Fahrt (stark), Kavitation, Schnorcheln, Notanblasen, Rohrfluten, Gefechtslärm</td><td>Schleichfahrt, „Ruhe im Boot“ (−3 dB), Tiefe (Kavitation setzt später ein)</td></tr>
-<tr><td>Ausbreitung TL</td><td>Sprungschicht zwischen den Partnern, Flachwasser mit Bodenverlust, Entfernung</td><td>Oberflächenkanal, Konvergenzzone, gleiche Seite der Schicht</td></tr>
-<tr><td>Störpegel NL</td><td>Seegang, Regen, Verkehr, eigene Fahrt, Lärm anderer Schiffe in derselben Peilung</td><td>Ruhige See, langsame eigene Fahrt</td></tr>
+<tr><td>Ausbreitung TL</td><td>Sprungschicht zwischen den Partnern, Schattenzone, Flachwasser mit Bodenverlust, Entfernung</td><td>Oberflächenkanal, Konvergenzzone, Bodenreflexion, gleiche Seite der Schicht</td></tr>
+<tr><td>Störpegel NL</td><td>Seegang, Regen, Schiffslärm des Seegebiets, eigene Fahrt, Lärm anderer Schiffe in derselben Peilung</td><td>Ruhige See, abgelegenes Seegebiet, langsame eigene Fahrt</td></tr>
 </table>
 <h2>Sprungschicht und Oberflächenkanal</h2>
 <p>Unter der warmen Deckschicht fällt die Temperatur plötzlich ab. Diese <b>Sprungschicht</b> knickt Schallstrahlen ab: Wer auf der anderen Seite ist,
 wird 10–15 dB leiser gehört. Über der Schicht bildet sich ein <b>Oberflächenkanal</b>, der Schall weit trägt. Die Schichttiefe ist unbekannt, bis sie gemessen ist:
 Die Fregatte wirft eine BT-Sonde, das U-Boot bemerkt sie beim Durchtauchen. Auf kurze Entfernung (unter 2 km) wirkt die Schicht nur teilweise.</p>
 ${fig(figLayer(), 'Abb. 3 · Schallausbreitung an der Sprungschicht.')}
-<h2>Konvergenzzonen</h2>
-<p>In tiefem Wasser biegen sich Strahlen in großer Tiefe wieder nach oben und kommen in etwa 55 km Entfernung an die Oberfläche zurück.
-Dort hört man laute Schiffe plötzlich wieder, dazwischen ist Stille.</p>
-${fig(figCz(), 'Abb. 4 · Konvergenzzonen in der Grönland-Lücke.')}
+<h2>Tiefwasser: Schattenzone, Bodenreflexion, Konvergenzzonen</h2>
+<p>Über tiefem Wasser im offenen Ozean trägt der <b>direkte Weg</b> nur ein Stück weit: etwa 4 km plus 400 m je √m Tiefe von Quelle und Hörer,
+also 6 km zwischen zwei flachen Schiffen und bis 20 km zwischen tiefen Partnern. Dahinter beginnt die <b>Schattenzone</b>: Der Schall wird
+um 3 dB je km leiser, bis die <b>Bodenreflexion</b> ihn auffängt (über sehr tiefem Wasser höchstens 18 dB Verlust, über 300–2000 m Wasser
+deutlich weniger, weil der Boden den Schall kräftig zurückwirft). Wer im Schatten steht, hört und wird schlecht gehört.</p>
+<p>Weiter draußen biegen sich die Strahlen in großer Tiefe wieder nach oben: In der <b>1. Konvergenzzone</b> (bis 12 dB Gewinn, etwa ±5 % ihrer
+Entfernung breit) hört man laute Schiffe plötzlich wieder, eine schwächere <b>2. Zone</b> liegt doppelt so weit. Wie weit, hängt vom Seegebiet ab, und
+nur über genug Wassertiefe gibt es sie überhaupt:</p>
+<table class="grid">
+<tr><th>Seegebiet</th><th>1. Konvergenzzone</th><th>nötige Wassertiefe</th></tr>
+<tr><td>Lofotenbecken</td><td>42 km</td><td>1800 m</td></tr>
+<tr><td>Färöer-Shetland-Kanal</td><td>48 km</td><td>2000 m</td></tr>
+<tr><td>Färöer-Bank, Island–Färöer-Rücken</td><td>50 km</td><td>2000 m</td></tr>
+<tr><td>Rockall-Trog</td><td>56 km</td><td>2000 m</td></tr>
+<tr><td>Golf von Biskaya</td><td>62 km</td><td>3000 m</td></tr>
+<tr><td>Dänemarkstraße, Framstraße, Nordkap</td><td colspan="2">keine: arktischer Halbkanal, der Schall läuft an der Oberfläche entlang und verliert etwa 0,6 dB je km, ohne Schatten</td></tr>
+<tr><td>Schelf, Fjorde, Meerengen</td><td colspan="2">keine: Flachwasser mit Mehrwegeausbreitung über den Boden</td></tr>
+</table>
+<p>Liegen beide Partner über einer Sprungschicht, hält der <b>Oberflächenkanal</b> den Schall statt eines Schattens; ein dünner Kanal (30 m) lässt
+dabei mehr hinaus als ein tiefer (100 m).</p>
+${fig(figCz(), 'Abb. 4 · Schattenzone und Konvergenzzonen über tiefem Wasser.')}
+<h2>Schiffslärm</h2>
+<p>Ferner Verkehr füllt den Störpegel je nach Seegebiet auf: Gibraltar +8 dB, Dardanellen +7, Fladengrund, Clyde, Messina und Kolabucht +6,
+Biskaya, Bornholm und Finnischer Meerbusen +5, Lofotenbecken, Framstraße und Dänemarkstraße nur 0–1 dB. In belebten Engen hört jeder schlechter –
+gut für das U-Boot, schlecht für die Eskorte.</p>
 <h2>Reichweitenvorhersage</h2>
 <p>Im Horchraum des Boots (Reiter „Bedrohung“) und am Sonar der Fregatte (Reiter „VDS/BT“) zeigt die <b>Reichweitenvorhersage</b> einen Schnitt durch die See: nach rechts die Entfernung,
 nach unten die Tiefe. <b>Grün</b> ist, wo man ein typisches Ziel hört (Boot: Geleitfahrzeug mit 15 kn, blass ein Frachter mit 9 kn; Fregatte: Diesel-U-Boot mit 5 kn
 auf Batterie), <b>rot schraffiert</b>, wo der Gegner einen selbst hört. Beim Boot ist die Tiefe die eigene: Man sieht, wie es unter der Schicht stiller wird.
 Bei der Fregatte ist es die Tiefe des Boots. Die Vorhersage rechnet mit eigener Fahrt, Seegang, Wassertiefe und der gemessenen Schicht. Ohne Messung steht
-dort <b>SCHICHT UNBEKANNT · NUR GROBE SCHÄTZUNG</b>. Schwund, Maskierung und Gelände rechnet sie nicht mit.</p>
+dort <b>SCHICHT UNBEKANNT · NUR GROBE SCHÄTZUNG</b>. Über tiefem Wasser zeichnet sie die Konvergenzzonen als gelb gestrichelte Bänder
+(<b>1. KZ</b>, <b>2. KZ</b>) und davor die <b>SCHATTENZONE</b>; ein grüner Streifen weit draußen ist kein Fehler, sondern die Konvergenzzone.
+Der Schiffslärm des Seegebiets steckt im Störpegel. Schwund, Maskierung und Gelände rechnet sie nicht mit.</p>
 <h2>Flachwasser</h2>
 <p>Im Schelfmeer und im Fjord ist das Wasser 100–300 m tief. Der Boden schluckt Schall mit jeder Reflexion, die Schicht ist schwach und
 <b>Nachhall</b> (Echos von Boden und Oberfläche) überdeckt das Aktivsonar. Ein CW-Puls findet dort langsame Ziele kaum, ein <b>LFM-Puls</b>
@@ -135,6 +158,12 @@ Zusätzlich sieht kein Rumpfsonar steil nach unten: Ein Ziel mehr als 30° unter
 Das Schleppsonar hört achtern, kann aber links und rechts nicht unterscheiden.</p>
 ${fig(figBaffles(), 'Abb. 5 · Toter Winkel achtern und blinder Fleck unter dem Rumpf.')}
 ${fig(figTowed(), 'Abb. 6 · Mehrdeutigkeit des Schleppsonars.')}
+<h2>Peilfehler</h2>
+<p>Jede Peilung rauscht, je schwächer das Signal, desto mehr. Dazu kommt ein <b>langsam wandernder Fehler</b> je Kontakt und Sensor (Mehrwegeausbreitung,
+Brechung, Form der Antenne): Er bleibt minutenlang fast gleich und ändert sich über 4 bis 12 Minuten. Seine Größe (1 σ): Rumpf- und
+Schleppsonar etwa 1°, ESM 4°, Radar 0,3°, Sehrohr 0,2°. Das Schleppsonar peilt zur Längsachse hin ungenauer: 1° querab sind 20° vor der Achse
+schon etwa 3°. Weil der Fehler nicht wegrauscht, hilft langes Mitteln nicht: Eine TMA aus einem einzigen Schenkel passt sich ihm einfach an.
+Erst ein <b>zweiter Schenkel</b> oder eine <b>Kreuzpeilung</b> von einem anderen Ort deckt ihn auf.</p>
 <h2>Abstrahlung</h2>
 <p>Schiffe sind von achtern am lautesten (Schraube) und von vorn am leisesten. Querab werfen sie das stärkste Aktiv-Echo zurück, von vorn das schwächste.
 Darum zeigt ein U-Boot einem pingenden Gegner das Heck und meidet die Breitseite.</p>

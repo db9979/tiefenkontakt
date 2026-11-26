@@ -165,6 +165,13 @@ async function finish(tab, lesson, steps) {
  * repeat shot). Returns the sim seconds after which a torpedo that has not found the target missed.
  */
 async function torpedoShot(tab, early) {
+  // A solution goes stale while the boat is at the periscope: refresh it with Auto-TMA (as the lesson's
+  // Güte step says) until FEUER would not ask twice (Güte 50 % and more), at most a few tries
+  for (let i = 0; i < 8 && (await tab.ev(`parseInt(document.querySelector('#v-q')?.textContent ?? '0', 10) || 0`)) < 55; i++) {
+    await tab.click('#auto');
+    await sleep(4000);
+  }
+  log('feindfahrt', 'shot with', await tab.ev(`document.querySelector('#v-q')?.textContent ?? ''`));
   await tab.click('#calc');
   await sleep(500);
   // „Lösung übernehmen“ sets the seeker distance to 70 % of the solution's range
@@ -172,6 +179,13 @@ async function torpedoShot(tab, early) {
   if (early) await tab.ev(`(() => { const f = document.querySelector('#t-en'); f.value = String(Math.max(500, Math.round(Number(f.value) / 2 / 250) * 250)); return true; })()`);
   const n = await tab.ev(`__tk.store.snap.own.loadout.tubes.filter((t) => t.loaded).length`);
   await tab.click('#fire');
+  // A guarded FEUER (weak solution: "GÜTE UNTER 50 % – NOCHMAL") wants a second press within 3 s, as the lesson says
+  await sleep(800);
+  const guard = await tab.ev(`(() => { const b = document.querySelector('#fire'); return b.dataset.guard ? b.dataset.bst ?? '?' : ''; })()`);
+  if (/NOCHMAL/.test(guard)) {
+    log('feindfahrt', 'fire guard:', guard.trim(), '– pressing again');
+    await tab.click('#fire');
+  } else if (guard) log('feindfahrt', 'fire refused:', guard.trim());
   await waitFor('torpedo away', () => tab.ev(`__tk.store.snap.own.loadout.tubes.filter((t) => t.loaded).length < ${n}`), 30_000);
   // Run time to the solution's range at 40 kn (20.6 m/s), plus a margin for the search
   return ((en / 0.7) / 20.6) * 1.5 + 90;
@@ -226,6 +240,7 @@ async function feindfahrt(tab) {
       return !sunk && !homing && (!running || (await simTime(tab)) - t0 > runS) ? 'miss' : false;
     }, 300_000, 1000);
     if (r === 'hit') break;
+    log(L, 'miss state:', await tab.ev(`JSON.stringify({ torpedoes: __tk.store.snap.torpedoes.map((t) => ({ id: t.id, run: Math.round(t.run), wire: t.wire, homing: t.homing })), wires: document.querySelector('#wires')?.textContent?.slice(0, 200) })`));
     if (shot >= 3) throw new Error(`${shot} torpedoes missed`);
     log(L, `torpedo ${shot} missed (no target after ${Math.round(runS)} s): new solution, seeker on earlier, fire again`);
     await tab.click('#auto');
@@ -259,17 +274,20 @@ async function pingUntil(tab, ok, what) {
 async function geleitfahrt(tab) {
   const L = 'geleitfahrt';
   await startLesson(tab, L);
-  await tab.click('#h-tel [data-tel="6"]');
+  // A ship's telegraph has no creep step: "Halbe" (12 kn) is the sixth button (helm-tel.ts TEL_SURF)
+  await tab.click('#h-tel [data-tel="5"]');
   await untilDone(tab, L, 1, 20_000, 'half speed');
   await station(tab, /Sonar/);
   await tab.click('[data-len="900"]');
   await untilDone(tab, L, 2, 20_000, 'array streaming');
   await untilDone(tab, L, 3, 150_000, 'array out and settled');
-  // Sonobuoy: right-click the OPZ map 4 km east of the ship (centre of the plot), deep buoy
+  // Sonobuoys: right-click the OPZ map 4 km east of the ship (centre of the plot), helicopter submenu, buoy line
   await station(tab, /OPZ/);
   const p = await tab.ev(`(() => { const c = document.querySelector('#station canvas'); const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await tab.mouse(p.x + 4000 / 80, p.y, 'right');
-  await tab.click('.ctxmenu button', '^Sonarboje tief');
+  await tab.click('.ctxmenu button', '^Hubschrauber ▸');
+  await sleep(300);
+  await tab.click('.ctxmenu button', '^Bojenlinie hier');
   await untilDone(tab, L, 4, 120_000, 'sonobuoy in the water');
   // The new faint contact: not on the bearing of one of the own merchants (their positions are in
   // the picture), measured from where the contact was heard (own ship, or the buoy)
