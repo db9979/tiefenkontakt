@@ -9,10 +9,12 @@ const LOOSE_DEG = 5;
 const HOLD_S = 30;
 /** A track not heard for this long (s) gives way to fresh ones on the same friendly. */
 const STALE_S = 60;
-/** Datalink position error assumed (m): close in, it is a wide angle. */
-const POS_ERR_M = 300;
+/** Datalink position error assumed (m): close in, it is a wide angle. The link's gridlock error
+ * (150–400 m per unit, apps/server/src/datalink.ts) is in it; a mate's track compares two units' frames. */
+const POS_ERR_M = 330;
+const POS_ERR_LINK_M = 700;
 
-type Cand = Pick<ContactTrack, 'bearing' | 'range' | 'classified' | 'sensors'> & Partial<Pick<ContactTrack, 'originX' | 'originY'>> & { assigned?: ClassChoice; label?: string };
+type Cand = Pick<ContactTrack, 'bearing' | 'range' | 'classified' | 'sensors'> & Partial<Pick<ContactTrack, 'originX' | 'originY'>> & { assigned?: ClassChoice; label?: string; via?: 'own' | 'datalink' };
 
 /** Last time each contact lined up with a friendly (per label; cleared when the clock runs backwards). */
 const held = new Map<string, number>();
@@ -21,9 +23,9 @@ const heldSlot = new Map<string, string>();
 let heldTime = -1;
 
 /** Bearing tolerance to one friendly: 2° far off, more close in and the older the report. */
-function tolerance(s: Snapshot, f: Snapshot['friendlies'][number], o: { x: number; y: number }): number {
+function tolerance(s: Snapshot, f: Snapshot['friendlies'][number], o: { x: number; y: number }, link: boolean): number {
   const d = Math.max(1, Math.hypot(f.x - o.x, f.y - o.y));
-  const drift = POS_ERR_M + f.speedKn * KN * Math.max(0, s.time - f.reportedAt);
+  const drift = (link ? POS_ERR_LINK_M : POS_ERR_M) + f.speedKn * KN * Math.max(0, s.time - f.reportedAt);
   return 2 + (Math.atan(drift / d) * 180) / Math.PI;
 }
 
@@ -36,7 +38,7 @@ function lineUps(c: Cand, s: Snapshot, extra: number): { i: number; score: numbe
     if (!f.alive || s.time - f.reportedAt > 30) return;
     if (c.classified && c.classified !== f.cls) return;
     if (c.assigned && c.assigned !== 'unknown' && c.assigned !== CHOICE_OF_CLASS[f.cls]) return;
-    const tol = Math.max(tolerance(s, f, o), extra);
+    const tol = Math.max(tolerance(s, f, o, c.via === 'datalink'), extra);
     const err = Math.abs(angleDiff(bearing(o, f), c.bearing));
     if (err > tol) return;
     if (c.range !== undefined && Math.abs(c.range - Math.hypot(f.x - o.x, f.y - o.y)) > 800 + (tol - 2) * 40) return;

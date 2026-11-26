@@ -78,8 +78,39 @@ export interface AirState {
   helos?: Record<string, Helo>;
 }
 
-/** Dipping sonar: hover time per dip. */
+/** Dipping sonar: search time per dip with the dome down (half above, half below the layer). */
 export const DIP_HOVER_S = 180;
+/**
+ * Dip cycle (F15), after the AQS-13F/AQS-18 drill: about 20 s from cruise to the coupled hover
+ * over the dip point, the dome reeled down at about 4,5 m/s, searched at the first depth, shifted
+ * to the second, reeled up at about 6 m/s. With the layer at 40/160 m one dip takes about 4,5 min.
+ */
+export const DIP_TRANSITION_S = 20;
+export const DOME_LOWER_MS = 4.5;
+export const DOME_RAISE_MS = 6;
+
+/** Timeline of one dip from arrival over the point (s): search windows at depth d1, then d2; end with the dome up. */
+export function dipTimeline(d1: number, d2: number): { s1: number; e1: number; s2: number; e2: number; end: number } {
+  const s1 = DIP_TRANSITION_S + d1 / DOME_LOWER_MS;
+  const e1 = s1 + DIP_HOVER_S / 2;
+  const s2 = e1 + Math.abs(d2 - d1) / DOME_LOWER_MS;
+  const e2 = s2 + DIP_HOVER_S / 2;
+  return { s1, e1, s2, e2, end: e2 + d2 / DOME_RAISE_MS };
+}
+
+/** Dome depth (m) at time u after arrival over the dip point. */
+export function domeDepthAt(d1: number, d2: number, u: number): number {
+  const t = dipTimeline(d1, d2);
+  if (u < DIP_TRANSITION_S) return 0;
+  if (u < t.s1) return (u - DIP_TRANSITION_S) * DOME_LOWER_MS;
+  if (u < t.e1) return d1;
+  if (u < t.s2) return d1 + Math.sign(d2 - d1) * (u - t.e1) * DOME_LOWER_MS;
+  if (u < t.e2) return d2;
+  return Math.max(0, d2 - (u - t.e2) * DOME_RAISE_MS);
+}
+
+/** A typical dip (layer at 40/150 m), for ETAs before the depths are known (s). */
+export const DIP_CYCLE_TYPICAL_S = Math.round(dipTimeline(40, 150).end);
 /** MAD search: a cloverleaf at 30–60 m over the datum. */
 export const MAD_PATTERN_S = 360;
 const MAD_PETAL_M = 900;

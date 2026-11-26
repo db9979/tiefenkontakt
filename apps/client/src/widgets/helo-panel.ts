@@ -1,4 +1,4 @@
-import { HELO_RANGE, bearing, distance, targetPosAt, type HeloTaskKind, type Snapshot, type Vec2 } from '@tk/shared';
+import { HELO_RANGE, PATTERN_COUNT, bearing, distance, headingVec, targetPosAt, type BuoyPattern, type HeloTaskKind, type HeloView, type Snapshot, type Vec2 } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
 import { btnState } from './btn-state.js';
@@ -28,6 +28,26 @@ export function pickHeloPoint(p: Vec2): void {
 }
 
 const KIND: Record<HeloTaskKind, string> = { dip: 'TAUCHSONAR', buoys: 'BOJENLINIE', mad: 'MAD-SUCHE', attack: 'ANGRIFF', return: 'ZURÜCK AN DECK' };
+/** Buoy patterns (F15) as named in the panel and the queue. */
+export const PATTERN_NAME: Record<BuoyPattern, string> = { line: 'LINIE', barrier: 'SPERRE', circle: 'KREIS', chevron: 'KEIL' };
+const PATTERN_TITLE: Record<BuoyPattern, string> = {
+  line: 'Linie quer zur Sichtlinie, 2,5 km Abstand',
+  barrier: 'Sperre: zwei versetzte Reihen quer zum Anmarschweg, die Lücken der einen deckt die andere',
+  circle: 'Kreis um das Datum (1,5 nm Radius): das Boot kann nach keiner Seite unbemerkt ablaufen',
+  chevron: 'Keil vor einem schnellen Boot: Spitze voraus auf seinem Kurs (TMA), die Schenkel laufen zurück',
+};
+let pattern: BuoyPattern = 'line';
+/** Buoy pattern chosen in the panel (the plot menu offers every pattern itself). */
+export const heloPattern = (): BuoyPattern => pattern;
+
+/** What the flight deck tells the bridge: the course to hold, or why there is no launch. */
+export function deckText(d: NonNullable<HeloView['deck']>): { text: string; tone: 'amber' | 'red' | '' } {
+  const what = d.need === 'launch' ? 'START' : 'LANDUNG';
+  if (d.block === 'sea') return { text: 'SEEGANG ZU HOCH · KEIN START', tone: 'red' };
+  if (d.ok) return { text: `FLUGKURS LIEGT AN · ${what} ${mmss(Math.min(d.heldS, d.needS))}/${mmss(d.needS)}`, tone: '' };
+  if (d.block === 'turn') return { text: `SCHIFF DREHT · FLUGDECK ROT · ${what} WARTET`, tone: 'amber' };
+  return { text: `FLUGKURS NÖTIG · WIND ${tdeg3(d.windFrom)}° · KURS ${tdeg3(d.course)}°`, tone: 'amber' };
+}
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -68,11 +88,13 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
     <div class="row"><span class="dim">ZIEL</span><span id="hp-tgt" class="amber"></span></div>
     <div class="hp-opts">
       <div class="seg" title="Anhängen: ans Ende der Liste · Sofort: alles andere fällt weg"><button data-mode="add">ANHÄNGEN</button><button data-mode="now">SOFORT</button></div>
-      <span class="hp-n" title="Bojen in der Linie (2,5 km Abstand, quer zur Sichtlinie)"><span class="dim">BOJEN JE LINIE</span><span class="seg"><button data-n="4">4</button><button data-n="5">5</button><button data-n="6">6</button></span></span>
+      <span class="hp-n" title="Bojen je Muster (Linie höchstens 6, Sperre und Kreis 8, Keil 7)"><span class="dim">BOJEN</span><span class="seg"><button data-n="4">4</button><button data-n="5">5</button><button data-n="6">6</button><button data-n="8">8</button></span></span>
     </div>
+    <div class="row"><span class="dim">MUSTER</span><span class="seg">${(Object.keys(PATTERN_NAME) as BuoyPattern[]).map((p) => `<button data-pat="${p}" title="${PATTERN_TITLE[p]}">${PATTERN_NAME[p]}</button>`).join('')}</span></div>
+    <div class="row" id="hp-deck" style="display:none"><span id="hp-deck-t"></span><button id="hp-deck-go" title="Den Kurs ans Ruder geben: Wind im Flugdeckbereich (30° beiderseits des Bugs)">FLUGKURS STEUERN</button></div>
     <div class="grid2" style="gap:4px">
-      <button class="primary" data-task="dip" title="Schwebt 3 min und pingt über und unter der gemessenen Schicht, dann 4 km weiter in Suchrichtung (3 Tauchstellen)">Tauchsonar</button>
-      <button class="primary" data-task="buoys" title="Linie passiver Bojen quer zur Sichtlinie über dem Ziel, abwechselnd über und unter der Schicht">Bojenlinie</button>
+      <button class="primary" data-task="dip" title="Je Tauchstelle etwa 4–5 min: einschweben, Dom fieren (4,5 m/s), über und unter der gemessenen Schicht pingen, Dom hieven, dann 4 km weiter in Suchrichtung (3 Tauchstellen)">Tauchsonar</button>
+      <button class="primary" data-task="buoys" title="Passive Bojen im gewählten Muster über dem Ziel, abwechselnd über und unter der Schicht">Bojen legen</button>
       <button class="primary" data-task="mad" title="Magnetsonde: Kleeblatt über dem Punkt (6 min), findet getauchte Boote nur sehr nah">MAD</button>
       <button id="hp-att" class="fire" title="Leichttorpedo auf die letzte gehaltene Position des Kontakts (aus dem Schweben etwa 1 min)">Angriff</button>
       <button data-task="return" title="Zurück an Deck: 10 min tanken und aufmunitionieren">Zurück</button>
@@ -86,7 +108,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
   let count = 4;
   let snap: Snapshot | undefined;
 
-  const send = (kind: HeloTaskKind, extra: { count?: number } = {}) => {
+  const send = (kind: HeloTaskKind, extra: { count?: number; pattern?: BuoyPattern } = {}) => {
     const s = snap;
     if (!s) return;
     if (kind === 'return') return net.send({ t: 'helo', op: mode, kind });
@@ -97,7 +119,16 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
       if (b) net.send({ t: 'helo', op: mode, kind, bearing: b.bearing, range: BEARING_LINE_RANGE, axis: b.bearing, label: b.label, ...extra });
       return;
     }
-    net.send({ t: 'helo', op: mode, kind, bearing: bearing(s.own, a.p), range: distance(s.own, a.p), label: a.label, ...extra });
+    // A chevron goes ahead of the boat on its TMA course (apex 3 km ahead), else it points at the own ship
+    let p = a.p;
+    let axis: number | undefined;
+    const sol = a.label ? store.solutions.get(a.label) : undefined;
+    if (kind === 'buoys' && extra.pattern === 'chevron' && sol) {
+      axis = sol.course;
+      const v = headingVec(sol.course);
+      p = { x: p.x + v.x * 3000, y: p.y + v.y * 3000 };
+    }
+    net.send({ t: 'helo', op: mode, kind, bearing: bearing(s.own, p), range: distance(s.own, p), label: a.label, ...(axis !== undefined ? { axis } : {}), ...extra });
   };
   const check = (kind?: HeloTaskKind) => {
     const s = snap;
@@ -110,7 +141,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
   root.querySelectorAll<HTMLButtonElement>('[data-task]').forEach((b) => {
     const kind = b.dataset.task as HeloTaskKind;
     if (kind === 'return') b.onclick = () => send('return');
-    else guardFire(b, () => check(kind), () => send(kind, kind === 'buoys' ? { count } : {}));
+    else guardFire(b, () => check(kind), () => send(kind, kind === 'buoys' ? { count: Math.min(count, PATTERN_COUNT[pattern].max), pattern: pattern === 'line' ? undefined : pattern } : {}));
   });
   guardFire(q<HTMLButtonElement>('#hp-att'), () => {
     const c = check();
@@ -119,17 +150,24 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
     return targetCheck(snap && aim(snap)?.p);
   }, () => send('attack'));
   q<HTMLButtonElement>('#hp-clr').onclick = () => net.send({ t: 'helo', op: 'clear' });
+  // Flight deck: give the helm the flying course
+  q<HTMLButtonElement>('#hp-deck-go').onclick = () => {
+    const d = snap?.air?.helo?.deck;
+    if (d) net.send({ t: 'order', heading: d.course });
+  };
   root.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
     if (!b) return;
     if (b.dataset.mode) mode = b.dataset.mode as Mode;
     if (b.dataset.n) count = Number(b.dataset.n);
+    if (b.dataset.pat) pattern = b.dataset.pat as BuoyPattern;
     if (b.dataset.rm) net.send({ t: 'helo', op: 'remove', id: Number(b.dataset.rm) });
-    if (b.dataset.mode || b.dataset.n) paintToggles();
+    if (b.dataset.mode || b.dataset.n || b.dataset.pat) paintToggles();
   });
   const paintToggles = () => {
     root.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
     root.querySelectorAll<HTMLButtonElement>('[data-n]').forEach((b) => b.classList.toggle('on', Number(b.dataset.n) === count));
+    root.querySelectorAll<HTMLButtonElement>('[data-pat]').forEach((b) => b.classList.toggle('on', b.dataset.pat === pattern));
   };
   paintToggles();
 
@@ -149,12 +187,23 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
         setHtml(q('#hp-rows'), '<div class="dim">KEIN HUBSCHRAUBER AN BORD</div>');
         setHtml(q('#hp-q'), '');
         q('#hp-tgt').textContent = '';
+        q('#hp-deck').style.display = 'none';
         return;
+      }
+      // Flight deck: the course to hold for launch or recovery, with the button that orders it
+      const deck = hv.deck;
+      q('#hp-deck').style.display = deck ? '' : 'none';
+      if (deck) {
+        const dt = deckText(deck);
+        const el2 = q('#hp-deck-t');
+        setText(el2, dt.text);
+        el2.className = dt.tone;
+        q<HTMLButtonElement>('#hp-deck-go').style.display = deck.ok || deck.block === 'sea' ? 'none' : '';
       }
       const doing = hv.doing ? KIND[hv.doing] : 'HÄLT POSITION';
       st.className = hv.state === 'deck' && (hv.readyInS > 0 || hv.launchInS !== undefined) ? 'amber' : '';
-      st.textContent = hv.state === 'air' ? `IN DER LUFT · ${doing}${hv.working && hv.doing === 'dip' ? ' · SCHWEBT' : ''}`
-        : hv.launchInS !== undefined ? `STARTVORBEREITUNG ${mmss(hv.launchInS)}`
+      st.textContent = hv.state === 'air' ? (hv.deck?.alongside ? (hv.deck.ok ? 'LANDEANFLUG' : 'LÄNGSSEITS · WARTET AUF FLUGKURS') : `IN DER LUFT · ${doing}${hv.working && hv.doing === 'dip' ? ` · SCHWEBT${hv.domeM ? ` · DOM ${hv.domeM} M` : ''}` : ''}`)
+        : hv.launchInS !== undefined ? (hv.launchInS > 0 ? `STARTVORBEREITUNG ${mmss(hv.launchInS)}` : hv.deck?.ok ? 'ROTOREN LAUFEN · START' : 'STARTBEREIT · WARTET AUF FLUGKURS')
         : hv.readyInS > 0 ? `AN DECK · TANKEN/AUFMUNITIONIEREN · ${mmss(hv.readyInS)}` : 'AN DECK · BEREIT';
       const fuelMin = Math.floor(hv.fuelS / 60);
       setHtml(q('#hp-rows'), `
@@ -175,7 +224,7 @@ export function mountHeloPanel(el: HTMLElement): { update(s: Snapshot): void; di
       // Rows are rebuilt only when the queue changes (the × buttons stay clickable); distance and ETA tick in place
       const rows = hv.queue.map((t, i) => {
         const detail = t.kind === 'dip' ? `${Math.min((t.step ?? 0) + 1, t.count ?? 1)}/${t.count ?? 1}`
-          : t.kind === 'buoys' ? `${t.step ?? 0}/${t.count ?? 1}${t.active ? ' · AKTIV' : ''}` : t.track ? esc(t.track) : '';
+          : t.kind === 'buoys' ? `${t.pattern ? `${PATTERN_NAME[t.pattern]} · ` : ''}${t.step ?? 0}/${t.count ?? 1}${t.active ? ' · AKTIV' : ''}` : t.track ? esc(t.track) : '';
         const where = t.kind === 'return' ? '' : km(distance(s.own, t));
         const when = i === 0 && hv.state === 'air' && hv.working ? 'LÄUFT' : t.etaS > 0 ? `ETA ${mmss(t.etaS)}` : 'JETZT';
         return { key: `${t.id}:${detail}`, html: `<span><span class="dim">${i + 1}</span> <span>${KIND[t.kind]}${detail ? ` · ${detail}` : ''}</span></span>`, where, when, id: t.id };

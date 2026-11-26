@@ -21,6 +21,10 @@ import type { EscortCmdKind } from './orders.js';
 export interface EscortCommandView {
   convoy?: {
     zigzag: boolean;
+    /** Zigzag plan steamed now (1–6, 0 = none), seconds to the next zig, and every plan's speed of advance (fraction). */
+    zigPlan?: number;
+    zigLeftS?: number;
+    zigPlans?: { n: number; name: string; text: string; advance: number }[];
     /** Speed the convoy makes now and the commander's change to the route speed (kn). */
     speedKn: number;
     adj: number;
@@ -97,6 +101,8 @@ export type ClientMsg =
   | {
     t: 'helo'; op: 'add' | 'now' | 'remove' | 'clear'; kind?: import('./helo.js').HeloTaskKind; bearing?: number; range?: number;
     axis?: number; count?: number; label?: string; active?: boolean; id?: number;
+    /** buoys: pattern (line, staggered barrier, circle round a datum, chevron ahead of a boat); absent = line. */
+    pattern?: import('./buoy-pattern.js').BuoyPattern;
   }
   | { t: 'helotorp'; bearing: number; range: number }
   | { t: 'mpa'; bearing: number; range: number }
@@ -113,7 +119,7 @@ export type ClientMsg =
    */
   | { t: 'escort_task'; shipId: string; task: EscortCmdKind | 'cancel'; x?: number; y?: number; rel?: number; range?: number }
   /** Escort commander's convoy orders: emergency turn 45° (side −1 port, +1 starboard, 0 cancel), zigzag on/off, speed change (kn, ±2). */
-  | { t: 'convoy_order'; order: 'turn' | 'zigzag' | 'speed' | 'course'; side?: -1 | 0 | 1; on?: boolean; adj?: number; /** order 'course': game-frame course, absent = back on the route */ course?: number }
+  | { t: 'convoy_order'; order: 'turn' | 'zigzag' | 'speed' | 'course'; side?: -1 | 0 | 1; on?: boolean; /** order 'zigzag': plan 1–6, 0 off (instead of on) */ plan?: number; adj?: number; /** order 'course': game-frame course, absent = back on the route */ course?: number }
   | { t: 'repair'; system: ShipSystem }
   /** Pass a FLASH order on (convoy turn) to the commodore. */
   | { t: 'execute_order'; id: string }
@@ -297,6 +303,8 @@ export interface OwnShipView {
   pingPending?: boolean;
   towedLength: number;
   towedOrder?: number;
+  /** Depth the towed array runs at now (m): shallower the faster the ship goes (towed-geometry.ts). */
+  towedDepth?: number;
   vdsDepth?: number;
   vdsOrder?: number;
   /** High-frequency mine-avoidance sonar on, and the range it reaches now (m). */
@@ -437,6 +445,8 @@ export interface Snapshot {
     /** Delta: only samples newer than the previous snapshot (all of them when `full`). */
     history: ContactTrack['history'];
     via: 'own' | 'datalink';
+    /** Datalink: age of the mate's report (s); its bearings are measured from originX/originY (the mate, in its own frame). */
+    linkAgeS?: number;
     /** What the periscope shows of the target's damage. */
     wreck?: WreckView;
     /** The player's (or datalink group's) own classification decision. */

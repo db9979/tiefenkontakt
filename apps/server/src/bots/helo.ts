@@ -1,4 +1,7 @@
-import { HELO_SPEED, bearing, depthAt, distance, heloOf, heloOrder, trackFix, type ContactTrack, type Ship, type Vec2, type World } from '@tk/shared';
+import {
+  FLYCO_REL_DEG, FLYCO_WOD_KN, HELO_LAUNCH_PREP_S, HELO_SPEED, KN, bearing, depthAt, distance, heloOf, heloOrder, nearestFlyingCourse, relativeWind, trackFix, trueWind,
+  type ContactTrack, type Ship, type Vec2, type World,
+} from '@tk/shared';
 import { isFriendly, traceShot, voted, type BotMemory } from './common.js';
 import { commitHelo, heloCovered } from './escort-team.js';
 
@@ -86,4 +89,31 @@ export function heloOnDipContact(w: World, m: BotMemory, s: Ship, tracks: Contac
 export function heloIdle(w: World, s: Ship): void {
   const h = heloOf(w, s.id);
   if (h?.state === 'air' && !h.queue.length) heloOrder(w, s, 'add', { kind: 'return' });
+}
+
+/** The AI turns onto the flying course as soon as the launch preparation starts (s before its end). */
+const TURN_IN_S = HELO_LAUNCH_PREP_S;
+/** ... and for a recovery once the helicopter is this close (m). */
+const RECOVER_NEAR_M = 2500;
+
+/**
+ * Flight deck (F14): the AI officer of the watch puts the ship on a flying course for a launch
+ * (from the last part of the preparation on) and for a recovery (helicopter close and home bound),
+ * holding the present heading when it already serves, else turning to the nearest one that does,
+ * at a moderate steady speed. Overrides the screen or hunt course while it lasts (a few minutes).
+ */
+export function steerFlyingCourse(w: World, s: Ship): boolean {
+  const h = heloOf(w, s.id);
+  if (!h) return false;
+  const launch = h.state === 'deck' && h.prepUntil !== undefined && w.time >= h.prepUntil - TURN_IN_S;
+  const recover = h.state === 'air' && h.queue[0]?.kind === 'return' && (!!h.recover || distance(h, s.pos) < RECOVER_NEAR_M);
+  if (!launch && !recover) return false;
+  if (launch && w.env.seaState > 5) return false;
+  const wind = trueWind(w);
+  const kn = Math.max(s.speed / KN, 8);
+  const r = relativeWind(wind, s.heading, kn);
+  const good = Math.abs(r.rel) <= FLYCO_REL_DEG - 5 && r.kn <= FLYCO_WOD_KN;
+  s.order.heading = good ? Math.round(s.heading) % 360 : nearestFlyingCourse(wind, s.heading, kn);
+  s.order.speedKn = Math.min(Math.max(s.order.speedKn, 8), 15);
+  return true;
 }

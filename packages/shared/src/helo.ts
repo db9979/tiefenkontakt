@@ -1,5 +1,10 @@
-import { HELO_RANGE, HELO_SPEED, DIP_HOVER_S, DIP_PING_S, MAD_PATTERN_S, aircraftPosition, cloverleaf, dipPing, layBuoy, madLook, madReport } from './aviation.js';
+import { HELO_RANGE, HELO_SPEED, DIP_PING_S, DOME_RAISE_MS, MAD_PATTERN_S, cloverleaf, dipPing, dipTimeline, domeDepthAt, layBuoy, madLook, madReport } from './aviation.js';
+import { CIRCLE_R, PATTERN_COUNT, buoyPoints, reversible, type BuoyPattern } from './buoy-pattern.js';
 import { hasHelicopter } from './classes.js';
+import { deckReady } from './flight-deck.js';
+import { migrateHelos } from './helo-migrate.js';
+
+export { migrateHelos } from './helo-migrate.js';
 import type { Ship } from './entities.js';
 import { havenBlocks } from './haven.js';
 import { bearing, clamp, distance, headingVec, type Vec2 } from './math.js';
@@ -24,8 +29,6 @@ export const HELO_TORPS = 2;
 export const DIP_STEP_M = 4000;
 /** Attack: from a dip contact (dome down) to the torpedo in the water. */
 export const ATTACK_FROM_DIP_S = 60;
-/** Raising the dome before the helicopter can move off. */
-const DOME_UP_S = 20;
 /** Fuel kept for the way home on top of the flight time. */
 const BINGO_RESERVE_S = 300;
 const QUEUE_MAX = 8;
@@ -64,6 +67,10 @@ export interface HeloTask {
   echo?: Vec2;
   /** buoys: lay the line from its far end. */
   reverse?: boolean;
+  /** buoys: pattern (absent = line). */
+  pattern?: BuoyPattern;
+  /** dip: dome depths above and below the layer, fixed on arrival over the point (m). */
+  dome?: [number, number];
   /** attack: torpedo not before this time; fix time aimed at. */
   notBefore?: number;
   fixT?: number;
@@ -91,6 +98,14 @@ export interface Helo {
   dipping?: boolean;
   /** Latest echo of the own dipping sonar. */
   fix?: { x: number; y: number; t: number };
+  /** Dome depth now (m): reeled up before the helicopter can move off. */
+  domeDepth?: number;
+  /** Flying course held since (launch with rotors running, or recovery alongside). */
+  deckSince?: number;
+  /** Home and alongside, waiting for the deck (flying course) to land. */
+  recover?: boolean;
+  /** Last flight-deck message to the bridge: what and when (repeated only now and then). */
+  deckSaid?: { what: string; t: number };
 }
 
 /** An order to the helicopter: what and where (task fields are filled in from it). */
@@ -104,6 +119,7 @@ export interface HeloOrder {
   deep?: boolean;
   track?: string;
   off?: Vec2;
+  pattern?: BuoyPattern;
 }
 
 export function newHelo(ship: Ship, buoys: number, torps: number): Helo {
@@ -116,61 +132,20 @@ export function heloOf(w: World, shipId: string): Helo | undefined {
   return w.air.helos?.[shipId];
 }
 
-/**
- * Older saves flew one sortie per task (kind undefined = buoy) and kept every buoy and torpedo
- * in the ship's stock. Turn each ship's sortie into the airborne helicopter with that task still
- * to do (then home), or into the helicopter on deck finishing its turnaround.
- */
-export function migrateHelos(w: World): void {
-  const air = w.air;
-  if (!air) return;
-  const old = air.sorties.filter((s) => s.kind !== 'mpa');
-  if (air.helos && !old.length) return;
-  air.helos ??= {};
-  air.heloTorps ??= new Map();
-  for (const ship of w.ships) {
-    if (!hasHelicopter(ship.cls) || air.helos[ship.id]) continue;
-    const stock = air.stock.get(ship.id) ?? 0;
-    const torps = air.heloTorps.get(ship.id) ?? 0;
-    const h = newHelo(ship, Math.min(HELO_BUOYS, stock), Math.min(HELO_TORPS, torps));
-    air.stock.set(ship.id, stock - h.buoys);
-    air.heloTorps.set(ship.id, torps - h.torps);
-    air.helos[ship.id] = h;
-    const s = old.find((x) => x.shipId === ship.id && w.time < x.readyAt);
-    if (!s) continue;
-    if (w.time >= s.landAt) {
-      h.readyAt = s.readyAt;
-      continue;
-    }
-    const p = aircraftPosition(s, w.time, ship) ?? ship.pos;
-    Object.assign(h, { state: 'air', x: p.x, y: p.y, launchAt: s.launchAt, fuel: HELO_ENDURANCE_S - (w.time - s.launchAt) });
-    const kind = s.kind ?? 'buoy';
-    const at = { x: s.target.x, y: s.target.y };
-    const task = (o: HeloOrder) => h.queue.push(makeTask(h, ship, o));
-    if (!s.dropped) {
-      // The buoy or torpedo of this sortie was already taken from the stock: it is aboard
-      if (kind === 'buoy') { h.buoys++; task({ kind: 'buoys', at, count: 1, active: s.active }); }
-      else if (kind === 'torpedo') { h.torps++; task({ kind: 'attack', at }); }
-      else if (kind === 'dip' || kind === 'mad') task({ kind, at, count: 1 });
-    } else if ((kind === 'dip' || kind === 'mad') && s.hoverUntil !== undefined && w.time < s.hoverUntil) {
-      task({ kind, at, count: 1 });
-      Object.assign(h.queue[0]!, { phase: 'work', from: s.dropAt, until: s.hoverUntil, lastPing: s.lastPing ?? -1e9, madHit: s.madHit });
-    }
-    task({ kind: 'return' });
-  }
-  air.sorties = air.sorties.filter((s) => s.kind === 'mpa');
-}
-
-function makeTask(h: Helo, ship: Ship, o: HeloOrder): HeloTask {
+/** A queue task from an order (also used by the save migration, helo-migrate.ts). */
+export function makeTask(h: Helo, ship: Ship, o: HeloOrder): HeloTask {
   const at = o.at ?? ship.pos;
   const t: HeloTask = { id: h.nextTask++, kind: o.kind, x: at.x, y: at.y };
   if (o.kind === 'dip') {
     t.count = clamp(Math.round(o.count ?? 3), 1, 8);
     t.axis = o.axis ?? bearing(ship.pos, at);
   } else if (o.kind === 'buoys') {
-    t.count = clamp(Math.round(o.count ?? 4), 1, 6);
-    t.spacing = clamp(o.spacing ?? 2500, 2000, 3000);
-    t.axis = o.axis ?? bearing(ship.pos, at) + 90;
+    const pat = o.pattern ?? 'line';
+    t.count = clamp(Math.round(o.count ?? PATTERN_COUNT[pat].def), 1, PATTERN_COUNT[pat].max);
+    t.spacing = pat === 'circle' ? clamp(o.spacing ?? 2800, CIRCLE_R[0], CIRCLE_R[1]) : clamp(o.spacing ?? 2500, 2000, 3000);
+    // Line and barrier across the line of sight; a chevron points along it (the boat comes on); a circle starts north
+    t.axis = o.axis ?? (pat === 'chevron' ? bearing(at, ship.pos) : pat === 'circle' ? 0 : bearing(ship.pos, at) + 90);
+    if (pat !== 'line') t.pattern = pat;
     if (o.active) t.active = true;
     if (o.deep !== undefined) t.deep = o.deep;
   }
@@ -252,15 +227,9 @@ export function sendHeloTorpedo(w: World, ship: Ship, target: Vec2): true | stri
   return heloOrder(w, ship, 'add', { kind: 'attack', at: target });
 }
 
-/** Points of a buoy line: `count` buoys `spacing` apart along `axis`, centred on the task point. */
-export function buoyLine(t: Pick<HeloTask, 'x' | 'y' | 'axis' | 'count' | 'spacing'>): Vec2[] {
-  const n = t.count ?? 1;
-  const v = headingVec(t.axis ?? 0);
-  const sp = t.spacing ?? 2500;
-  return Array.from({ length: n }, (_, i) => {
-    const off = (i - (n - 1) / 2) * sp;
-    return { x: t.x + v.x * off, y: t.y + v.y * off };
-  });
+/** Points of the task's buoy pattern (a line: `count` buoys `spacing` apart along `axis`, centred on the point). */
+export function buoyLine(t: Pick<HeloTask, 'x' | 'y' | 'axis' | 'count' | 'spacing' | 'pattern'>): Vec2[] {
+  return buoyPoints(t);
 }
 
 /** Latest position of a contact from the owner's book: a sample with range, from where it was measured. */
@@ -306,6 +275,8 @@ function finish(h: Helo): void {
   restart(h);
 }
 
+const PATTERN_SAY: Record<BuoyPattern, string> = { line: 'LINIE', barrier: 'SPERRE', circle: 'KREIS', chevron: 'KEIL' };
+
 function say(w: World, ship: Ship, text: string): void {
   w.events.push({ kind: 'boat', time: w.time, shipId: ship.id, what: 'helo', text: `HUBSCHRAUBER · ${text}` });
 }
@@ -332,15 +303,21 @@ export function dipDepth(w: World, owner: Ship, p: Vec2, deep: boolean): number 
 function doDip(w: World, h: Helo, t: HeloTask, owner: Ship, dt: number): void {
   if (t.phase !== 'work') {
     if (!flyTo(h, t, dt)) return;
-    Object.assign(t, { phase: 'work', from: w.time, until: w.time + DIP_HOVER_S, lastPing: -1e9, pings: 0, echo: undefined });
+    // Over the point: come to the hover, reel the dome down above the layer, search, shift below it, search, reel up
+    const dome: [number, number] = [dipDepth(w, owner, t, false), dipDepth(w, owner, t, true)];
+    Object.assign(t, { phase: 'work', from: w.time, until: w.time + dipTimeline(dome[0], dome[1]).end, lastPing: -1e9, pings: 0, echo: undefined, dome });
   }
+  const dome = t.dome ?? [dipDepth(w, owner, t, false), dipDepth(w, owner, t, true)];
+  const u = w.time - (t.from ?? w.time);
+  const tl = dipTimeline(dome[0], dome[1]);
+  h.domeDepth = domeDepthAt(dome[0], dome[1], u);
   h.dipping = true;
-  if (w.time - (t.lastPing ?? -1e9) >= DIP_PING_S) {
+  // Pings only while the dome hangs still at one of its two depths
+  const at = u >= tl.s1 && u < tl.e1 ? dome[0] : u >= tl.s2 && u < tl.e2 ? dome[1] : undefined;
+  if (at !== undefined && w.time - (t.lastPing ?? -1e9) >= DIP_PING_S) {
     t.lastPing = w.time;
-    // Alternately above and below the layer
-    const deep = (t.pings ?? 0) % 2 === 1;
     t.pings = (t.pings ?? 0) + 1;
-    const dets = dipPing(w, t, owner, dipDepth(w, owner, t, deep));
+    const dets = dipPing(w, t, owner, at);
     w.lastDetections.push(...dets);
     for (const d of dets) {
       bookFor(w, d.observerId).ingest(d);
@@ -351,24 +328,26 @@ function doDip(w: World, h: Helo, t: HeloTask, owner: Ship, dt: number): void {
     }
   }
   if (w.time < (t.until ?? 0)) return;
+  h.domeDepth = 0;
   t.step = (t.step ?? 0) + 1;
   if (t.step >= (t.count ?? 1)) return finish(h);
   // Next dip: onto the contact if this dip held one, else on in the search direction
   const next = t.echo && distance(t, t.echo) < 6000 ? t.echo : { x: t.x + headingVec(t.axis ?? 0).x * DIP_STEP_M, y: t.y + headingVec(t.axis ?? 0).y * DIP_STEP_M };
   if (t.echo) t.axis = bearing(t, t.echo);
-  Object.assign(t, { x: next.x, y: next.y, phase: undefined, echo: undefined });
+  Object.assign(t, { x: next.x, y: next.y, phase: undefined, echo: undefined, dome: undefined });
 }
 
 function doBuoys(w: World, h: Helo, t: HeloTask, owner: Ship, dt: number): void {
   if (h.buoys <= 0) return rearmFirst(w, h, owner, 'buoys');
   const pts = buoyLine(t);
-  t.reverse ??= distance(h, pts[pts.length - 1]!) < distance(h, pts[0]!);
+  t.reverse ??= reversible(t.pattern) && distance(h, pts[pts.length - 1]!) < distance(h, pts[0]!);
   const i = t.step ?? 0;
   const idx = t.reverse ? pts.length - 1 - i : i;
   if (!flyTo(h, pts[idx]!, dt)) return;
   h.buoys--;
   // Every other buoy below the layer, the first one deep
   layBuoy(w, owner.id, pts[idx]!, dipDepth(w, owner, pts[idx]!, t.deep ?? idx % 2 === 0), t.active);
+  if (t.step === undefined && t.pattern) say(w, owner, `BOJEN · ${PATTERN_SAY[t.pattern]} · ${pts.length} BOJEN`);
   w.events.push({ kind: 'weapon', time: w.time, sourceId: owner.id, what: 'buoy' });
   t.step = i + 1;
   if (t.step >= pts.length) finish(h);
@@ -394,10 +373,11 @@ function doMad(w: World, h: Helo, t: HeloTask, owner: Ship, dt: number): void {
 
 function doAttack(w: World, h: Helo, t: HeloTask, owner: Ship, dt: number, wasDipping: boolean): void {
   if (h.torps <= 0) return rearmFirst(w, h, owner, 'torps');
-  // From the hover the dome comes up first; the torpedo goes in a minute after the contact
+  // From the hover the dome comes up first (by its depth); the torpedo goes in a minute after the contact at the earliest
   if (t.notBefore === undefined) {
-    t.notBefore = w.time + (wasDipping ? ATTACK_FROM_DIP_S : 0);
-    t.from = w.time + (wasDipping ? DOME_UP_S : 0);
+    const up = wasDipping ? (h.domeDepth ?? 0) / DOME_RAISE_MS : 0;
+    t.notBefore = w.time + (wasDipping ? Math.max(ATTACK_FROM_DIP_S, up + 15) : 0);
+    t.from = w.time + up;
   }
   // Aim at the latest fix held: the contact's track, or the own dipping sonar's echo near the aim
   const fix = t.track ? trackFix(w, owner, t.track) : undefined;
@@ -449,12 +429,17 @@ function stepHelo(w: World, h: Helo, owner: Ship, dt: number): void {
     while (h.queue[0]?.kind === 'return') h.queue.shift();
     if (!h.queue.length || w.time < h.readyAt) {
       h.prepUntil = undefined;
+      h.deckSince = undefined;
+      h.deckSaid = undefined;
       return;
     }
-    // Launch preparation (about 2 min) before it lifts off
+    // Launch preparation (about 2 min), and a minute with rotors running on a flying course: the
+    // ship can come onto it while the crew prepares, so a bridge that turns early loses no time
     h.prepUntil ??= w.time + HELO_LAUNCH_PREP_S;
-    if (w.time < h.prepUntil) return;
+    const onCourse = deckReady(w, h, owner, true, (text) => say(w, owner, text));
+    if (w.time < h.prepUntil || !onCourse) return;
     h.prepUntil = undefined;
+    h.deckSince = undefined;
     h.state = 'air';
     h.launchAt = w.time;
     restart(h);
@@ -477,9 +462,15 @@ function stepHelo(w: World, h: Helo, owner: Ship, dt: number): void {
   else if (t.kind === 'mad') doMad(w, h, t, owner, dt);
   else if (t.kind === 'attack') doAttack(w, h, t, owner, dt, wasDipping);
   else if (flyTo(h, owner.pos, dt)) {
+    // Alongside: lands once the ship holds a flying course (out of fuel: lands as it can)
+    h.recover = true;
+    if (h.fuel > 0 && !deckReady(w, h, owner, false, (text) => say(w, owner, text))) return;
+    if (h.fuel <= 0) say(w, owner, 'NOTLANDUNG AUSSERHALB DER GRENZEN');
+    h.recover = false;
+    h.deckSince = undefined;
     finish(h);
     land(w, h, owner);
-  }
+  } else h.recover = false;
 }
 
 /** Every tick: fly and work every helicopter. A helicopter whose ship is lost is lost with it. */

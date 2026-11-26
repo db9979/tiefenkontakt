@@ -21,6 +21,14 @@ import { pickByBearing } from '../sub/sonar.js';
  * header; one "Anzeige" popover sets both waterfalls (they share their display settings), next
  * to the towed array's side choice in its footer.
  */
+
+/** Array depth and where it runs against the measured layer (fast: up in the duct, slow: below the layer). */
+function towedDepthText(depth: number | undefined, layer: number | undefined): string {
+  if (depth === undefined) return '';
+  const rel = layer === undefined ? '' : depth > layer + 10 ? ' UNTER DER SCHICHT' : depth < layer - 10 ? ' ÜBER DER SCHICHT' : ' IN DER SCHICHT';
+  return ` · ${depth} M TIEF${rel}`;
+}
+
 export function frigateSonarStation(): Station {
   const el = h(`<div class="st two fsonar">
     <div class="st-col">
@@ -131,7 +139,7 @@ export function frigateSonarStation(): Station {
       const winch = tgt !== o.towedLength;
       q('#ts').textContent = winch
         ? `${tgt > o.towedLength ? 'AUSBRINGEN' : 'EINHOLEN'} ${o.towedLength} / ${tgt} M`
-        : o.towedLength === 0 ? 'EINGEHOLT' : o.towedReady ? `${o.towedLength} M · BEREIT` : `${o.towedLength} M · STABILISIERT…`;
+        : o.towedLength === 0 ? 'EINGEHOLT' : `${o.towedLength} M · ${o.towedReady ? 'BEREIT' : 'STABILISIERT…'}${towedDepthText(o.towedDepth, s.env.layerDepth)}`;
       const maxTow = CLASSES[o.cls].towed?.maxLength ?? 0;
       el.querySelectorAll<HTMLButtonElement>('[data-len]').forEach((b) => {
         const len = Number(b.dataset.len);

@@ -49,9 +49,9 @@ export const DETOUR_LOOK_M = 6000;
 export const DETOUR_PAST_M = 2500;
 /**
  * Half width of the band the convoy sweeps around its track: the outer columns (900 m), the
- * zigzag's sideways swing (~500 m) and a margin for the triggers and station keeping.
+ * zigzag's sideways swing (up to ZIG_SWING_M, 900 m, zigzag.ts) and a margin for the triggers and station keeping.
  */
-export const DETOUR_BAND_M = 1800;
+export const DETOUR_BAND_M = 2200;
 /** A barrage: this many known mines in the band ahead before the convoy is turned off its route. */
 export const DETOUR_MIN_MINES = 2;
 /** Water the shifted track must keep under the keel of its outer columns (m). */

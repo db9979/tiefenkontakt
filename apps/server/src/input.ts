@@ -100,7 +100,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   }),
   z.object({
     t: z.literal('convoy_order'), order: z.enum(['turn', 'zigzag', 'speed', 'course']), course: deg.optional(),
-    side: z.union([z.literal(-1), z.literal(0), z.literal(1)]).optional(), on: z.boolean().optional(), adj: z.number().int().min(-2).max(2).optional(),
+    side: z.union([z.literal(-1), z.literal(0), z.literal(1)]).optional(), on: z.boolean().optional(), plan: z.number().int().min(0).max(6).optional(), adj: z.number().int().min(-2).max(2).optional(),
   }),
   z.object({ t: z.literal('towed'), length: z.number().finite().min(0).max(2000) }),
   z.object({
@@ -152,8 +152,8 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
     t: z.literal('helo'), op: z.enum(['add', 'now', 'remove', 'clear']),
     kind: z.enum(['dip', 'buoys', 'mad', 'attack', 'return']).optional(),
     bearing: deg.optional(), range: z.number().finite().min(0).max(50_000).optional(), axis: deg.optional(),
-    count: z.number().int().min(1).max(6).optional(), label: z.string().min(1).max(24).optional(), active: z.boolean().optional(),
-    id: z.number().int().min(0).max(1e9).optional(),
+    count: z.number().int().min(1).max(8).optional(), label: z.string().min(1).max(24).optional(), active: z.boolean().optional(),
+    id: z.number().int().min(0).max(1e9).optional(), pattern: z.enum(['line', 'barrier', 'circle', 'chevron']).optional(),
   }),
   z.object({ t: z.literal('mpa'), bearing: deg, range: z.number().finite().min(0).max(80_000) }),
   z.object({ t: z.literal('sam'), planeId: z.string().min(1).max(24) }),
@@ -371,5 +371,5 @@ function heloCommand(w: World, s: Ship, m: Extract<GameCommand, { t: 'helo' }>):
     const v = headingVec(m.bearing);
     at = { x: s.pos.x + v.x * m.range, y: s.pos.y + v.y * m.range };
   }
-  return heloOrder(w, s, m.op, { kind: m.kind, at, axis: m.axis, count: m.count, track: m.label, active: m.active });
+  return heloOrder(w, s, m.op, { kind: m.kind, at, axis: m.axis, count: m.count, track: m.label, active: m.active, pattern: m.pattern });
 }

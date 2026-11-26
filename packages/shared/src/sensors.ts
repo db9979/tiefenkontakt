@@ -1,3 +1,4 @@
+import { towedGeometryDepth } from './towed-geometry.js';
 import {
   activeSignalExcess,
   bearingSigma,
@@ -196,10 +197,9 @@ function noisyBearing(trueB: number, se: number, rng: Rng): number {
   return wrap360(trueB + rng.gauss(0, bearingSigma(se)));
 }
 
-/** Depth of the towed array: it streams below and behind the towing ship. */
+/** Depth of the towed array: it streams below and behind the towing ship, shallower the faster she goes (towed-geometry.ts). */
 export function towedArrayDepth(s: Ship): number {
-  const factor = CLASSES[s.cls].submarine ? 0.05 : 0.15;
-  return Math.min(s.depth + s.towedLength * factor, 300);
+  return towedGeometryDepth(s);
 }
 
 /** Settling time after the last disturbance: set by the size of the alteration (kinematics), else the class value. */

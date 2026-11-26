@@ -94,6 +94,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   if (now < m.evadeUntil) return;
 
   const bottom = depthAt(w.env.seabed, s.pos.x, s.pos.y);
+  // TODO(merge, worker A): use depthLimit(s) from boat.ts instead of CLASSES[s.cls].maxDepth (a damaged hull dives less deep)
   const maxSafe = Math.max(25, Math.min(CLASSES[s.cls].maxDepth * 0.85, bottom - 30));
   const tracks = w.books.get(s.id)?.tracks() ?? [];
   const fresh = tracks.filter((t) => now - t.lastSeen < 15 && t.sensors.some((x) => x === 'hull' || x === 'towed'));
@@ -321,6 +322,8 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     const salvo = guard ? ((m.guardShots = (m.guardShots ?? 0) + 1) % 2 === 1 ? 2 : 1) : k.salvo;
     // One salvo, fanned by the target's length at that range and the TMA's error
     const spread = defaultSpreadDeg(range, solved ? Math.min(3, Math.max(1, (100 - solved.q) / 15)) : 2);
+    // TODO(merge, worker B): SSN on a fast escort (voted warship, solution speed > 15 kn, same pacing gates passed): mode 'wake'
+    // (SeekerMode from worker B's branch, not in this tree) fired to cross astern of the target so it picks up the wake
     const shot = fireSalvo(w, s, { heading: wrap360(aim), enableAfter: Math.max(800, range * 0.6), mode: duel ? 'active' : 'passive', searchDepth: duel ? Math.max(40, s.depth) : 15, speedKn: runKn }, salvo, spread);
     const fired = typeof shot === 'string' ? 0 : shot.length;
     if (fired) {

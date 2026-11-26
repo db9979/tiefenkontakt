@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ATTACK_FROM_DIP_S, DIP_HOVER_S, DIP_STEP_M, HELO_BUOYS, HELO_ENDURANCE_S, HELO_LAUNCH_PREP_S, HELO_REFUEL_S, HELO_SPEED, HELO_TORPS,
+  ATTACK_FROM_DIP_S, DIP_HOVER_S, DIP_STEP_M, DIP_TRANSITION_S, HELO_BUOYS, LAUNCH_ON_COURSE_S, dipTimeline, HELO_ENDURANCE_S, HELO_LAUNCH_PREP_S, HELO_REFUEL_S, HELO_SPEED, HELO_TORPS,
   bookFor, buoyLine, createShip, dipDepth, createWorld, distance, heloClear, heloOf, heloOrder, heloRemove, heloView, installAir,
   installWeapons, restoreWorld, saveWorld, stepWorld, type World,
 } from '../src/index.js';
@@ -37,6 +37,7 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     expect(heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 60_000, y: 0 } })).toMatch(/Reichweite/);
     const eta = heloView(w, ffg)!.queue.map((q) => q.etaS);
     // The ETA counts the launch preparation on deck
+    // On a flying course all along (calm here): the minute with rotors running overlaps the preparation
     expect(eta[0]).toBeCloseTo(HELO_LAUNCH_PREP_S + 6000 / HELO_SPEED, -1);
     expect(eta[1]).toBeGreaterThan(eta[0]! + 360);
     expect(eta[2]).toBeGreaterThan(eta[1]! + 2 * DIP_HOVER_S);
@@ -47,6 +48,8 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     expect(heloView(w, ffg)!.launchInS).toBeCloseTo(HELO_LAUNCH_PREP_S - 1, -1);
     run(w, HELO_LAUNCH_PREP_S - 5);
     expect(h.state).toBe('deck');
+    expect(heloView(w, ffg)!.deck?.need).toBe('launch');
+    expect(heloView(w, ffg)!.deck?.ok).toBe(true);
     run(w, 6);
     expect(h.state).toBe('air');
     expect(heloView(w, ffg)!.launchInS).toBeUndefined();
@@ -67,7 +70,7 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     expect(h.state).toBe('deck');
   });
 
-  it('dip cycle: hovers 180 s pinging above and below the layer, then dips again 4 km on', () => {
+  it('dip cycle: comes to the hover, reels the dome down, searches 180 s above and below the layer, reels up, then dips again 4 km on', () => {
     const { w, ffg } = world({ x: 40_000, y: 40_000 });
     heloOrder(w, ffg, 'add', { kind: 'dip', at: { x: 0, y: 5000 }, axis: 90, count: 2 });
     const h = heloOf(w, 'f')!;
@@ -78,12 +81,17 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
       stepWorld(w);
 
     }
-    expect(w.time - t0).toBeCloseTo(DIP_HOVER_S, -1);
+    // Layer at 120 m: dome at 40 m, then 160 m (about 5 min per dip with transition, reeling and search)
+    const cycle = dipTimeline(40, 160).end;
+    expect(w.time - t0).toBeCloseTo(cycle, -1);
+    expect(cycle).toBeGreaterThan(180);
+    expect(cycle).toBeLessThan(300);
     const t = h.queue[0]!;
     expect(t.step).toBe(1);
     expect(t.x).toBeCloseTo(DIP_STEP_M, -1);
     expect(t.y).toBeCloseTo(5000, -1);
-    expect(t.pings).toBe(DIP_HOVER_S / 20);
+    // A ping every 20 s while the dome hangs still: five at each depth
+    expect(t.pings).toBe(2 * Math.ceil(DIP_HOVER_S / 2 / 20));
     run(w, 100, () => h.queue[0]?.phase === 'work');
     expect(distance(h, { x: DIP_STEP_M, y: 5000 })).toBeLessThan(1);
   });
@@ -148,7 +156,7 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     heloOrder(w, ffg, 'add', { kind: 'buoys', at: { x: 0, y: 12_000 }, axis: 90, count: 6 });
     heloOrder(w, ffg, 'add', { kind: 'buoys', at: { x: 0, y: 18_000 }, axis: 90, count: 4 });
     const h = heloOf(w, 'f')!;
-    run(w, 3000, () => h.state === 'deck' && w.time > HELO_LAUNCH_PREP_S + 10);
+    run(w, 3000, () => h.state === 'deck' && w.time > HELO_LAUNCH_PREP_S + LAUNCH_ON_COURSE_S + 10);
     // 12 buoys aboard: empty after two lines, home to rearm
     expect(h.state).toBe('deck');
     expect(w.air!.buoys).toHaveLength(12);
@@ -162,7 +170,7 @@ describe('ship helicopter: one airframe with a task queue (C11)', () => {
     run(w, 10);
     expect(h.state).toBe('deck');
     expect(h.prepUntil).toBeDefined();
-    run(w, HELO_LAUNCH_PREP_S);
+    run(w, HELO_LAUNCH_PREP_S + LAUNCH_ON_COURSE_S);
     expect(h.state).toBe('air');
     // Fuel: a long loiter far out ends in a landing before the tank is dry
     h.queue = [];
