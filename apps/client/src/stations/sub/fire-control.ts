@@ -25,6 +25,11 @@ import {
   defaultSpreadDeg,
   launchBlock,
   SALVO_MAX,
+  twoSpeedMeanKn,
+  twoSpeedRange,
+  WIRE_MAX_OWNER_KN,
+  WIRE_MAX_TURN,
+  type SeekerMode,
 } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState, tubeTag } from '../../widgets/btn-state.js';
@@ -53,6 +58,8 @@ const FIRE_Q_MIN = 50;
 /** Clicks on FEUER closer together than this (ms) count as one. */
 const FIRE_DEBOUNCE_MS = 700;
 
+/** Heavyweight run presets (kn): one speed, or transit/attack (the sprint starts when the seeker opens). */
+const SPEED_PRESETS = ['40', '30', '30/40', '25/40', '25/30'];
 const n1 = (x: number) => x.toFixed(1).replace('.', ',');
 const mmss = (t: number) => {
   const s = Math.max(0, Math.floor(t));
@@ -114,7 +121,7 @@ export function fireControlStation(): Station {
         <div class="fill" id="plot-box"><canvas id="plot"></canvas></div>
         <div class="hint">GELBEN KREIS ZIEHEN = TMA · RECHTSKLICK = AKTIONEN</div>
       </div>
-      <div class="panel fc-wire" style="--stack:3" title="Draht: unter 12 kn bleiben · nach dem Täuschkörper abdrehen und Tiefe wechseln">
+      <div class="panel fc-wire" style="--stack:3" title="Draht: höchstens ${WIRE_MAX_TURN}°/min Kurswechsel, bis ${WIRE_MAX_OWNER_KN} kn, Torpedo nicht achteraus, sonst reißt er · nach dem Täuschkörper abdrehen und Tiefe wechseln">
         <span class="tl">DRAHT</span><div id="wires"></div>
         <button id="tr-nm" class="warn" title="Geräuschboje gegen anlaufende Torpedos; danach abdrehen und Tiefe wechseln">Täuschkörper${keycap('decoy')}</button>
       </div>
@@ -140,10 +147,10 @@ export function fireControlStation(): Station {
       </div>
       <div class="panel fc-set" style="--stack:6">
         <div class="fc-grid">
-          <label title="Laufgeschwindigkeit"><span class="dim">LAUF</span><select id="t-spd"><option>40</option><option>30</option></select><span class="u">KN</span></label>
+          <label title="Laufgeschwindigkeit: Marsch → Angriff ab Suchkopf. Langsamer Marsch: leiser und weiter; schneller Angriff: kürzer, der passive Suchkopf hört schlechter"><span class="dim">LAUF</span><select id="t-spd">${SPEED_PRESETS.map((p) => `<option value="${p}">${p.replace('/', '→')}</option>`).join('')}</select><span class="u">KN</span></label>
           <label title="Suchkopf ein nach"><span class="dim">SUCHKOPF</span><input id="t-en" type="number" value="2000" step="250"><span class="u">M</span></label>
           <label><span class="dim">SUCHTIEFE</span><input id="t-dep" type="number" value="15" step="5"><span class="u">M</span></label>
-          <label title="Suchmodus"><span class="dim">MODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option></select><span class="u"></span></label>
+          <label title="Suchmodus"><span class="dim">MODUS</span><select id="t-mode"><option value="passive">PASSIV</option><option value="active">AKTIV</option><option value="wake" hidden title="Kielwassertorpedo: quer hinter das Ziel schießen; läuft die Hecksee hoch, Täuschkörper wirken nicht">KIELWASSER</option></select><span class="u"></span></label>
           <label><span class="dim">SCHUSSKURS</span><input id="t-hdg" type="number" min="0" max="359" placeholder="—"><span class="u">°</span></label>
           <label title="Fächerwinkel zwischen zwei Torpedos"><span class="dim">FÄCHER</span><input id="t-spread" type="number" min="0" max="10" step="0.5" value="3"><span class="u">°</span></label>
           <div class="lbl"><span class="dim">SALVE</span><span class="seg" id="t-salvo">${Array.from({ length: SALVO_MAX }, (_, i) => `<button data-salvo="${i + 1}">${i + 1}</button>`).join('')}</span></div>
@@ -156,13 +163,19 @@ export function fireControlStation(): Station {
     </div>
   </div>`);
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
+  /** The run preset: transit until the seeker opens, then the attack speed (one speed: both equal). */
+  const speeds = (): { transitKn: number; speedKn: number } => {
+    const [a, b] = q<HTMLSelectElement>('#t-spd').value.split('/').map(Number);
+    return { transitKn: a!, speedKn: b ?? a! };
+  };
+  const mode = () => q<HTMLSelectElement>('#t-mode').value as SeekerMode;
   const plot = new Plot(q<HTMLCanvasElement>('#plot'), {
     bearingLines: true, showConvoy: false, esmLines: true,
     actions: (p) => [
       ...courseAction(p),
       ...torpedoAction(p, {
-        speedKn: Number(q<HTMLSelectElement>('#t-spd').value), searchDepth: Number(q<HTMLInputElement>('#t-dep').value) || 15,
-        mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active',
+        ...speeds(), searchDepth: Number(q<HTMLInputElement>('#t-dep').value) || 15,
+        mode: mode(),
         // Expert: the map only sets course and seeker distance; the guarded FEUER button fires
         aim: store.realism === 'profi' ? (hdg, enableAfter) => {
           q<HTMLInputElement>('#t-hdg').value = String(Math.round(trueDeg(hdg)) % 360);
@@ -286,10 +299,13 @@ export function fireControlStation(): Station {
       store.lastError = 'Entfernung nicht beobachtbar: erst einen eigenen Kurswechsel fahren';
       return;
     }
-    const hdg = interceptHeading(s.own, Number(q<HTMLSelectElement>('#t-spd').value), sol, s.time);
-    if (hdg !== undefined) q<HTMLInputElement>('#t-hdg').value = String(Math.round(trueDeg(hdg)) % 360);
     const rng = distance(s.own, targetPosAt(sol, s.time));
-    q<HTMLInputElement>('#t-en').value = String(Math.max(500, Math.round((rng * 0.7) / 250) * 250));
+    const enableAfter = Math.max(500, Math.round((rng * 0.7) / 250) * 250);
+    // Two-speed run: aim with the mean speed out to the target
+    const sp = speeds();
+    const hdg = interceptHeading(s.own, mode() === 'wake' ? sp.speedKn : twoSpeedMeanKn(sp.transitKn, sp.speedKn, enableAfter, rng), sol, s.time);
+    if (hdg !== undefined) q<HTMLInputElement>('#t-hdg').value = String(Math.round(trueDeg(hdg)) % 360);
+    q<HTMLInputElement>('#t-en').value = String(enableAfter);
     if (!spreadTouched && c) {
       const fan = defaultSpreadDeg(rng, evaluateSolution(sol, c.history, store.ownTrack).rmsDeg);
       q<HTMLInputElement>('#t-spread').value = (Math.round(fan * 2) / 2).toFixed(1);
@@ -318,8 +334,8 @@ export function fireControlStation(): Station {
     if (!Number.isFinite(hdg)) return;
     net.send({
       t: 'fire', heading: gameDeg(hdg), enableAfter: Number(q<HTMLInputElement>('#t-en').value),
-      mode: q<HTMLSelectElement>('#t-mode').value as 'passive' | 'active', searchDepth: Number(q<HTMLInputElement>('#t-dep').value),
-      speedKn: Number(q<HTMLSelectElement>('#t-spd').value),
+      mode: mode(), searchDepth: Number(q<HTMLInputElement>('#t-dep').value),
+      ...speeds(),
       ...(salvo > 1 ? { salvo, spread: Math.max(0, Math.min(10, Number(q<HTMLInputElement>('#t-spread').value) || 0)) } : {}),
     });
   });
@@ -380,7 +396,18 @@ export function fireControlStation(): Station {
       q('#fire-why').style.display = block ? '' : 'none';
       el.querySelectorAll<HTMLButtonElement>('[data-salvo]').forEach((b) => b.classList.toggle('on', Number(b.dataset.salvo) === salvo));
       q<HTMLInputElement>('#t-spread').disabled = salvo === 1;
-      q('#t-spread-auto').textContent = salvo > 1 ? `${salvo} TORPEDOS · FÄCHER ${Math.round((salvo - 1) * (Number(q<HTMLInputElement>('#t-spread').value) || 0))}°` : '';
+      // Wake homers (east SSN): in the mode list with the count left
+      const wakeOpt = q<HTMLOptionElement>('#t-mode option[value="wake"]');
+      wakeOpt.hidden = lo.wake === undefined;
+      wakeOpt.disabled = !lo.wake;
+      wakeOpt.textContent = `KIELWASSER (${lo.wake ?? 0})`;
+      if (mode() === 'wake' && !lo.wake) q<HTMLSelectElement>('#t-mode').value = 'passive';
+      // The reach of the run preset with the seeker distance set (a wake homer runs one speed)
+      const sp = speeds();
+      const enAt = Math.max(500, Number(q<HTMLInputElement>('#t-en').value) || 0);
+      const reach = mode() === 'wake' ? twoSpeedRange(sp.speedKn, sp.speedKn, enAt) : twoSpeedRange(sp.transitKn, sp.speedKn, enAt);
+      q('#t-spread-auto').textContent = `REICHW. ${km(reach)}${salvo > 1 ? ` · FÄCHER ${Math.round((salvo - 1) * (Number(q<HTMLInputElement>('#t-spread').value) || 0))}°` : ''}`;
+      q('#t-spread-auto').title = salvo > 1 ? `${salvo} Torpedos, Fächer gesamt in Grad · Reichweite aus dem Brennstoff bei Marsch- und Angriffsfahrt` : 'Reichweite aus dem Brennstoff bei Marsch- und Angriffsfahrt';
       btnState(q('#calc'), sol ? { label: lost ? 'GEKOPPELT' : 'LÖSUNG', tone: lost ? 'warn' : undefined } : { label: 'KEINE', tone: 'empty' });
       const legs = c ? c.history.length : 0;
       const prior = c ? priorFor(c) : undefined;
@@ -465,18 +492,26 @@ export function fireControlStation(): Station {
       // One row per torpedo, kept by id: the figures change every snapshot, the steering buttons stay
       // the same nodes (buttons inserted while a finger is down make iOS drop the tap)
       const wires = q('#wires');
-      setRows(wires, s.torpedoes.length ? s.torpedoes.map((t) => ({ key: t.id, html: `
+      // F16: torpedoes whose wire broke (or that left without one) follow, with the reason, no steering
+      const cut = (s.wireLost ?? []).map((x) => ({ key: `x:${x.id}`, html: `
+        <div class="row wire-row wr-cut" title="${x.why}"><span class="wr-name"><span class="${x.wake ? '' : 'red'}">${x.id} ${x.wake ? 'KIELWASSER · LÄUFT' : x.why.startsWith('OHNE DRAHT') ? 'OHNE DRAHT · LÄUFT' : 'DRAHT GERISSEN'}</span></span>
+        <span class="wr-data amber">${x.why.replace(/^OHNE DRAHT · /, '')}</span></div>` }));
+      setRows(wires, s.torpedoes.length || cut.length ? [...s.torpedoes.map((t) => ({ key: t.id, html: `
         <div class="row wire-row"><span class="clickable wr-name" data-pick="${t.id}" title="Torpedo wählen"></span>
         <span class="wr-data" title="Kurs · gelaufene Strecke · Restlaufzeit (Brennstoff)"></span>
-        <span class="seg wr-steer"><button data-steer="${t.id}" data-d="-10" title="Über den Draht 10° nach Backbord">◀◀</button><button data-steer="${t.id}" data-d="-2" title="Über den Draht 2° nach Backbord">◀</button><button data-steer="${t.id}" data-d="2" title="Über den Draht 2° nach Steuerbord">▶</button><button data-steer="${t.id}" data-d="10" title="Über den Draht 10° nach Steuerbord">▶▶</button></span></div>` }))
-        : [{ key: 'none', html: '<div class="dim" title="Kein eigener Torpedo am Draht">KEIN TORPEDO</div>' }]);
+        <span class="seg wr-steer"><button data-steer="${t.id}" data-d="-10" title="Über den Draht 10° nach Backbord">◀◀</button><button data-steer="${t.id}" data-d="-2" title="Über den Draht 2° nach Backbord">◀</button><button data-steer="${t.id}" data-d="2" title="Über den Draht 2° nach Steuerbord">▶</button><button data-steer="${t.id}" data-d="10" title="Über den Draht 10° nach Steuerbord">▶▶</button></span></div>` })), ...cut]
+        : [{ key: 'none', html: `<div class="dim" title="Kein eigener Torpedo am Draht · der Draht reißt bei schnellen Kurswechseln, über ${WIRE_MAX_OWNER_KN} kn oder wenn der Torpedo achteraus steht">KEIN TORPEDO · DRAHT: MAX. ${WIRE_MAX_TURN}°/MIN · ${WIRE_MAX_OWNER_KN} KN</div>` }]);
       s.torpedoes.forEach((t, i) => {
         const row = wires.children[i] as HTMLElement | undefined;
         if (!row) return;
         row.classList.toggle('selrow', t.id === store.selected);
         row.classList.toggle('amber', t.id === store.selected);
-        setHtml(row.querySelector('.wr-name')!, `${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}`);
-        setHtml(row.querySelector('.wr-data')!, `${tdeg1(t.heading)}° · GELAUFEN ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">REST ${t.leftS !== undefined ? mmss(t.leftS) : '—'}</span>`);
+        setHtml(row.querySelector('.wr-name')!, `${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : t.attackKn ? `MARSCH · ${t.attackKn} KN AB SUCHKOPF` : 'LÄUFT'}`);
+        // The wire is about to break: the warning takes the figures' line until the boat is steady again
+        const data = row.querySelector<HTMLElement>('.wr-data')!;
+        const figures = `${tdeg1(t.heading)}° · GELAUFEN ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">REST ${t.leftS !== undefined ? mmss(t.leftS) : '—'}</span>`;
+        setHtml(data, t.wireWarn ? `<span class="amber">${t.wireWarn}</span>` : figures);
+        data.title = t.wireWarn ? `Draht gefährdet: ${t.wireWarn}` : 'Kurs · gelaufene Strecke · Restlaufzeit (Brennstoff)';
       });
       btnState(q('#tr-nm'), { label: String(lo.noisemakers), tone: lo.noisemakers ? undefined : 'empty' });
     },

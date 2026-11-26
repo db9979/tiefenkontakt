@@ -29,6 +29,15 @@ export const EN_WEAPONS: [string, string][] = [
   ['Salve 400–800 m voraus geworfen', 'salvo thrown 400–800 m ahead'],
   ['TRÄGT EINEN LEICHTGEWICHTSTORPEDO 1,8–18 KM WEIT, FLUGZEIT CA. 40 S, STREUUNG ETWA 150 M. DER TORPEDO SUCHT AKTIV IM KREIS, ÜBER UND UNTER DER GEMESSENEN SCHICHT.',
     'CARRIES A LIGHTWEIGHT TORPEDO 1.8–18 KM, FLIGHT ABOUT 40 S, SCATTER ABOUT 150 M. THE TORPEDO SEARCHES ACTIVELY IN CIRCLES, ABOVE AND BELOW THE MEASURED LAYER.'],
+  // Realism round 5 (F16 wire, F17 run presets, F18 wake homer, F19 under-keel, F20 rocket and mortar)
+  ['DRAHT GERISSEN', 'WIRE BROKEN'], ['OHNE DRAHT', 'NO WIRE'], ['KIELWASSER', 'WAKE'], ['KIELWASSERTORPEDO', 'WAKE HOMER'],
+  ['BOOT VERLOREN', 'BOAT LOST'], ['DRAHTLÄNGE ERSCHÖPFT', 'WIRE RUN OUT'], ['TORPEDO ACHTERAUS', 'TORPEDO ASTERN'],
+  ['DRAHT IN DER SCHRAUBE', 'WIRE IN THE SCREW'], ['MARSCH', 'TRANSIT'],
+  ['TORPEDOTREFFER UNTER DEM KIEL', 'TORPEDO HIT UNDER THE KEEL'], ['SCHWERE SCHÄDEN', 'HEAVY DAMAGE'],
+  ['Kielwassertorpedo: quer hinter das Ziel schießen; läuft die Hecksee hoch, Täuschkörper wirken nicht', 'Wake homer: fire across the target\'s track astern of it; it runs up the wake, decoys do not work'],
+  ['Laufgeschwindigkeit: Marsch → Angriff ab Suchkopf. Langsamer Marsch: leiser und weiter; schneller Angriff: kürzer, der passive Suchkopf hört schlechter', 'Run speed: transit → attack from seeker on. Slow transit: quieter and further; fast attack: shorter, the passive seeker hears less'],
+  ['Reichweite aus dem Brennstoff bei Marsch- und Angriffsfahrt', 'Reach from the fuel at transit and attack speed'],
+  ['Keine Kielwassertorpedos an Bord', 'No wake homers aboard'],
 ];
 
 export const EN_WEAPONS_PHRASES: [RegExp, string][] = [
@@ -55,4 +64,13 @@ export const EN_WEAPONS_PHRASES: [RegExp, string][] = [
   [/ · BUG AUF DAS ZIEL, 400–800 M$/, ' · BOW ON THE TARGET, 400–800 M'],
   [/^Schusskurs hierher \((\d+)°, Suchkopf ab (.+)\)$/, 'Firing course here ($1°, seeker from $2)'],
   [/^⚠ EIGENE IN DER NÄHE · /, '⚠ OWN SHIPS NEAR · '], [/Torpedo hierher \((\d+)°, Suchkopf ab (.+)\)$/, 'Torpedo here ($1°, seeker from $2)'],
+  [/EIGENE FAHRT ÜBER (\d+) KN/g, 'OWN SPEED OVER $1 KN'], [/KURSWECHSEL ZU SCHARF \(ÜBER (\d+)°\/MIN\)/g, 'TURN TOO SHARP (OVER $1°/MIN)'],
+  [/FEUERLEITUNG FÜHRT NUR (\d+)/g, 'FIRE CONTROL GUIDES ONLY $1'], [/BEFOHLENER KURS (\d+)° WEG BRICHT DRAHT/g, 'ORDERED COURSE $1° AWAY BREAKS THE WIRE'],
+  [/BEFOHLENE FAHRT (\d+) KN/g, 'ORDERED SPEED $1 KN'], [/KURSWECHSEL (\d+)°\/MIN/g, 'TURNING $1°/MIN'], [/\bFAHRT (\d+) KN/g, 'SPEED $1 KN'],
+  [/TORPEDO (\d+)° AB BUG/g, 'TORPEDO $1° OFF THE BOW'], [/DRAHT: MAX\. /g, 'WIRE: MAX. '], [/\bMAX\. (\d+)°\/MIN/g, 'MAX. $1°/MIN'],
+  [/^REICHW\. /, 'REACH '], [/(\d+) KN AB SUCHKOPF/g, '$1 KN FROM SEEKER ON'], [/^KIELWASSER \((\d+)\)$/, 'WAKE ($1)'],
+  [/^Draht gefährdet: /, 'Wire at risk: '], [/ · SINKT (\d+) M\/S$/, ' · SINKS $1 M/S'],
+  [/^LEICHTGEWICHTSTORPEDO, FLUGZEIT CA\. (\d+) S, STREUUNG ETWA (\d+) M\. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT\.$/, 'LIGHTWEIGHT TORPEDO, FLIGHT ABOUT $1 S, SCATTER ABOUT $2 M. SEARCHES ABOVE AND BELOW THE MEASURED LAYER.'],
+  [/^LEICHTGEWICHTSTORPEDO, FLUGZEIT (\d+)–(\d+) S JE NACH ENTFERNUNG\. SUCHT ÜBER UND UNTER DER GEMESSENEN SCHICHT\.$/, 'LIGHTWEIGHT TORPEDO, FLIGHT $1–$2 S BY RANGE. SEARCHES ABOVE AND BELOW THE MEASURED LAYER.'],
+  [/^Draht: höchstens (\d+)°\/min Kurswechsel, bis (\d+) kn, Torpedo nicht achteraus, sonst reißt er · /, 'Wire: at most $1°/min of turn, up to $2 kn, torpedo not astern, or it breaks · '],
 ];

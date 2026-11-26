@@ -1,4 +1,4 @@
-import { CLASSES, HELO_RANGE, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, bearing, distance, launchBlock, type Snapshot, type Vec2 } from '@tk/shared';
+import { CLASSES, HELO_RANGE, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, bearing, distance, launchBlock, type SeekerMode, type Snapshot, type Vec2 } from '@tk/shared';
 import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
@@ -26,7 +26,7 @@ export function courseAction(p: Vec2): MenuItem[] {
  */
 export function torpedoAction(
   p: Vec2,
-  opts: { speedKn: number; searchDepth: number; mode: 'passive' | 'active'; aim?: (heading: number, enableAfter: number) => void },
+  opts: { speedKn: number; transitKn?: number; searchDepth: number; mode: SeekerMode; aim?: (heading: number, enableAfter: number) => void },
 ): MenuItem[] {
   const s = store.snap;
   if (!s || !s.own.loadout.tubes.some((t) => t.loaded)) return [];
@@ -45,7 +45,7 @@ export function torpedoAction(
   return [{
     label: `${warnNear(s, p)}Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
     danger: true,
-    run: () => net.send({ t: 'fire', heading: b, enableAfter, mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn }),
+    run: () => net.send({ t: 'fire', heading: b, enableAfter, mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn, transitKn: opts.transitKn }),
   }];
 }
 

@@ -13,7 +13,7 @@ export const EN_RECOG: [string, string][] = [
   ['Schwere Torpedos', 'Heavyweight torpedoes'], ['Leichttorpedos', 'Lightweight torpedoes'], ['U-Jagd-Raketen', 'ASW rockets'], ['Wasserbomben', 'Depth charges'],
   ['Seezielflugkörper', 'Anti-ship missiles'], ['Flugabwehrraketen', 'Surface-to-air missiles'], ['Bordhubschrauber', 'Ship\'s helicopter'], ['Täuschkörper', 'Noisemakers'],
   ['Rumpfsonar (passiv und aktiv)', 'Hull sonar (passive and active)'], ['Rumpfsonar (passiv)', 'Hull sonar (passive)'], ['Schleppsonar', 'Towed array'],
-  ['Tiefensonar (VDS)', 'Variable-depth sonar (VDS)'], ['Radar', 'Radar'], ['Minen', 'Mines'],
+  ['Tiefensonar (VDS)', 'Variable-depth sonar (VDS)'], ['Radar', 'Radar'], ['Minen', 'Mines'], ['Kielwassertorpedos', 'Wake-homing torpedoes'], ['läuft die Hecksee hoch', 'runs up the wake'], ['Täuschkörper wirken nicht', 'decoys do not work'], ['harte Wende hilft', 'a hard turn helps'],
   ['sucht im Kreis', 'searches in circles'], ['tragen einen Leichttorpedo ans Ziel', 'carry a lightweight torpedo to the target'], ['über dem Ziel geworfen', 'dropped over the target'],
   ['gegen Schiffe', 'against ships'], ['braucht Radar', 'needs radar'], ['Sonarbojen', 'Sonobuoys'], ['Leichttorpedo', 'Lightweight torpedo'], ['MAD', 'MAD'],
   ['lenken Torpedos ab', 'decoy torpedoes'], ['hört unter der Schicht', 'listens below the layer'], ['Schiffe', 'Ships'],

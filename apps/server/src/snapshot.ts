@@ -11,6 +11,7 @@ import {
   KN,
   batteryEndurance,
   runTimeLeft,
+  wireLostRecently,
   emptyDamage,
   depthAt,
   aircraftPosition,
@@ -231,7 +232,12 @@ export function buildSnapshot(
   const shifted = CLASSES[own.cls].submarine && (dr.x !== 0 || dr.y !== 0);
   const torpedoes = (w.weapons?.torpedoes ?? [])
     .filter((t) => t.ownerId === own.id && t.wire)
-    .map((t) => ({ id: t.id, x: t.pos.x + dr.x, y: t.pos.y + dr.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run, leftS: Math.round(runTimeLeft(t)) }));
+    .map((t) => ({ id: t.id, x: t.pos.x + dr.x, y: t.pos.y + dr.y, depth: t.depth, heading: t.heading, wire: t.wire, homing: !!t.homingOn, run: t.run, leftS: Math.round(runTimeLeft(t)),
+      wireWarn: t.wireWarn, attackKn: t.attackKn !== undefined && t.speedKn !== t.attackKn ? t.attackKn : undefined }));
+  // F16: torpedoes whose wire broke (or that left without one) stay on the wire panel a while
+  const wireLost = (w.weapons?.torpedoes ?? [])
+    .filter((t) => t.ownerId === own.id && wireLostRecently(t, w.time))
+    .map((t) => ({ id: t.id, why: t.wireLost!.why, wake: t.mode === 'wake' || undefined }));
 
   let air: Snapshot['air'];
   if (hasDatalink(own) && w.air) {
@@ -299,12 +305,13 @@ export function buildSnapshot(
       loadout: {
         tubes: (l?.tubes ?? []).map((t) => ({ loaded: t.loaded, reloadLeft: t.reloadDoneAt ? Math.max(0, t.reloadDoneAt - w.time) : 0 })),
         heavy: l?.heavy ?? 0, light: l?.light ?? 0, rockets: l?.rockets ?? 0,
-        depthCharges: l?.depthCharges ?? 0, noisemakers: l?.noisemakers ?? 0, towedDecoy: l?.towedDecoy ?? false, xbt: l?.xbt ?? 0, mines: l?.mines,
+        depthCharges: l?.depthCharges ?? 0, noisemakers: l?.noisemakers ?? 0, towedDecoy: l?.towedDecoy ?? false, xbt: l?.xbt ?? 0, mines: l?.mines, wake: l?.wake,
       },
     },
     contacts,
     friendlies,
     torpedoes,
+    ...(wireLost.length ? { wireLost } : {}),
     // Delta: only entries this player hasn't received yet
     radio: (() => {
       const d = newEntries(x.radio, x.radioDropped, x.radioSent, 30);

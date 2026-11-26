@@ -65,7 +65,7 @@ export type ClientMsg =
   | { t: 'mad'; bearing: number; range: number }
   | { t: 'towed'; length: number }
   /** salvo: 1–4 torpedoes fanned about heading, spread degrees apart (default one). */
-  | { t: 'fire'; heading: number; enableAfter: number; mode: SeekerMode; searchDepth: number; speedKn: number; salvo?: number; spread?: number }
+  | { t: 'fire'; heading: number; enableAfter: number; mode: SeekerMode; searchDepth: number; speedKn: number; transitKn?: number; salvo?: number; spread?: number }
   | { t: 'steer'; torpId: string; heading: number }
   | { t: 'rocket'; bearing: number; range: number }
   | { t: 'ssm'; bearing: number; range: number }
@@ -339,6 +339,8 @@ export interface OwnShipView {
     towedDecoy: boolean;
     xbt: number;
     mines?: number;
+    /** Wake homers in the rack (east SSN only). */
+    wake?: number;
   };
 }
 
@@ -370,6 +372,14 @@ export interface TorpedoView {
   run: number;
   /** Seconds of run left before the fuel is gone. */
   leftS?: number;
+  /** F16: the wire is about to break (the limit and what threatens it). */
+  wireWarn?: string;
+  /** F16: the wire broke (or was never connected): why. Shown for a while at the break point. */
+  wireLost?: string;
+  /** Wake homer (no wire). */
+  wake?: boolean;
+  /** Two-speed run: still on the slow transit, sprinting at this speed once the seeker opens. */
+  attackKn?: number;
 }
 
 export interface RadioMsg {
@@ -451,6 +461,8 @@ export interface Snapshot {
   })[];
   friendlies: FriendlyView[];
   torpedoes: TorpedoView[];
+  /** F16: own torpedoes whose wire broke recently (or that left without one), with the reason. */
+  wireLost?: { id: string; why: string; wake?: boolean }[];
   radio: RadioMsg[];
   alerts: AlertView[];
   /** layerDepth is only known after a bathythermograph measurement. */
