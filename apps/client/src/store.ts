@@ -17,6 +17,14 @@ const unpackSample = ([t, b, alt, r, sensor, ox, oy]: PackedSample): Sample => (
 
 export type { Realism };
 
+/** A range the player took himself: stadimeter reading with the class it assumed. */
+export interface RangeMark {
+  t: number;
+  r: number;
+  source: 'stadimeter';
+  cls?: string;
+}
+
 /** Client-side game state: latest snapshot plus everything the player derived from it. */
 export const store = {
   snap: undefined as Snapshot | undefined,
@@ -30,6 +38,11 @@ export const store = {
   selected: undefined as string | undefined,
   /** Operator line marks per contact label (LOFAR fundamental, DEMON shaft/blade). */
   marks: new Map<string, Marks>(),
+  /**
+   * Ranges the player called to the plot himself per contact label (periscope: stadimeter with the
+   * assumed class and mast height, sim time `t`). Auto-TMA anchors on a fresh one in Profi.
+   */
+  rangeMarks: new Map<string, RangeMark>(),
   /** Player's choice of towed-array side for unresolved contacts. */
   tasSide: new Map<string, 'stb' | 'port'>(),
   realism: (localStorage.getItem('tk_realism') as Realism | null) ?? 'einsteiger',
@@ -100,6 +113,7 @@ export const store = {
     this.ownTrack = [];
     this.solutions.clear();
     this.marks.clear();
+    this.rangeMarks.clear();
     this.tasSide.clear();
     this.selected = undefined;
     this.ended = undefined;
@@ -111,6 +125,7 @@ export const store = {
     if (!this.matchId) return;
     sessionStorage.setItem(`tk_state_${this.matchId}`, JSON.stringify({
       ownTrack: this.ownTrack.slice(-1800), solutions: [...this.solutions], marks: [...this.marks],
+      rangeMarks: [...this.rangeMarks],
       tasSide: [...this.tasSide], selected: this.selected,
       // Bearings of the contacts being worked on (the server resends only its last 3 minutes)
       histories: [...this.histories].filter(([l]) => this.solutions.has(l) || l === this.selected).map(([l, h]) => [l, h.map(packSample)]),
@@ -126,6 +141,7 @@ export const store = {
       this.ownTrack = d.ownTrack ?? [];
       this.solutions = new Map(d.solutions ?? []);
       this.marks = new Map(d.marks ?? []);
+      this.rangeMarks = new Map(d.rangeMarks ?? []);
       this.tasSide = new Map(d.tasSide ?? []);
       this.selected = d.selected;
       this.histories = new Map((d.histories ?? []).map(([l, h]: [string, PackedSample[]]) => [l, h.map(unpackSample)]));

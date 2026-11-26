@@ -1,5 +1,7 @@
 import { angleDiff, PERISCOPE_DEPTH, RECOG, type ClassId, type ScopeMag, type WreckView } from '@tk/shared';
 import { scopeRange, stadimeterOf } from '../../widgets/scope-targets.js';
+import { periscopeLookAt, rangeMarkAge, takeStadimeter } from '../../widgets/range-mark.js';
+import type { RangeMark } from '../../store.js';
 import { BearingRangeFilter, easeAngle, ownNow, simNow } from '../../widgets/smooth.js';
 import { planeTargets } from '../../widgets/air-targets.js';
 import type { Periscope3D } from '../../widgets/periscope3d.js';
@@ -166,6 +168,11 @@ export function periscopeStation(): Station {
   el.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('[data-recog]')) toggleRecogBook('Sehrohr', el);
     if ((e.target as HTMLElement).closest('[data-crash]')) crashDive();
+    // The officer calls the stadimeter range to the plot (deliberately, never automatic)
+    if ((e.target as HTMLElement).closest('[data-stadi]')) {
+      const sel = store.selectedContact();
+      if (sel?.sensors.includes('periscope') && store.snap) takeStadimeter(sel, store.snap.time);
+    }
   });
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
@@ -309,6 +316,9 @@ export function periscopeStation(): Station {
         `<div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
         <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>`,
+        // Profi: the reading goes to the plot only when called (Einsteiger has the measured range).
+        // The button stays the same node (a button replaced mid-tap loses the tap on iOS)
+        (part) => stadiPart(part, !easy && !!target, ms.raised && !!target && periscopeLookAt(target, s.time) !== undefined ? stad : undefined, target ? store.rangeMarks.get(target.label) : undefined, s.time),
         air ? `<div class="row peri-air"><span class="dim">LUFT</span><span class="red blink">${air.text}</span></div>`
         : `<div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>`,
         air ? '<div class="row peri-air"><span class="red">FLIEGERALARM</span><button data-crash class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">ALARMTAUCHEN</button></div>' : '',
@@ -633,4 +643,19 @@ function waterWash(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: num
     ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + 1, y0 + 14 + (i % 4) * 6); ctx.stroke();
   }
   ctx.restore();
+}
+
+/** MESSWERTE row with ENTF. ÜBERNEHMEN: the stadimeter reading taken to the plot, and its age. */
+function stadiPart(part: Element, show: boolean, stad: number | undefined, mark: RangeMark | undefined, now: number): void {
+  (part as HTMLElement).style.display = show ? '' : 'none';
+  if (!part.querySelector('[data-stadi]')) {
+    part.innerHTML = '<div class="row"><span><span class="dim">AM LAGEBILD</span> <span data-stadi-st></span></span>'
+      + '<button data-stadi style="min-height:22px;padding:1px 8px;white-space:nowrap" title="Stadimeter-Entfernung an das Lagebild geben: in der Feuerleitung 60 s gültig (Fehler aus Klasse und Masthöhe inklusive)">ENTF. ÜBERNEHMEN</button></div>';
+  }
+  if (!show) return;
+  const btn = part.querySelector<HTMLButtonElement>('[data-stadi]')!;
+  btn.disabled = stad === undefined;
+  const age = mark && rangeMarkAge(mark, now);
+  setHtml(part.querySelector('[data-stadi-st]')!, !mark || !age ? '<span class="dim">—</span>'
+    : `<span style="white-space:nowrap">${km(mark.r)}</span> <span style="white-space:nowrap" class="${age.fresh ? 'dim' : 'amber'}">· VOR ${Math.round(age.age)} S${age.fresh ? '' : ' · VERALTET'}</span>`);
 }

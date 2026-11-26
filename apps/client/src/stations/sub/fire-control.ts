@@ -7,6 +7,7 @@ import {
   lsqSolve,
   solveInPrior,
   rangeUndetermined,
+  rangeAnchor,
   betterSolution,
   speedAtBound,
   type SpeedPrior,
@@ -44,6 +45,7 @@ import { courseAction, torpedoAction } from '../../widgets/actions.js';
 import { decoy } from '../../widgets/emergency.js';
 import { fillBox } from '../../widgets/fill.js';
 import { priorFor } from '../../widgets/speed-prior.js';
+import { measuredRangeFor, rangeMarkAge } from '../../widgets/range-mark.js';
 import { keycap } from '../../widgets/keys.js';
 import { tubeBank } from '../../widgets/tube-bank.js';
 
@@ -131,6 +133,7 @@ export function fireControlStation(): Station {
         <div class="fc-tmabar"><span class="seg"><button data-method="hyp" title="Hypothese anpassen, Residuen prüfen">Hypothese</button><button data-method="ekelund" title="Entfernung aus den Peilraten zweier eigener Schläge">Ekelund</button><button data-method="dots" title="Residuen bei 0,6-, 1,0- und 1,6-facher Entfernung">Dot-Stack</button></span>
           <span class="fc-acts"><button id="auto" title="Einmal die beste Lösung aus allen Peilungen rechnen (danach von Hand nachführen)">Auto-TMA</button><button id="clear" title="Lösung des gewählten Kontakts verwerfen">Verwerfen</button></span></div>
         <div class="row"><span class="dim">BEOBACHTBARKEIT</span><span id="v-obs"></span></div>
+        <div class="row" id="stadi-row" style="display:none" title="Vom Sehrohr übernommene Stadimeter-Entfernung, 60 s gültig. Falsche Klasse oder Masthöhe, falsche Entfernung"><span class="dim">STADIMETER</span><span id="v-stadi"></span><button id="stadi-take" style="display:none;padding:0 6px;min-height:0" title="Stadimeter-Entfernung in die Lösung übernehmen: auf die letzte Peilung, Kurs und Fahrt bleiben">Übernehmen</button></div>
         <div class="row" id="ekel-row" style="display:none"><span class="dim">EKELUND</span><span id="v-ekel"></span><button id="ekel-take" style="display:none" title="Ekelund-Entfernung übernehmen">Übernehmen</button></div>
         <div class="tma-sl">
           <div><div class="row"><span class="dim">ENTFERNUNG</span><b id="v-rng"></b></div><input id="s-rng" type="range" min="500" max="40000" step="100" aria-label="Entfernung"></div>
@@ -268,6 +271,16 @@ export function fireControlStation(): Station {
     const sol = r && solutionAtRange(c.history, store.ownTrack, r.range, old?.course ?? 0, old?.speedKn ?? 0);
     if (sol) store.solutions.set(c.label, sol);
   };
+  // The called stadimeter range into the plot by hand (Profi has no Auto-TMA): on the latest
+  // bearing, course and speed kept, as with Ekelund
+  q<HTMLButtonElement>('#stadi-take').onclick = () => {
+    const c = cur();
+    const m = c && store.rangeMarks.get(c.label);
+    if (!c || !m || !store.snap || !rangeMarkAge(m, store.snap.time).fresh) return;
+    const old = store.solutions.get(c.label);
+    const sol = solutionAtRange(c.history, store.ownTrack, m.r, old?.course ?? 0, old?.speedKn ?? 0);
+    if (sol) store.solutions.set(c.label, sol);
+  };
   q<HTMLButtonElement>('#auto').onclick = () => {
     const c = cur();
     if (!c) return;
@@ -280,10 +293,13 @@ export function fireControlStation(): Station {
     const last = c.history[c.history.length - 1];
     const me = last && ownPosAt(store.ownTrack, last.t);
     const rangeHint = old && last && me ? distance(me, targetPosAt(old, last.t)) : undefined;
-    const sol = solveInPrior(c.history, store.ownTrack, priorFor(c), (maxKn) => lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol, { rangeHint });
+    // Profi: the stadimeter range the player called from the periscope anchors it like a measured one
+    const measuredRange = measuredRangeFor(c.label);
+    const sol = solveInPrior(c.history, store.ownTrack, priorFor(c), (maxKn) => lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol, { rangeHint, measuredRange });
     if (!sol) return;
-    // N8: never store a solution that fits the plot worse than the one already there
-    if (betterSolution(sol, old, c.history, store.ownTrack)) store.solutions.set(c.label, sol);
+    // N8: never store a solution that fits the plot worse than the one already there; a range the
+    // player measured himself overrides the fit (the bearings alone do not give the range)
+    if (rangeAnchor(sol)?.mark || betterSolution(sol, old, c.history, store.ownTrack)) store.solutions.set(c.label, sol);
     else store.lastError = 'Auto-TMA: keine bessere Lösung als die vorhandene';
   };
   q<HTMLButtonElement>('#clear').onclick = () => {
@@ -295,7 +311,7 @@ export function fireControlStation(): Station {
     const c = cur();
     const sol = c ? store.solutions.get(c.label) : undefined;
     if (!s || !sol) return;
-    if (store.realism === 'profi' && c && ownLegChange(c.history, store.ownTrack) < 6) {
+    if (store.realism === 'profi' && c && !rangeAnchor(sol) && ownLegChange(c.history, store.ownTrack) < 6) {
       store.lastError = 'Entfernung nicht beobachtbar: erst einen eigenen Kurswechsel fahren';
       return;
     }
@@ -478,8 +494,16 @@ export function fireControlStation(): Station {
       el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => b.classList.toggle('on', b.dataset.method === method));
       const leg = c ? ownLegChange(c.history, store.ownTrack) : 0;
       const vague = !!(c && sol && rangeUndetermined(sol));
+      const anchor = c && sol ? rangeAnchor(sol) : undefined;
       q('#v-obs').title = vague ? VAGUE_TIP : '';
-      setHtml(q('#v-obs'), !c ? '—' : vague ? '<span class="amber">ENTFERNUNG UNBESTIMMT</span>' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="amber">NEIN · EIGENEN KURS ÄNDERN</span>');
+      setHtml(q('#v-obs'), !c ? '—' : vague ? '<span class="amber">ENTFERNUNG UNBESTIMMT</span>' : anchor?.mark ? 'ENTFERNUNG GEMESSEN · STADIMETER' : leg >= 30 ? `JA · KURSWECHSEL ${leg.toFixed(0)}°` : leg >= 6 ? `<span class="amber">SCHWACH · ${leg.toFixed(0)}° (BESSER 30–60°)</span>` : '<span class="amber">NEIN · EIGENEN KURS ÄNDERN</span>');
+      // The stadimeter range called from the periscope (Profi) and how old it is
+      const mark = c && store.realism === 'profi' ? store.rangeMarks.get(c.label) : undefined;
+      q('#stadi-row').style.display = c && store.realism === 'profi' ? '' : 'none';
+      const mAge = mark && rangeMarkAge(mark, s.time);
+      q('#stadi-take').style.display = mAge?.fresh ? '' : 'none';
+      setHtml(q('#v-stadi'), !mark || !mAge ? '<span class="dim">— · SEHROHR: ENTF. ÜBERNEHMEN</span>'
+        : `<span style="white-space:nowrap">${km(mark.r)}</span> <span style="white-space:nowrap" class="${mAge.fresh ? 'dim' : 'amber'}">· VOR ${Math.round(mAge.age)} S${mAge.fresh ? '' : ' · VERALTET'}</span>`);
       const ek = method === 'ekelund' && c ? ekelundRange(c.history, store.ownTrack) : undefined;
       q('#ekel-row').style.display = method === 'ekelund' ? '' : 'none';
       q('#ekel-take').style.display = method === 'ekelund' && ek ? '' : 'none';

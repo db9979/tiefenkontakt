@@ -215,6 +215,14 @@ export const EN_STATIONS: [string, string][] = [
   ['Peilung von der Sonarboje, nicht vom eigenen Schiff', 'Bearing from the sonobuoy, not from the own ship'],
   ['SCHLEPPSONAR: ZWEI SPIEGELPEILUNGEN, SEITE UNGEKLÄRT', 'TOWED ARRAY: TWO MIRROR BEARINGS, SIDE UNRESOLVED'], ['SEITE STEUERBORD', 'SIDE STARBOARD'], ['SEITE BACKBORD', 'SIDE PORT'],
   ['MÖGLICHER GEIST (SPIEGELPEILUNG)', 'POSSIBLE GHOST (MIRROR BEARING)'], ['PEILUNG VON DER SONARBOJE, NICHT VOM EIGENEN SCHIFF', 'BEARING FROM THE SONOBUOY, NOT FROM THE OWN SHIP'],
+  // Stadimeter range called to the plot (periscope MESSWERTE, fire control TMA)
+  ['AM LAGEBILD', 'ON THE PLOT'], ['ENTF. ÜBERNEHMEN', 'TAKE RANGE'], ['STADIMETER', 'STADIMETER'],
+  ['— · SEHROHR: ENTF. ÜBERNEHMEN', '— · PERISCOPE: TAKE RANGE'], ['ENTFERNUNG GEMESSEN · STADIMETER', 'RANGE MEASURED · STADIMETER'],
+  ['Stadimeter-Entfernung an das Lagebild geben: in der Feuerleitung 60 s gültig (Fehler aus Klasse und Masthöhe inklusive)',
+    'Give the stadimeter range to the plot: valid for 60 s in fire control (any error from class and mast height included)'],
+  ['Vom Sehrohr übernommene Stadimeter-Entfernung, 60 s gültig. Falsche Klasse oder Masthöhe, falsche Entfernung',
+    'Stadimeter range taken from the periscope, valid for 60 s. Wrong class or mast height, wrong range'],
+  ['Stadimeter-Entfernung in die Lösung übernehmen: auf die letzte Peilung, Kurs und Fahrt bleiben', 'Put the stadimeter range into the solution: on the latest bearing, course and speed kept'],
 ];
 
 /** Texts with figures in them. */
@@ -247,4 +255,6 @@ export const EN_STATIONS_PHRASES: [RegExp, string][] = [
   [/^U-Jagd-Rakete: ZU WEIT \((.+) · BIS (.+)\)$/, 'ASW rocket: TOO FAR ($1 · UP TO $2)'], [/^U-Jagd-Rakete: ZU NAH \((.+) · AB (.+)\)$/, 'ASW rocket: TOO CLOSE ($1 · FROM $2)'],
   [/^Nixie ausgebracht: höchstens (\d+) kn – erst einholen \(Waffen › Täuschkörper\)$/, 'Nixie streamed: $1 kn at most – recover it first (Weapons › Decoy)'],
   [/^−(\d+) S$/, '−$1 S'],
+  // Stadimeter range called to the plot (periscope, fire control)
+  [/^· VOR (\d+) S$/, '· $1 S AGO'], [/^· VOR (\d+) S · VERALTET$/, '· $1 S AGO · STALE'],
 ];

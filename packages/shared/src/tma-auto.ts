@@ -33,7 +33,7 @@ export const TMA_BAND_SLACK_DEG = 1.5;
  */
 export function solveInPrior(
   hist: readonly BearingSample[], track: readonly OwnFix[], prior: SpeedPrior,
-  first?: (maxKn: number) => TmaSolution | undefined, opts: { rangeHint?: number } = {},
+  first?: (maxKn: number) => TmaSolution | undefined, opts: { rangeHint?: number; measuredRange?: MeasuredRange } = {},
 ): TmaSolution | undefined {
   const inBand = (s: TmaSolution) => s.speedKn <= prior.hi + 0.25 && s.speedKn >= prior.lo - 0.25;
   const last = hist[hist.length - 1];
@@ -43,10 +43,17 @@ export function solveInPrior(
   // A range measured lately (periscope stadimeter, active ping) pins the range: course and speed
   // are searched at it, whatever the bearing geometry says (the open-range check below ignored it,
   // and a fixed target kept Güte at 29 % after the periscope look)
-  const ranged = last ? [...hist].reverse().find((h) => h.r !== undefined && h.r > 0) : undefined;
+  // The player's own stadimeter range (Profi: the server strips the periscope ranges) counts the
+  // same; of the two the newer one. Its error (a wrong class, a wrong mast) is the player's.
+  const fromHist = last ? [...hist].reverse().find((h) => h.r !== undefined && h.r > 0) : undefined;
+  const mark = opts.measuredRange && opts.measuredRange.r > 0 ? opts.measuredRange : undefined;
+  const ranged = mark && (!fromHist || mark.t >= fromHist.t) ? mark : fromHist ? { t: fromHist.t, r: fromHist.r! } : undefined;
   if (ranged && last && last.t - ranged.t <= TMA_RANGE_FRESH_S) {
-    const fixed = autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5, fixedRange: ranged.r! });
-    if (fixed) return fixed;
+    const fixed = autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5, fixedRange: ranged.r });
+    if (fixed) {
+      anchored.set(fixed, { r: ranged.r, mark: ranged === mark });
+      return fixed;
+    }
   }
   // One leg only: every range on the bearing line fits as well, and the solvers slide to the
   // nearest one (0,4-0,9 km). Then a near-range answer is only taken when nothing else fits as well.
@@ -80,6 +87,20 @@ export function solveInPrior(
 
 /** A measured range this fresh (s) anchors Auto-TMA. */
 export const TMA_RANGE_FRESH_S = 60;
+
+/** A range the player measured himself (stadimeter), at sim time `t` (s). */
+export interface MeasuredRange {
+  t: number;
+  r: number;
+}
+
+/** Solutions anchored on a fresh measured range: the range (m), and whether the player's mark gave it. */
+const anchored = new WeakMap<TmaSolution, { r: number; mark: boolean }>();
+
+/** The measured range an Auto-TMA solution was anchored on (undefined: not anchored). */
+export function rangeAnchor(sol: TmaSolution): { r: number; mark: boolean } | undefined {
+  return anchored.get(sol);
+}
 
 /** Ranges (m) of the profile Auto-TMA fits at to see whether the bearings pin the range down. */
 const PROFILE_M = [700, 1000, 1500, 2000, 3000, 4500, 6500, 9000, 13_000, 18_000];

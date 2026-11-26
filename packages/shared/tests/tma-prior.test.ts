@@ -14,7 +14,9 @@ import {
   lsqSolve,
   ownLegChange,
   rangeObservable,
+  rangeAnchor,
   rangeUndetermined,
+  TMA_RANGE_FRESH_S,
   shaftHz,
   solveInPrior,
   speedAtBound,
@@ -256,6 +258,59 @@ describe('Auto-TMA after a weak second leg (audit 4)', () => {
       const old = hist.map((h) => (h.t === 300 ? { ...h, r: 9000 } : h));
       expect(rangeUndetermined(solveInPrior(old, track, prior)!)).toBe(true);
     }
+  });
+
+  it('Profi: the player\'s fresh stadimeter range anchors a plot without ranges', () => {
+    for (const seed of [1, 2, 3]) {
+      // The server strips the periscope ranges in Profi: no sample carries r
+      const { truth, track, hist, own } = weakLeg(12, 5000, seed);
+      expect(hist.some((h) => h.r !== undefined)).toBe(false);
+      const prior = speedPrior({ choice: 'merchant' });
+      const first = (kn: number) => lsqSolve(hist, track, kn, 'merchant')?.sol;
+      expect(rangeUndetermined(solveInPrior(hist, track, prior, first)!)).toBe(true);
+      // Stadimeter 20 s before the last bearing, 4 % long (marking error)
+      const measured = distance(track.find((f) => f.t === 580)!, targetPosAt(truth, 580)) * 1.04;
+      const sol = solveInPrior(hist, track, prior, first, { measuredRange: { t: 580, r: measured } })!;
+      expect(rangeUndetermined(sol)).toBe(false);
+      expect(rangeAnchor(sol)).toEqual({ r: measured, mark: true });
+      // Anchored at the measured range on the latest bearing, close to the truth
+      expect(distance(own, targetPosAt(sol, 600))).toBeCloseTo(measured, -1);
+      expect(Math.abs(distance(own, targetPosAt(sol, 600)) - distance(own, targetPosAt(truth, 600)))).toBeLessThan(600);
+      // The Güte is no longer held under the 29 % of an open range
+      const q = boundedQuality(evaluateSolution(sol, hist, track).quality, sol, prior);
+      expect(q).toBeGreaterThan(EDGE_QUALITY_MAX);
+    }
+  });
+
+  it('a wrong class gives a wrong range, and Auto-TMA takes it as measured (the player\'s error)', () => {
+    const { track, hist, own } = weakLeg(12, 10_000, 1);
+    const sol = solveInPrior(hist, track, speedPrior({ choice: 'merchant' }), undefined, { measuredRange: { t: 590, r: 5000 } })!;
+    expect(rangeAnchor(sol)?.mark).toBe(true);
+    expect(distance(own, targetPosAt(sol, 600))).toBeCloseTo(5000, -1);
+  });
+
+  it('a stale stadimeter range (over 60 s) does not anchor', () => {
+    const { track, hist } = weakLeg(12, 10_000, 2);
+    const prior = speedPrior({ choice: 'merchant' });
+    const stale = solveInPrior(hist, track, prior, undefined, { measuredRange: { t: 600 - TMA_RANGE_FRESH_S - 5, r: 9000 } })!;
+    expect(rangeAnchor(stale)).toBeUndefined();
+    expect(rangeUndetermined(stale)).toBe(true);
+    // Exactly 60 s still counts
+    const edge = solveInPrior(hist, track, prior, undefined, { measuredRange: { t: 600 - TMA_RANGE_FRESH_S, r: 9000 } })!;
+    expect(rangeAnchor(edge)?.mark).toBe(true);
+  });
+
+  it('Einsteiger unchanged: without a mark the server range anchors as before; a newer one wins', () => {
+    const { truth, track, hist } = weakLeg(12, 10_000, 3);
+    const at = (t: number) => distance(track.find((f) => f.t === t)!, targetPosAt(truth, t));
+    const looked = hist.map((h) => (h.t === 570 ? { ...h, r: at(570), sensor: 'periscope' as const } : h));
+    const prior = speedPrior({ choice: 'merchant' });
+    const plain = solveInPrior(looked, track, prior)!;
+    expect(rangeAnchor(plain)).toEqual({ r: at(570), mark: false });
+    expect(solveInPrior(looked, track, prior, undefined, {})).toEqual(plain);
+    // An older mark does not displace the server's newer range; a newer mark does
+    expect(rangeAnchor(solveInPrior(looked, track, prior, undefined, { measuredRange: { t: 560, r: 4000 } })!)?.mark).toBe(false);
+    expect(rangeAnchor(solveInPrior(looked, track, prior, undefined, { measuredRange: { t: 590, r: 4000 } })!)?.r).toBe(4000);
   });
 
   it('an observable second leg is solved as before, not marked', () => {
