@@ -6,6 +6,12 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Eigenes Schiff, vierte Runde:** gedämpfte rote Lichtkegel unter den Lampen auf Nocks, Niedergängen und Flugdeck
+  statt rot getöntem Deck, dunkles Schanzkleid bei Nacht, fein aufgebrochener Schaum an der Wasserlinie,
+  Hitzeflimmern über den Abgasrohren bei hoher Fahrt.
+- **Restpunkte der Stationsprüfung:** Kartenbeschriftungen weichen den Kartenknöpfen aus (kompakte Routenleiste am
+  Handy), EIGEN wechselt nicht mehr zwischen eigener Spur und Bojenspur, Auto-TMA meldet „ENTFERNUNG UNBESTIMMT“
+  statt nach einer schwachen zweiten Peilstrecke auf wenige hundert Meter zu fallen, Schließen-Kreuz der Treffer-Kamera.
 - **Stationsprüfung 4 (Kapitäne, UX-Tester, Grafiker):** 72 Befunde auf U-Boot und Fregatte geprüft und behoben.
   - Realismus U-Boot: Auto-TMA begrenzt die Zielfahrt nach Klasse und Wellendrehzahl (Warnung „an der Grenze“),
     Fliegeralarm bei Luftfahrzeug nahe am ausgefahrenen Mast mit ALARMTAUCHEN, Funk zählt nur echte Geleitschiffe,
