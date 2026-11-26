@@ -204,9 +204,10 @@ export function startGeometry(mission: MissionId, k: number): { subFrac: number;
  */
 const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: number; harbourSubY?: number; straitStartY?: number; straitExitY?: number }>> = {
   groenland: { subFrac: 0.6, spread: 0.6 },
-  // Shallow water and reverberation hurt the boats: they wait 3.6 km off the route, not 4 km
-  // (arena seeds 1000/5000/11000: 4 km 27:21 at 1000/5000, 3.6 km 35:37 in all)
-  schelf: { subFrac: 0.45, spread: 0.3 },
+  // Shallow water and reverberation hurt the boats: the first waits 2.4 km off the route and a
+  // little earlier along it (with the paced AI attack, arena seeds 3/17/42/77: 0.45 and 3.6 km
+  // escorts 14:2, 0.4 and 2.4 km 9:7; before the pacing, 3.6 km 35:37 at 1000/5000/11000)
+  schelf: { subFrac: 0.4, spread: 0.2 },
   // The narrows favour their defender: the boat waits further up the fjord, 3 km off the deep
   // channel, so it has less time under the convoy (0.65/1.5 km: escorts 16:32 at 1000/5000)
   fjord: { subFrac: 0.8, spread: 1.2 },

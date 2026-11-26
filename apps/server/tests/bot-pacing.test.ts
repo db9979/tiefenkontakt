@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createShip, createWorld, installWeapons, stepWorld, type ContactTrack } from '@tk/shared';
 import { BotCrew } from '../src/bots/index.js';
-import { setShotTrace, type ShotTrace } from '../src/bots/common.js';
+import { newMemory, setShotTrace, type ShotTrace } from '../src/bots/common.js';
+import { carryPlot } from '../src/bots/sub.js';
 import { PACE, activeFixes, captainPace, escortMayFire, legsRun, plotFrom, subWaits, type SubShot } from '../src/bots/pacing.js';
 
 const p = PACE.normal;
@@ -99,5 +100,16 @@ describe('AI attack pacing', () => {
     expect(s.t - contact!).toBeGreaterThan(p.classifyS * 0.85 + 2 * p.legS * 0.85);
     expect(s.legs).toBeGreaterThanOrEqual(2);
     expect(s.range).toBeLessThanOrEqual(8000);
+  });
+
+  it('carries the plot over when a lost contact comes back under a new label', () => {
+    const m = newMemory('p_x');
+    const fix = (t: number) => ({ t, b: 10, ox: 0, oy: 0, n: 1 });
+    m.blog = { S1: { fixes: [fix(0), fix(10), fix(20)], binEnd: 30, seen: 25 }, S2: { fixes: [fix(60)], binEnd: 70, seen: 65 } };
+    m.qualSince = { S1: 15 };
+    carryPlot(m, 'S1', 'S2');
+    expect(m.blog.S2!.fixes.map((f) => f.t)).toEqual([0, 10, 20, 60]);
+    expect(m.blog.S2!.binEnd).toBe(70);
+    expect(m.qualSince.S2).toBe(15);
   });
 });

@@ -30,7 +30,7 @@ import {
 import { HARBOUR_ANCHORAGE } from '../scenario.js';
 import { considerMine } from './mines.js';
 import { PACE, captainPace, legsRun, looked, plotFrom, subWaits } from './pacing.js';
-import { SKILL, isFriendly, isNeutral, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
+import { SKILL, isFriendly, isNeutral, plotBearings, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
 
 export interface PackReport {
   t: number;
@@ -43,6 +43,15 @@ export interface PackReport {
 /** A TMA leg runs at least this long once the boat is on it (s); the crew's pace adds to it. */
 const LEG_MIN_S = 120;
 const SHOT_COOLDOWN = 150;
+/**
+ * Shoot and scoot: this long turning away deep after a salvo before the attack goes on (s). At
+ * 180 s the boats lost the convoy after each salvo (arena 4 seeds x 15, groenland/schelf/fjord:
+ * escorts 78 % -> 63 % at 120 s, see also SUB_TORPEDO_EVADE_S in index.ts).
+ */
+const SCOOT_S = 120;
+/** Escorts about: TMA legs this far off the line of sight (deg) and this fast (kn) while the plot needs them. */
+const HUNTED_LEG_DEG = 65;
+const HUNTED_LEG_KN = 5;
 const REPORT_EVERY = 900;
 /** A periscope look: this long with the mast up (s), and at most this long to come up for it. */
 export const PEEK_LOOK_S = 10;
@@ -130,9 +139,32 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   // Convoy battles: merchants. In a duel (no merchants on the map) the enemy boats are the targets
   const duel = !w.ships.some(isConvoyShip) || guard;
   const wanted = duel ? 'submarine' : 'merchant';
-  const hostile = (want: string) => fresh.filter((t) => voted(m, t) === want && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)).sort((a, b) => b.se - a.se)[0];
+  // The captain stays on the ship he is plotting while he still hears her (a two minutes' dropout
+  // or a louder neighbour doesn't restart the attack); otherwise the loudest
+  const kept = tracks.find((t) => t.label === m.attackLabel && now - t.lastSeen < KEEP_S);
+  let reacquired = false;
+  const hostile = (want: string) => {
+    const ok = (t: ContactTrack) => voted(m, t) === want && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m);
+    if (kept && ok(kept)) return kept;
+    // Lost and found again on the same bearing (a new track label): the same ship, the plot goes on
+    const again = !kept && m.attackBrg !== undefined && now - (m.attackSeen ?? -1e9) < REACQUIRE_S
+      ? fresh.filter((t) => ok(t) && Math.abs(angleDiff(t.bearing, m.attackBrg!)) < REACQUIRE_DEG)
+        .sort((a, b) => Math.abs(angleDiff(a.bearing, m.attackBrg!)) - Math.abs(angleDiff(b.bearing, m.attackBrg!)))[0]
+      : undefined;
+    if (again) {
+      carryPlot(m, m.attackLabel!, again.label);
+      reacquired = true;
+      return again;
+    }
+    return fresh.filter(ok).sort((a, b) => b.se - a.se)[0];
+  };
+  // The plotter keeps every merchant it hears, so the next target after a salvo has a plot ready
+  if (!duel) for (const t of fresh) if (voted(m, t) === 'merchant' && !isNeutral(w, s, t, m)) plotBearings(m, t, now);
   // A guarding boat fights back against the enemy's warship when it is being hunted by it
   const target = hostile(wanted) ?? (guard && threatNear ? hostile('warship') : undefined);
+  if (target && target.label !== m.attackLabel && !reacquired) m.attackFirst = target.firstSeen;
+  if (target) [m.attackLabel, m.attackBrg, m.attackSeen] = [target.label, target.bearing, now];
+  else if (now - (m.attackSeen ?? -1e9) >= REACQUIRE_S) m.attackLabel = undefined;
   // A mine barrage across the convoy track takes the helm while it runs
   if (!duel && considerMine(w, m, s, threatNear, target)) return;
 
@@ -233,16 +265,23 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const close = duel && target.se > 18 ? 4000 : undefined;
   const measured = target.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : undefined;
   const range = close ?? measured ?? (goodTma ? distance(s.pos, targetPosAt(solved!.sol, now)) : undefined);
-  const held = now - target.firstSeen;
+  const since = m.attackFirst ?? target.firstSeen;
+  const held = now - since;
   const seen = looked(target);
-  const legs = legsRun(m.legStarts ?? [], plotFrom(pace, pf, target.firstSeen, now), now, pace.legS * pf);
+  const legs = legsRun(m.legStarts ?? [], plotFrom(pace, pf, since, now), now, pace.legS * pf);
   const settled = goodTma ? now - qs[target.label]! : 0;
   const wait = subWaits(pace, pf, { held, seen, legs, q: solved?.q, qMin, settled, range, maxRange: guard ? GUARD_FIRE_M : 8000, measured: measured !== undefined, close: close !== undefined });
   // Solution in hand but out of reach: close in on a narrower weave (the plot keeps its legs)
   const approach = wait === 'range' && range !== undefined;
-  // Hunted: close in under the merchants' noise instead of legging across the line of sight
-  s.order.heading = wrap360(target.bearing + (threatNear && !duel ? 8 : approach ? 20 : 40) * m.legSign);
-  s.order.speedKn = threatNear ? 3 : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
+  // Hunted: still slow legs across the line of sight while the plot needs them (pointing at the
+  // target gives the TMA no range), then close in under the merchants' noise once it holds
+  const plotting = wait === 'classify' || wait === 'legs' || wait === 'tma';
+  s.order.heading = wrap360(target.bearing + (threatNear && !duel ? (plotting ? HUNTED_LEG_DEG : 8) : approach ? 20 : 40) * m.legSign);
+  // Escorts about but nobody on to the boat (no loud ping, no escort close aboard): the plot needs
+  // the merchants' noise, so it stays above the layer; hunted, it goes under
+  const hunted = pinged || warships.some((t) => t.se > 32 || (t.range !== undefined && t.range < 3000));
+  if (plotting && threatNear && !hunted && !radarDown && !peeking && !duel) s.order.depth = quietDepth;
+  s.order.speedKn = threatNear ? (plotting && !duel ? HUNTED_LEG_KN : 3) : Math.round((range !== undefined && range < 6000 ? 4 : 6) * tr.speed * (w.env.adapt?.east?.fast ? 0.8 : 1));
 
   // Reconnaissance: an escort seen through the periscope gets reported at once
   if (w.env.mission === 'aufklaerung' && mastRaised(s) && tracks.some((t) => (t.classified !== undefined && isEscort(t.classified) && t.classified !== 'ffk') && now - t.lastSeen < 60 && (t.range ?? Infinity) < 4000)) {
@@ -288,10 +327,29 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
       traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: close !== undefined ? 'close' : measured !== undefined ? 'measured' : 'tma', q: solved?.q, settled, range, held, span: spanOf(m, target.label, now), legs });
       m.lastShot = now;
       // Shoot and scoot: turn away, go deep, open the range
-      m.evadeUntil = now + 180;
+      m.evadeUntil = now + SCOOT_S;
       s.order = { heading: wrap360(target.bearing + 150 * m.legSign), speedKn: 8, depth: hide };
     }
   }
+}
+
+/** A lost contact found again within this long (s) and this close to its last bearing (deg) is the same ship. */
+const REACQUIRE_S = 120;
+const REACQUIRE_DEG = 8;
+/** The captain stays on a contact that has dropped out for less than this (s). */
+const KEEP_S = 120;
+
+/** The plot of a relabelled contact carries over: its older bearings and the solution's settling time. */
+export function carryPlot(m: BotMemory, from: string, to: string): void {
+  const old = m.blog?.[from];
+  if (old && m.blog) {
+    const cur = m.blog[to];
+    const first = cur?.fixes[0]?.t ?? Infinity;
+    m.blog[to] = { fixes: [...old.fixes.filter((f) => f.t < first), ...(cur?.fixes ?? [])], binEnd: Math.max(old.binEnd, cur?.binEnd ?? -1e9), seen: Math.max(old.seen, cur?.seen ?? -1e9) };
+  }
+  const qs = m.qualSince;
+  if (qs?.[from] !== undefined) qs[to] = Math.min(qs[to] ?? Infinity, qs[from]!);
+  delete m.sols[to];
 }
 
 /** Time span of the captain's bearing plot on a contact (s). */
