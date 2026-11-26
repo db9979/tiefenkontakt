@@ -28,11 +28,12 @@ import {
   ROCKET_MIN_RANGE,
 } from '@tk/shared';
 import { STRAIT_GUARD_Y } from '../scenario.js';
-import { SKILL, isFriendly, solveFor, voted, type BotMemory, type BotSkill } from './common.js';
+import { SKILL, isFriendly, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
 import { thinkStrike } from './strike.js';
 import { directorCourse, type EscortTask } from './escort-team.js';
 import { heloAttack, heloIdle, heloOnDipContact, heloProsecute, heloSearch } from './helo.js';
 import { wantMineAvoid } from './mine-cm.js';
+import { PACE, activeFixes, captainPace, escortMayFire } from './pacing.js';
 
 const ROCKET_COOLDOWN = 90;
 const PROSECUTE_MAX = 16_000; // m from the convoy: beyond that, return to the screen
@@ -122,7 +123,10 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   // Raid warning (launch flash, ESM on the seeker): radar on for the air defence while rounds fly
   if (w.env.ssm?.missiles.some((x) => !x.done && x.team !== s.team && distance(x.pos, s.pos) < 30_000)) s.radarOn = true;
 
+  // The hunt's clock: unbroken prosecution (a lapse of five minutes starts it again)
   if (prosecuting) {
+    if (m.huntSince === undefined || now - (m.huntSeen ?? -1e9) > 300) m.huntSince = now;
+    m.huntSeen = now;
     m.alertUntil = Math.max(m.alertUntil, now + 300 * tr.hunt);
     const solved = target ? solveFor(m, target, now) : undefined;
     const est = target?.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 60
@@ -213,8 +217,13 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   // Weaker captains aim worse
   const err = SKILL[skill].aimErr;
   const aimOff = (): Vec2 | undefined => (err ? { x: w.rng.gauss(0, err), y: w.rng.gauss(0, err) } : undefined);
+  // Localize before a weapon goes (pacing.ts): held long enough, repeated fixes
+  const pace = PACE[skill];
+  const pf = captainPace(s.id, w.env.seed ?? 0, commanderTrait(s.id, w.env.seed ?? 0));
+  const ready = (basis: 'echo' | 'buoy' | 'datum' | 'dip', t?: ContactTrack) =>
+    escortMayFire(pace, pf, basis, t ? now - t.firstSeen : now - (m.huntSince ?? now), t ? activeFixes(t, now) : 0);
   // The own dipping sonar holds the boat: the helicopter attacks its latest fix; idle, it comes home
-  heloOnDipContact(w, m, s, tracks, friends, aimOff);
+  heloOnDipContact(w, m, s, tracks, friends, aimOff, (t) => ready('dip', t));
   heloIdle(w, s);
 
   if (now - m.lastShot < ROCKET_COOLDOWN / SKILL[skill].fireRate) return;
@@ -222,28 +231,30 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   // A lightweight torpedo searches a wide circle: never fire near own ships
   // Inside the rocket's minimum range: turn the bow on the datum and throw a mortar salvo once
   // it lies 400–800 m ahead (fused below the measured layer, or at 60 m without one)
-  const mortar = (aim: Vec2) => {
+  const mortar = (aim: Vec2, basis: string, held?: number) => {
     const r = distance(s.pos, aim);
     const brg = bearing(s.pos, aim);
     s.order.heading = brg;
     if (r < MORTAR_MIN || r > MORTAR_MAX || Math.abs(angleDiff(s.heading, brg)) > 10) return false;
     if (friends.some((f) => f.id !== s.id && distance(f.pos, aim) < 600)) return false;
     if (dropDepthCharge(w, s, s.btLayer ? s.btLayer + 30 : 60) !== true) return false;
+    traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'mortar', basis, range: r, held });
     m.lastShot = now;
     return true;
   };
-  const shoot = (aim: Vec2) => {
-    if (distance(s.pos, aim) < ROCKET_MIN_RANGE) return mortar(aim);
+  const shoot = (aim: Vec2, basis: string, held?: number) => {
+    if (distance(s.pos, aim) < ROCKET_MIN_RANGE) return mortar(aim, basis, held);
     if (friends.some((f) => distance(f.pos, aim) < 3000)) return false;
     const p = scatter(aim);
     if (launchAswRocket(w, s, p) !== true) return false;
+    traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'rocket', basis, range: distance(s.pos, aim), held });
     m.lastShot = now;
     return true;
   };
   // Hunter-killer: the attacker fires on the director's fresh echo datum; the director holds
   // fire while an attacker with rockets is on the team
-  if (role === 'attacker' && datum && datum.by !== s.id && now - datum.t < 40 && datum.q >= 85) {
-    if (shoot(datum)) return;
+  if (role === 'attacker' && datum && datum.by !== s.id && now - datum.t < 40 && datum.q >= 85 && ready('datum')) {
+    if (shoot(datum, 'datum')) return;
     // Out of rocket range or rockets gone: the attacker's helicopter drops on the datum
     if (!friends.some((f) => distance(f.pos, datum) < 3000) && heloAttack(w, s, datum, undefined, aimOff())) {
       m.lastShot = now;
@@ -257,20 +268,20 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     if (cls !== 'submarine' || isFriendly(w, s, t, m)) continue;
     // Aim at the echo itself, from where the ping went out
     const echo = [...t.history].reverse().find((h) => h.sensor === 'active' && h.r !== undefined && now - h.t < 30);
-    if (echo) {
+    if (echo && ready('echo', t)) {
       const at = echo.ox !== undefined ? { x: echo.ox, y: echo.oy! } : [...m.track].reverse().find((f) => f.t <= echo.t + 3) ?? s.pos;
       const v = headingVec(echo.b);
       const fix = { x: at.x + v.x * echo.r!, y: at.y + v.y * echo.r! };
-      if (shoot(fix)) return;
+      if (shoot(fix, 'echo', now - t.firstSeen)) return;
       // Out of rocket range or rockets gone: the helicopter delivers
       if (!friends.some((f) => distance(f.pos, fix) < 3000) && heloAttack(w, s, fix, t.label, aimOff())) {
         m.lastShot = now;
         return;
       }
     }
-    if (SKILL[skill].pack) {
+    if (SKILL[skill].pack && ready('buoy', t)) {
       const fix = fixFromBuoy(t, s, m.track);
-      if (fix && distance(s.pos, fix) < 12_000 && shoot(fix)) return;
+      if (fix && distance(s.pos, fix) < 12_000 && shoot(fix, 'buoy', now - t.firstSeen)) return;
     }
   }
 }

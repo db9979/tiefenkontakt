@@ -64,6 +64,15 @@ export interface BotMemory {
   /** Silent running after hearing a ping (no hammering, no loud work). */
   silentUntil?: number;
   xbtDone?: boolean;
+  /** Submarines: when each of the latest TMA legs began (course change across the line of sight). */
+  legStarts?: number[];
+  /** Submarines: end of the current TMA leg. */
+  tmaLegUntil?: number;
+  /** Submarines: since when the TMA on each contact label has stayed above the firing threshold. */
+  qualSince?: Record<string, number>;
+  /** Escorts: since when the ship has been prosecuting (unbroken). */
+  huntSince?: number;
+  huntSeen?: number;
   /** Classification votes per contact label (a single look can mislead). */
   votes?: Record<string, Partial<Record<ClassChoice, number>>>;
   /** Air defence: radar brought up for an air contact; interceptors asked for this aircraft. */
@@ -180,4 +189,33 @@ export function solveFor(m: BotMemory, t: ContactTrack, now: number, choice?: Cl
 export function heardBearing(w: World, s: Ship, x: number, y: number, rangeM: number): number | undefined {
   if (distance(s.pos, { x, y }) > rangeM) return undefined;
   return (bearing(s.pos, { x, y }) + w.rng.gauss(0, 3) + 360) % 360;
+}
+
+/** One AI weapon release, for the arena's pacing statistics (diagnostics only, no effect on play). */
+export interface ShotTrace {
+  t: number;
+  shooter: string;
+  team: string;
+  weapon: 'torpedo' | 'rocket' | 'mortar' | 'helo' | 'ssm';
+  /** What the shot was aimed on: TMA, measured range, echo, buoy cross-fix, team datum, dip fix, harbour. */
+  basis: string;
+  /** TMA quality at the shot and how long the solution had held above the threshold (s). */
+  q?: number;
+  settled?: number;
+  /** Range to the aim point (m). */
+  range?: number;
+  /** How long the captain had held the target contact (s). */
+  held?: number;
+  /** Time span of the bearing plot behind the solution (s), and own legs on it. */
+  span?: number;
+  legs?: number;
+}
+
+let traceSink: ((r: ShotTrace) => void) | undefined;
+/** Arena diagnostics: receive every AI weapon release (undefined switches it off). */
+export function setShotTrace(f: ((r: ShotTrace) => void) | undefined): void {
+  traceSink = f;
+}
+export function traceShot(r: ShotTrace): void {
+  traceSink?.(r);
 }

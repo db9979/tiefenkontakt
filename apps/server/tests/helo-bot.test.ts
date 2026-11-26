@@ -26,12 +26,21 @@ function echo(w: World, m: BotMemory, s: Ship, u: Ship): void {
 }
 
 describe('AI escort helicopter works through the task queue', () => {
-  it('a fresh echo out of rocket reach: the helicopter attacks that fix at once', () => {
+  it('a first echo is not enough; held and echoed again out of rocket reach, the helicopter attacks that fix', () => {
     const { w, a, u, m } = setup();
     w.time = 100;
     echo(w, m, a, u);
     thinkFrigate(w, m, a, 'schwer');
     const h = heloOf(w, a.id)!;
+    // Localize first (pacing.ts): one fresh echo on a contact just gained is no firing solution
+    expect(h.queue.some((t) => t.kind === 'attack')).toBe(false);
+    h.queue.length = 0;
+    for (const t of [400, 460]) {
+      w.time = t;
+      echo(w, m, a, u);
+    }
+    m.lastShot = -1e9;
+    thinkFrigate(w, m, a, 'schwer');
     expect(h.queue.map((t) => t.kind)).toEqual(['attack']);
     expect(Math.hypot(h.queue[0]!.x - u.pos.x, h.queue[0]!.y - u.pos.y)).toBeLessThan(50);
     expect(h.queue[0]!.track).toBeDefined();
