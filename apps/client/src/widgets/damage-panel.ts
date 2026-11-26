@@ -3,6 +3,7 @@ import { fitCanvas, setHtml } from './format.js';
 import { CLASSES, SYSTEMS, compartmentLayout, type CompartmentView, type ShipSystem, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { store } from '../store.js';
+import { trimDeg, trimText } from './depth-profile.js';
 import { cellAt, compColour, cutawayBg, drawCutaway, sysTags, type CutawayGeom } from './cutaway.js';
 
 const LABEL: Record<ShipSystem, string> = { antrieb: 'ANTRIEB', sonar: 'SONAR', waffen: 'WAFFEN', leck: 'WASSER' };
@@ -122,13 +123,14 @@ export function renderDamage(el: HTMLElement): void {
   setHtml(el.querySelector('#dp-hp')!, `<span class="${hp < 50 ? 'red' : hp < 80 ? 'amber' : 'dim'}">${hp.toFixed(0)} %</span>`);
   const w = o.wreck;
   const list = w?.list ?? 0;
-  const trim = w?.trim ?? 0;
+  // Trim angle as the Zentrale shows it (flooding plus the weight out of trim on a boat)
+  const trim = trimDeg(o);
   const water = Math.round(o.damage.leck * 100);
   const burning = comps.filter((c) => c.fire > 0.02).length;
   const val = (label: string, v: string, cls = '') => `<span><b>${label}</b><span class="${cls}">${v}</span></span>`;
   setHtml(el.querySelector('#dp-state')!, [
     val('SCHLAGSEITE', `${Math.abs(list).toFixed(0)}°${list > 0.5 ? ' STB' : list < -0.5 ? ' BB' : ''}`, Math.abs(list) > 10 ? 'red' : Math.abs(list) > 3 ? 'amber' : ''),
-    val('TRIMM', `${Math.abs(trim).toFixed(1)}°${trim > 0.2 ? ' BUG' : trim < -0.2 ? ' HECK' : ''}`, Math.abs(trim) > 3 ? 'red' : Math.abs(trim) > 1 ? 'amber' : ''),
+    val('TRIMM', trimText(trim), Math.abs(trim) > 3 ? 'red' : Math.abs(trim) > 1 ? 'amber' : ''),
     val('WASSER', `${water} %${water > 70 ? ' SINKT' : ''}`, water > 50 ? 'red' : water > 15 ? 'amber' : ''),
     burning ? val('BRAND', `${burning} ABT.`, 'red') : '',
   ].join(''));

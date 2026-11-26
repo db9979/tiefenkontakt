@@ -21,6 +21,8 @@ import { LazyGl } from '../../widgets/lazy-gl.js';
 import { drawEsmRose } from '../../widgets/esm-rose.js';
 import { onRelease } from '../../widgets/touch.js';
 import { canvasText, lang } from '../../i18n/index.js';
+import { crashDive } from '../../widgets/emergency.js';
+import { airThreat, collectAirAlarm } from './air-alarm.js';
 
 /**
  * Where the optic looks, reported to the server: the periscope sees only its field of view
@@ -135,6 +137,8 @@ export function periscopeStation(): Station {
   let photoReq = false;
   let radarSince = 0;
   let flashAt = -1e9;
+  /** Radius of the optic in the last frame (px). */
+  let lastR = 0;
 
   el.querySelector<HTMLButtonElement>('#up')!.onclick = () => net.send({ t: 'toggle', what: 'mast', on: !(store.snap?.own.mastUp || store.snap?.own.mastPending) });
   const setZoom = (m: ScopeMag) => {
@@ -160,6 +164,7 @@ export function periscopeStation(): Station {
   el.querySelector<HTMLButtonElement>('#book')!.onclick = () => toggleRecogBook('Sehrohr', el);
   el.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('[data-recog]')) toggleRecogBook('Sehrohr', el);
+    if ((e.target as HTMLElement).closest('[data-crash]')) crashDive();
   });
   el.querySelector<HTMLButtonElement>('#foto')!.onclick = () => (photoReq = true);
   el.querySelector<HTMLButtonElement>('#radar')!.onclick = () => net.send({ t: 'toggle', what: 'radar', on: !store.snap?.own.radarOn });
@@ -204,7 +209,8 @@ export function periscopeStation(): Station {
     if (!s) return;
     const r = view.getBoundingClientRect();
     const fov = pfov();
-    const b = periBearing + ((e.clientX - r.left - r.width / 2) / (r.width * 0.42)) * (fov / 2);
+    // The optic's radius as last drawn (the tape beside it may make it narrower than 42 %)
+    const b = periBearing + ((e.clientX - r.left - r.width / 2) / (lastR || r.width * 0.42)) * (fov / 2);
     const hit = s.contacts.find((c) => c.sensors.includes('periscope') && Math.abs(angleDiff(c.bearing, b)) < fov / 10);
     if (hit) store.selected = hit.label;
   };
@@ -241,6 +247,10 @@ export function periscopeStation(): Station {
       else if (isKey(e, 'stabilize')) setStab(!stab);
       else return false;
       return true;
+    },
+    collect() {
+      // The air alarm rings whichever station is shown
+      if (store.snap) collectAirAlarm(store.snap);
     },
     snap() {
       const s = store.snap!;
@@ -280,6 +290,8 @@ export function periscopeStation(): Station {
       btnState(el.querySelector<HTMLElement>('#sky'), sky.sweeping ? { on: true, label: 'SUCHT', tone: 'busy' } : { on: false, label: '' });
       const sel = store.selectedContact();
       const target = sel?.sensors.includes('periscope') ? sel : undefined;
+      // An aircraft seen by eye or on the mast radar fills the LUFT row even without a sky sweep
+      const air = airThreat(s);
       // Profi: range only from the stadimeter with the assigned class; Einsteiger also the measured range
       const easy = store.realism === 'einsteiger';
       const stad = target && stadimeterOf(target, easy);
@@ -289,12 +301,14 @@ export function periscopeStation(): Station {
         : stad !== undefined ? km(stad) : target.assignedCls ? '—' : '<span class="dim">ERST KLASSE ZUWEISEN</span>';
       setHtml(el.querySelector('#data')!, `
         <div class="row"><span class="dim">SEHROHRPEILUNG</span><span>${tdeg1(periBearing)}°</span></div>
-        <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : '—'}</span></div>
+        <div class="row"><span class="dim">ZIEL</span><span>${target ? target.label : sel ? `${sel.label} <span class="amber">· NICHT IN SICHT</span>` : '—'}</span></div>
         <div class="row"><span class="dim">KLASSE (ZUGEWIESEN)</span><span class="${target && !target.assignedCls && !autoCls ? 'amber' : ''}">${target?.assignedCls ? CLASS_LABEL[target.assignedCls] : target?.assigned ? CHOICE_LABEL[target.assigned] : autoCls ? `${CLASS_LABEL[autoCls]} <span class="dim">AUTO</span>` : target ? '<button data-recog class="warn" style="min-height:22px;padding:1px 8px" title="Erkennungsheft öffnen und dem Kontakt eine Klasse zuweisen">KLASSE ZUWEISEN ▸</button>' : '—'}</span></div>
         <div class="row"><span class="dim">ZIELPEILUNG</span><span>${target ? tdeg1(target.bearing) + '°' : '—'}</span></div>
         <div class="row"><span class="dim">MASTHÖHE (ANNAHME)</span><span>${target?.assignedCls ? RECOG[target.assignedCls].mast + ' M' : '—'}</span></div>
         <div class="row"><span class="dim">ENTFERNUNG (STADIMETER)</span><span>${rangeRow}</span></div>
-        <div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>
+        ${air ? `<div class="row peri-air"><span class="dim">LUFT</span><span class="red blink">${air.text}</span></div>
+        <div class="row peri-air"><span class="red">FLIEGERALARM</span><button data-crash class="warn" title="Alarmtauchen: Mast und Schnorchel ein, tief und schnell weg">ALARMTAUCHEN</button></div>`
+        : `<div class="row"><span class="dim">LUFT</span><span class="${skyNow.tone === 'alarm' ? 'red blink' : skyNow.tone === 'clear' ? '' : 'dim'}">${SKY_SHORT[skyNow.text] ?? skyNow.text}</span></div>`}
         <div class="row"><span class="dim">FOTOS</span><span>${photosTaken()}</span></div>
         <div class="row"><span class="dim">SEEGANG</span><span>${s.env.seaState}</span></div>`);
       // Mast block: how long it has been up and what the radar warner hears (only with the mast up)
@@ -343,7 +357,9 @@ export function periscopeStation(): Station {
       report();
       const cx = w / 2;
       const cy = H / 2;
-      const R = Math.min(w * 0.42, H * 0.47);
+      // Room on the right for the elevation tape and its "ELEV +0°" readout
+      const R = Math.max(40, Math.min(w * 0.42, H * 0.47, w / 2 - 74));
+      lastR = R;
       const mst = s ? mastState(s.own) : { ext: 0, raised: false, moving: undefined };
       // The head breaks the surface at about 55 % of its travel
       const gl = g3.scene;
@@ -467,11 +483,12 @@ export function periscopeStation(): Station {
       } else if (!s || !mst.raised) {
         plateText(ctx, [['MAST EINGEFAHREN', COL.g2], [s && s.own.depth > 19 ? 'AUF SEHROHRTIEFE GEHEN, DANN MAST AUSFAHREN' : 'MAST AUSFAHREN ZUM BEOBACHTEN', COL.dim]], cx, cy - 30, R * 1.7);
       }
-      ctx.fillStyle = COL.g2;
+      // Port and starboard inside the optic, under the ends of the horizontal line (the elevation
+      // tape's figures sit on the right edge outside it)
       ctx.textAlign = 'left';
-      ctx.fillText('BB', 10, cy + 4);
+      plateTextAt(ctx, 'BB', cx - R + 14, cy + 20);
       ctx.textAlign = 'right';
-      ctx.fillText('STB', w - 10, cy + 4);
+      plateTextAt(ctx, 'STB', cx + R - 14, cy + 20);
       if (s && mst.raised) sky.draw(ctx, cx, cy, R, sky.readout(air, simNow(), true), t);
       if (photoReq) {
         photoReq = false;
@@ -484,6 +501,16 @@ export function periscopeStation(): Station {
       shutterFlash(ctx, cx - R, cy - R, 2 * R, 2 * R, nowMs - flashAt);
     },
   };
+}
+
+/** A short label on a dark plate (readable over sea and sky), aligned by the context's textAlign. */
+function plateTextAt(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+  const w = ctx.measureText(text).width;
+  const left = ctx.textAlign === 'right' ? x - w : x;
+  ctx.fillStyle = 'rgba(3,5,4,0.7)';
+  ctx.fillRect(left - 3, y - 11, w + 6, 15);
+  ctx.fillStyle = COL.g2;
+  ctx.fillText(text, x, y);
 }
 
 /** The LUFT row's value without the label repeated in it. */

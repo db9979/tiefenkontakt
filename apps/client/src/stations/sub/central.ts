@@ -7,7 +7,8 @@ import type { Station } from '../../screens/game.js';
 import { clock, h, latLon, setHtml, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction } from '../../widgets/actions.js';
-import { DepthProfile, batteryInfo, depthOf } from '../../widgets/depth-profile.js';
+import { BATTERY_TIP, DepthProfile, batteryInfo, depthOf, trimDeg, trimText } from '../../widgets/depth-profile.js';
+import { airThreat, exposed } from './air-alarm.js';
 import { depthAlarms } from '../../widgets/depth-alarm-ui.js';
 import { crashDive } from '../../widgets/emergency.js';
 import { fillBox } from '../../widgets/fill.js';
@@ -120,22 +121,30 @@ export function centralStation(): Station {
       const hasMines = o.loadout.mines !== undefined;
       q('[data-ptab="mines"]').hidden = !hasMines;
       if (!hasMines && tabs.current === 'mines') tabs.show('nav');
-      q('#c-alarm').textContent = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 60) ? 'TORPEDO!' : '';
+      // Torpedo first; an aircraft in sight while the mast or snorkel shows is the next worst
+      const air = exposed(s) ? airThreat(s) : undefined;
+      q('#c-alarm').textContent = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 60) ? 'TORPEDO!' : air ? `FLIEGER · ${air.text}` : '';
+      const crash = q<HTMLButtonElement>('[data-cmd="alarm"]');
+      btnState(crash, air ? { label: 'FLIEGER!', tone: 'warn' } : { label: '' });
       q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
       setHtml(q('#c-layer'), layer !== undefined ? `SCHICHT ${layer} M · ${o.depth > layer ? 'DARUNTER' : 'DARÜBER'}` : s.env.noLayer ? 'KEINE SCHICHT · DURCHMISCHT BIS GRUND' : '<span class="amber">SCHICHT UNBEKANNT</span>');
       // Tiles: the four figures a diving officer watches
       const moving = Math.abs(o.order.depth - o.depth) > 2;
       q('#t-depth').textContent = `${o.depth.toFixed(0)} M`;
       q('#t-depth2').textContent = `${moving ? `→ ${o.order.depth.toFixed(0)} M · ` : ''}GRUND ${s.env.bottom !== undefined ? `${s.env.bottom} M` : '—'}`;
-      const trim = o.trim ?? 0;
-      q('#t-trim').textContent = Math.abs(trim) < 0.05 ? 'AUS' : `${trim > 0 ? '+' : '−'}${Math.abs(trim).toFixed(1).replace('.', ',')} T`;
-      q('#t-trim').className = Math.abs(trim) > 0.2 ? 'amber' : '';
+      // Trim in degrees, the same figure damage control shows; the weight out of trim in the tooltip
+      const trim = trimDeg(o);
+      const tons = o.trim ?? 0;
+      q('#t-trim').textContent = trimText(trim);
+      q('#t-trim').className = Math.abs(trim) > 3 ? 'red' : Math.abs(trim) > 1 ? 'amber' : '';
+      q('[data-tile="trim"]').title = `Trimmwinkel (+ Bug unten). ${Math.abs(tons) < 0.05 ? 'Boot ausgetrimmt' : `Trimmlast ${Math.abs(tons).toFixed(1).replace('.', ',')} t ${tons > 0 ? 'zu leicht' : 'zu schwer'} · Trimmpumpen laufen`}`;
       q('#t-trim2').textContent = `PRESSLUFT ${'●'.repeat(o.hpAir ?? 3)}${'○'.repeat(Math.max(0, 3 - (o.hpAir ?? 3)))}${o.blowing ? ' · BLÄST AN' : ''}`;
       const bat = batteryInfo(o);
       q('#t-bat').textContent = bat ? `${bat.pct.toFixed(0)} %` : 'REAKTOR';
       q('#t-bat').className = bat ? (bat.pct < 25 ? 'red' : bat.pct < 50 ? 'amber' : '') : '';
       q('#t-bat2').textContent = bat ? bat.range : 'UNBEGRENZT';
       q('#t-bat2').className = bat?.short ? 'amber' : 'dim';
+      q('[data-tile="bat"]').title = bat ? BATTERY_TIP : '';
       const sx = o.snorkelExt ?? (o.snorkel ? 1 : 0);
       q('[data-tile="snort"]').hidden = !spec.battery;
       q('#t-sn').textContent = o.snorkel ? (o.depth > PERISCOPE_DEPTH + 0.5 ? 'ZU TIEF' : sx < 1 ? `${Math.round(sx * 100)} %` : 'LÄUFT') : sx > 0 ? 'FÄHRT EIN' : 'AUS';
@@ -144,7 +153,7 @@ export function centralStation(): Station {
       // Orders
       q('#snort').style.display = spec.battery ? '' : 'none';
       btnState(q('#snort'), o.snorkel && o.depth > PERISCOPE_DEPTH + 0.5 ? { on: true, label: 'ZU TIEF', tone: 'warn' } : o.snorkel && sx < 1 ? { on: true, label: `${Math.round(sx * 100)} %`, pct: sx * 100, tone: 'busy' }
-        : !o.snorkel && sx > 0 ? { on: false, label: 'EIN…', pct: sx * 100, tone: 'busy' } : { on: o.snorkel });
+        : !o.snorkel && sx > 0 ? { on: false, label: 'FÄHRT EIN', pct: sx * 100, tone: 'busy' } : { on: o.snorkel });
       btnState(q('[data-cmd="silent"]'), { on: !!o.crew?.silent });
       btnState(q('[data-cmd="battle"]'), { on: !!o.crew?.battle });
       el.querySelectorAll<HTMLButtonElement>('[data-depth]').forEach((b) => {
@@ -179,7 +188,8 @@ function navRows(s: Snapshot): string {
   const region = s.env.seabed?.region;
   const pos = region ? (() => { const g = regionToGeo(REGIONS[region], o.x, o.y); return latLon(g.lat, g.lon); })() : `${(o.x / 1000).toFixed(1)} / ${(o.y / 1000).toFixed(1)} KM`;
   const n = o.nav;
-  const err = o.navUncertainty !== undefined ? (o.navUncertainty < 1000 ? `± ${o.navUncertainty} M` : `± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM`) : '';
+  // Position error in sea miles, as on the chart (one unit per quantity)
+  const err = o.navUncertainty !== undefined ? `± ${(o.navUncertainty / NM).toFixed(1).replace('.', ',')} SM` : '';
   const last = n?.lastFix ? `${FIX[n.lastFix]} VOR ${clock(n.lastFixAgo ?? 0)}` : 'NUR KOPPELORT';
   const busy = n?.sat ? `SATELLIT EMPFANG ${Math.min(100, Math.round((n.sat / 120) * 100))} %` : n?.stars ? `STERNE ${Math.min(100, Math.round((n.stars / 180) * 100))} %` : '';
   const sat = n ? (n.satIn === 0 ? '<span class="amber">SATELLIT ÜBER DEM HORIZONT · MAST HOCH</span>' : `NÄCHSTER SATELLIT IN ${clock(n.satIn)}`) : '';

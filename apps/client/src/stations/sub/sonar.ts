@@ -10,7 +10,7 @@ import { fillBox } from '../../widgets/fill.js';
 import { h, setText } from '../../widgets/format.js';
 import { panelTabs, tabRow } from '../../widgets/panel-tabs.js';
 import { rangePanel } from '../../widgets/range-panel.js';
-import { threatPanel } from '../../widgets/threat-panel.js';
+import { pingSources, threatPanel } from '../../widgets/threat-panel.js';
 import { Waterfall } from '../../widgets/waterfall.js';
 
 /** Pick the contact nearest to a clicked bearing on a waterfall. */
@@ -55,7 +55,7 @@ export function subSonarStation(): Station {
       <div class="panel grow tabbed" id="st-tabs">
         <div class="hd">${tabRow([['list', 'Kontakte'], ['threat', 'Bedrohung', 'Wer pingt uns, Ausweichvorschlag, Hörreichweite'], ['active', 'Aktiv', 'Einzelping: Entfernung, verrät aber das Boot']])}<span id="tab-st" class="dim"></span></div>
         <div class="pane" data-pane="list"><div id="list"></div></div>
-        <div class="pane" data-pane="threat"><div id="threat-slot"></div><div id="range-slot"></div></div>
+        <div class="pane" data-pane="threat"><div id="threat-slot"></div><details id="range-fold" class="fold"><summary title="Hörreichweite gegen jeden Gegnertyp (aufklappen)">HÖRREICHWEITE</summary><div id="range-slot"></div></details></div>
         <div class="pane" data-pane="active"><div id="as-slot"></div></div>
       </div>
     </div>
@@ -72,7 +72,16 @@ export function subSonarStation(): Station {
   q('#threat-slot').replaceWith(threat.el);
   const range = rangePanel();
   q('#range-slot').replaceWith(range.el);
-  const scope = activeScope({ height: 260, compact: true });
+  // The active scope takes the pane's height (its bar and header off), within reason
+  const activePane = q('[data-pane="active"]');
+  const scope = activeScope({
+    height: () => {
+      const ppi = scope.el.querySelector<HTMLElement>('#as-ppi');
+      const chrome = ppi ? scope.el.offsetHeight - ppi.offsetHeight : 70;
+      return Math.max(140, Math.min(420, activePane.clientHeight - chrome - 8));
+    },
+    compact: true,
+  });
   q('#as-slot').replaceWith(scope.el);
   // A tab is drawn the moment it opens, not at the next snapshot (no empty pane, no buttons jumping under the pointer)
   let redraw = () => {};
@@ -101,10 +110,12 @@ export function subSonarStation(): Station {
       scope.snap();
       setText(q('#own'), `EIGENGERÄUSCH ${o.noiseDb.toFixed(0)} DB`);
       // The threat tab says when something is pinging us, even while another tab is open
-      const pings = s.alerts.filter((a) => a.kind === 'ping' && s.time - a.time < 300).length;
+      // The badge counts pingers (threats), not pings
+      const pingers = pingSources(s.alerts.filter((a) => a.kind === 'ping' && s.time - a.time < 300));
       const torp = s.alerts.some((a) => a.kind === 'torpedo' && s.time - a.time < 90);
       const badge = q('[data-ptab="threat"] .cnt');
-      setText(badge, torp ? '!' : pings ? String(pings) : '');
+      setText(badge, torp ? '!' : pingers ? String(pingers) : '');
+      badge.title = torp ? 'Torpedo im Wasser' : pingers ? `${pingers} Pinger in den letzten 5 Minuten` : '';
       badge.classList.toggle('alarm', torp);
       setText(q('#tab-st'), tabs.current === 'list' ? `${s.contacts.filter((c) => c.via === 'own').length} KONTAKTE` : '');
       const tow = q<HTMLButtonElement>('#tow');

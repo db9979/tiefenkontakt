@@ -1,10 +1,14 @@
 import { gameDeg, trueDeg } from '../../north.js';
 import { onTap } from '../../widgets/touch.js';
+import './sub-audit.css';
 import {
-  CHOICE_MAX_KN,
   CLASSES,
-  autoSolve,
+  boundedQuality,
   lsqSolve,
+  solveInPrior,
+  speedAtBound,
+  speedPrior,
+  type SpeedPrior,
   bearing,
   ekelundRange,
   ownLegChange,
@@ -28,7 +32,7 @@ import { isFriendlyContact } from '../../widgets/friendly.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
 import { renderContactList } from '../../widgets/contact-list.js';
-import { COL, clock, fitCanvas, h, km, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
+import { COL, fitCanvas, h, km, kn, setHtml, tdeg1, tdeg3 } from '../../widgets/format.js';
 import { Plot } from '../../widgets/plot.js';
 import { courseAction, torpedoAction } from '../../widgets/actions.js';
 import { decoy } from '../../widgets/emergency.js';
@@ -37,8 +41,37 @@ import { keycap } from '../../widgets/keys.js';
 import { tubeBank } from '../../widgets/tube-bank.js';
 
 type Method = 'hyp' | 'ekelund' | 'dots';
+type Contact = NonNullable<ReturnType<typeof store.selectedContact>>;
 const DOT_FACTORS = [0.6, 1, 1.6];
 const FIX_MAX_AGE = 120; // s sim time
+/** A lost contact's solution is dead-reckoned this long (s sim time) before it is dropped. */
+const GHOST_S = 180;
+/** Below this Güte FEUER asks once. */
+const FIRE_Q_MIN = 50;
+/** Clicks on FEUER closer together than this (ms) count as one. */
+const FIRE_DEBOUNCE_MS = 700;
+
+const n1 = (x: number) => x.toFixed(1).replace('.', ',');
+const mmss = (t: number) => {
+  const s = Math.max(0, Math.floor(t));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/** What the ear and the eye say about her speed: classification, DEMON shaft rate, tonals. */
+export function priorFor(c: Contact): SpeedPrior {
+  const m = store.marks.get(c.label);
+  const cls = c.assignedCls ?? c.classified;
+  const tonals = (c.evidence?.tonals ?? []).map((t) => t.hz);
+  if (m?.tonalHz) tonals.push(m.tonalHz);
+  return speedPrior({
+    choice: c.assigned,
+    classMaxKn: cls ? CLASSES[cls].maxSpeedKn : undefined,
+    shaftHz: m?.shaftHz ?? c.evidence?.shaftHz,
+    tonalsHz: tonals,
+  });
+}
+
+const PRIOR_BY: Record<SpeedPrior['by'], string> = { class: 'KLASSE', demon: 'DEMON', tonals: 'TONALE', none: 'SUCHGRENZE' };
 
 /** Residual plot: one row per hypothesis (dot-stack) or a single scatter (hypothesis). */
 function drawResiduals(c: HTMLCanvasElement, rows: { label: string; res: { t: number; err: number }[] }[]): void {
@@ -105,7 +138,8 @@ export function fireControlStation(): Station {
           <div><div class="row"><span class="dim">ZIELKURS</span><b id="v-crs"></b></div><input id="s-crs" type="range" min="0" max="359" step="1" aria-label="Zielkurs"></div>
           <div><div class="row"><span class="dim">ZIELFAHRT</span><b id="v-spd"></b></div><input id="s-spd" type="range" min="0" max="30" step="0.5" aria-label="Zielfahrt"></div>
         </div>
-        <div class="row"><span><span class="dim">GÜTE / FEHLER</span> <span id="v-q"></span></span><span><span class="dim">LÖSUNG ALTER</span> <span id="v-age"></span></span></div>
+        <div class="row fc-prior" title="Fahrtbereich aus Klassifizierung, DEMON-Wellendrehzahl und Handelsschiff-Tonalen: Auto-TMA sucht nur darin. Liegt die Lösung an der Grenze, bestimmen die Peilungen die Fahrt nicht"><span class="dim">FAHRTBEREICH</span><span id="v-prior"></span></div>
+        <div class="row fc-qrow"><span><span class="dim">GÜTE / FEHLER</span> <span id="v-q"></span></span><span><span class="dim">LÖSUNG ALTER</span> <span id="v-age"></span></span></div>
         <canvas id="res"></canvas>
         <div id="steps" class="tma-step"></div>
       </div>
@@ -157,10 +191,39 @@ export function fireControlStation(): Station {
   let fix: (() => void) | undefined;
   q<HTMLButtonElement>('#fire-fix').onclick = () => fix?.();
 
+  /**
+   * A contact that drops out of the picture keeps its solution for a few minutes, dead-reckoned
+   * ("LÖSUNG GEKOPPELT · KONTAKT VERLOREN"): the fire-control problem does not vanish mid-attack.
+   */
+  let ghost: { c: Contact; lostAt: number } | undefined;
+  let lastSel: Contact | undefined;
+  /** The contact being worked: the selected one, or the lost one whose solution is still coupled. */
+  const cur = (): Contact | undefined => store.selectedContact() ?? (store.selected ? undefined : ghost?.c);
+  function trackGhost(): void {
+    const s = store.snap;
+    if (!s) return;
+    const sel = store.selectedContact();
+    if (sel) {
+      lastSel = sel;
+      ghost = undefined;
+    } else if (lastSel && !store.selected && !s.contacts.some((x) => x.label === lastSel!.label) && store.solutions.has(lastSel.label)) {
+      ghost = { c: lastSel, lostAt: s.time };
+      lastSel = undefined;
+    }
+    if (ghost && (store.selected || s.time - ghost.lostAt > GHOST_S || !store.solutions.has(ghost.c.label))) ghost = undefined;
+  }
+
+  /** Güte of the worked contact's solution, capped while its speed only sits on a bound of the prior. */
+  function solQuality(c: Contact | undefined): number {
+    const sol = c ? store.solutions.get(c.label) : undefined;
+    if (!c || !sol) return 0;
+    return boundedQuality(evaluateSolution(sol, c.history, store.ownTrack).quality, sol, priorFor(c));
+  }
+
   /** Edit the selected solution via range (along latest bearing), course and speed. */
   function fromSliders(): void {
     const s = store.snap;
-    const c = store.selectedContact();
+    const c = cur();
     if (!s || !c) return;
     const last = c.history[c.history.length - 1];
     if (!last) return;
@@ -188,7 +251,7 @@ export function fireControlStation(): Station {
   const solSeen = new Map<string, { ref: TmaSolution; at: number }>();
   el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => (b.onclick = () => (method = b.dataset.method as Method)));
   q<HTMLButtonElement>('#ekel-take').onclick = () => {
-    const c = store.selectedContact();
+    const c = cur();
     if (!c) return;
     const r = ekelundRange(c.history, store.ownTrack);
     const old = store.solutions.get(c.label);
@@ -196,21 +259,24 @@ export function fireControlStation(): Station {
     if (sol) store.solutions.set(c.label, sol);
   };
   q<HTMLButtonElement>('#auto').onclick = () => {
-    const c = store.selectedContact();
+    const c = cur();
     if (!c) return;
-    // Classified contacts bound the speed search: a freighter can't make 24 kn
-    const maxKn = c.assigned ? CHOICE_MAX_KN[c.assigned] : c.classified ? CLASSES[c.classified].maxSpeedKn : 30;
-    // Least-squares fit over the whole plot (both legs); the grid search is the fallback for
-    // contacts without own-ship bearings (unresolved towed array)
-    const sol = lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol ?? autoSolve(c.history, store.ownTrack, maxKn);
+    // The speed prior bounds the search: classification, the DEMON shaft rate and merchant
+    // tonals (a freighter can't make 24 kn). Least squares over the whole plot (both legs)
+    // first; the grid search inside the prior when that leaves it or finds nothing
+    // (no own-ship bearings, unresolved towed array)
+    const sol = solveInPrior(c.history, store.ownTrack, priorFor(c), (maxKn) => lsqSolve(c.history, store.ownTrack, maxKn, c.assigned)?.sol);
     if (sol) store.solutions.set(c.label, sol);
   };
-  q<HTMLButtonElement>('#clear').onclick = () => store.selected && store.solutions.delete(store.selected);
+  q<HTMLButtonElement>('#clear').onclick = () => {
+    const c = cur();
+    if (c) store.solutions.delete(c.label);
+  };
   q<HTMLButtonElement>('#calc').onclick = () => {
     const s = store.snap;
-    const sol = store.selected ? store.solutions.get(store.selected) : undefined;
+    const c = cur();
+    const sol = c ? store.solutions.get(c.label) : undefined;
     if (!s || !sol) return;
-    const c = store.selectedContact();
     if (store.realism === 'profi' && c && ownLegChange(c.history, store.ownTrack) < 6) {
       store.lastError = 'Entfernung nicht beobachtbar: erst einen eigenen Kurswechsel fahren';
       return;
@@ -224,15 +290,23 @@ export function fireControlStation(): Station {
       q<HTMLInputElement>('#t-spread').value = (Math.round(fan * 2) / 2).toFixed(1);
     }
   };
-  // Fire asks twice on a weak or missing solution, or with our own ship as the target
+  // One click, one torpedo: a double click (or a bouncing key) within the debounce counts once.
+  // Registered before the guard, so the guard never sees the second click.
+  let fireClickAt = -1e9;
+  q<HTMLButtonElement>('#fire').addEventListener('click', (e) => {
+    const now = performance.now();
+    if (now - fireClickAt < FIRE_DEBOUNCE_MS) e.stopImmediatePropagation();
+    else fireClickAt = now;
+  });
+  // Fire asks twice on a weak (below 50 %) or missing solution, or with our own ship as the target
   guardFire(q<HTMLButtonElement>('#fire'), () => {
     if (q<HTMLInputElement>('#t-hdg').value === '') return { block: 'KEIN SCHUSSKURS' };
-    const c = store.selectedContact();
+    const c = cur();
     const s = store.snap;
     if (c && s && isFriendlyContact(c, s)) return { warn: 'EIGENES SCHIFF' };
-    const sol = c ? store.solutions.get(c.label) : undefined;
-    const qual = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
-    if (qual < 30) return { warn: `GÜTE ${Math.round(qual)} %` };
+    const qual = solQuality(c);
+    // A fixed text: the guard confirms only the same warning, and the Güte moves with every bearing
+    if (qual < FIRE_Q_MIN) return { warn: `GÜTE UNTER ${FIRE_Q_MIN} %` };
     return {};
   }, () => {
     const hdg = Number(q<HTMLInputElement>('#t-hdg').value);
@@ -264,10 +338,13 @@ export function fireControlStation(): Station {
     snap() {
       const s = store.snap!;
       renderContactList(q('#list'), (via) => via === 'own');
-      const c = store.selectedContact();
+      trackGhost();
+      const c = cur();
+      const lost = !!c && c === ghost?.c;
       const sol: TmaSolution | undefined = c ? store.solutions.get(c.label) : undefined;
-      q('#tgt').textContent = c ? c.label : 'KONTAKT WÄHLEN';
-      q('#tgt-st').textContent = c ? `ZIEL ${c.label}` : '';
+      setHtml(q('#tgt'), !c ? 'KONTAKT WÄHLEN' : lost ? `${c.label} <span class="fc-lost">LÖSUNG GEKOPPELT · KONTAKT VERLOREN</span>` : c.label);
+      q('#tgt').title = lost ? `${c!.label} wird nicht mehr gehört: die Lösung läuft noch ${Math.max(0, Math.round((GHOST_S - (s.time - ghost!.lostAt)) / 60))} min gekoppelt weiter (Kurs und Fahrt wie zuletzt)` : '';
+      q('#tgt-st').textContent = c ? `ZIEL ${c.label}${lost ? ' · VERLOREN' : ''}` : '';
       q('#auto').style.display = store.realism === 'einsteiger' ? '' : 'none';
       // Fire: tubes ready or the next reload; take-over: only with a solution
       const lo = s.own.loadout;
@@ -289,16 +366,20 @@ export function fireControlStation(): Station {
         q('#fire-fix').textContent = `ZU TIEF · AUF ${to} M`;
       } else {
         fix = undefined;
-        btnState(fireBtn, tubeTag(lo.tubes));
+        // Tubes ready but a weak solution: the Güte on the button in amber (FEUER asks once)
+        const tag = tubeTag(lo.tubes);
+        const ready = lo.tubes.some((t) => t.loaded);
+        const qNow = Math.round(solQuality(c));
+        btnState(fireBtn, ready && c && sol && qNow < FIRE_Q_MIN ? { label: `GÜTE ${qNow} %`, tone: 'warn' } : tag);
       }
       q('#fire-why').style.display = block ? '' : 'none';
       el.querySelectorAll<HTMLButtonElement>('[data-salvo]').forEach((b) => b.classList.toggle('on', Number(b.dataset.salvo) === salvo));
       q<HTMLInputElement>('#t-spread').disabled = salvo === 1;
       q('#t-spread-auto').textContent = salvo > 1 ? `${salvo} TORPEDOS · FÄCHER ${Math.round((salvo - 1) * (Number(q<HTMLInputElement>('#t-spread').value) || 0))}°` : '';
-      const hasSol = !!(store.selected && store.solutions.get(store.selected));
-      btnState(q('#calc'), hasSol ? { label: 'LÖSUNG' } : { label: 'KEINE', tone: 'empty' });
+      btnState(q('#calc'), sol ? { label: lost ? 'GEKOPPELT' : 'LÖSUNG', tone: lost ? 'warn' : undefined } : { label: 'KEINE', tone: 'empty' });
       const legs = c ? c.history.length : 0;
-      const fitQ = c && sol ? evaluateSolution(sol, c.history, store.ownTrack).quality : 0;
+      const prior = c ? priorFor(c) : undefined;
+      const fitQ = solQuality(c);
       // The checklist in one line: the first step still open, the whole list in the tooltip
       const steps: [boolean, string][] = [
         [!!c, 'Kontakt wählen (Liste, Karte oder Wasserfall)'],
@@ -312,18 +393,28 @@ export function fireControlStation(): Station {
       const stepsEl = q('#steps');
       setHtml(stepsEl, open ? `<span class="dim">${nDone}/5</span> <span class="amber">▸ ${open[1]}</span>` : '<span>✓ Lösung steht, Torpedo läuft</span>');
       stepsEl.title = steps.map(([done, text]) => `${done ? '✓' : '▸'} ${text}`).join('\n');
+      // The speed band the search may use, and a warning when the solution sits on its edge
+      const atEdge = !!(sol && prior && speedAtBound(sol, prior));
+      setHtml(q('#v-prior'), !prior ? '—' : atEdge ? '<span class="amber">ZIELFAHRT AN DER GRENZE – UNBESTIMMT</span>'
+        : `${n1(prior.lo)}–${n1(prior.hi)} KN <span class="dim">· ${PRIOR_BY[prior.by]}${prior.demonKn !== undefined ? ` ~${n1(prior.demonKn)} KN` : ''}</span>`);
+      q('.fc-prior').title = atEdge && prior
+        ? `Die Lösung liegt mit ${n1(sol!.speedKn)} kn an der Grenze ${n1(prior.lo)}–${n1(prior.hi)} kn (${PRIOR_BY[prior.by]}): die Peilungen bestimmen die Fahrt nicht, die Güte bleibt unter 30 %. Kurs ändern, länger peilen, DEMON-Welle markieren oder klassifizieren`
+        : 'Fahrtbereich aus Klassifizierung, DEMON-Wellendrehzahl und Handelsschiff-Tonalen: Auto-TMA sucht nur darin. Liegt die Lösung an der Grenze, bestimmen die Peilungen die Fahrt nicht';
       if (c && sol) {
         const fit = evaluateSolution(sol, c.history, store.ownTrack);
         const now = targetPosAt(sol, s.time);
         const rng = distance(s.own, now);
         q('#v-rng').textContent = km(rng);
         q('#v-crs').textContent = `${tdeg3(sol.course)}°`;
-        q('#v-spd').textContent = `${sol.speedKn.toFixed(1)} KN`;
+        q('#v-spd').textContent = kn(sol.speedKn);
+        q('#v-spd').className = atEdge ? 'amber' : '';
         // Eased readouts: the fit settles instead of flickering with each noisy bearing
-        shownQ = shownQ === undefined || shownLabel !== c.label ? fit.quality : shownQ + (fit.quality - shownQ) * 0.2;
+        const qTarget = prior ? boundedQuality(fit.quality, sol, prior) : fit.quality;
+        shownQ = shownQ === undefined || shownLabel !== c.label ? qTarget : shownQ + (qTarget - shownQ) * 0.2;
+        if (atEdge) shownQ = Math.min(shownQ, qTarget);
         shownRms = shownRms === undefined || shownLabel !== c.label ? fit.rmsDeg : shownRms + (fit.rmsDeg - shownRms) * 0.2;
         shownLabel = c.label;
-        setHtml(q('#v-q'), `<span class="${shownQ > 60 ? '' : 'amber'}">${Math.round(shownQ)} %</span> / ${shownRms.toFixed(1)}°`);
+        setHtml(q('#v-q'), `<span class="${shownQ > 60 ? '' : 'amber'}">${Math.round(shownQ)} %</span> / ${n1(shownRms)}°`);
         const last = c.history[c.history.length - 1];
         const own = last ? ownPosAt(store.ownTrack, last.t) ?? s.own : s.own;
         // Move the sliders only when the solution itself changed (not on every update)
@@ -336,14 +427,17 @@ export function fireControlStation(): Station {
         }
         const tl = c.history[c.history.length - 1]?.t ?? s.time;
         drawResiduals(q<HTMLCanvasElement>('#res'), method === 'dots'
-          ? DOT_FACTORS.map((f) => ({ label: `${f.toFixed(1)}×`, res: evaluateSolution(scaleSolutionRange(sol, f, tl, store.ownTrack), c.history, store.ownTrack).residuals }))
+          ? DOT_FACTORS.map((f) => ({ label: `${n1(f)}×`, res: evaluateSolution(scaleSolutionRange(sol, f, tl, store.ownTrack), c.history, store.ownTrack).residuals }))
           : [{ label: '', res: fit.residuals }]);
         const seen = solSeen.get(c.label);
         if (!seen || seen.ref !== sol) solSeen.set(c.label, { ref: sol, at: s.time });
         const age = s.time - (solSeen.get(c.label)?.at ?? s.time);
-        setHtml(q('#v-age'), age > FIX_MAX_AGE ? `<span class="amber">${Math.round(age)} S · VERALTET, NEU ANPASSEN</span>` : `${Math.round(age)} S`);
+        // Stale: a short amber badge (the row never wraps); what to do is in the tooltip
+        setHtml(q('#v-age'), age > FIX_MAX_AGE ? `${Math.round(age)} S <span class="fc-badge">VERALTET</span>` : `${Math.round(age)} S`);
+        q('#v-age').title = age > FIX_MAX_AGE ? 'Lösung älter als 2 min: neu anpassen (Regler oder Auto-TMA)' : '';
       } else {
         for (const id of ['#v-rng', '#v-crs', '#v-spd', '#v-q', '#v-age']) q(id).textContent = '—';
+        q('#v-spd').className = '';
         drawResiduals(q<HTMLCanvasElement>('#res'), [{ label: '', res: [] }]);
       }
       el.querySelectorAll<HTMLButtonElement>('[data-method]').forEach((b) => b.classList.toggle('on', b.dataset.method === method));
@@ -357,10 +451,11 @@ export function fireControlStation(): Station {
       const tubes = lo.tubes;
       q('#tubes').textContent = `${tubes.filter((t) => t.loaded).length}/${tubes.length} GELADEN · VORRAT ${lo.heavy}`;
       bank.update(tubes);
+      // One wire row per torpedo: name and state, course · run so far · fuel left (mm:ss), steering
       setHtml(q('#wires'), s.torpedoes.length ? s.torpedoes.map((t) => `
-        <div class="row ${t.id === store.selected ? 'selrow amber' : ''}" style="align-items:center"><span class="clickable" data-pick="${t.id}">${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
-        <span>${tdeg1(t.heading)}° · ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">${t.leftS !== undefined ? clock(t.leftS) : '—'}</span></span>
-        <span class="seg"><button data-steer="${t.id}" data-d="-10">◀◀</button><button data-steer="${t.id}" data-d="-2">◀</button><button data-steer="${t.id}" data-d="2">▶</button><button data-steer="${t.id}" data-d="10">▶▶</button></span></div>`).join('')
+        <div class="row wire-row ${t.id === store.selected ? 'selrow amber' : ''}"><span class="clickable wr-name" data-pick="${t.id}" title="Torpedo wählen">${t.id} ${t.homing ? '<span class="red">ZIEL ERFASST</span>' : 'LÄUFT'}</span>
+        <span class="wr-data" title="Kurs · gelaufene Strecke · Restlaufzeit (Brennstoff)">${tdeg1(t.heading)}° · GELAUFEN ${km(t.run)} · <span class="${(t.leftS ?? Infinity) < 60 ? 'amber' : ''}">REST ${t.leftS !== undefined ? mmss(t.leftS) : '—'}</span></span>
+        <span class="seg wr-steer"><button data-steer="${t.id}" data-d="-10" title="Über den Draht 10° nach Backbord">◀◀</button><button data-steer="${t.id}" data-d="-2" title="Über den Draht 2° nach Backbord">◀</button><button data-steer="${t.id}" data-d="2" title="Über den Draht 2° nach Steuerbord">▶</button><button data-steer="${t.id}" data-d="10" title="Über den Draht 10° nach Steuerbord">▶▶</button></span></div>`).join('')
         : '<div class="dim" title="Kein eigener Torpedo am Draht">KEIN TORPEDO</div>');
       btnState(q('#tr-nm'), { label: String(lo.noisemakers), tone: lo.noisemakers ? undefined : 'empty' });
     },

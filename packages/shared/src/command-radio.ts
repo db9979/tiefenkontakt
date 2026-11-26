@@ -1,4 +1,4 @@
-import { CLASSES } from './classes.js';
+import { CLASSES, isEscort } from './classes.js';
 import { isConvoyShip, type Ship } from './entities.js';
 import { KN, NM, bearing, distance } from './math.js';
 import type { World } from './world.js';
@@ -59,7 +59,8 @@ function report(w: World, s: Ship): string {
   const r = (distance(me, rep) / NM).toFixed(0);
   const crs = trueDeg3(w, w.convoy?.guideHeading ?? merchants[0]!.heading);
   const kn = Math.round(merchants[0]!.speed / KN);
-  const escorts = w.ships.filter((x) => x.alive && x.team !== s.team && !CLASSES[x.cls].submarine && x.cls !== 'merchant').length;
+  // Only the convoy's own warships: neutral fishing boats, yachts and ferries are no escort
+  const escorts = w.ships.filter((x) => x.alive && x.team === merchants[0]!.team && isEscort(x.cls)).length;
   if (own) return `FÜHRUNG: EIGENER GELEITZUG PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. STATION 4 SM VORAUS HALTEN, WÖLFE VOR DEM KONVOI STELLEN. SPERRGEBIET 4 KM UM SIE.`;
   return `FÜHRUNG: KONVOI ${merchants.length} FRACHTER, PEILUNG ${b}, CA. ${r} SM, KURS ${crs}, ${kn} KN. ${escorts} GELEITSCHIFFE.`;
 }

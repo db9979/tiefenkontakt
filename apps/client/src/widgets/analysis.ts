@@ -22,6 +22,9 @@ const PALETTES = [
 ];
 
 const maxHz = (p: Page) => (p === 'lofar' ? 500 : 60);
+/** Mean level of the gram's background noise (makeRow: 0,12 + 0..0,2). */
+const NOISE_FLOOR = 0.22;
+const lightTheme = () => document.documentElement.dataset.theme === 'light';
 
 /**
  * LOFAR/DEMON analysis for the selected contact. Everything shown is built from
@@ -39,7 +42,9 @@ export class AcousticAnalysis {
   private contrast = 1;
   private black = 0.1;
   private palette = 0;
-  private cursor: Record<Page, number> = { lofar: 50, demon: 5 };
+  /** Frequency cursor per page; set on the strongest line of each new contact until the operator moves it. */
+  private cursor: Record<Page, number> = { lofar: 0, demon: 0 };
+  private cursorSet: Record<Page, boolean> = { lofar: false, demon: false };
   private raw: Record<Page, Float32Array[]> = { lofar: [], demon: [] };
   private label?: string;
   private lastT = -1;
@@ -107,6 +112,7 @@ export class AcousticAnalysis {
       const hz = lo + ((e.clientX - r.left - 4) / (r.width - 8)) * (hi - lo);
       const stepHz = this.page === 'lofar' ? 0.5 : 0.1;
       this.cursor[this.page] = Math.round(Math.min(hi, Math.max(lo, hz)) / stepHz) * stepHz;
+      this.cursorSet[this.page] = true;
       this.renderControls();
     });
     this.setPage('lofar');
@@ -262,9 +268,16 @@ export class AcousticAnalysis {
     if (store.selected !== this.label) {
       this.label = store.selected;
       this.raw = { lofar: [], demon: [] };
+      this.cursorSet = { lofar: false, demon: false };
     }
     const c = store.selectedContact();
     const fresh = c && c.evidenceAt !== undefined && s.time - c.evidenceAt < 3 ? c.evidence : undefined;
+    // A new contact: the cursor starts on its strongest line (not on a fixed 50 Hz that hides one)
+    if (fresh && !this.cursorSet.lofar) {
+      const top = [...fresh.tonals].sort((a, b) => b.snr - a.snr)[0];
+      if (top) this.cursor.lofar = Math.round(top.hz * 2) / 2;
+    }
+    if (fresh?.shaftHz && !this.cursorSet.demon) this.cursor.demon = Math.round(fresh.shaftHz * 10) / 10;
     if (Math.floor(s.time) !== this.lastT) {
       this.lastT = Math.floor(s.time);
       for (const p of ['lofar', 'demon'] as const) {
@@ -319,7 +332,10 @@ export class AcousticAnalysis {
     this.el.querySelectorAll<HTMLElement>('.einsteiger').forEach((b) => (b.style.display = store.realism === 'einsteiger' ? '' : 'none'));
     const spec = this.integrated(this.page);
     const lvl = spec[this.binOf(this.page, this.cursor[this.page])] ?? 0;
-    q('#a-cur').textContent = `CURSOR ${this.cursor[this.page].toFixed(1).replace('.', ',')} HZ · PEGEL ${lvl.toFixed(2).replace('.', ',')}`;
+    // Level in dB over the noise floor (the display's background averages about 0,22)
+    const db = lvl > 0 ? Math.round(20 * Math.log10(lvl / NOISE_FLOOR)) : undefined;
+    q('#a-cur').textContent = !store.selected ? '' : `CURSOR ${this.cursor[this.page].toFixed(1).replace('.', ',')} HZ · ${db === undefined ? 'PEGEL —' : `${db >= 0 ? '+' : '−'}${Math.abs(db)} DB`}`;
+    q('#a-cur').title = 'Pegel am Cursor in dB über dem Rauschgrund';
     const m = store.selected ? store.marks.get(store.selected) : undefined;
     q('#a-markinfo').textContent = [
       m?.tonalHz ? `GRUNDTON ${hz1(m.tonalHz)} HZ` : '', m?.shaftHz ? `WELLE ${hz1(m.shaftHz)} HZ` : '', m?.bladeHz ? `BLATT ${hz1(m.bladeHz)} HZ` : '',
@@ -345,6 +361,8 @@ export class AcousticAnalysis {
     }
     // Waterfall image from integrated rows
     const pal = PALETTES[this.palette]!;
+    // On paper the mirrored phosphor washes out: push the noise down and the lines up, so they stand dark on white
+    const paper = lightTheme();
     const ictx = this.img.getContext('2d')!;
     const data = ictx.createImageData(BINS, ROWS);
     const b0 = this.binOf(page, lo);
@@ -356,6 +374,7 @@ export class AcousticAnalysis {
         const src = b0 + Math.floor((x / BINS) * (b1 - b0));
         let v = ((row[src] ?? 0) * this.gain - this.black) * this.contrast;
         v = Math.max(0, Math.min(1, v));
+        if (paper) v = Math.max(0, Math.min(1, (v - 0.08) * 1.7));
         const [c0, c1, c2] = pal as number[][];
         const t = v < 0.6 ? v / 0.6 : (v - 0.6) / 0.4;
         const a = v < 0.6 ? c0! : c1!;
@@ -413,6 +432,9 @@ export class AcousticAnalysis {
     });
 
     const m = store.marks.get(store.selected) ?? {};
+    // Mark lines: labels on a plate at the top of the strip (the spectrum trace runs under them);
+    // a label without room beside the previous one is left out (the line stays)
+    const labels: Box[] = [];
     const vline = (hz: number, color: string, text?: string, dash = false) => {
       if (hz < lo || hz > hi) return;
       ctx.strokeStyle = color;
@@ -420,15 +442,26 @@ export class AcousticAnalysis {
       ctx.beginPath(); ctx.moveTo(X(hz), 4); ctx.lineTo(X(hz), H - 18); ctx.stroke();
       ctx.setLineDash([]);
       if (text) {
+        const x = clampTextX(ctx, text, X(hz), 4, w - 4);
+        const box = textBox(ctx, text, x, 12);
+        if (labels.some((b) => boxesHit(b, box, 2))) return;
         ctx.fillStyle = color;
-        ctx.fillText(text, X(hz), 12);
+        labels.push(plateText(ctx, text, x, 12));
       }
     };
-    if (page === 'lofar' && m.tonalHz) for (let k = 2; k <= 10; k++) vline(m.tonalHz * k, 'rgba(250,199,117,0.45)', `${k}f`, true);
+    // The cursor first, thin and dashed, so the lines it sits on stay visible over it
+    const cx = this.cursor[page];
+    if (cx >= lo && cx <= hi) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(Math.round(X(cx)) + 0.5, 4); ctx.lineTo(Math.round(X(cx)) + 0.5, H - 18); ctx.stroke();
+      ctx.setLineDash([]);
+    }
     if (page === 'lofar' && m.tonalHz) vline(m.tonalHz, COL.amber, 'GT');
+    if (page === 'lofar' && m.tonalHz) for (let k = 2; k <= 10; k++) vline(m.tonalHz * k, 'rgba(250,199,117,0.45)', `${k}f`, true);
     if (page === 'demon' && m.shaftHz) vline(m.shaftHz, COL.amber, 'W');
     if (page === 'demon' && m.bladeHz) vline(m.bladeHz, COL.blue, 'B');
-    vline(this.cursor[page], '#ffffff');
     if (store.realism === 'einsteiger') {
       // Line values for beginners: on a plate (the cursor and the lines run through them), in two
       // staggered rows; a value that still has no room is left out (the line itself stays)

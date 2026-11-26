@@ -1,5 +1,6 @@
 import type { BearingSample } from './contacts.js';
 import { KN, angleDiff, bearing, headingVec, type Vec2 } from './math.js';
+import { CHOICE_MAX_KN, SIGNATURES, type ClassChoice } from './signatures.js';
 
 /** Target motion analysis from bearings-only data. Runs on the client with what the player knows. */
 
@@ -90,6 +91,8 @@ export interface SolveOptions {
   speedStep?: number;
   rangeFactor?: number;
   samples?: number;
+  /** Lower speed bound (kn) of the search, from a speed prior. */
+  minSpeedKn?: number;
 }
 
 export function autoSolve(
@@ -111,7 +114,7 @@ export function autoSolve(
       const x0 = own.x + dir.x * r;
       const y0 = own.y + dir.y * r;
       for (let c = 0; c < 360; c += courseStep) {
-        for (let v = 0; v <= maxSpeedKn; v += speedStep) {
+        for (let v = Math.max(0, opts.minSpeedKn ?? 0); v <= maxSpeedKn + 1e-9; v += speedStep) {
           const sol = { t0: last.t, x0, y0, course: c, speedKn: v };
           const rms = evaluateSolution(sol, sample, track).rmsDeg;
           if (!best || rms < best.rms) best = { sol, rms };
@@ -251,4 +254,114 @@ export function solutionAtRange(
   if (!own) return undefined;
   const v = headingVec(last.b);
   return { t0: last.t, x0: own.x + v.x * range, y0: own.y + v.y * range, course, speedKn };
+}
+
+// ---- Speed prior: what the ear says about how fast she can be going ----
+
+const LINE_TOL_HZ = 1.5;
+/** An unclassified surface contact with merchant tonals is no faster than this. */
+export const MERCHANT_TONAL_MAX_KN = 20;
+/** Spread on the DEMON speed estimate (shaft-rate noise, load and pitch). */
+const DEMON_SLACK = 0.15;
+/** Within this of a speed bound the solution only says "at least / at most". */
+export const SPEED_EDGE_KN = 1;
+/** Güte is capped below this while the target speed sits on a bound. */
+export const EDGE_QUALITY_MAX = 29;
+
+/** Convoy-merchant tonals: the 50 Hz family (ship's mains) with the 37,5 Hz diesel firing line, or two harmonics of it. */
+export function hasMerchantTonals(tonalsHz: readonly number[]): boolean {
+  const hit = (f: number) => tonalsHz.some((hz) => Math.abs(hz - f) <= LINE_TOL_HZ);
+  const family = [50, 100, 150].filter(hit).length;
+  return (hit(37.5) && family >= 1) || family >= 2;
+}
+
+export interface SpeedPrior {
+  lo: number;
+  hi: number;
+  /** What set the upper bound. */
+  by: 'class' | 'demon' | 'tonals' | 'none';
+  /** Speed read from the shaft rate (kn) with the catalogue's median turns per knot. */
+  demonKn?: number;
+}
+
+export interface SpeedPriorInput {
+  /** The player's classification (choice), if any. */
+  choice?: ClassChoice;
+  /** Top speed of a visually identified class. */
+  classMaxKn?: number;
+  /** DEMON shaft rate (Hz): the operator's mark or the latest measurement. */
+  shaftHz?: number;
+  /** Narrowband tonals heard on the contact (Hz). */
+  tonalsHz?: readonly number[];
+  /** Search ceiling without other knowledge. */
+  maxKn?: number;
+}
+
+/**
+ * Bounds for the target-speed search. The shaft rate on DEMON gives the speed through the
+ * ship's turns per knot: the catalogue's ships (not yachts) turn 4,6–22 U/min per knot, so
+ * 57 U/min means about 2–14 kn whatever she is. An unclassified contact with convoy-merchant
+ * tonals is capped at 20 kn; a classification caps at its class.
+ */
+export function speedPrior(inp: SpeedPriorInput): SpeedPrior {
+  const known = inp.choice !== undefined && inp.choice !== 'unknown';
+  let hi = inp.maxKn ?? 30;
+  let by: SpeedPrior['by'] = 'none';
+  if (known) {
+    hi = Math.min(hi, CHOICE_MAX_KN[inp.choice!]);
+    by = 'class';
+  }
+  if (inp.classMaxKn !== undefined) {
+    hi = Math.min(hi, inp.classMaxKn);
+    by = 'class';
+  }
+  if (by === 'none' && inp.tonalsHz && hasMerchantTonals(inp.tonalsHz) && hi > MERCHANT_TONAL_MAX_KN) {
+    hi = MERCHANT_TONAL_MAX_KN;
+    by = 'tonals';
+  }
+  let lo = 0;
+  let demonKn: number | undefined;
+  const shaft = inp.shaftHz;
+  if (shaft !== undefined && Number.isFinite(shaft) && shaft > 0.3) {
+    const rpm = shaft * 60;
+    const want: ClassChoice[] = known ? [inp.choice!] : ['merchant', 'warship', 'submarine'];
+    const rpk = Object.values(SIGNATURES)
+      .filter((g) => want.includes(g.choice) && g.rpmPerKn > 0 && g.rpmPerKn <= 30)
+      .map((g) => g.rpmPerKn)
+      .sort((a, b) => a - b);
+    if (rpk.length) {
+      demonKn = rpm / rpk[Math.floor(rpk.length / 2)]!;
+      const dHi = (rpm / rpk[0]!) * (1 + DEMON_SLACK);
+      const dLo = (rpm / rpk[rpk.length - 1]!) * (1 - DEMON_SLACK);
+      if (dHi < hi) {
+        hi = dHi;
+        by = 'demon';
+      }
+      lo = Math.min(dLo, hi);
+    }
+  }
+  return { lo: Math.round(lo * 10) / 10, hi: Math.round(hi * 10) / 10, by, ...(demonKn !== undefined && { demonKn }) };
+}
+
+/** The solution's speed sits on a bound of the prior: the data don't fix it, the bound does. */
+export function speedAtBound(sol: Pick<TmaSolution, 'speedKn'>, prior: SpeedPrior): boolean {
+  return sol.speedKn >= prior.hi - SPEED_EDGE_KN || (prior.lo > SPEED_EDGE_KN && sol.speedKn <= prior.lo + SPEED_EDGE_KN);
+}
+
+/** Güte shown for a solution: capped below 30 % while the speed is only a bound. */
+export function boundedQuality(quality: number, sol: Pick<TmaSolution, 'speedKn'>, prior: SpeedPrior): number {
+  return speedAtBound(sol, prior) ? Math.min(quality, EDGE_QUALITY_MAX) : quality;
+}
+
+/**
+ * Auto-TMA inside the speed prior: the preferred solver (least squares) first; if its speed
+ * leaves the prior's band, the grid search restricted to that band.
+ */
+export function solveInPrior(
+  hist: readonly BearingSample[], track: readonly OwnFix[], prior: SpeedPrior,
+  first?: (maxKn: number) => TmaSolution | undefined,
+): TmaSolution | undefined {
+  const a = first?.(prior.hi);
+  if (a && a.speedKn <= prior.hi + 0.25 && a.speedKn >= prior.lo - 0.25) return a;
+  return autoSolve(hist, track, prior.hi, { minSpeedKn: prior.lo, speedStep: 0.5 }) ?? a;
 }

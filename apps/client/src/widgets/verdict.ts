@@ -25,7 +25,7 @@ export function renderVerdict(el: HTMLElement): void {
     : '<div class="dim">LINIEN MARKIEREN: LOFAR-GRUNDTON, DEMON-WELLE UND -BLATT</div>';
   el.innerHTML = `
     <div class="hd" style="margin-top:6px"><span>Auswertung ${esc(c.label)}</span><span class="${c.assigned ? 'amber' : 'dim'}">${c.assigned ? CHOICE_LABEL[c.assigned] : 'UNKLASSIFIZIERT'}</span></div>
-    ${bc ? `<div class="row"><span class="dim">BLATTZAHL / DREHZAHL</span><span>${bc.blades} BLATT (${bc.deviation >= 0 ? '+' : ''}${bc.deviation.toFixed(2)}) · ${Math.round(bc.rpm)} U/MIN</span></div>` : ''}
+    ${bc ? `<div class="row" title="Blattrate durch Wellenrate ergibt die Blattzahl; die Abweichung von der ganzen Zahl sagt, wie gut die Marken sitzen (unter ±0,3 passt sie)"><span class="dim">BLATTZAHL / DREHZAHL</span><span>${bc.blades} BLATT <span class="${Math.abs(bc.deviation) > 0.3 ? 'amber' : 'dim'}">(ABW. ${bc.deviation >= 0 ? '+' : '−'}${Math.abs(bc.deviation).toFixed(2).replace('.', ',')})</span> · ${Math.round(bc.rpm)} U/MIN</span></div>` : ''}
     <div class="dim" style="margin:4px 0">KLASSENBIBLIOTHEK${sure ? '' : ' · NUR HINWEIS (WENIGER ALS 2 MARKEN)'}</div>
     ${libRows}
     <div class="steps cls-grid" style="margin-top:6px">${CHOICES.map((ch) => `<button data-cls="${ch}" class="${c.assigned === ch || (!c.assigned && ch === 'unknown') ? 'on' : ''}">${CHOICE_LABEL[ch]}</button>`).join('')}</div>`;

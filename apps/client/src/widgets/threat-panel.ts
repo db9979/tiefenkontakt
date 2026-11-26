@@ -1,4 +1,4 @@
-import { angleDiff, wrap360, type AlertView, type Snapshot } from '@tk/shared';
+import { CLASSES, angleDiff, wrap360, type AlertView, type Snapshot } from '@tk/shared';
 import { net } from '../net.js';
 import { h, setHtml, setText, tdeg3 } from './format.js';
 import { onTap } from './touch.js';
@@ -15,11 +15,36 @@ const ECHO_LIKELY = 25;
 
 interface Plan { text: string; heading: number; speedKn: number; depth: number; decoy: boolean }
 
+/** Deepest the evasion may order: the boat's limit and 20 m over the ground. */
+function floorOf(s: Snapshot): number {
+  return Math.min(CLASSES[s.own.cls].maxDepth * 0.9, (s.env.bottom ?? Infinity) - 20);
+}
+
+/**
+ * Where to hide from a pinger. Hull sonars and dipping sonars sit above the layer: a boat
+ * already below it stays deep (at least 30 m under it) instead of climbing into the pinger's
+ * water; only a boat on the pinger's side goes down through it. Without a measured layer:
+ * shallow boats go deeper, deep ones stay.
+ */
+export function evasionDepth(s: Snapshot, pingerAbove = true): number {
+  const o = s.own;
+  const layer = s.env.layerDepth;
+  const floor = floorOf(s);
+  const clamp = (d: number) => Math.round(Math.max(30, Math.min(floor, d)));
+  if (layer === undefined) return clamp(o.depth < 80 ? o.depth + 60 : o.depth);
+  const under = layer + 30;
+  if (pingerAbove) return o.depth >= layer ? clamp(Math.max(o.depth, under)) : clamp(layer + 40);
+  // A pinger below the layer (deep buoy): get above it
+  return o.depth < layer ? clamp(Math.min(o.depth, layer - 40)) : clamp(layer - 40);
+}
+
 function plan(s: Snapshot, torp?: AlertView, ping?: AlertView): Plan | undefined {
   const o = s.own;
   const layer = s.env.layerDepth;
-  const cross = layer === undefined ? (o.depth < 80 ? Math.min(200, o.depth + 60) : Math.max(30, o.depth - 50))
-    : o.depth < layer ? layer + 40 : Math.max(30, layer - 40);
+  // A torpedo: change depth hard, through the layer when there is one (break the seeker's lock)
+  const floor = floorOf(s);
+  const cross = Math.round(Math.max(30, Math.min(floor, layer === undefined ? (o.depth < 80 ? Math.min(200, o.depth + 60) : Math.max(30, o.depth - 50))
+    : o.depth < layer ? layer + 40 : Math.max(30, layer - 40))));
   if (torp?.bearing !== undefined) {
     // Put the torpedo on the quarter (150° off its bearing), sprint, change depth through the layer, decoy
     const a = wrap360(torp.bearing + 150);
@@ -28,9 +53,11 @@ function plan(s: Snapshot, torp?: AlertView, ping?: AlertView): Plan | undefined
     return { text: `TORPEDO ${tdeg3(torp.bearing)}: KURS ${tdeg3(heading)}, AK, TIEFE ${cross} M, TÄUSCHKÖRPER`, heading, speedKn: 99, depth: cross, decoy: true };
   }
   if (ping?.bearing !== undefined) {
-    // Stern to the pinger (smallest echo), creep, hide across the layer
+    // Stern to the pinger (smallest echo), creep; below the layer stay there, above it go under
     const heading = wrap360(ping.bearing + 180);
-    return { text: `HECK ZUM PINGER: KURS ${tdeg3(heading)}, SCHLEICHFAHRT 4 KN, TIEFE ${cross} M`, heading, speedKn: 4, depth: cross, decoy: false };
+    const depth = evasionDepth(s);
+    const stay = layer !== undefined && o.depth >= layer && Math.abs(depth - o.depth) < 5;
+    return { text: `HECK ZUM PINGER: KURS ${tdeg3(heading)}, SCHLEICHFAHRT 4 KN, ${stay ? `TIEFE ${depth} M HALTEN (UNTER SCHICHT)` : `TIEFE ${depth} M`}`, heading, speedKn: 4, depth, decoy: false };
   }
   return undefined;
 }
@@ -41,6 +68,25 @@ function airRow(s: Snapshot): string {
   if (!air.length) return '<div class="row"><span class="dim">LUFT</span><span class="dim">—</span></div>';
   const radar = air.filter((p) => p.via.includes('esm'));
   return `<div class="row"><span class="dim">LUFT</span><span class="${radar.length ? 'red' : 'amber'}">${radar.length ? `FLUGZEUGRADAR ${radar.map((p) => `${tdeg3(p.bearing)}°`).join(' · ')} · MAST EINFAHREN` : `${air.length} IN SICHT`}</span></div>`;
+}
+
+/**
+ * Distinct pinging sources in a list of ping alerts: by kind (hull, dipping, buoy) and bearing
+ * (pings within 8° of a known one are the same pinger). The threat count, not the ping count.
+ */
+export function pingSources(pings: readonly AlertView[]): number {
+  const seen: { src: string; b: number }[] = [];
+  for (const p of pings) {
+    const src = p.source ?? 'hull';
+    if (p.bearing === undefined) {
+      if (!seen.some((x) => x.src === src)) seen.push({ src, b: NaN });
+      continue;
+    }
+    const known = seen.find((x) => x.src === src && (Number.isNaN(x.b) || Math.abs(angleDiff(x.b, p.bearing!)) < 8));
+    if (known) known.b = p.bearing;
+    else seen.push({ src, b: p.bearing });
+  }
+  return seen.length;
 }
 
 export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
@@ -68,7 +114,8 @@ export function threatPanel(): { el: HTMLElement; update(s: Snapshot): void } {
       const loud = pings.reduce<AlertView | undefined>((m, a) => ((a.level ?? 0) > (m?.level ?? -1) ? a : m), undefined);
       const last2 = pings.slice(-2);
       const trend = last2.length === 2 ? (last2[1]!.level ?? 0) - (last2[0]!.level ?? 0) : 0;
-      setText(q('#th-sum'), torp ? 'TORPEDO!' : pings.length ? `${pings.length} PINGS / 5 MIN` : 'RUHIG');
+      const sources = pingSources(pings);
+      setText(q('#th-sum'), torp ? 'TORPEDO!' : pings.length ? `${sources} PINGER · ${pings.length} PINGS / 5 MIN` : 'RUHIG');
       q('#th-sum').className = torp ? 'red blink' : pings.length ? 'amber' : 'dim';
       setHtml(q('#th-rows'), [
         `<div class="row"><span class="dim">BORDSONAR · TAUCHSONAR · BOJE</span><span>${hull.length} · ${dip.length} · ${buoy.length}</span></div>`,
