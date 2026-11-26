@@ -81,7 +81,7 @@ export function helpOverlay(submarine: boolean): void {
       <tr><td>3 · Bibliothek</td><td>Sie bewertet deine Marken gegen den Katalog. Die Entscheidung triffst du mit den Klassen-Knöpfen.</td></tr>
       <tr><td>Filter</td><td>Band wählen, Notch blendet die eigene Schraube aus, lange Integration hebt schwache Töne, „Spitze“ hält Maxima.</td></tr>
       <tr><td>Torpedo</td><td>Laut, keine Töne, sehr hohe Drehzahl, schnell wandernde Peilung.</td></tr>
-      <tr><td>Stufe</td><td>„Einsteiger“ (oben rechts) beschriftet Linien und bietet Auto-Marken und Auto-TMA. „Profi“ nicht.</td></tr>
+      <tr><td>Stufe</td><td>„Einsteiger“ (oben rechts) beschriftet Linien und bietet Auto-Marken und Auto-TMA. „Profi“ nicht; Auto-TMA nur mit frischer Stadimeter-Entfernung (Sehrohr: ENTF. ÜBERNEHMEN, höchstens 60 s alt).</td></tr>
     </table>
     <h3>WEITERE WERKZEUGE</h3>
     <table>

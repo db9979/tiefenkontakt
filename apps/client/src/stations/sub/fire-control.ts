@@ -271,7 +271,7 @@ export function fireControlStation(): Station {
     const sol = r && solutionAtRange(c.history, store.ownTrack, r.range, old?.course ?? 0, old?.speedKn ?? 0);
     if (sol) store.solutions.set(c.label, sol);
   };
-  // The called stadimeter range into the plot by hand (Profi has no Auto-TMA): on the latest
+  // The called stadimeter range into the plot by hand (Profi gets Auto-TMA only on a fresh mark): on the latest
   // bearing, course and speed kept, as with Ekelund
   q<HTMLButtonElement>('#stadi-take').onclick = () => {
     const c = cur();
@@ -284,6 +284,10 @@ export function fireControlStation(): Station {
   q<HTMLButtonElement>('#auto').onclick = () => {
     const c = cur();
     if (!c) return;
+    if (store.realism === 'profi') {
+      const m = store.rangeMarks.get(c.label);
+      if (!m || !store.snap || !rangeMarkAge(m, store.snap.time).fresh) return;
+    }
     // The speed prior bounds the search: classification, the DEMON shaft rate and merchant
     // tonals (a freighter can't make 24 kn). Least squares over the whole plot (both legs)
     // first; the grid search inside the prior when that leaves it or finds nothing
@@ -382,7 +386,10 @@ export function fireControlStation(): Station {
       setHtml(q('#tgt'), !c ? 'KONTAKT WÄHLEN' : lost ? `${c.label} <span class="fc-lost">LÖSUNG GEKOPPELT · KONTAKT VERLOREN</span>` : c.label);
       q('#tgt').title = lost ? `${c!.label} wird nicht mehr gehört: die Lösung läuft noch ${Math.max(0, Math.round((GHOST_S - (s.time - ghost!.lostAt)) / 60))} min gekoppelt weiter (Kurs und Fahrt wie zuletzt)` : '';
       q('#tgt-st').textContent = c ? `ZIEL ${c.label}${lost ? ' · VERLOREN' : ''}` : '';
-      q('#auto').style.display = store.realism === 'einsteiger' ? '' : 'none';
+      // Profi: Auto-TMA only rides on a fresh stadimeter range the player called himself
+      const freshMark = !!c && store.realism === 'profi' && (() => { const m = store.rangeMarks.get(c.label); return !!m && rangeMarkAge(m, s.time).fresh; })();
+      q('#auto').style.display = store.realism === 'einsteiger' || freshMark ? '' : 'none';
+      q('#auto').title = freshMark ? 'Auto-TMA mit der Stadimeter-Entfernung als Anker (höchstens 60 s alt)' : '';
       // Fire: tubes ready or the next reload; take-over: only with a solution
       const lo = s.own.loadout;
       // Launch envelope: too fast or too deep switches the button off and offers the fix

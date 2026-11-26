@@ -11,7 +11,8 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   und einem kurzen zweiten Schenkel bei 29 % („ENTFERNUNG UNBESTIMMT“), obwohl die Entfernung gemessen war.
 - **Stadimeter ins Lagebild (Profi):** Im Sehrohr „ENTF. ÜBERNEHMEN“ (nur mit ausgefahrenem Mast und frischer
   Sehrohrpeilung) legt eine Entfernungsmarke je Kontakt an; die Feuerleitung zeigt Zeile STADIMETER mit Alter
-  („VERALTET“ nach 60 s) und „Übernehmen“ setzt die Entfernung auf die letzte Peilung.
+  („VERALTET“ nach 60 s) und „Übernehmen“ setzt die Entfernung auf die letzte Peilung; solange die Marke frisch ist, gibt es
+  auch im Profi-Modus den Knopf Auto-TMA, der sie als Anker nimmt.
 - **Letzte Prüfpunkte:** Das Ostpakt-Atom-U-Boot schießt Kielwasser-Torpedos auf das Geleitschiff, das es festhält
   (Pingen, laut oder unter 3 km), mit eigener Schussregel und Zielpunkt achteraus; Torpedobahnen leuchten nachts in
   der 3D-Sicht der Überwasserschiffe; Meeresleuchten-Spur des U-Boots auch auf Entfernung sichtbar; Fregattenseite
