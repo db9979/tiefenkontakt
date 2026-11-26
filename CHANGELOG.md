@@ -6,6 +6,10 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Echter Mond:** Stand und Phase nach Meeus für Seegebiet, Datum (Tag je Partie aus dem Seed) und Bordzeit,
+  Sichel mit Erdschein, Lichthof, Mondlichtbahn auf dem Wasser, rot und schwach am Horizont, hinter Wolken verdeckt,
+  blass am Tag. Das Mondlicht bestimmt die Nachtsicht von Ausguck, Sehrohr und gegen abgeblendete Flugzeuge
+  (Neumond hilft dem U-Boot, Vollmond dem Geleit); MOND-Zeile auf Brücke und Sehrohr, Mond in der Lagebesprechung.
 - **Hafen ausgeglichen:** Die U-Boote starten 750 m näher am Ankerplatz und kommen so vor Ablauf der Zeit zu einer
   zweiten Salve. 96 Bot-Partien: Geleitschiffe 48 % (vorher 74 %); alle fünf Missionen jetzt 44–56 %.
 - **Balance mit der langsameren KI:** KI-U-Boote bleiben an ihrem Ziel (auch über kurze Kontaktverluste), plotten
