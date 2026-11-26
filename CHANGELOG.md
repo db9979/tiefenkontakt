@@ -6,6 +6,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Balance mit der langsameren KI:** KI-U-Boote bleiben an ihrem Ziel (auch über kurze Kontaktverluste), plotten
+  alle gehörten Frachter, fahren ihre TMA-Schenkel quer zur Sichtlinie und weichen kürzer aus; Schelf-Startposition
+  angepasst. 80 Bot-Partien: Geleitschiffe 55 % (vorher 74 %), Grönland, Schelf, Fjord und Meerenge je 44–56 %.
 - **Echter Sternenhimmel:** 986 Sterne aus dem Yale Bright Star Catalogue an ihren wirklichen Orten für Seegebiet,
   Monat und Bordzeit (Großer Wagen, Orion, Skorpion …), Größe und Helligkeit nach Magnitude, Farbe nach B–V,
   Funkeln und Verblassen zum Horizont, Wolken, Nebel, Regen und Dämmerung verdecken sie, schwache Milchstraße in
