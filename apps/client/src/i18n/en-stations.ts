@@ -26,7 +26,7 @@ export const EN_STATIONS: [string, string][] = [
   ['KLICK WÄHLT · RECHTSKLICK = KURS', 'CLICK SELECTS · RIGHT-CLICK = COURSE'], ['KLICK IN DAS PROFIL = BEFOHLENE TIEFE', 'CLICK THE PROFILE = ORDERED DEPTH'],
   ['KLICK WÄHLT · RECHTSKLICK = KURS / RAKETE / BOJE', 'CLICK SELECTS · RIGHT-CLICK = COURSE / ROCKET / BUOY'], ['KLICK AUF EINE SPUR WÄHLT', 'CLICK A TRACE TO SELECT'],
   // Frigate stations, designer round 3 (OPZ contact card, sonar header and popover, weapon cards, ESM, sightings)
-  ['Gewählter Kontakt', 'Selected contact'], ['Ping', 'Ping'], ['Hubschrauber hin', 'Send helicopter'], ['KONTAKT IN KARTE ODER LISTE WÄHLEN', 'SELECT A CONTACT ON THE MAP OR IN THE LIST'],
+  ['Gewählter Kontakt', 'Selected contact'], ['Doppler der stärksten Linie des gewählten Kontakts gegen ihre Ruhefrequenz', 'Doppler of the selected contact\'s strongest line against its rest frequency'], ['Ping', 'Ping'], ['Hubschrauber hin', 'Send helicopter'], ['KONTAKT IN KARTE ODER LISTE WÄHLEN', 'SELECT A CONTACT ON THE MAP OR IN THE LIST'],
   ['ALTER', 'AGE'], ['ZU WEIT · ÜBER 18 KM', 'TOO FAR · OVER 18 KM'],
   ['Einzelping: Entfernung zum gewählten Kontakt, verrät aber das eigene Schiff', 'Single ping: range to the selected contact, but gives the own ship away'],
   ['U-Jagd-Rakete auf die letzte Position des gewählten Kontakts (1,8–18 km)', 'ASW rocket at the selected contact\'s last position (1.8–18 km)'],

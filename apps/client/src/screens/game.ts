@@ -447,9 +447,11 @@ export function gameScreen(root: HTMLElement, onExit: () => void): () => void {
     // Hull integrity in the tab label; a hit brings the damage panel forward
     const hpPct = Math.max(0, Math.round((100 * s.own.hp) / CLASSES[s.own.cls].hp));
     const dmg = q('#st-dmg');
-    const dmgTxt = hpPct < 100 ? ` ${hpPct}%` : '';
+    // Sunk: no "0%" (the panel shows the state she went down with, headed GESUNKEN)
+    const dmgTxt = !s.own.alive ? ' ✕' : hpPct < 100 ? ` ${hpPct}%` : '';
     if (dmg.textContent !== dmgTxt) dmg.textContent = dmgTxt;
-    dmg.className = hpPct < 50 ? 'red' : hpPct < 80 ? 'amber' : '';
+    dmg.className = hpPct < 50 || !s.own.alive ? 'red' : hpPct < 80 ? 'amber' : '';
+    dmg.title = s.own.alive ? '' : 'Gesunken';
     if (sideHp !== undefined && s.own.hp < sideHp - 0.5 && sideTab !== 'damage') showSide('damage');
     sideHp = s.own.hp;
     const sub = CLASSES[s.own.cls].submarine;

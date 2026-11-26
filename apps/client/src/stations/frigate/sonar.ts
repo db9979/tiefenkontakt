@@ -1,9 +1,9 @@
-import { CLASSES } from '@tk/shared';
+import { CLASSES, dopplerLabel } from '@tk/shared';
 import { net } from '../../net.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { AcousticAnalysis, labWithDoppler } from '../../widgets/analysis.js';
+import { AcousticAnalysis } from '../../widgets/analysis.js';
 import { activeScope } from '../../widgets/active-scope.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { fillBox } from '../../widgets/fill.js';
@@ -49,7 +49,8 @@ export function frigateSonarStation(): Station {
     </div>
     <div class="st-col">
       <div class="panel grow tabbed" id="st-tabs">
-        <div class="hd">${tabRow([['ana', 'Analyse', 'LOFAR / DEMON des gewählten Kontakts'], ['active', 'Aktiv', 'Aktivsonar: Einzelping, CW/LFM, Echos'], ['vds', 'BT/Reichweite', 'Bathythermograph, Minenmeiden, Hörreichweite (mit Tiefensonar: VDS)'], ['list', 'Kontakte']])}<span id="lab" class="amber"></span></div>
+        <div class="hd">${tabRow([['ana', 'Analyse', 'LOFAR / DEMON des gewählten Kontakts'], ['active', 'Aktiv', 'Aktivsonar: Einzelping, CW/LFM, Echos'], ['vds', 'BT/Reichweite', 'Bathythermograph, Minenmeiden, Hörreichweite (mit Tiefensonar: VDS)'], ['list', 'Kontakte']])}<span id="lab" class="amber" title="Gewählter Kontakt"></span></div>
+        <div id="lab-dop" class="tow-st dim" title="Doppler der stärksten Linie des gewählten Kontakts gegen ihre Ruhefrequenz"></div>
         <div class="pane scroll" data-pane="ana"><div id="ana"></div></div>
         <div class="pane scroll" data-pane="active"><div id="as-slot"></div></div>
         <div class="pane scroll" data-pane="vds">
@@ -151,7 +152,10 @@ export function frigateSonarStation(): Station {
         btnState(b, winch ? { on: true, label: `${o.towedLength} M`, pct: (100 * o.towedLength) / Math.max(1, len, o.towedLength), tone: 'busy' }
           : { on: true, label: len && !o.towedReady ? 'STAB…' : '✓', tone: len && !o.towedReady ? 'busy' : undefined });
       });
-      setText(q('#lab'), labWithDoppler());
+      // The label alone in the header (it never shrinks to "L9-…" beside the tabs); the Doppler on its own line
+      setText(q('#lab'), store.selected ?? '');
+      const dop = store.selectedContact()?.evidence?.dopplerHz;
+      setText(q('#lab-dop'), dop === undefined ? '' : `DOPPLER ${dopplerLabel(dop)}`);
       const c = store.selectedContact();
       const side = c ? store.tasSide.get(c.label) : undefined;
       el.querySelectorAll<HTMLButtonElement>('[data-side]').forEach((b) => b.classList.toggle('on', (b.dataset.side === 'both' && !side) || b.dataset.side === side));

@@ -243,6 +243,9 @@ export interface ShotTrace {
   /** Time span of the bearing plot behind the solution (s), and own legs on it. */
   span?: number;
   legs?: number;
+  /** Torpedo seeker mode ('passive' | 'active' | 'wake'), and the target class the captain voted. */
+  mode?: string;
+  target?: string;
 }
 
 let traceSink: ((r: ShotTrace) => void) | undefined;

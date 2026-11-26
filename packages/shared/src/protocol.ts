@@ -369,6 +369,13 @@ export interface FriendlyView {
   wreck?: WreckView;
 }
 
+/** A torpedo's recent path seen glowing at night: strength (bloom × darkness × depth) and map points x,y,… oldest first. */
+export interface GlowTrackView {
+  id: string;
+  k: number;
+  pts: number[];
+}
+
 export interface TorpedoView {
   id: string;
   x: number;
@@ -473,6 +480,8 @@ export interface Snapshot {
   torpedoes: TorpedoView[];
   /** F16: own torpedoes whose wire broke recently (or that left without one), with the reason. */
   wireLost?: { id: string; why: string; wake?: boolean }[];
+  /** Torpedo tracks the lookouts see glowing on a dark night (bioluminescence), for the 3D bridge. */
+  glowTracks?: GlowTrackView[];
   radio: RadioMsg[];
   alerts: AlertView[];
   /** layerDepth is only known after a bathythermograph measurement. */

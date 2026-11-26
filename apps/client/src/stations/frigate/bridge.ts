@@ -11,7 +11,7 @@ import { bridgeTargets } from '../../widgets/scope-targets.js';
 import { reticle } from '../../widgets/reticle.js';
 import { blasts } from '../../widgets/blasts.js';
 import { moonRow } from '../../widgets/moon-line.js';
-import { CLASS_LABEL, esc, fitCanvas, h, km, setHtml, setParts, setText, tdeg3 } from '../../widgets/format.js';
+import { CLASS_LABEL, esc, fitCanvas, h, km, setHtml, setParts, setText, sm, tdeg3 } from '../../widgets/format.js';
 import { LazyGl } from '../../widgets/lazy-gl.js';
 import { onRelease, onTap } from '../../widgets/touch.js';
 import { btnState } from '../../widgets/btn-state.js';
@@ -238,7 +238,7 @@ export function bridgeStation(): Station {
     const kinds = new Map<string, number>();
     for (const p of air) kinds.set(NAME[p.kind], (kinds.get(NAME[p.kind]) ?? 0) + 1);
     const what = [...kinds].map(([k, n]) => `${n} ${k}`).join(' · ');
-    return `<div class="row"><span class="dim">FLUGZEUGE</span><span>${what || 'KEINE'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${km(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
+    return `<div class="row"><span class="dim">FLUGZEUGE</span><span>${what || 'KEINE'}</span></div>${f && f.x !== undefined ? `<div class="row amber"><span>${NAME[f.kind]}</span><span>${tdeg3(f.bearing)}° · ${sm(Math.hypot(f.x - s.own.x, f.y! - s.own.y))} · ${km(f.alt ?? 0)} HOCH</span></div>` : ''}`;
   };
 
   /** Selected contact with its assigned class (from the recognition book) and the photo counter. */
@@ -272,10 +272,10 @@ export function bridgeStation(): Station {
       // In pieces: the aircraft line moves every snapshot, the KLASSE ZUWEISEN button must not move with it
       setParts(el.querySelector('#b-data')!, [`
         <div class="row"><span class="dim">SICHT</span><span class="${quality === 'GUT' ? '' : 'amber'}">${quality}${fog > 0.3 ? ' · NEBEL' : ''}${s.env.rain ? ' · REGEN' : ''}${(s.env.light ?? 1) < 0.3 ? ' · NACHT' : ''}</span></div>
-        <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${km(r.mast)}</span></div>
-        <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${km(r.snorkel)}</span></div>
-        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${km(r.surfaced)}</span></div>${r.glow >= 150 ? `
-        <div class="row" title="Meeresleuchten (erwartet für Jahreszeit und Seegebiet): in dunkler Nacht leuchtet das Wasser, wo ein Boot es aufwühlt (Sehrohrfahne, Kielwasser, Torpedolaufbahn)"><span class="dim">MEERESLEUCHTEN · BOOT (6 KN)</span><span>${km(r.glow)}</span></div>` : ''}${moonRow(s)}`,
+        <div class="row"><span class="dim">SEHROHR (6 KN) BIS</span><span>${sm(r.mast)}</span></div>
+        <div class="row"><span class="dim">SCHNORCHEL BIS</span><span>${sm(r.snorkel)}</span></div>
+        <div class="row"><span class="dim">AUFGETAUCHT BIS</span><span>${sm(r.surfaced)}</span></div>${r.glow >= 150 ? `
+        <div class="row" title="Meeresleuchten (erwartet für Jahreszeit und Seegebiet): in dunkler Nacht leuchtet das Wasser, wo ein Boot es aufwühlt (Sehrohrfahne, Kielwasser, Torpedolaufbahn)"><span class="dim">MEERESLEUCHTEN · BOOT (6 KN)</span><span>${sm(r.glow)}</span></div>` : ''}${moonRow(s)}`,
         airLine(s),
         selLine(),
       ]);
@@ -293,7 +293,7 @@ export function bridgeStation(): Station {
       setText(el.querySelector('#b-sn')!, sightings.length ? String(sightings.length) : '');
       setHtml(el.querySelector('#b-sight')!, sightings.length ? sightings.map((a, i) => {
         const age = Math.max(0, Math.round(s.time - a.time));
-        return `<div class="row clickable ${age < 60 ? 'amber' : ''}" data-sight="${i}"><span>${a.label ? `${esc(a.label)} ` : ''}${a.what}</span><span>${tdeg3(a.bearing)}°${a.range ? ` · ${km(a.range)}` : ''}</span><span class="dim">${age < 120 ? `${age} S` : `${Math.round(age / 60)} MIN`}</span></div>`;
+        return `<div class="row clickable ${age < 60 ? 'amber' : ''}" data-sight="${i}"><span>${a.label ? `${esc(a.label)} ` : ''}${a.what}</span><span>${tdeg3(a.bearing)}°${a.range ? ` · ${sm(a.range)}` : ''}</span><span class="dim">${age < 120 ? `${age} S` : `${Math.round(age / 60)} MIN`}</span></div>`;
       }).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>');
     },
     hide() {
@@ -343,7 +343,7 @@ export function bridgeStation(): Station {
           bearing: look, fovDeg: f, t, sea: s!.env.seaState, light: s!.env.light ?? 1, targets: tg,
           rain: s!.env.rain, hour: s!.env.clock, pitchDeg: pitch, ownHeading: heading, ownKn: s!.own.speedKn, met: s!.env.met, stabilize: stab, shake: glass ? 0.012 * mag : 0.05,
           effects: blasts(s!, tg.filter((x) => !x.sunk && !x.plane && !x.sighting), nowMs), own: ownNow(), seabed: s!.env.seabed, ownWreck: s!.own.wreck,
-          missiles: { list: s!.airdef?.missiles ?? [], me: ownNow() },
+          missiles: { list: s!.airdef?.missiles ?? [], me: ownNow() }, glowTracks: s!.glowTracks,
         });
       }
       ctx.clearRect(0, 0, w, H);
@@ -372,7 +372,7 @@ export function bridgeStation(): Station {
         ctx.fillStyle = `rgba(255,170,160,${c.alpha})`;
         ctx.font = '11px ui-monospace, monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`${c.label} · ${km(c.range)}`, x, y - 18);
+        ctx.fillText(`${c.label} · ${sm(c.range)}`, x, y - 18);
       }
       if (glass) {
         // Binocular mask: two overlapping circles

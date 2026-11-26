@@ -29,6 +29,9 @@ const allShots: (ShotTrace & { game: number; mission: string })[] = [];
 setShotTrace((r) => trace.push(r));
 const firstShot = { west: [] as number[], east: [] as number[] };
 const contactToShot = { west: [] as number[], east: [] as number[] };
+/** Wake homers (east SSN): each run's trail locks, lost trails and end (hit on what, or ran out). */
+interface WakeRun { id: string; game: number; owner: string; locks: string[]; lost: number; end?: string; ignoreAt?: number }
+const wakeRuns: WakeRun[] = [];
 for (let g = 0; g < games; g++) {
   const setup: ArenaSetup = { ...DEFAULT_ARENA, mission: missions[g % missions.length]!, botSkill: skill, west: ['ffg', mixed === 'east' ? 'ffg' : mixed ? 'ssw' : mix ? 'ffv' : 'ffg'], east: [mix ? 'ssa' : 'ssk', mixed === 'west' ? 'ssn' : mixed ? 'ffk' : 'ssn'],
     // ARENA_VAR=aus|leicht|stark: per-match variation of positions, route and sea state
@@ -48,8 +51,27 @@ for (let g = 0; g < games; g++) {
   if (process.env.ARENA_NO_ORDERS) game.world.env.orders = undefined;
   // First contact per side (sim minutes): the boats on anything of the convoy, the escorts on an enemy unit
   const first: { west?: number; east?: number } = {};
+  const live = new Map<string, WakeRun>();
   while (!game.step(100)) {
     const w = game.world;
+    // Follow every wake homer: which trail it takes, when it loses one, how it ends
+    const torps = w.weapons?.torpedoes ?? [];
+    for (const t of torps) {
+      if (t.mode !== 'wake') continue;
+      let r = live.get(t.id);
+      if (!r) live.set(t.id, (r = { id: t.id, game: g, owner: t.ownerId, locks: [], lost: 0 }));
+      const on = t.wakeLock?.shipId;
+      const cls = on ? w.ships.find((x) => x.id === on)?.cls ?? on : undefined;
+      if (cls && r.locks[r.locks.length - 1] !== cls) r.locks.push(cls);
+      if (t.wakeIgnore && t.wakeIgnore.untilRun !== r.ignoreAt) [r.lost, r.ignoreAt] = [r.lost + 1, t.wakeIgnore.untilRun];
+    }
+    for (const [id, r] of live) {
+      if (torps.some((t) => t.id === id)) continue;
+      const hit = w.events.filter((e) => e.kind === 'hit' && e.byId === r.owner && w.time - e.time < 15).pop();
+      r.end = hit && hit.kind === 'hit' ? `Treffer ${w.ships.find((x) => x.id === hit.shipId)?.cls ?? hit.shipId}` : 'ohne Treffer';
+      wakeRuns.push(r);
+      live.delete(id);
+    }
     for (const side of ['west', 'east'] as const) {
       if (first[side] !== undefined) continue;
       const held = w.ships.some((o) => o.alive && o.team === side && o.id.startsWith('p_') && [...(w.books.get(o.id)?.entries() ?? [])].some(([tid]) => {
@@ -104,6 +126,12 @@ for (const wpn of ['torpedo', 'rocket', 'mortar', 'helo', 'ssm'] as const) {
   const med = (f: (x: ShotTrace) => number | undefined) => { const v = median(l.map(f).filter((x): x is number => x !== undefined)); return v === undefined ? '—' : Math.round(v); };
   const bases = [...new Set(l.map((x) => x.basis))].map((b) => `${b} ${l.filter((x) => x.basis === b).length}`).join(', ');
   console.log(`  ${wpn.padEnd(7)} ${String(l.length).padStart(4)} Schüsse (${bases}) · Median Güte ${med((x) => x.q)} · Entf. ${med((x) => x.range)} m · gehalten ${med((x) => x.held)} s · Plot ${med((x) => x.span)} s · Lösung stabil ${med((x) => x.settled)} s`);
+}
+const modes = [...new Set(allShots.filter((x) => x.mode).map((x) => `${x.mode}→${x.target ?? '?'}`))];
+if (modes.length) console.log(`  Torpedo-Modi: ${modes.map((k) => `${k} ${allShots.filter((x) => `${x.mode}→${x.target ?? '?'}` === k).length}`).join(', ')}`);
+if (wakeRuns.length) {
+  console.log(`  Kielwassertorpedos ${wakeRuns.length}: ${wakeRuns.filter((r) => r.end?.startsWith('Treffer')).length} Treffer, ${wakeRuns.filter((r) => r.locks.length).length} auf einer Spur, ${wakeRuns.reduce((a, r) => a + r.lost, 0)} Spuren verloren`);
+  for (const r of wakeRuns) console.log(`    Partie ${r.game} ${r.id} von ${r.owner}: Spur ${r.locks.join(' → ') || '—'} · verloren ${r.lost} · ${r.end}`);
 }
 // ARENA_TRACE=file: every AI weapon release as JSON lines
 if (process.env.ARENA_TRACE) {

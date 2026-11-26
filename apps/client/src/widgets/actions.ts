@@ -2,7 +2,7 @@ import { CLASSES, HELO_RANGE, ROCKET_MAX_RANGE, ROCKET_MIN_RANGE, bearing, dista
 import { friendNear } from './fire-guard.js';
 import { net } from '../net.js';
 import { store } from '../store.js';
-import { chartDist, km, tdeg3 } from './format.js';
+import { chartDist, tdeg3 } from './format.js';
 import { rocketCheck } from './weapon-reach.js';
 import { openMenu, type MenuItem } from './menu.js';
 import { heloMode, pickHeloPoint } from './helo-panel.js';
@@ -41,9 +41,9 @@ export function torpedoAction(
   const d = distance(s.own, p);
   const enableAfter = Math.max(500, d * 0.7);
   const aim = opts.aim;
-  if (aim) return [{ label: `Schusskurs hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`, run: () => aim(b, enableAfter) }];
+  if (aim) return [{ label: `Schusskurs hierher (${tdeg3(b)}°, Suchkopf ab ${dist(s, d * 0.7)})`, run: () => aim(b, enableAfter) }];
   return [{
-    label: `${warnNear(s, p)}Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${km(d * 0.7)})`,
+    label: `${warnNear(s, p)}Torpedo hierher (${tdeg3(b)}°, Suchkopf ab ${dist(s, d * 0.7)})`,
     danger: true,
     run: () => net.send({ t: 'fire', heading: b, enableAfter, mode: opts.mode, searchDepth: opts.searchDepth, speedKn: opts.speedKn, transitKn: opts.transitKn }),
   }];
@@ -73,7 +73,7 @@ export function ssmAction(p: Vec2): MenuItem[] {
   const fk = s?.ssm;
   if (!s || fk?.left === undefined || fk.left <= 0) return [];
   const d = distance(s.own, p);
-  if (d < (fk.minRange ?? 0) || d > (fk.maxRange ?? 0)) return [{ label: `Seeziel-FK: ${km(fk.minRange ?? 0)}–${km(fk.maxRange ?? 0)}`, run: () => undefined, info: true }];
+  if (d < (fk.minRange ?? 0) || d > (fk.maxRange ?? 0)) return [{ label: `Seeziel-FK: ${dist(s, fk.minRange ?? 0)}–${dist(s, fk.maxRange ?? 0)}`, run: () => undefined, info: true }];
   if (fk.readyInS) return [{ label: `Seeziel-FK: Starter lädt (${fk.readyInS} s)`, run: () => undefined, info: true }];
   return [{ label: `${warnNear(s, p)}Seeziel-FK hierher (${dist(s, d)}, noch ${fk.left})`, danger: true, run: () => net.send({ t: 'ssm', bearing: bearing(s.own, p), range: d }) }];
 }
@@ -84,7 +84,7 @@ export function buoyAction(p: Vec2): MenuItem[] {
   const d = distance(s.own, p);
   const hv = s.air.helo;
   if (!hv) return [];
-  if (d < 500 || d > HELO_RANGE) return [{ label: `Hubschrauber: 0,5–${HELO_RANGE / 1000} km Reichweite`, run: () => undefined, info: true }];
+  if (d < 500 || d > HELO_RANGE) return [{ label: `Hubschrauber: ${dist(s, 500)}–${dist(s, HELO_RANGE)} Reichweite`, run: () => undefined, info: true }];
   const b = bearing(s.own, p);
   // Tasks go into the helicopter's queue (at the end, or at once in SOFORT mode of the helicopter panel)
   const op = heloMode();

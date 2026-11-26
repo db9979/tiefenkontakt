@@ -33,7 +33,8 @@ import {
 import { HARBOUR_ANCHORAGE } from '../scenario.js';
 import { considerMine } from './mines.js';
 import { PACE, captainPace, legsRun, looked, plotFrom, subWaits } from './pacing.js';
-import { SKILL, isFriendly, isNeutral, plotBearings, solveFor, traceShot, voted, type BotMemory, type BotSkill } from './common.js';
+import { WAKE_ARM_M, WAKE_MIN_RANGE, WAKE_SHOT_KN, astern, escortKn, fastEscort, wakeAtHunter } from './wake-shot.js';
+import { SKILL, classify, isFriendly, isNeutral, plotBearings, solveFor, traceShot, voted, votedPeek, type BotMemory, type BotSkill } from './common.js';
 
 export interface PackReport {
   t: number;
@@ -164,6 +165,17 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   };
   // The plotter keeps every merchant it hears, so the next target after a salvo has a plot ready
   if (!duel) for (const t of fresh) if (voted(m, t) === 'merchant' && !isNeutral(w, s, t, m)) plotBearings(m, t, now);
+  // An SSN with wake homers turns on a fast escort that hunts it: the homer runs up the trail and the
+  // towed decoy means nothing to it. The attack switches only once the escort runs fast (the usual
+  // pacing gates still hold the shot). Which contacts are escorts goes by the latest reading of the
+  // lines, not the whole vote: a frigate shadowing at 12 kn reads like a boat (60 Hz, five blades),
+  // at speed her turn count gives her away, and that is when she leaves a trail worth taking
+  const wakeRack = s.cls === 'ssn' && !duel && (w.weapons?.loadouts.get(s.id)?.wake ?? 0) > 0;
+  const escortsNow = wakeRack ? fresh.filter((t) => (classify(t) === 'warship' || votedPeek(m, t) === 'warship') && !isFriendly(w, s, t, m) && !isNeutral(w, s, t, m)) : [];
+  for (const t of escortsNow) plotBearings(m, t, now);
+  // Only an escort on top of the boat (pinging her, loud, close): the convoy attack waits only while she is pinned down anyway
+  const pinned = pinged || escortsNow.some((t) => t.se > 32 || (t.range !== undefined && t.range < 3000));
+  const hunter = wakeRack && pinned ? fastEscort(m, escortsNow, now) : undefined;
   // A guarding boat fights back against the enemy's warship when it is being hunted by it
   const target = hostile(wanted) ?? (guard && threatNear ? hostile('warship') : undefined);
   if (target && target.label !== m.attackLabel && !reacquired) m.attackFirst = target.firstSeen;
@@ -317,16 +329,24 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
   const fouled = guard && !!aimAt && w.ships.some((x) => x.alive && x.id !== s.id && (x.team === s.team || x.team === 'neutral') && distance(x.pos, aimAt) < GUARD_CLEAR_M);
   // Outside the launch envelope (too fast, too deep) the boat slows and comes up first: no shot yet
   const envelope = !launchBlock(s.cls, s.speed / KN, s.depth);
+  // A fast escort pinning the boat down gets a wake homer on her own plot and gates (wake-shot.ts);
+  // the convoy attack keeps its target, plot and legs
+  if (hunter && envelope && now - m.lastShot > SHOT_COOLDOWN && wakeAtHunter(w, m, s, hunter, { pace, pf, qMin, now })) return;
+  // A warship the boat is attacking anyway (a guarding boat) running fast: a wake homer too
+  const wakeShot = s.cls === 'ssn' && choice === 'warship' && !!solved && (w.weapons?.loadouts.get(s.id)?.wake ?? 0) > 0
+    && (escortKn(target, solved.sol, now) ?? 0) > WAKE_SHOT_KN && (range ?? 0) >= WAKE_MIN_RANGE;
   if (wait === undefined && range !== undefined && !fouled && envelope && now - m.lastShot > SHOT_COOLDOWN) {
     // Long passive shots run slow (quieter, the seeker hears more without flow noise); long active
     // shots transit at 30 kn and sprint at 40 once the seeker opens (heavyPreset, F17)
-    // An SSN with wake homers takes a fast escort with one: it runs up the wake, the towed decoy doesn't fool it
-    const wakeShot = s.cls === 'ssn' && choice === 'warship' && (w.weapons?.loadouts.get(s.id)?.wake ?? 0) > 0 && (solved?.sol.speedKn ?? 0) > 15;
     const mode = wakeShot ? 'wake' : duel ? 'active' : 'passive';
-    const enableAfter = Math.max(800, range * 0.6);
+    // The wake sensor looks up from the start of its search: it must be awake before it crosses the trail
+    // (a range from a rough solution may be long: at half of it the trail was already behind it)
+    const enableAfter = wakeShot ? WAKE_ARM_M : Math.max(800, range * 0.6);
     const plan = heavyPreset(range, mode);
     const runKn = twoSpeedMeanKn(plan.transitKn, plan.speedKn, enableAfter, range);
-    const aim = solved ? interceptHeading(s.pos, runKn, solved.sol, now) ?? target.bearing : target.bearing;
+    // Wake homer: aimed to cross the escort's track some way astern of her, then it turns up the trail
+    const aimSol = solved && wakeShot ? astern(solved.sol, Math.min(1000, Math.max(300, range * 0.25))) : solved?.sol;
+    const aim = aimSol ? interceptHeading(s.pos, runKn, aimSol, now) ?? target.bearing : target.bearing;
     // A guarding boat alternates two and one torpedo (arena, both sides mixed: always two 42:18, always one 18:42, alternating 38:22)
     const salvo = guard ? ((m.guardShots = (m.guardShots ?? 0) + 1) % 2 === 1 ? 2 : 1) : k.salvo;
     // One salvo, fanned by the target's length at that range and the TMA's error
@@ -334,7 +354,7 @@ export function thinkSub(w: World, m: BotMemory, s: Ship, skill: BotSkill, pack:
     const shot = fireSalvo(w, s, { heading: wrap360(aim), enableAfter, mode, searchDepth: duel ? Math.max(40, s.depth) : 15, ...plan }, salvo, spread);
     const fired = typeof shot === 'string' ? 0 : shot.length;
     if (fired) {
-      traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: close !== undefined ? 'close' : measured !== undefined ? 'measured' : 'tma', q: solved?.q, settled, range, held, span: spanOf(m, target.label, now), legs });
+      traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: close !== undefined ? 'close' : measured !== undefined ? 'measured' : 'tma', q: solved?.q, settled, range, held, span: spanOf(m, target.label, now), legs, mode, target: choice });
       m.lastShot = now;
       // Shoot and scoot: turn away, go deep, open the range
       m.evadeUntil = now + SCOOT_S;
@@ -471,7 +491,7 @@ function harbourRun(w: World, m: BotMemory, s: Ship, threatNear: boolean, maxSaf
   const brg = seen?.bearing ?? toAnch;
   const shot = fireSalvo(w, s, { heading: brg, enableAfter: Math.max(600, r * 0.7), mode: 'passive', searchDepth: 8, speedKn: 30 }, Math.max(2, salvo), 4);
   if (typeof shot !== 'string' && shot.length) {
-    traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: 'harbour', range: r, held: seen ? now - seen.firstSeen : undefined });
+    traceShot({ t: now, shooter: s.id, team: s.team, weapon: 'torpedo', basis: 'harbour', mode: 'passive', range: r, held: seen ? now - seen.firstSeen : undefined });
     m.lastShot = now;
     m.peekUp = undefined;
     s.mastUp = false;
