@@ -5,7 +5,7 @@ export const EN_HELO: [string, string][] = [
   ['Zurück', 'Return'], ['Liste leeren', 'Clear list'], ['TAUCHSONAR', 'DIPPING SONAR'], ['BOJENLINIE', 'BUOY LINE'],
   ['ZURÜCK AN DECK', 'BACK TO DECK'], ['HÄLT POSITION', 'HOLDING POSITION'], ['IN DER LUFT', 'AIRBORNE'], ['SCHWEBT', 'HOVERING'],
   ['TANKEN/AUFMUNITIONIEREN', 'REFUEL/REARM'], ['KRAFTSTOFF', 'FUEL'], ['KARTENPUNKT', 'MAP POINT'], ['KONTAKT ODER PUNKT WÄHLEN', 'SELECT A CONTACT OR POINT'],
-  ['KEIN HUBSCHRAUBER', 'NO HELICOPTER'], ['ZU WEIT (30 KM)', 'TOO FAR (30 KM)'], ['LÄUFT', 'RUNNING'], ['KEIN AUFTRAG', 'NO TASK'],
+  ['KEIN HUBSCHRAUBER', 'NO HELICOPTER'], ['ZU WEIT (30 KM)', 'TOO FAR (30 KM)'], ['ZU WEIT (50 KM)', 'TOO FAR (50 KM)'], ['STATUS', 'STATUS'], ['NUR PEILUNG', 'BEARING ONLY'], ['LÄUFT', 'RUNNING'], ['KEIN AUFTRAG', 'NO TASK'],
   ['ZIEL: GEWÄHLTER KONTAKT ODER KARTE', 'TARGET: SELECTED CONTACT OR MAP'], ['RECHTSKLICK / LANGE TIPPEN', 'RIGHT-CLICK / LONG PRESS'], ['(RECHTSKLICK / LANGE TIPPEN)', '(RIGHT-CLICK / LONG PRESS)'],
   ['Auftrag streichen', 'Strike task'],
   ['Anhängen: ans Ende der Liste · Sofort: alles andere fällt weg', 'Append: to the end of the list · At once: everything else is dropped'],
@@ -27,8 +27,16 @@ export const EN_HELO: [string, string][] = [
 
 export const EN_HELO_PHRASES: [RegExp, string][] = [
   [/\b(\d+) AN BORD\b/g, '$1 ABOARD'], [/\b(\d+) IM MAGAZIN\b/g, '$1 IN THE MAGAZINE'],
+  [/^Hubschrauber ▸ \(([\d,.]+) KM\)$/, 'Helicopter ▸ ($1 KM)'], [/^Hubschrauber · (\d{3})° · ([\d,.]+) KM$/, 'Helicopter · $1° · $2 KM'],
+  [/^Hubschrauber: 0,5–(\d+) km Reichweite$/, 'Helicopter: 0.5–$1 km range'],
+  [/^Ziel für die Aufträge hier \(([\d,.]+) KM\)$/, 'Target for the tasks here ($1 KM)'], [/^Tauchsonar hier/, 'Dipping sonar here'], [/^Bojenlinie hier/, 'Buoy line here'],
+  [/^Aktive Bojenlinie \(DICASS\) · pingt, verrät sich$/, 'Active buoy line (DICASS) · pings, gives itself away'], [/^MAD-Suche hier \(Kleeblatt, 6 min\)/, 'MAD search here (cloverleaf, 6 min)'],
+  [/^(⚠ EIGENE IN DER NÄHE · )?Torpedo hier \((\d+)\)/, '$1Torpedo here ($2)'],
   [/^Hubschrauber-Ziel hier \(([\d,.]+) KM\)$/, 'Helicopter target here ($1 KM)'],
   [/^Hubschrauber: Tauchsonar hier/, 'Helicopter: dipping sonar here'], [/^Hubschrauber: Bojenlinie hier/, 'Helicopter: buoy line here'],
   [/^Hubschrauber: MAD-Suche hier \(Kleeblatt, 6 min\)/, 'Helicopter: MAD search here (cloverleaf, 6 min)'],
+  [/^STARTVORBEREITUNG (\d+:\d\d)$/, 'LAUNCH PREPARATION $1'],
+  [/ · NUR PEILUNG – PINGEN, TMA ODER KARTENPUNKT \(RECHTSKLICK\) · BOJENLINIE LÄNGS DER PEILUNG$/, ' · BEARING ONLY – PING, TMA OR MAP POINT (RIGHT-CLICK) · BUOY LINE ALONG THE BEARING'],
+  [/^Außer Reichweite des Hubschraubers \((\d+) km\)$/, 'Out of helicopter range ($1 km)'],
   [/Hubschrauber: Torpedo hier/, 'Helicopter: torpedo here'], [/ \(sofort\)$/, ' (at once)'],
 ];

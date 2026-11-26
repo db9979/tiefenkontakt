@@ -4,7 +4,7 @@
  */
 
 /* OPZ: the ASW strip as one 24 px line inside the plot panel, small chips (F1) */
-.st.opz .aswstrip { height: 24px; flex-wrap: nowrap; overflow: hidden; align-items: center; gap: 4px; margin: 4px 0 2px; }
+.st.opz .aswstrip { min-height: 24px; flex-wrap: wrap; row-gap: 2px; align-items: center; gap: 4px; margin: 4px 0 2px; }
 /* Status chips, not controls: no button border, a faint fill; the value in the data colour */
 .st.opz .aswchip { font-size: 10px; line-height: 18px; padding: 0 6px; border-color: transparent; background: rgba(93, 202, 165, 0.07); color: var(--g2); }
 .st.opz .aswchip.amber { border-color: transparent; background: rgba(250, 199, 117, 0.1); color: var(--amber); }
@@ -81,3 +81,46 @@ html[data-theme='light'] .wfpop > summary { background: linear-gradient(180deg, 
   .st.opz .panel.grow.tabbed > .pane { flex: 1 1 0; }
   .st.opz .selcard { order: 0; }
 }
+
+/* Convoy course: an empty field on BEFEHLEN flashes red (F1) */
+.escort-orders input.bad { animation: eo-bad 0.9s ease-out; }
+@keyframes eo-bad { 0%, 40% { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); } 100% { box-shadow: 0 0 0 0 transparent; } }
+/* Helicopter tab: status in its own row (no inner title), a long target hint wraps right-aligned (F8, F9) */
+.helo-panel .row > span:last-child { min-width: 0; text-align: right; }
+.helo-panel #hp-st, .helo-panel #hp-tgt { white-space: normal; overflow-wrap: anywhere; }
+
+/* Werfer: the depth buttons' caption (F17) */
+.wcard .wcap { margin-top: 4px; letter-spacing: 0.04em; }
+
+/* OPZ: the selected-contact card sits right under the tab content; the tab panel takes only what it needs (F26) */
+@media (min-width: 1151px) {
+  .st.opz .panel.grow.tabbed { flex: 0 1 auto; }
+  .st.opz .panel.grow.tabbed > .pane { flex: 0 1 auto; }
+}
+
+/* Small laptop (1000–1150 px): Waffen, Sonar and Radar keep two columns and fit the window (F11) */
+@media (min-width: 1000px) and (max-width: 1150px) {
+  .station:has(> .st.wpn), .station:has(> .st.fsonar), .station:has(> .st.fradar) { overflow: hidden; }
+  .st.wpn { height: 100%; grid-template-columns: minmax(400px, 46fr) minmax(0, 54fr); }
+  .st.fsonar, .st.fradar { height: 100%; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .st.wpn > .st-col:last-child, .st.wpn > .st-col:first-child > .panel:first-child, .st.wpn > .st-col:first-child > .listpanel { order: 0; }
+  .st.wpn .panel.grow, .st.fsonar .panel.grow, .st.fradar .panel.grow { flex: 1 1 0; }
+  .st.wpn .fill, .st.fsonar .fill, .st.fradar .fill { flex: 1 1 0; height: auto; }
+  .st.wpn .panel.grow.listpanel > .scroll, .st.fradar .panel.grow.listpanel > .scroll, .st.fsonar .panel.tabbed > .pane { overflow: auto; flex: 1 1 0; }
+  .st.wpn .listpanel, .st.fradar .listpanel { min-height: 90px; }
+  .st.wpn > .st-col:first-child { overflow: auto; }
+}
+
+/* Phone: the weapon cards one per row, so tube chips and fire buttons keep their words (F12) */
+@media (max-width: 600px) {
+  .st.wpn .wgrid { grid-template-columns: minmax(0, 1fr); }
+  .st.wpn .wcard.span2 { grid-column: auto; }
+}
+
+/* Brücke: one row of view controls under the picture; recognition, photo and phone with the lookout data (F35);
+   the sightings list as tall as its rows (F15) */
+.st.bridge .btnrows > .hint { flex: 1 1 90px; }
+.st.bridge .b-acts { margin-bottom: 0; }
+.st.bridge .b-acts > button { flex: 1 1 auto; }
+.st.bridge .b-sightp { max-height: 50%; display: flex; flex-direction: column; min-height: 0; }
+.st.bridge .b-sightp > .scroll { flex: 0 1 auto; min-height: 0; }

@@ -33,12 +33,12 @@ export function mountFastForward(): { el: HTMLElement; update(s: Snapshot): void
       tag.style.display = ff.on ? '' : 'none';
       btn.classList.toggle('on', ff.on || ff.mine);
       // Icon first, the words in .ff-lbl (hidden below 1280 px: icon-only top bar, the title says it)
-      const [icon, words, count] = ff.on ? ['■', 'Zeitraffer aus', ''] : vote
+      const [icon, words, count] = ff.on ? ['■', 'Stopp · Zeitraffer', ''] : vote
         ? (ff.mine ? ['↶', 'Stimme zurück', ` ${ff.votes}/${ff.need}`] : ['⏩', 'Zeitraffer?', ` ${ff.votes}/${ff.need}`]) : ['⏩', 'Zeitraffer', ''];
       btn.innerHTML = `<span aria-hidden="true">${icon}</span><span class="ff-lbl"> ${words}</span>${count}`;
       btn.setAttribute('aria-label', words);
       btn.disabled = !ff.on && !ff.mine && !!ff.blocked;
-      btn.title = ff.blocked ?? (vote
+      btn.title = ff.on ? 'Zeitraffer anhalten: zurück auf Echtzeit' : ff.blocked ?? (vote
         ? 'Abstimmen: ×6 bis zum nächsten Ereignis, sobald alle an Bord eines Schiffes zugestimmt haben und niemand frischen Feindkontakt hat'
         : 'Zeitraffer ×6 bis zum nächsten Ereignis: neuer Kontakt, Alarm, Ausbildungsschritt');
       // Why it stopped or can't run goes into the tooltip, not the crowded top bar

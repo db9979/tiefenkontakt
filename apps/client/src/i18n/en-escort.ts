@@ -1,9 +1,16 @@
 /** English for the escort commander's panel (convoy orders, AI escort tasks) and its radio calls. */
 
 export const EN_ESCORT: [string, string][] = [
+  // Briefing for escorts without a convoy (the strait)
+  ['Schleppsonar ausbringen und quer zur Enge patrouillieren', 'Stream the towed array and patrol across the strait'],
+  ['Schleppsonar ausbringen und das Gebiet absuchen', 'Stream the towed array and search the area'],
+  ['Sonarbojen als Sperre legen, Kontakte klassifizieren', 'Lay sonobuoys as a barrier, classify contacts'],
+  ['Quer zur Enge patrouillieren (unter 18 kn), Kontakte klassifizieren', 'Patrol across the strait (below 18 kn), classify contacts'],
+  ['Schleppsonar ausbringen und die Enge sperren', 'Stream the towed array and close the strait'],
+  ['Minengefahr: Minenmeidesonar (bis 15 kn) findet Minen voraus auf etwa 1,6 km, das Aktivsonar auf etwa 1 km', 'Mine danger: the mine-avoidance sonar (up to 15 kn) finds mines ahead at about 1.6 km, the active sonar at about 1 km'],
   ['KURS BEFEHLEN', 'ORDER COURSE'], ['BEFEHLEN', 'ORDER'], ['AUF ROUTE · ', 'ON ROUTE · '], ['Konvoi-Kurs hierher', 'Convoy course to here'], ['Konvoi zurück auf die geplante Route', 'Convoy back onto the planned route'], ['Den Konvoi auf diesen Kurs legen (gilt, bis er zurück auf die Route geschickt wird)', 'Put the convoy on this course (until it is sent back to the route)'],
   ['Geleitführung · Konvoi und Aufträge', 'Escort command · convoy and tasks'],
-  ['KONVOI', 'CONVOY'], ['NOTWENDE 45° · 10 MIN', 'EMERGENCY TURN 45° · 10 MIN'], ['◀ BB', '◀ PORT'], ['KURS', 'COURSE'], ['STB ▶', 'STBD ▶'],
+  ['KONVOI', 'CONVOY'], ['KONVOI UMLEITEN', 'DIVERT CONVOY'], ['KEIN KONVOI · NUR DIE GELEITSCHIFFE', 'NO CONVOY · ESCORTS ONLY'], ['KEIN KONVOI · KEINE KI-GELEITSCHIFFE IM VERBAND', 'NO CONVOY · NO AI ESCORTS IN THE GROUP'], ['NOTWENDE 45° · 10 MIN', 'EMERGENCY TURN 45° · 10 MIN'], ['◀ BB', '◀ PORT'], ['KURS', 'COURSE'], ['STB ▶', 'STBD ▶'],
   ['ZICKZACK', 'ZIGZAG'], ['AN', 'ON'], ['AUS', 'OFF'], ['FAHRT', 'SPEED'], ['−2 KN', '−2 KN'], ['+2 KN', '+2 KN'], ['ROUTE', 'ROUTE'],
   ['Notwende 45° nach Backbord, 10 Minuten halten, dann zurück auf die Route', 'Emergency turn 45° to port, hold 10 minutes, then back onto the route'],
   ['Notwende 45° nach Steuerbord, 10 Minuten halten, dann zurück auf die Route', 'Emergency turn 45° to starboard, hold 10 minutes, then back onto the route'],
@@ -18,6 +25,9 @@ export const EN_ESCORT: [string, string][] = [
   ['Team-Datum verfolgen', 'Prosecute the team datum'], ['Hubschrauber zum Team-Datum', 'Helicopter to the team datum'],
   ['KEINE KI-GELEITSCHIFFE IM VERBAND', 'NO AI ESCORTS IN THE GROUP'],
   ['SEKTOR, DATUM, HUBSCHRAUBER, STATION AN EINEM PUNKT: RECHTSKLICK AUF DIE KARTE → AUFTRAG AN …', 'SECTOR, DATUM, HELICOPTER, STATION AT A POINT: RIGHT-CLICK THE CHART → TASK FOR …'],
+  ['SEKTOR, DATUM, HUBSCHRAUBER, STATION AN EINEM PUNKT: RECHTSKLICK AUF DIE KARTE → VERBAND ▸', 'SECTOR, DATUM, HELICOPTER, STATION AT A POINT: RIGHT-CLICK THE CHART → GROUP ▸'],
+  ['Neuer Generalkurs des Konvois (rechtweisend); auf der Karte: Rechtsklick → Verband ▸ → Konvoi-Kurs hierher', 'New base course for the convoy (true); on the chart: right-click → Group ▸ → Convoy course to here'],
+  ['Verband ▸', 'Group ▸'], ['Verband · Befehle an diesen Punkt', 'Group · orders to this point'],
   ['SICHERUNG', 'SCREEN'], ['VERFOLGT', 'PROSECUTING'], ['HÄLT KONTAKT', 'HOLDING CONTACT'], ['GREIFT AN', 'ATTACKING'],
   ['Station hier (zieht mit dem Konvoi)', 'Station here (moves with the convoy)'], ['Sektor hier absuchen', 'Search the sector here'],
   ['Datum hier verfolgen', 'Prosecute the datum here'], ['Hubschrauber hierher', 'Helicopter here'],
@@ -35,6 +45,8 @@ export const EN_ESCORT: [string, string][] = [
 ];
 
 export const EN_ESCORT_PHRASES: [RegExp, string][] = [
+  [/^Bedrohung: (\d+) U-Boot(?:e)?, vermutlich im Anlauf auf die Enge$/, 'Threat: $1 submarine(s), probably closing on the strait'],
+  [/^Bedrohung: (\d+) U-Boot(?:e)?, Standort unbekannt$/, 'Threat: $1 submarine(s), position unknown'],
   [/^(\d+) KN · ZICKZACK$/, '$1 KN · ZIGZAG'],
   [/NOTWENDE BB NOCH (\d+) MIN/, 'EMERGENCY TURN PORT $1 MIN LEFT'], [/NOTWENDE STB NOCH (\d+) MIN/, 'EMERGENCY TURN STBD $1 MIN LEFT'],
   [/^BEFOHLEN: /, 'ORDERED: '], [/^ORDERED: SEKTOR /, 'ORDERED: SECTOR '], [/^ORDERED: HUBSCHRAUBER /, 'ORDERED: HELICOPTER '],

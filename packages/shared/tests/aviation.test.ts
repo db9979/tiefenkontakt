@@ -14,7 +14,7 @@ describe('helicopter and sonobuoys', () => {
   it('drops a buoy after the flight and reports bearings from the buoy position', () => {
     const { w, ffg } = world();
     expect(sendBuoy(w, ffg, { x: 10_000, y: 500 }, false)).toBe(true);
-    for (let i = 0; i < 2000 && !w.air!.buoys.length; i++) stepWorld(w);
+    for (let i = 0; i < 4000 && !w.air!.buoys.length; i++) stepWorld(w);
     expect(w.air!.buoys).toHaveLength(1);
     for (let i = 0; i < 50; i++) stepWorld(w);
     const tr = w.books.get('f')?.entries().find(([id]) => id === 'u')?.[1];
@@ -29,7 +29,7 @@ describe('helicopter and sonobuoys', () => {
     const { w, ffg } = world();
     w.env.current = { x: 0.5, y: 0 };
     expect(sendBuoy(w, ffg, { x: 9000, y: 1000 }, false, true)).toBe(true);
-    for (let i = 0; i < 2000 && !w.air!.buoys.length; i++) stepWorld(w);
+    for (let i = 0; i < 4000 && !w.air!.buoys.length; i++) stepWorld(w);
     const x0 = w.air!.buoys[0]!.pos.x;
     for (let i = 0; i < 600; i++) stepWorld(w);
     expect(w.air!.buoys[0]!.pos.x).toBeGreaterThan(x0 + 20);
@@ -40,7 +40,7 @@ describe('helicopter and sonobuoys', () => {
 
   it('refuses targets out of helicopter range', () => {
     const { w, ffg } = world();
-    expect(sendBuoy(w, ffg, { x: 40_000, y: 0 }, false)).toMatch(/Reichweite/);
+    expect(sendBuoy(w, ffg, { x: 60_000, y: 0 }, false)).toMatch(/Reichweite/);
   });
 });
 
@@ -59,7 +59,7 @@ describe('dipping sonar, helicopter torpedo, patrol aircraft', () => {
   it('a dipping sonar gets range from the hover point; the boat hears the ping', () => {
     const { w, ffg } = world();
     expect(sendDip(w, ffg, { x: 8000, y: 1500 }, false)).toBe(true);
-    for (let i = 0; i < 3000; i++) stepWorld(w);
+    for (let i = 0; i < 5000; i++) stepWorld(w);
     const tr = w.books.get('f')!.entries().find(([id]) => id === 'u')?.[1];
     const echo = tr?.history.find((h) => h.sensor === 'active' && h.ox !== undefined);
     expect(echo?.r).toBeGreaterThan(500);
@@ -70,7 +70,7 @@ describe('dipping sonar, helicopter torpedo, patrol aircraft', () => {
   it('the helicopter drops a searching torpedo; the patrol aircraft lays a buoy line', () => {
     const { w, ffg } = world();
     expect(sendHeloTorpedo(w, ffg, { x: 9000, y: 3000 })).toBe(true);
-    for (let i = 0; i < 2000 && !w.weapons!.torpedoes.length; i++) stepWorld(w);
+    for (let i = 0; i < 4000 && !w.weapons!.torpedoes.length; i++) stepWorld(w);
     expect(w.weapons!.torpedoes[0]?.kind).toBe('light');
     expect(callMpa(w, ffg, { x: 0, y: 20_000 }, 90)).toBe(true);
     expect(callMpa(w, ffg, { x: 0, y: 20_000 }, 90)).toMatch(/bereit in/);

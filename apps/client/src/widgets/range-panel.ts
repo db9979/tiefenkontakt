@@ -1,5 +1,5 @@
 import { predictRanges, predictionSummary, type RangePrediction, type Snapshot } from '@tk/shared';
-import { COL, fitCanvas, FONT, h, setText } from './format.js';
+import { COL, esc, fitCanvas, FONT, h, setHtml, setText } from './format.js';
 
 /**
  * Listening-range prediction ("Reichweitenvorhersage"): a range × depth section from the
@@ -8,11 +8,13 @@ import { COL, fitCanvas, FONT, h, setText } from './format.js';
  * surface ships the boat's depth. Recomputed every few seconds (cached by inputs).
  */
 
+/** Default plot height (px); a station can let it grow into free room (opts.height). */
 const HEIGHT = 200;
+const hOf = (cv: HTMLCanvasElement) => Number(cv.dataset.h) || HEIGHT;
 const RECOMPUTE_S = 3;
 const OPEN_KEY = 'tk.rangePanel';
 
-export function rangePanel(): { el: HTMLElement; update(s: Snapshot): void } {
+export function rangePanel(opts: { height?: () => number } = {}): { el: HTMLElement; update(s: Snapshot): void } {
   const open = localStorage.getItem(OPEN_KEY) !== '0';
   const el = h(`<div class="panel"><details class="filters" ${open ? 'open' : ''}><summary>REICHWEITENVORHERSAGE <span id="rp-cond" class="dim"></span></summary>
     <canvas id="rp-cv" style="cursor:crosshair"></canvas>
@@ -26,6 +28,16 @@ export function rangePanel(): { el: HTMLElement; update(s: Snapshot): void } {
   details.addEventListener('toggle', () => {
     localStorage.setItem(OPEN_KEY, details.open ? '1' : '0');
     if (details.open && pred) draw(cv, pred, ownDepth);
+  });
+  // Grow with the room the station gives (checked on resize; the plot is redrawn at the next recompute)
+  const sizeTo = () => {
+    const want = Math.round(Math.max(HEIGHT, Math.min(520, opts.height?.() ?? HEIGHT)));
+    if (Number(cv.dataset.h) === want) return false;
+    cv.dataset.h = String(want);
+    return true;
+  };
+  window.addEventListener('resize', () => {
+    if (sizeTo() && details.open && pred) draw(cv, pred, ownDepth);
   });
   cv.addEventListener('mousemove', (e) => {
     if (!pred) return;
@@ -50,11 +62,13 @@ export function rangePanel(): { el: HTMLElement; update(s: Snapshot): void } {
         layerDepth: s.env.layerDepth, bottom: s.env.bottom, seabedKind: s.env.seabed?.kind,
       });
       setText(el.querySelector('#rp-cond')!, `· ${Math.round(o.speedKn)} KN · SEEGANG ${s.env.seaState}`);
-      setText(el.querySelector('#rp-sum')!, predictionSummary(pred));
+      // Each part on one line ("~30 KM" never splits from its unit)
+      setHtml(el.querySelector('#rp-sum')!, predictionSummary(pred).split(' · ').map((t) => `<span style="white-space:nowrap">${esc(t)}</span>`).join(' · '));
       // Plain words: what each colour means and what the axes are
       const ref = pred.refs.map((r, k) => `${k ? 'BLASSGRÜN' : 'GRÜN'}: HIER HÖREN WIR ${r.name}`).join(' · ');
       setText(el.querySelector('#rp-note')!, (pred.layerKnown ? '' : 'SCHICHT UNBEKANNT · NUR GROBE SCHÄTZUNG · ') +
         `${ref} · ROT: HIER HÖRT ${pred.enemy.name} UNS · ${pred.axis === 'own' ? 'SENKRECHT: EIGENE TIEFE' : 'SENKRECHT: TIEFE DES U-BOOTS'} · WAAGERECHT: ENTFERNUNG`);
+      sizeTo();
       draw(cv, pred, ownDepth);
     },
   };
@@ -62,10 +76,11 @@ export function rangePanel(): { el: HTMLElement; update(s: Snapshot): void } {
 
 function geom(cv: HTMLCanvasElement): { l: number; t: number; w: number; h: number } {
   const l = 34, t = 6;
-  return { l, t, w: (cv.clientWidth || 600) - l - 8, h: HEIGHT - t - 18 };
+  return { l, t, w: (cv.clientWidth || 600) - l - 8, h: hOf(cv) - t - 18 };
 }
 
 function draw(cv: HTMLCanvasElement, p: RangePrediction, ownDepth: number): void {
+  const HEIGHT = hOf(cv);
   const ctx = fitCanvas(cv, HEIGHT);
   const W = cv.clientWidth || 600;
   const g = geom(cv);

@@ -1,5 +1,5 @@
 import { trueDeg } from '../../north.js';
-import { angleDiff, fogAt, lookoutRanges, type Sighting } from '@tk/shared';
+import { angleDiff, fogAt, lookoutRanges, type AlertView, type Sighting } from '@tk/shared';
 import type { Periscope3D, PeriscopeTarget } from '../../widgets/periscope3d.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
@@ -25,6 +25,20 @@ const WIDE_FOV = 75;
 const MAGS = [6, 8, 10, 12];
 const WHAT: Record<Sighting, string> = { mast: 'SEHROHR', snorkel: 'SCHNORCHEL', surfaced: 'AUFGETAUCHT' };
 
+/** What a report shows in the sightings list (undefined: not something the lookouts see). */
+export function sightWhat(a: Pick<AlertView, 'kind' | 'what' | 'sink' | 'text'>): string | undefined {
+  if (a.kind === 'sighting') return WHAT[a.what ?? 'mast'];
+  if (a.kind === 'hit') return a.sink ? 'SINKT' : 'EXPLOSION';
+  if (a.kind === 'torpedo') return 'TORPEDO';
+  if (a.kind === 'boat' && a.text.startsWith('AUSGUCK')) return 'RAKETENSTART';
+  return undefined;
+}
+
+/** Screen x of a bearing d degrees off the look on a w px view of f degrees (perspective, as the 3D view). */
+export function tapeX(d: number, f: number, w: number): number {
+  return w / 2 + (Math.tan((d * Math.PI) / 180) / Math.tan((f * Math.PI) / 360)) * (w / 2);
+}
+
 /** Escorts' bridge: lookout view in 3D with 7× binoculars, own formation in sight, lookout reports. */
 export function bridgeStation(): Station {
   // The view takes everything but a 300 px lookout column; buttons in groups: optics, look, report.
@@ -36,16 +50,14 @@ export function bridgeStation(): Station {
           <div class="btngroup"><span class="seg"><button id="left" title="Blick nach links">◀</button><button id="right" title="Blick nach rechts">▶</button><button id="tup" title="Blick nach oben (W)">▲</button><button id="tdn" title="Blick nach unten (S)">▼</button></span>
             <button id="ahead">Voraus</button><button id="report" class="warn">Auf Meldung</button><button id="tocontact">Auf Kontakt</button><button id="toair" title="Nacheinander auf jedes sichtbare Flugzeug schwenken und ihm folgen">Luft</button></div>
           <div class="btngroup"><button id="glass" title="Fernglas mit Strichplatte (Taste E wechselt die Vergrößerung)">Fernglas</button><button id="mag" title="Vergrößerung 6×, 8×, 10×, 12×">8×</button><button id="stab" title="Stabilisierung: das Bild hält gegen Schiffsbewegung und Handzittern still (Taste G)">Stab</button></div>
-        </div>
-        <div class="btnrows">
-          <div class="btngroup"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button></div>
           <div class="hint">ZIEHEN SCHWENKT · WASD · RAD ZOOMT</div>
         </div>
       </div>
     </div>
     <div class="st-col">
-      <div class="panel" title="Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas."><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div></div>
-      <div class="panel grow listpanel"><div class="hd"><span>Sichtungen</span><span id="b-sn" class="dim"></span></div><div id="b-sight" class="scroll sightlist" title="Klick dreht den Blick auf die Sichtung"></div></div>
+      <div class="panel" title="Die Ausgucks melden Sehrohr-Fahnen, Schnorchel und Torpedolaufbahnen selbst. Nachts, bei Regen und hohem Seegang sehen sie kaum etwas."><div class="hd"><span>Ausguck</span><span class="dim">20 M AUGENHÖHE</span></div><div id="b-data"></div>
+        <div class="btnrow b-acts"><button id="book" title="Erkennungsheft: Klassen vergleichen und dem gewählten Kontakt zuweisen">Erkennung</button><button id="foto" title="Foto vom Ausguck (wird in der Nachbesprechung bewertet)">Foto</button></div></div>
+      <div class="panel listpanel b-sightp"><div class="hd"><span>Sichtungen</span><span id="b-sn" class="dim"></span></div><div id="b-sight" class="scroll sightlist" title="Klick dreht den Blick auf die Sichtung"></div></div>
     </div>
   </div>`);
   const view = el.querySelector<HTMLCanvasElement>('#view')!;
@@ -100,7 +112,7 @@ export function bridgeStation(): Station {
     if (s) relTarget = angleDiff(s.own.heading, bearing);
   };
   /** The sightings list as last drawn (its rows point into it by index). */
-  let sightings: { label?: string; bearing: number; what?: Sighting; time: number; range?: number }[] = [];
+  let sightings: { label?: string; bearing: number; what: string; time: number; range?: number }[] = [];
   el.querySelector<HTMLElement>('#b-sight')!.addEventListener('click', (e) => {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[data-sight]');
     const a = row && sightings[Number(row.dataset.sight)];
@@ -262,18 +274,21 @@ export function bridgeStation(): Station {
         ${airLine(s)}
         ${selLine()}
 `);
-      // Sightings: the latest report per contact, newest first; a click turns the view to it
+      // Sightings: the latest report per contact, plus explosions, sinkings, torpedoes and launches
+      // with their bearing, newest first; a click turns the view to it
       sightings = [];
       for (const a of [...s.alerts].reverse()) {
-        if (a.kind !== 'sighting' || a.bearing === undefined) continue;
+        if (a.bearing === undefined) continue;
+        const what = sightWhat(a);
+        if (!what) continue;
         if (a.label && sightings.some((x) => x.label === a.label)) continue;
-        sightings.push({ label: a.label, bearing: a.bearing, what: a.what, time: a.time, range: a.range });
+        sightings.push({ label: a.label, bearing: a.bearing, what, time: a.time, range: a.range });
         if (sightings.length >= 30) break;
       }
       setText(el.querySelector('#b-sn')!, sightings.length ? String(sightings.length) : '');
       setHtml(el.querySelector('#b-sight')!, sightings.length ? sightings.map((a, i) => {
         const age = Math.max(0, Math.round(s.time - a.time));
-        return `<div class="row clickable ${age < 60 ? 'amber' : ''}" data-sight="${i}"><span>${esc(a.label ?? '?')} ${WHAT[a.what ?? 'mast']}</span><span>${tdeg3(a.bearing)}°${a.range ? ` · ${km(a.range)}` : ''}</span><span class="dim">${age < 120 ? `${age} S` : `${Math.round(age / 60)} MIN`}</span></div>`;
+        return `<div class="row clickable ${age < 60 ? 'amber' : ''}" data-sight="${i}"><span>${a.label ? `${esc(a.label)} ` : ''}${a.what}</span><span>${tdeg3(a.bearing)}°${a.range ? ` · ${km(a.range)}` : ''}</span><span class="dim">${age < 120 ? `${age} S` : `${Math.round(age / 60)} MIN`}</span></div>`;
       }).join('') : '<div class="dim">NOCH KEINE SICHTUNG</div>');
     },
     hide() {
@@ -341,7 +356,7 @@ export function bridgeStation(): Station {
         if (!c.sighting) continue;
         const d = angleDiff(look, c.bearing);
         if (Math.abs(d) > f / 2) continue;
-        const x = w / 2 + (Math.tan((d * Math.PI) / 180) / Math.tan((f * Math.PI) / 360)) * (w / 2);
+        const x = tapeX(d, f, w);
         // Vertical: the object sits just below the horizon by the dip from 20 m eye height
         const pitchR = (pitch * Math.PI) / 180;
         const tanV = Math.tan((f * Math.PI) / 360) / (w / H);
@@ -387,7 +402,7 @@ export function bridgeStation(): Station {
           }
         }
       }
-      // Bearing tape in true degrees
+      // Bearing tape in true degrees, in the same perspective as the picture (and the markers)
       const lookT = trueDeg(look);
       ctx.fillStyle = 'rgba(3,8,8,0.6)';
       ctx.fillRect(0, 0, w, 16);
@@ -397,13 +412,14 @@ export function bridgeStation(): Station {
       ctx.textAlign = 'center';
       const step = glass ? 1 : 5;
       for (let a = Math.ceil((lookT - f / 2) / step) * step; a <= lookT + f / 2; a += step) {
-        const x = w / 2 + (angleDiff(lookT, a) / (f / 2)) * (w / 2);
+        const x = tapeX(angleDiff(lookT, a), f, w);
         const major = a % (glass ? 5 : 30) === 0;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, major ? 7 : 4); ctx.stroke();
         if (major) ctx.fillText(String(((a % 360) + 360) % 360).padStart(3, '0'), x, 15);
       }
       // Bow marker on the tape
-      const bx = w / 2 + (angleDiff(look, heading) / (f / 2)) * (w / 2);
+      const bd = angleDiff(look, heading);
+      const bx = Math.abs(bd) < f / 2 ? tapeX(bd, f, w) : -1;
       if (bx > 0 && bx < w) {
         ctx.fillStyle = '#e8c37a';
         ctx.beginPath(); ctx.moveTo(bx, 1); ctx.lineTo(bx - 5, 9); ctx.lineTo(bx + 5, 9); ctx.fill();

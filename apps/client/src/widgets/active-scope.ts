@@ -96,7 +96,8 @@ export function activeScope(opts: { height?: number | (() => number); compact?: 
       const H = (typeof opts.height === 'function' ? opts.height() : opts.height) ?? 300;
       const ctx = fitCanvas(canvas, H);
       const w = canvas.clientWidth;
-      const cx = w / 2, cy = H / 2, R = H / 2 - 18;
+      // The bearing labels stand up to 27 px outside the ring: keep them inside the narrower side, clear of the captions at the foot
+      const cx = w / 2, cy = (H - 14) / 2, R = Math.max(40, Math.min(w, H - 14) / 2 - 28);
       const rM = rangeM(s);
       const k = R / rM;
       ctx.fillStyle = '#020605';

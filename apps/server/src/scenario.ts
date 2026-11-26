@@ -314,7 +314,7 @@ export function buildScenario(slots: PlayerSlot[], settings: ScenarioSettings, s
   w.env.light = lightFromSun(sunPosition(w.env.lat, month, hour).el);
   // Fog and ice as the area has them in that season
   const clim = seaClimate(region, month);
-  w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: mission === 'groenland' || clim.ice, fogBanks: mission === 'groenland' ? 3 : Math.max(clim.fogBanks, seed % 2) });
+  w.env.met = initMet(ships, seed, { dynamic: settings.weather !== 'stabil', ice: clim.ice, fogBanks: mission === 'groenland' ? 3 : Math.max(clim.fogBanks, seed % 2) });
   // AI crews steer clear of shoals on their own (players get the navigator's warnings)
   for (const p of [...west, ...east]) if (p.bot) { const sh = ships.find((x) => x.playerId === p.playerId); if (sh) sh.autoNav = true; }
   // On the real coasts a start position may fall on land or in the shallows: move it to the nearest water deep enough

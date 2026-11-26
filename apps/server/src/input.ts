@@ -151,7 +151,7 @@ export const clientMsgSchema = z.discriminatedUnion('t', [
   z.object({
     t: z.literal('helo'), op: z.enum(['add', 'now', 'remove', 'clear']),
     kind: z.enum(['dip', 'buoys', 'mad', 'attack', 'return']).optional(),
-    bearing: deg.optional(), range: z.number().finite().min(0).max(30_000).optional(), axis: deg.optional(),
+    bearing: deg.optional(), range: z.number().finite().min(0).max(50_000).optional(), axis: deg.optional(),
     count: z.number().int().min(1).max(6).optional(), label: z.string().min(1).max(24).optional(), active: z.boolean().optional(),
     id: z.number().int().min(0).max(1e9).optional(),
   }),

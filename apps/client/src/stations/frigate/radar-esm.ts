@@ -14,7 +14,7 @@ import { esmRow, esmTone } from '../../widgets/esm-text.js';
 const RPM = 24;
 // 48 SM: air search – aircraft at height show far beyond the surface horizon
 const RANGES = [3, 6, 12, 24, 48] as const;
-/** How far a boat's radar warner on its mast (3 m) hears this radar (20 m): 1.35 × radio horizon (sensors.ts). */
+/** How far a boat's radar warner on its mast (3 m) hears this radar (20 m): a little past the radio horizon (sensors.ts). */
 const ESM_HEARS_NM = Math.round(esmReach(3, 20) / NM);
 
 /** Radar room: phosphor PPI with range scales, radar status and an ESM bearing rose. */
@@ -25,7 +25,7 @@ export function radarEsmStation(): Station {
   const el = h(`<div class="st two fradar">
     <div class="st-col">
       <div class="panel grow"><div class="hd"><span>Luft-/Seeraumradar · <span id="rng">12</span> SM</span><span id="rs" class="dim"></span></div>
-        <div class="fill" id="ppi-box" title="Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)"><canvas id="ppi"></canvas></div>
+        <div class="fill" id="ppi-box" title="Klick auf ein Echo wählt · Striche am Rand = ESM-Peilungen (rot = Feuerleit- oder Flugzeugradar, gelb = unbekannt oder Funk)"><canvas id="ppi" class="keep"></canvas></div>
         <div class="foot"><button id="radar" class="primary">Radar</button>
           <span class="seg">${RANGES.map((r) => `<button data-rng="${r}" title="Bereich ${r} SM">${r} SM</button>`).join('')}</span></div>
       </div>
@@ -33,7 +33,7 @@ export function radarEsmStation(): Station {
     <div class="st-col">
       <div class="panel"><div class="hd"><span>Radarstatus</span><span id="emit" class="dim"></span></div><div id="status"></div></div>
       <div id="airdef"></div>
-      <div class="panel grow listpanel"><div class="hd"><span>ESM · Funkpeilung</span><span id="esm-n" class="dim"></span></div><div id="esm" class="scroll"></div></div>
+      <div class="panel grow listpanel"><div class="hd"><span>ESM · Radar- und Funkpeilung</span><span id="esm-n" class="dim"></span></div><div id="esm" class="scroll"></div></div>
     </div>
   </div>`);
   // Air defence sits with the air picture: radar, ESM and the SAM in one place
@@ -41,7 +41,8 @@ export function radarEsmStation(): Station {
   el.querySelector('#airdef')!.replaceWith(ad.el);
   const canvas = el.querySelector<HTMLCanvasElement>('#ppi')!;
   const box = fillBox(el.querySelector<HTMLElement>('#ppi-box')!, 300, 900);
-  const scope = new RadarScope();
+  // The PPI stays a dark tube in the light theme (phosphor on glass, readable in both)
+  const scope = new RadarScope({ keep: true });
   let rangeNm: number = Number(localStorage.getItem('tk_radar_rng')) || 12;
   let last = performance.now();
   let geo = { ox: 0, oy: 0, k: 1 };
@@ -143,11 +144,12 @@ export function radarEsmStation(): Station {
         <div class="row"><span class="dim">ECHOS</span><span>${radar.length} · DAVON EIGENE ${friends.length}</span></div>
         <div class="row"><span class="dim">SEEGANG-STÖRUNG</span><span>${['GERING', 'GERING', 'MÄSSIG', 'MÄSSIG', 'STARK', 'STARK', 'SEHR STARK'][s.env.seaState] ?? '—'}${s.env.rain ? ' · REGEN' : ''}</span></div>
         <div class="row"><span class="dim">GEGNER-ESM HÖRT UNS</span><span class="${on ? 'amber' : 'dim'}">${on ? `BIS ${ESM_HEARS_NM} SM` : '—'}</span></div>
-        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? `Jede U-Boot-Funkpeilantenne in ${ESM_HEARS_NM} SM peilt uns jetzt. Schnorchel und Sehrohre zeigt das Radar nur auf kurze Distanz.` : 'Ohne Radar bleibt die Fregatte still. Kurz einschalten, Lage aufnehmen, wieder aus.'}</div>`);
+        <div class="dim" style="margin-top:6px;line-height:1.5">${on ? `RADARWARNER DER U-BOOTE HÖREN UNS BIS ${ESM_HEARS_NM} SM. SCHNORCHEL UND SEHROHRE ZEIGT DAS RADAR NUR AUF KURZE DISTANZ.` : 'OHNE RADAR BLEIBT DIE FREGATTE STILL. KURZ EINSCHALTEN, LAGE AUFNEHMEN, WIEDER AUS.'}</div>`);
       const esm = s.contacts.filter((c) => c.sensors.includes('esm')).sort((a, b) => b.lastSeen - a.lastSeen);
       const airEsm = (s.planes ?? []).filter((p) => p.via.includes('esm'));
       const airRows = airEsm.map((p) => esmRow('✈', p.bearing, 'JETZT', p.emitter, p.esmLvl, p.esmTrend, esmTone(p.emitter))).join('');
-      el.querySelector('#esm-n')!.textContent = esm.length + airEsm.length ? `${esm.length + airEsm.length} PEILUNGEN` : 'ALLES STILL';
+      // Only the count in the header (the list says when all is quiet): the title keeps its room
+      el.querySelector('#esm-n')!.textContent = esm.length + airEsm.length ? String(esm.length + airEsm.length) : '';
       setHtml(el.querySelector('#esm')!, airRows + (esm.length
         ? esm.map((c) => {
           const fresh = s.time - c.lastSeen < 60;
