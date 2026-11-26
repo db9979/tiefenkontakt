@@ -4,10 +4,11 @@ import type { Ship } from './entities.js';
 import { isSnorkeling } from './kinematics.js';
 import { crewNoiseDb } from './crew.js';
 import type { IncidentState } from './incidents.js';
-import { KN, angleDiff, bearing, dbSum, distance, type Vec2 } from './math.js';
+import { KN, angleDiff, bearing, dbSum, distance, headingVec, type Vec2 } from './math.js';
 import { DEEP_M, SHALLOW_M, type SeabedSpec } from './seabed.js';
 import { RAIN_NOISE_DB, type WeatherState } from './weather.js';
 import { localNoiseDb } from './met.js';
+import { areaAcoustics, areaKind, type AreaAcoustics } from './sea-acoustics.js';
 
 export interface Environment {
   layerDepth: number; // m, thermocline; 0 = no layer
@@ -82,10 +83,25 @@ const LAYER_FULL_M = 2000;
 const CAVITATION_DB = 15;
 const SNORKEL_DB = 28;
 
+/** The propeller's upper blade tip rides this far above the boat's depth (keel) reading (m). */
+export const PROP_TIP_ABOVE_KEEL_M = 7;
+
+/**
+ * Cavitation inception speed at a depth. The blade tip cavitates when the local pressure drop
+ * (∝ v²) reaches the static head there, so the inception speed grows with √(pressure):
+ * v(d) = cavKn · √((10 m + tip depth) / 10 m), with the tip PROP_TIP_ABOVE_KEEL_M above the keel
+ * (Ross, Mechanics of Underwater Noise, ch. 8; Urick ch. 10). Example SSK (cavKn 4,5): 6,5 kn at
+ * periscope depth, 13,8 kn at 100 m, 17,6 kn at 150 m. Going deep is how a boat sprints quietly.
+ */
+export function cavitationSpeedAt(cls: Ship['cls'], depth: number): number {
+  const cav = CLASSES[cls].cavKn;
+  if (cav === undefined) return Infinity;
+  const tip = Math.max(0, depth - PROP_TIP_ABOVE_KEEL_M);
+  return cav * Math.sqrt((10 + tip) / 10);
+}
+
 export function cavitationSpeedKn(s: Ship): number {
-  const spec = CLASSES[s.cls];
-  if (spec.cavKn === undefined) return Infinity;
-  return spec.cavKn + ((spec.cavDepthKn ?? 0) * s.depth) / 100;
+  return cavitationSpeedAt(s.cls, s.depth);
 }
 
 export function isCavitating(s: Ship): boolean {
@@ -175,14 +191,106 @@ export function transmissionLoss(
   const duct = !shallow && env.layerDepth > 30 && depthA < env.layerDepth && depthB < env.layerDepth && r > 3000 ? 2 : 0;
   // Every bottom bounce costs energy: the loss grows with range, the shallower the more
   const bottomLoss = shallow && r > r0 ? Math.min(20, (r / 1000) * 0.3 * (SHALLOW_M / Math.max(bottom, 30))) : 0;
-  // Deep water: the first convergence zone refocuses sound around 55 km
-  const cz = bottom > DEEP_M && r > 50_000 && r < 62_000 ? 12 : 0;
-  return spread + absorb + layer + bottomLoss - cz - duct;
+  const near = spread + absorb + layer + bottomLoss - duct;
+  // Shelf seas, fjords, harbours and narrows: shallow-water multipath as it was, never a CZ
+  if (shallow || areaKind(env.seabed) !== 'open') return near;
+  // Open sea over deep water: the direct path ends, then shadow (filled by bottom bounce), then the CZ rings
+  // (hot path: no allocation, the same figures as deepPaths)
+  const ac = areaAcoustics(env.seabed);
+  const direct = near + shadowExcess(r, depthA, depthB, env, bottom, ac);
+  if (ac.czKm === undefined || ac.halfChannel || bottom < ac.czDepthM) return direct;
+  // CZ paths run deep under the layer and turn up again: no layer term, refocusing gain in the annulus
+  const at = ac.czKm * 1000;
+  const gain = Math.max(czGain(r, at, at * CZ1_HALF, CZ1_DB), czGain(r, 2 * at, 2 * at * CZ2_HALF, CZ2_DB));
+  return gain > 0 ? Math.min(direct, spread + absorb - gain) : direct;
 }
 
-/** Ambient noise; at a position it adds a rain squall overhead and ice (floes crackling). */
+/**
+ * Deep-water propagation beyond the direct path (open sea, bottom deeper than SHALLOW_M).
+ * Sources: Urick ch. 6 (limiting ray of the direct path ≈ √(2R·z) per end in a downward-refracting
+ * profile, R ≈ 80 km: 400 m per √m), shadow zone 10–25 dB below the CZ, bottom bounce at about
+ * 10–15 dB per bounce (here the cap of the shadow), CZ width 5–10 % of its range, the second
+ * zone at twice the range and weaker. The surface duct leaks out the more, the thinner it is
+ * (cutoff ≈ 1500/(0.008·D^1.5) Hz: a 30 m duct holds nothing of the low band, 100 m holds it).
+ */
+/** Direct-path end: 4 km plus 400 m per √m of source and receiver depth, clamped 6–20 km. */
+export const DP_BASE_M = 4000;
+export const DP_PER_SQRT_M = 400;
+export const DP_MIN_M = 6000;
+export const DP_MAX_M = 20_000;
+/** Shadow zone: dB per km past the direct path, and its floor (bottom bounce fills it) over CZ-deep water. */
+export const SHADOW_DB_PER_KM = 3;
+export const SHADOW_MAX_DB = 18;
+/** Over water too shallow for a CZ (300 m up to the CZ depth) bottom bounce comes back strongly: this cap at 300 m. */
+export const SHADOW_MID_MIN_DB = 6;
+/** First and second CZ: peak gain (dB, against the near-field curve without the layer) and half width (fraction of the zone's range). */
+export const CZ1_DB = 12;
+export const CZ2_DB = 7;
+export const CZ1_HALF = 0.05;
+export const CZ2_HALF = 0.07;
+/** Arctic half-channel: surface-reflected paths lose about this much per km (ice and surface scatter) instead of a shadow. */
+const HALF_CHANNEL_DB_PER_KM = 0.6;
+
+export interface DeepPaths {
+  /** Range where the direct path ends (m). */
+  rdp: number;
+  /** Extra loss beyond the direct path (shadow, duct leakage or half-channel scatter) at a range. */
+  excessAt(r: number): number;
+  /** Convergence zones: centre (m), half width (m), peak gain (dB). */
+  cz: { at: number; half: number; db: number }[];
+  /** The source/receiver pair is ducted (both above a layer): leakage instead of a shadow. */
+  ducted: boolean;
+}
+
+/** Duct leakage (dB/km) by layer depth: thin ducts lose the low band, deep ones hold it. */
+export function ductLeakDbPerKm(layerDepth: number): number {
+  return Math.max(0.15, Math.min(1.2, 1.6 - 0.012 * layerDepth));
+}
+
+const directPathEnd = (depthA: number, depthB: number) =>
+  Math.max(DP_MIN_M, Math.min(DP_MAX_M, DP_BASE_M + DP_PER_SQRT_M * (Math.sqrt(Math.max(0, depthA)) + Math.sqrt(Math.max(0, depthB)))));
+const isDucted = (depthA: number, depthB: number, env: Environment) => env.layerDepth > 30 && depthA < env.layerDepth && depthB < env.layerDepth;
+
+/** Extra loss past the direct path: shadow (or duct leakage, or half-channel scatter), capped where bottom bounce fills in. */
+function shadowExcess(r: number, depthA: number, depthB: number, env: Environment, bottom: number, ac: AreaAcoustics): number {
+  const rdp = directPathEnd(depthA, depthB);
+  if (r <= rdp) return 0;
+  // Bottom bounce fills the shadow: fully deep water down to the CZ floor, shallower water much less
+  const czDepth = Math.min(ac.czDepthM, DEEP_M + 1000);
+  const f = Math.max(0, Math.min(1, (bottom - SHALLOW_M) / Math.max(1, czDepth - SHALLOW_M)));
+  const cap = SHADOW_MID_MIN_DB + (SHADOW_MAX_DB - SHADOW_MID_MIN_DB) * f;
+  const slope = ac.halfChannel && env.layerDepth <= 30 ? HALF_CHANNEL_DB_PER_KM : isDucted(depthA, depthB, env) ? ductLeakDbPerKm(env.layerDepth) : SHADOW_DB_PER_KM;
+  return Math.min(cap, ((r - rdp) / 1000) * slope);
+}
+
+/** Deep-water path structure for a source/receiver depth pair over a given bottom (open sea): for the range panel and tests. */
+export function deepPaths(depthA: number, depthB: number, env: Environment, bottom: number): DeepPaths {
+  const ac = areaAcoustics(env.seabed);
+  const cz = ac.czKm !== undefined && !ac.halfChannel && bottom >= ac.czDepthM
+    ? [{ at: ac.czKm * 1000, half: ac.czKm * 1000 * CZ1_HALF, db: CZ1_DB }, { at: 2 * ac.czKm * 1000, half: 2 * ac.czKm * 1000 * CZ2_HALF, db: CZ2_DB }]
+    : [];
+  return {
+    rdp: directPathEnd(depthA, depthB), ducted: isDucted(depthA, depthB, env), cz,
+    excessAt: (r) => shadowExcess(r, depthA, depthB, env, bottom, ac),
+  };
+}
+
+/** Gain of one CZ annulus at a range: flat top over the inner 60 %, cosine edges. */
+function czGain(r: number, at: number, half: number, db: number): number {
+  const x = Math.abs(r - at) / half;
+  if (x >= 1) return 0;
+  if (x <= 0.6) return db;
+  return db * Math.cos(((x - 0.6) / 0.4) * (Math.PI / 2)) ** 2;
+}
+
+/** Distant shipping noise of the sea area (dB added to the ambient). */
+export function shippingNoiseDb(env: Environment): number {
+  return areaAcoustics(env.seabed).shippingDb;
+}
+
+/** Ambient noise: wind (sea state), distant shipping of the area, rain; at a position also a rain squall overhead and ice (floes crackling). */
 export function ambientNoise(env: Environment, at?: Vec2): number {
-  return 60 + 3 * env.seaState + (env.rain ? RAIN_NOISE_DB : 0) + (at ? localNoiseDb(env.met, at, !!env.rain) : 0);
+  return 60 + 3 * env.seaState + shippingNoiseDb(env) + (env.rain ? RAIN_NOISE_DB : 0) + (at ? localNoiseDb(env.met, at, !!env.rain) : 0);
 }
 
 /** Self noise of the hull array of a receiver at its current speed. */
@@ -302,6 +410,22 @@ export function pingInterceptExcess(pinger: Ship, listener: Ship, range: number,
   const tl = transmissionLoss(range, sonarDepth(pinger), listener.depth, env, ALPHA_ACTIVE);
   const nl = dbSum(ambientNoise(env, listener.pos), hullSelfNoise(listener));
   return sl - tl - nl - DT_PASSIVE;
+}
+
+/** Velocity of a ship over the water (m/s; going astern points backwards). */
+function velocity(s: Pick<Ship, 'heading' | 'speed' | 'sternway'>): Vec2 {
+  const v = headingVec(s.heading);
+  const way = s.sternway ? -s.speed : s.speed;
+  return { x: v.x * way, y: v.y * way };
+}
+
+/** Radial closing speed between a source and a receiver (m/s, + = the range shrinks): it Doppler-shifts the source's lines. */
+export function closingSpeedMps(src: Pick<Ship, 'pos' | 'heading' | 'speed' | 'sternway'>, rcv: Pick<Ship, 'pos' | 'heading' | 'speed' | 'sternway'>): number {
+  const d = distance(src.pos, rcv.pos);
+  if (d < 1) return 0;
+  const ux = (rcv.pos.x - src.pos.x) / d, uy = (rcv.pos.y - src.pos.y) / d;
+  const vs = velocity(src), vr = velocity(rcv);
+  return (vs.x - vr.x) * ux + (vs.y - vr.y) * uy;
 }
 
 /** Bearing measurement standard deviation in degrees for a given signal excess. */

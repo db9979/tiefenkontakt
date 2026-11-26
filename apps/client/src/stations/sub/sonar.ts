@@ -3,7 +3,7 @@ import { net } from '../../net.js';
 import { btnState } from '../../widgets/btn-state.js';
 import { store } from '../../store.js';
 import type { Station } from '../../screens/game.js';
-import { AcousticAnalysis } from '../../widgets/analysis.js';
+import { AcousticAnalysis, labWithDoppler } from '../../widgets/analysis.js';
 import { activeScope } from '../../widgets/active-scope.js';
 import { renderContactList } from '../../widgets/contact-list.js';
 import { fillBox } from '../../widgets/fill.js';
@@ -124,7 +124,7 @@ export function subSonarStation(): Station {
       const maxLen = CLASSES[o.cls].towed?.maxLength ?? 1;
       btnState(tow, tgt !== o.towedLength ? { on: tgt > 0, label: `${tgt > o.towedLength ? 'AUS' : 'EIN'} ${o.towedLength} M`, pct: (100 * o.towedLength) / maxLen, tone: 'busy' }
         : o.towedLength > 0 ? (o.towedReady ? { on: true, label: `${o.towedLength} M` } : { on: true, label: 'STABILISIERT…', tone: 'busy' }) : { on: false });
-      setText(q('#lab'), store.selected ?? '');
+      setText(q('#lab'), labWithDoppler());
     },
     collect() {
       const s = store.snap;

@@ -1,7 +1,9 @@
-import { DEFAULT_ENV, passiveExcessFrom, sonarDepth, sourceLevel, type Environment } from './acoustics.js';
+import { DEFAULT_ENV, deepPaths, passiveExcessFrom, sonarDepth, sourceLevel, type Environment } from './acoustics.js';
 import { CLASSES, type ClassId } from './classes.js';
 import { createShip, type Ship } from './entities.js';
-import { DEEP_M, type SeabedKind } from './seabed.js';
+import type { RegionId } from './regions.js';
+import { DEEP_M, SHALLOW_M, type SeabedKind } from './seabed.js';
+import { areaKind } from './sea-acoustics.js';
 import { belowHull, towedArrayDepth } from './sensors.js';
 
 /**
@@ -28,6 +30,8 @@ export interface RangePredictInput {
   /** Water depth under the own ship (m); seabed kind as a fallback. */
   bottom?: number;
   seabedKind?: SeabedKind;
+  /** Sea area (regions.ts): where its convergence zones lie and how loud its shipping is. */
+  region?: RegionId;
 }
 
 export interface RefTarget {
@@ -57,11 +61,13 @@ export interface RangePrediction {
   bottom: number;
   maxDepth: number;
   maxRange: number;
+  /** Convergence-zone annuli of the area inside the plot (m, from–to); empty over shallow water or without one. */
+  czRings: [number, number][];
 }
 
 const COLS = 64;
 const ROWS = 32;
-/** Deep water: the grid reaches past the first convergence zone (50–62 km). */
+/** Deep water: the grid reaches past the first convergence zone (at least 64 km, more where the zone lies farther out). */
 const DEEP_RANGE_M = 64_000;
 const NEAR_RANGE_M = 32_000;
 const MAX_DEPTH_M = 400;
@@ -106,11 +112,19 @@ function compute(inp: RangePredictInput): RangePrediction {
   const bottom = Math.max(20, waterDepth(inp));
   const layerKnown = inp.layerDepth !== undefined;
   // Unknown layer: assume none (a coarse, optimistic estimate; the widget says so)
-  const env: Environment = { layerDepth: inp.layerDepth ?? 0, layerLoss: DEFAULT_ENV.layerLoss, seaState: inp.seaState, rain: inp.rain };
+  const env: Environment = {
+    layerDepth: inp.layerDepth ?? 0, layerLoss: DEFAULT_ENV.layerLoss, seaState: inp.seaState, rain: inp.rain,
+    seabed: { kind: inp.seabedKind ?? 'tief', seed: 0, region: inp.region },
+  };
   const ownSub = CLASSES[inp.ownCls].submarine;
   const { refs, enemy } = referenceTargets(inp.ownCls, inp.ownTeam);
   const maxDepth = Math.min(bottom - 5, MAX_DEPTH_M, ownSub ? CLASSES[inp.ownCls].maxDepth : CLASSES[enemy.cls].maxDepth || MAX_DEPTH_M);
-  const maxRange = bottom > DEEP_M ? DEEP_RANGE_M : NEAR_RANGE_M;
+  // Where the area has convergence zones over this water, the grid reaches past the first one
+  const open = bottom >= SHALLOW_M && areaKind(env.seabed) === 'open';
+  const zones = open ? deepPaths(60, 60, env, bottom).cz : [];
+  const first = zones[0];
+  const maxRange = first ? Math.max(DEEP_RANGE_M, Math.ceil((first.at + first.half * 2.5) / 8000) * 8000) : bottom > DEEP_M ? DEEP_RANGE_M : NEAR_RANGE_M;
+  const czRings = zones.filter((z) => z.at - z.half < maxRange).map((z): [number, number] => [z.at - z.half, Math.min(maxRange, z.at + z.half)]);
   const ranges = Array.from({ length: COLS }, (_, i) => ((i + 0.5) * maxRange) / COLS);
   const depths = Array.from({ length: ROWS }, (_, j) => Math.max(1, (j * maxDepth) / (ROWS - 1)));
   const hear = refs.map(() => new Float32Array(ROWS * COLS)) as [Float32Array, ...Float32Array[]];
@@ -133,7 +147,7 @@ function compute(inp: RangePredictInput): RangePrediction {
     }
   }
   const ownRow = ownSub ? nearestRow(depths, inp.ownDepth) : -1;
-  return { ranges, depths, axis: ownSub ? 'own' : 'target', ownRow, refs, hear, heard, enemy, layerDepth: inp.layerDepth, layerKnown, bottom, maxDepth, maxRange };
+  return { ranges, depths, axis: ownSub ? 'own' : 'target', ownRow, refs, hear, heard, enemy, layerDepth: inp.layerDepth, layerKnown, bottom, maxDepth, maxRange, czRings };
 }
 
 function nearestRow(depths: number[], d: number): number {
@@ -147,7 +161,7 @@ let cache: { key: string; p: RangePrediction } | undefined;
 /** Prediction for the given inputs; cached (inputs are rounded so small drifts don't recompute). */
 export function predictRanges(inp: RangePredictInput): RangePrediction {
   const key = [inp.ownCls, inp.ownTeam, Math.round(inp.ownDepth / 5), Math.round(inp.ownSpeedKn), inp.towedLength ?? 0, Math.round((inp.vdsDepth ?? 0) / 5),
-    inp.seaState, inp.rain ? 1 : 0, inp.layerDepth ?? 'x', Math.round(waterDepth(inp) / 10)].join('|');
+    inp.seaState, inp.rain ? 1 : 0, inp.layerDepth ?? 'x', Math.round(waterDepth(inp) / 10), inp.region ?? inp.seabedKind ?? ''].join('|');
   if (cache?.key === key) return cache.p;
   cache = { key, p: compute(inp) };
   return cache.p;
@@ -198,7 +212,7 @@ export function predictionSummary(p: RangePrediction): string {
     p.refs.forEach((r, k) => parts.push(`${k ? '' : 'HÖRT '}${r.name} BIS ~${km(rowRange(p, p.hear[k]!, row))} KM`));
     parts.push(`WIRD GEHÖRT BIS ~${km(rowRange(p, p.heard, row))} KM`);
     const cz = czBand(p, p.hear[0], row);
-    if (cz) parts.push(`KONVERGENZZONE ${km(cz[0])}–${km(cz[1])} KM`);
+    if (cz) parts.push(`SCHATTENZONE ${km(rowRange(p, p.hear[0], row))}–${km(cz[0])} KM`, `KONVERGENZZONE ${km(cz[0])}–${km(cz[1])} KM`);
   } else {
     const span = (se: Float32Array) => {
       const [lo, hi] = rangeSpread(p, se).map(km);

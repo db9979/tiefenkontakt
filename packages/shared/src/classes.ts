@@ -47,9 +47,8 @@ export interface ClassSpec {
   slBase: number;
   slRefKn: number;
   slSlope: number;
-  /** Cavitation onset speed at surface, increases with depth by cavDepthKn per 100 m. */
+  /** Cavitation inception speed with the propeller tip at the surface (kn); it grows with √(static pressure), acoustics.ts cavitationSpeedAt. */
   cavKn?: number;
-  cavDepthKn?: number;
   targetStrength: number; // dB, for active sonar
   hull: HullSonarSpec;
   towed?: TowedArraySpec;
@@ -65,7 +64,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
   ssn: {
     id: 'ssn', name: 'Atom-U-Boot Projekt 9', team: 'east', submarine: true, tonnage: 7000,
     maxSpeedKn: 31, accel: 0.055, turnRateDeg: 1.8, turnRadius: 450, maxDepth: 400, depthRate: 1.5, planeAngleDeg: 15, draft: 0,
-    slBase: 125, slRefKn: 5, slSlope: 50, cavKn: 9, cavDepthKn: 5,
+    slBase: 125, slRefKn: 5, slSlope: 50, cavKn: 5.5,
     targetStrength: 15,
     hull: { di: 16, baffleHalfAngle: 30, selfNoiseBase: 58, selfNoiseRefKn: 5, activeSl: 215 },
     towed: { di: 22, selfNoise: 48, maxSpeedKn: 12, maxLength: 600, settleTime: 60 },
@@ -74,7 +73,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
   ssk: {
     id: 'ssk', name: 'Diesel-U-Boot Projekt 4', team: 'east', submarine: true, tonnage: 3000,
     maxSpeedKn: 19, accel: 0.05, turnRateDeg: 2, turnRadius: 300, maxDepth: 300, depthRate: 1.2, planeAngleDeg: 15, draft: 0,
-    slBase: 115, slRefKn: 4, slSlope: 50, cavKn: 7, cavDepthKn: 4,
+    slBase: 115, slRefKn: 4, slSlope: 50, cavKn: 4.5,
     targetStrength: 12,
     hull: { di: 15, baffleHalfAngle: 30, selfNoiseBase: 55, selfNoiseRefKn: 4, activeSl: 210 },
     battery: { capacityKnH: 80 },
@@ -92,7 +91,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
   ssc: {
     id: 'ssc', name: 'Küsten-U-Boot Projekt 2', team: 'east', submarine: true, tonnage: 500,
     maxSpeedKn: 17, accel: 0.06, turnRateDeg: 2.6, turnRadius: 200, maxDepth: 200, depthRate: 1.2, planeAngleDeg: 15, draft: 0,
-    slBase: 108, slRefKn: 4, slSlope: 50, cavKn: 6, cavDepthKn: 4,
+    slBase: 108, slRefKn: 4, slSlope: 50, cavKn: 4,
     targetStrength: 8,
     hull: { di: 12, baffleHalfAngle: 35, selfNoiseBase: 54, selfNoiseRefKn: 4, activeSl: 205 },
     battery: { capacityKnH: 45 },
@@ -110,7 +109,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
   ssa: {
     id: 'ssa', name: 'U-Boot Projekt 6 (AIP)', team: 'east', submarine: true, tonnage: 1600,
     maxSpeedKn: 20, accel: 0.05, turnRateDeg: 2.2, turnRadius: 260, maxDepth: 250, depthRate: 1.2, planeAngleDeg: 15, draft: 0,
-    slBase: 111, slRefKn: 4, slSlope: 50, cavKn: 7, cavDepthKn: 4,
+    slBase: 111, slRefKn: 4, slSlope: 50, cavKn: 4.8,
     targetStrength: 10,
     hull: { di: 15, baffleHalfAngle: 30, selfNoiseBase: 54, selfNoiseRefKn: 4, activeSl: 208 },
     battery: { capacityKnH: 60 },
@@ -132,7 +131,7 @@ export const CLASSES: Record<ClassId, ClassSpec> = {
   ssw: {
     id: 'ssw', name: 'Jagd-U-Boot S-14', team: 'west', submarine: true, tonnage: 4800,
     maxSpeedKn: 30, accel: 0.055, turnRateDeg: 1.9, turnRadius: 420, maxDepth: 400, depthRate: 1.5, planeAngleDeg: 15, draft: 0,
-    slBase: 119, slRefKn: 5, slSlope: 50, cavKn: 10, cavDepthKn: 5,
+    slBase: 119, slRefKn: 5, slSlope: 50, cavKn: 6,
     targetStrength: 13,
     hull: { di: 17, baffleHalfAngle: 30, selfNoiseBase: 56, selfNoiseRefKn: 5, activeSl: 215 },
     towed: { di: 23, selfNoise: 47, maxSpeedKn: 12, maxLength: 800, settleTime: 60 },

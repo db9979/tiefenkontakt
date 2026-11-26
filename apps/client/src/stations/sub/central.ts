@@ -1,4 +1,4 @@
-import { CLASSES, NM, PERISCOPE_DEPTH, REGIONS, regionToGeo, type Snapshot } from '@tk/shared';
+import { CLASSES, NM, PERISCOPE_DEPTH, REGIONS, cavitationSpeedAt, regionToGeo, type Snapshot } from '@tk/shared';
 import { navErrorText } from '../../widgets/plot-marks.js';
 import { net } from '../../net.js';
 import { btnState, depthBtn } from '../../widgets/btn-state.js';
@@ -16,6 +16,9 @@ import { fillBox } from '../../widgets/fill.js';
 import { keycap } from '../../widgets/keys.js';
 import { minePanel } from '../../widgets/mine-panel.js';
 import { panelTabs, tabRow } from '../../widgets/panel-tabs.js';
+
+/** Knots with one decimal comma, no unit ("6,5"). */
+const kn1 = (v: number) => v.toFixed(1).replace('.', ',');
 
 /**
  * Zentrale: the commander's place in the boat, with the diving station merged in. Unlike the
@@ -132,7 +135,12 @@ export function centralStation(): Station {
       if (air) q('#c-air-txt').textContent = `FLIEGERALARM · ${air.text}`;
       const crash = q<HTMLButtonElement>('[data-cmd="alarm"]');
       btnState(crash, air ? { label: 'FLIEGER!', tone: 'warn' } : { label: '' });
-      q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M`;
+      // Cavitation limit here and at the ordered depth: it grows with √pressure, so deep is where a boat sprints quietly
+      const cavHere = o.cavitationKn < 90 ? o.cavitationKn : undefined;
+      const cavThere = cavHere !== undefined ? cavitationSpeedAt(o.cls, o.order.depth) : undefined;
+      const cavTxt = cavHere === undefined ? '' : ` · KAV AB ${kn1(cavHere)}${cavThere !== undefined && Math.abs(cavThere - cavHere) >= 0.5 ? ` → ${kn1(cavThere)}` : ''} KN`;
+      q('#dd').textContent = `${o.depth.toFixed(0)} M → ${o.order.depth.toFixed(0)} M${cavTxt}`;
+      q('#dd').title = cavHere === undefined ? '' : 'Kavitationsgrenze auf der jetzigen (und der befohlenen) Tiefe: darüber knistert die Schraube, das Boot ist weit zu hören';
       setHtml(q('#c-layer'), layer !== undefined ? `SCHICHT ${layer} M · ${o.depth > layer ? 'DARUNTER' : 'DARÜBER'}` : s.env.noLayer ? 'KEINE SCHICHT · DURCHMISCHT BIS GRUND' : '<span class="amber">SCHICHT UNBEKANNT</span>');
       // Tiles: the four figures a diving officer watches
       const moving = Math.abs(o.order.depth - o.depth) > 2;

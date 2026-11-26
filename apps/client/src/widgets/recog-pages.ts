@@ -73,7 +73,7 @@ export function akustikTab(cls: ClassId): string {
     ${row('TYPISCHE FAHRT', `${a.typicalKn} KN`)}
     ${row('WELLE · BLATT (DEMON)', a.shaftHz ? `${n1(a.shaftHz)} · ${n1(a.bladeHz)} HZ` : NO_DATA)}
     ${row('HÖCHSTFAHRT', `${a.maxKn} KN`)}
-    ${a.cavKn ? row('KAVITATION AB (OBERFLÄCHE)', `${a.cavKn} KN`) : ''}
+    ${a.cavKn ? row('KAVITATION AB', `${n1(a.cavKn)} KN SEHROHRTIEFE · ${n1(a.cavDeepKn ?? a.cavKn)} KN AUF 150 M`) : ''}
     ${a.aipKn ? row('AIP BIS', `${a.aipKn} KN`) : ''}
     ${head('SCHMALBAND (LOFAR) 0–500 HZ')}
     ${lofarChart(a)}

@@ -411,7 +411,9 @@ export function mountHelm(el: HTMLElement) {
       setHtml(q('#h-hdg-o'), Math.abs(togo) < 0.5 ? '<span class="dim">LIEGT AN</span>' : `→ ${tdeg3(o.order.heading)}° ${togo > 0 ? 'STB' : 'BB'}`);
       const made = `${o.speedKn.toFixed(1).replace('.', ',')}`;
       setHtml(q('#h-spd'), `${made}<small> KN${o.sternway ? ' <span class="amber">ZUR</span>' : ''}</small>`);
-      setHtml(q('#h-spd-o'), `→ ${kn(Math.abs(o.order.speedKn))}${o.order.speedKn < 0 ? ' ZUR.' : ''}${o.speedKn > o.cavitationKn ? ' · KAV' : ''}`);
+      setHtml(q('#h-spd-o'), `→ ${kn(Math.abs(o.order.speedKn))}${o.order.speedKn < 0 ? ' ZUR.' : ''}${o.cavitationKn >= 90 ? '' : o.speedKn > o.cavitationKn ? ' · <span class="amber">KAV</span>' : ` · <span class="dim">KAV ${Math.floor(o.cavitationKn)}</span>`}`);
+      // Cavitation limit at this depth (√pressure: deeper = faster before the screw crackles)
+      q('#h-spd-o').title = o.cavitationKn >= 90 ? '' : `Kavitation ab ${kn(o.cavitationKn)} auf ${o.depth.toFixed(0)} m – tiefer liegt die Grenze höher`;
       // Rudder: estimated from the rate of turn against the class's best rate (about 35° at full)
       // Rudder (S8): the angle the helmsman lays for the turn still to go (going astern the
       // rudder works the other way round); jammed: it holds what it had

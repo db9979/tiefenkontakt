@@ -1,4 +1,4 @@
-import { BIO_KINDS, BIO_SOURCE, CLASSES, EMITTERS, SIGNATURES, candidateNames, createLoadout, type BioKind, type ClassId } from '@tk/shared';
+import { BIO_KINDS, BIO_SOURCE, CLASSES, cavitationSpeedAt, EMITTERS, SIGNATURES, candidateNames, createLoadout, type BioKind, type ClassId } from '@tk/shared';
 
 /**
  * Unit reference cards for the handbook, generated from the game's own class tables so the
@@ -123,7 +123,7 @@ export function unitCards(): string {
       ['Höchstfahrt', `${k.maxSpeedKn} kn`],
       ['Wendekreis', `${fmt(k.turnRadius * 2)} m`],
       k.submarine ? ['Tauchtiefe', `${k.maxDepth} m`] : ['Tiefgang', `${k.draft} m`],
-      k.cavKn ? ['Kavitation ab', `${k.cavKn} kn an der Oberfläche, +${k.cavDepthKn} kn je 100 m Tiefe`] : ['Antrieb', sig.name.replace(/^.*\(|\)$/g, '')],
+      k.cavKn ? ['Kavitation ab', `${fmt(Math.round(cavitationSpeedAt(c.cls as ClassId, 18) * 10) / 10)} kn auf Sehrohrtiefe, ${fmt(Math.round(cavitationSpeedAt(c.cls as ClassId, 150) * 10) / 10)} kn auf 150 m (wächst mit der Wurzel des Wasserdrucks)`] : ['Antrieb', sig.name.replace(/^.*\(|\)$/g, '')],
       k.battery ? ['Batterie', `${k.battery.capacityKnH} kn·h${k.aipKn ? ` · AIP bis ${k.aipKn} kn` : ''}`] : ['Ausdauer', 'unbegrenzt'],
       ['Sensoren', sensors],
       ['Bewaffnung', weapons],
