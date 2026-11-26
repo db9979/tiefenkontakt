@@ -5,6 +5,25 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 
 ## [Unreleased]
 
+### Neu
+- **KI-Stufe LEICHT · NORMAL · VETERAN** in der Lobby (Hauptseite) und im Schnellstart: LEICHT feuert später und
+  ungenauer, weicht träger aus und verzichtet auf Kielwasser-Torpedos, Hubschrauber und Seefernaufklärer; VETERAN
+  schießt früher und mit Fächern, legt einen zweiten Täuschkörper, bleibt länger leise und variiert seine Muster.
+  NORMAL spielt unverändert. Die Stufe steht in der Auswertung; die Wochenlage spielt immer NORMAL.
+- **Mehr Bordgeräusche:** Rumpfknacken und Ächzen nach der erlaubten Tauchtiefe und Schäden, Anblasen, Trimmpumpen,
+  zuschlagendes Kopfventil (Diesel setzt aus), Gasturbinen der Fregatten, Hubschrauberrotor an Deck, Abschuss von
+  Rakete und Wasserbomben, Bugschlag im schweren Seegang, Torpedos im Horchraum-Kopfhörer (nur was die eigenen
+  Sensoren halten, mit Doppler).
+- **Schneller laden:** Anmeldung lädt 73 statt 257 kB vor dem ersten Bild (bei langsamem Netz 1,5 statt 2,6 s);
+  Lobby und Spiel kommen im Hintergrund nach, englische Texte nur bei englischer Sprache.
+- **Grafikstufe „Niedrig“** spart mehr: ohne Kantenglättung, 0,8-fache Auflösung, einfachere See- und Himmelsshader;
+  „Auto“ wirkt sofort.
+
+### Behoben
+- 3D-Küste wurde mit jedem Lagebild neu gebaut (bis zu 70 % Rechenzeit in Sehrohr und Brücke): jetzt volle
+  Bildrate in allen Grafikstufen.
+- Beim ersten Besuch lud die Seite einmal neu und löschte die halb eingegebene Anmeldung.
+
 ## [1.1.0] – 2026-11-26
 
 ### Neu
