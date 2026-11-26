@@ -6,6 +6,15 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 ## [Unreleased]
 
 ### Neu
+- **Handbuch, Hilfe und Tutorials** auf dem Stand von Runde 5: neue Hilfe-Rubrik „Regeln, die man kennen muss“,
+  Handbuchkapitel zu Tiefwasser, Peilfehler, Doppler, Draht, Kielwasser-Torpedo, Batterie, Seegang, Mond und
+  Meeresleuchten, Zickzackplänen, Flugkurs, Bojenmustern und Datenlink; veraltete Angaben (Raketenflugzeit, Mörser,
+  Torpedo-Reichweiten, Hubschrauberradius) korrigiert; Lagebesprechung nennt Tiefwasser, Schiffslärm, Seegang und Wind.
+- **Abschlussprüfung im Spiel:** Datenlink-Spuren des Partnerschiffs nicht mehr fälschlich EIGEN, an ihrem Ursprung
+  beschriftet, Bojenlinie entlang ihrer Peilung vom Partner aus; abgeschnittene Texte (Schleppsonar, Draht,
+  Kielwasser-Modus, Kopfventil) und Reichweitenvorhersage lesbar.
+- **Restfehler:** Klassifizierungen je Spur statt je echtem Ziel (kein Datenlink-Leck), Kielwasser-Torpedos in der
+  Kampagne mitgezählt, Kielwasser der Fregatte ohne Abbruchkante; Hafen nachjustiert (Geleit 46 %).
 - **Realismus-Runde 5 (mit U-Boot- und Fregattenkommandant):**
   - Sensoren: aufgetauchtes U-Boot auf Radar und im Sehrohr sichtbar; langsam wandernder Peilfehler je Kontakt und
     Sensor, Schleppsonar ungenauer zur Längsachse; Radarreichweite nach Radarhorizont; Meeresleuchten nach Seegebiet,
