@@ -10,6 +10,9 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
   ungenauer, weicht träger aus und verzichtet auf Kielwasser-Torpedos, Hubschrauber und Seefernaufklärer; VETERAN
   schießt früher und mit Fächern, legt einen zweiten Täuschkörper, bleibt länger leise und variiert seine Muster.
   NORMAL spielt unverändert. Die Stufe steht in der Auswertung; die Wochenlage spielt immer NORMAL.
+  VETERAN-Geleit wertet stille Echos ohne Tonallinie als wahrscheinliches U-Boot aus (Lagezentrum statt veraltetem
+  Datum), feuert ohne auf den Angreifer zu warten und sperrt im Hafen die Einfahrt in tiefem Wasser ab
+  (gegen NORMAL-Boote 67 % Siege statt 50 %).
 - **Mehr Bordgeräusche:** Rumpfknacken und Ächzen nach der erlaubten Tauchtiefe und Schäden, Anblasen, Trimmpumpen,
   zuschlagendes Kopfventil (Diesel setzt aus), Gasturbinen der Fregatten, Hubschrauberrotor an Deck, Abschuss von
   Rakete und Wasserbomben, Bugschlag im schweren Seegang, Torpedos im Horchraum-Kopfhörer (nur was die eigenen
