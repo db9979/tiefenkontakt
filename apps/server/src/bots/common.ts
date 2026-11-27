@@ -38,6 +38,8 @@ export type BotSkill = 'leicht' | 'normal' | 'schwer';
  * escorts' ping share and radar seconds per ten minutes, the boats' depth under the layer and slow-down.
  * Strait breakthrough: creeping speed hunted / free (kn) and depth below the layer (m; LEICHT stays above it).
  * Harbour attack: run-in speed hunted / free (kn), run-in depth (m), least torpedoes in the fan.
+ * VETERAN escorts also take a quiet echo for a boat, fire without the hunter-killer's hold and
+ * hold a pinging barrier off an anchorage (veteran-escort.ts).
  */
 export const SKILL = {
   leicht: {

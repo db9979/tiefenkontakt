@@ -19,7 +19,8 @@ import {
   type Vec2,
   type World,
 } from '@tk/shared';
-import { classify, isFriendly, latestLine, votedPeek, type BotMemory } from './common.js';
+import { classify, isFriendly, latestLine, votedPeek, type BotMemory, type BotSkill } from './common.js';
+import { barrierStations, isVeteran, quietEcho } from './veteran-escort.js';
 import { crossFix } from './frigate.js';
 import { leadDetour, sweepStation } from './mine-cm.js';
 import { aiZigzag } from './convoy-plan.js';
@@ -46,6 +47,8 @@ export interface EscortTask {
   helo?: Vec2;
   /** The escort commander's order this task follows. */
   ordered?: EscortCmdKind;
+  /** VETERAN barrier: keep the active sonar on (a boat that hears it creeps). */
+  ping?: boolean;
 }
 
 /** Roles hold at least this long (no flapping; also gives the boat a chance between attacks). */
@@ -76,22 +79,27 @@ function isSub(t: ContactTrack, m?: BotMemory): boolean {
   return c === 'submarine';
 }
 
+/** VETERAN: a quiet echo (heard on active only) counts as a submarine too. */
+const subLike = (w: World, s: Ship, t: ContactTrack, m: BotMemory | undefined, vet: boolean) => isSub(t, m) || (vet && quietEcho(w, s, t, m));
+
 /** A mast or snorkel painted by an own aircraft's radar (a radar fix measured away from the ship). */
 const airFix = (h: ContactTrack['history'][number]) => h.sensor === 'radar' && h.ox !== undefined && h.r !== undefined;
 
 /** Datum candidates from one escort's book: echoes and MAD (good), aircraft radar fixes, buoy cross-fixes, TMA. */
-function candidates(w: World, s: Ship, m: BotMemory | undefined): { p: Vec2; t: number; q: number }[] {
+function candidates(w: World, s: Ship, m: BotMemory | undefined, vet = false): { p: Vec2; t: number; q: number }[] {
   const out: { p: Vec2; t: number; q: number }[] = [];
   const now = w.time;
   for (const t of w.books.get(s.id)?.tracks() ?? []) {
-    if (now - t.lastSeen > 120 || t.sensors.includes('esm') || isFriendly(w, s, t, m)) continue;
+    // A track the ESM once held is a radar bearing, unless (VETERAN) it echoes now
+    const esmOnly = t.sensors.includes('esm') && !(vet && t.history.some((h) => h.sensor === 'active' && h.r !== undefined && now - h.t < 120));
+    if (now - t.lastSeen > 120 || esmOnly || isFriendly(w, s, t, m)) continue;
     // An aircraft that paints a snorkel or periscope has seen a boat: a datum about 1 km off
     const air = [...t.history].reverse().find((h) => airFix(h) && now - h.t < 120);
     if (air) {
       const v = headingVec(air.b);
       out.push({ p: { x: air.ox! + v.x * air.r!, y: air.oy! + v.y * air.r! }, t: air.t, q: 70 });
     }
-    if (!isSub(t, m)) continue;
+    if (!subLike(w, s, t, m, vet)) continue;
     const echo = [...t.history].reverse().find((h) => (h.sensor === 'active' || h.sensor === 'mad') && h.r !== undefined && now - h.t < 120);
     if (echo) {
       const at = echo.ox !== undefined ? { x: echo.ox, y: echo.oy! } : m ? [...m.track].reverse().find((f) => f.t <= echo.t + 3) ?? s.pos : s.pos;
@@ -108,9 +116,9 @@ function candidates(w: World, s: Ship, m: BotMemory | undefined): { p: Vec2; t: 
 }
 
 /** Fresh passive bearings on submarines from each escort, for cross-fixes between ships. */
-function lines(w: World, s: Ship, m: BotMemory | undefined): { o: Vec2; b: number; t: number }[] {
+function lines(w: World, s: Ship, m: BotMemory | undefined, vet = false): { o: Vec2; b: number; t: number }[] {
   return (w.books.get(s.id)?.tracks() ?? [])
-    .filter((t) => w.time - t.lastSeen < 30 && !t.sensors.includes('esm') && isSub(t, m) && !isFriendly(w, s, t, m))
+    .filter((t) => w.time - t.lastSeen < 30 && !t.sensors.includes('esm') && subLike(w, s, t, m, vet) && !isFriendly(w, s, t, m))
     .map((t) => {
       const l = m ? latestLine(t, m, s) : { origin: s.pos, b: t.bearing, t: t.lastSeen };
       return { o: l.origin, b: l.b, t: l.t };
@@ -118,7 +126,7 @@ function lines(w: World, s: Ship, m: BotMemory | undefined): { o: Vec2; b: numbe
 }
 
 /** Pool the side's sensors into the best datum (fresh good fixes beat old ones). */
-function updateDatum(w: World, plan: HuntPlan, escorts: Ship[], mems: Map<string, BotMemory>): void {
+function updateDatum(w: World, plan: HuntPlan, escorts: Ship[], mems: Map<string, BotMemory>, vet: boolean): void {
   const now = w.time;
   const score = (d: { t: number; q: number }) => d.q - (now - d.t) / 4;
   let best = plan.datum && now - plan.datum.t < DATUM_MAX_AGE ? plan.datum : undefined;
@@ -128,8 +136,8 @@ function updateDatum(w: World, plan: HuntPlan, escorts: Ship[], mems: Map<string
   const all: { s: Ship; ls: ReturnType<typeof lines> }[] = [];
   for (const s of escorts) {
     const m = mems.get(s.id);
-    for (const c of candidates(w, s, m)) consider(c.p, c.t, c.q, s.id);
-    all.push({ s, ls: lines(w, s, m) });
+    for (const c of candidates(w, s, m, vet)) consider(c.p, c.t, c.q, s.id);
+    all.push({ s, ls: lines(w, s, m, vet) });
   }
   // Two ships' bearings crossing at a good angle
   for (let i = 0; i < all.length; i++) {
@@ -205,7 +213,7 @@ export function screenStations(center: Vec2, axis: number, ships: Ship[], outerS
  * Plan one side. Returns the task of each AI escort; ships without an entry act alone.
  * `lastLead` is the freshest lead (ESM, transient) any AI escort holds, for the threat axis.
  */
-export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotMemory>): Map<string, EscortTask> {
+export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotMemory>, skill: BotSkill = 'normal'): Map<string, EscortTask> {
   const tasks = new Map<string, EscortTask>();
   const now = w.time;
   const escorts = w.ships.filter((s) => s.alive && s.team === team && isEscort(s.cls));
@@ -213,7 +221,8 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   if (!ai.length) return tasks;
   const hunt = (w.env.hunt ??= {});
   const plan = (hunt[team] ??= { rolesAt: -1e9, hunters: [], helo: {}, said: {} });
-  updateDatum(w, plan, escorts, mems);
+  const vet = isVeteran(skill);
+  updateDatum(w, plan, escorts, mems, vet);
   const merchants = w.ships.filter((x) => x.alive && x.team === team && (isConvoyShip(x) || x.cls === 'merchant'));
   const center = merchants.length ? { x: merchants.reduce((a, x) => a + x.pos.x, 0) / merchants.length, y: merchants.reduce((a, x) => a + x.pos.y, 0) / merchants.length } : undefined;
   const d = plan.datum;
@@ -225,7 +234,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   const stationed = ai.some((s) => cmds[s.id]?.kind === 'station');
 
   // Who prosecutes: ships holding their own fresh contact, or close to the datum
-  const holds = (s: Ship) => lines(w, s, mems.get(s.id)).length > 0 || candidates(w, s, mems.get(s.id)).some((c) => now - c.t < 60);
+  const holds = (s: Ship) => lines(w, s, mems.get(s.id), vet).length > 0 || candidates(w, s, mems.get(s.id), vet).some((c) => now - c.t < 60);
   const led = (s: Ship) => { const l = mems.get(s.id)?.lead; return !!l && now - l.t < 900; };
   const near = (s: Ship) => (center ? distance(s.pos, center) < PROSECUTE_MAX : true);
   const close = datumOk && (!center || distance(center, d!) < 12_000);
@@ -292,13 +301,15 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
   if (center && screens.length) {
     const ahead = w.convoy?.baseHeading ?? w.convoy?.guideHeading ?? 0;
     const threat = d && now - d.t < DATUM_MAX_AGE ? bearing(center, d) : undefined;
-    const st = screenStations(center, threat ?? ahead, screens, !!w.convoy);
+    // VETERAN at an anchorage: a pinging barrier across the approach, outside the boats' reach of the berths
+    const barrier = vet && !w.convoy;
+    const st = barrier ? barrierStations(w, center, screens) : screenStations(center, threat ?? ahead, screens, !!w.convoy);
     // In mine water one screen sweeps the track close ahead with its mine-avoidance sonar (the
     // barrage-laying boat is ahead on the track too)
     const sweep = sweepStation(w, center);
     const sweeper = sweep ? [...screens].sort((a, b) => distance(a.pos, sweep) - distance(b.pos, sweep))[0] : undefined;
     for (const s of screens) {
-      tasks.set(s.id, { role: 'screen', station: s === sweeper ? sweep : st.get(s.id) });
+      tasks.set(s.id, { role: 'screen', station: s === sweeper ? sweep : st.get(s.id), ...(barrier ? { ping: true } : {}) });
       if (plan.said[s.id] && plan.said[s.id] !== 'screen') say(w, plan, s, 'screen', 'ZURÜCK IN DIE SICHERUNG');
       else plan.said[s.id] ??= 'screen';
     }

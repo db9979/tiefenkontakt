@@ -34,6 +34,7 @@ import { directorCourse, type EscortTask } from './escort-team.js';
 import { heloAttack, heloIdle, heloOnDipContact, heloProsecute, heloSearch } from './helo.js';
 import { wantMineAvoid } from './mine-cm.js';
 import { PACE, activeFixes, captainPace, escortMayFire } from './pacing.js';
+import { isVeteran } from './veteran-escort.js';
 
 const ROCKET_COOLDOWN = 90;
 const PROSECUTE_MAX = 16_000; // m from the convoy: beyond that, return to the screen
@@ -114,7 +115,7 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
   const role = task?.role;
   const prosecuting = task ? role !== 'screen' && (leadB !== undefined || !!datum) : leadB !== undefined && distance(s.pos, center) < PROSECUTE_MAX;
   const learned = w.env.adapt?.west;
-  s.activeSonar = role === 'attacker' ? false : role === 'director' || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? SKILL[skill].learnPing : 1);
+  s.activeSonar = role === 'attacker' ? false : role === 'director' || !!task?.ping || now < m.alertUntil || prosecuting || now % 600 < SKILL[skill].pingDuty * tr.ping * (learned?.fast ? SKILL[skill].learnPing : 1);
   // Range scale (sets the ping interval): the long search scale, shorter and faster as the contact closes
   const near = target?.range !== undefined && target.rangeAt !== undefined && now - target.rangeAt < 120 ? target.range : datum ? distance(s.pos, datum) : Infinity;
   s.pingRange = near < 3000 ? 4000 : near < 7000 ? 8000 : 16_000;
@@ -260,7 +261,8 @@ export function thinkFrigate(w: World, m: BotMemory, s: Ship, skill: BotSkill, t
     }
   }
   const att = plan?.attacker && w.ships.find((x) => x.id === plan.attacker && x.alive);
-  if (role === 'director' && att && (w.weapons?.loadouts.get(att.id)?.rockets ?? 0) > 0 && distance(att.pos, datum ?? att.pos) < 18_000) return;
+  // VETERAN: the director doesn't wait for the attacker; every ready shot keeps the boat down
+  if (!isVeteran(skill) && role === 'director' && att && (w.weapons?.loadouts.get(att.id)?.rockets ?? 0) > 0 && distance(att.pos, datum ?? att.pos) < 18_000) return;
   for (const t of tracks) {
     const cls = voted(m, t);
     if (cls !== 'submarine' || isFriendly(w, s, t, m)) continue;

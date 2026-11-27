@@ -6,6 +6,7 @@ import { sweepScope, thinkSub, type PackReport } from './sub.js';
 import { heardLaunchDatum, planSide, type EscortTask } from './escort-team.js';
 import { obeySub } from './orders-ai.js';
 import { steerFlyingCourse } from './helo.js';
+import { noteTurn } from './veteran-escort.js';
 import { reconReport } from './convoy-estimate.js';
 
 export type { BotSkill } from './common.js';
@@ -81,16 +82,19 @@ export class BotCrew {
 
   step(w: World): void {
     this.heardAlerts(w);
-    if (w.time - this.planAt >= SKILL[this.roles.escort ?? this.skill].think) {
+    const escortSkill = this.roles.escort ?? this.skill;
+    if (w.time - this.planAt >= SKILL[escortSkill].think) {
       this.planAt = w.time;
       const mems = new Map(this.bots.map((b) => [b.shipId, b]));
-      this.tasks = new Map([...planSide(w, 'west', mems), ...planSide(w, 'east', mems)]);
+      this.tasks = new Map([...planSide(w, 'west', mems, escortSkill), ...planSide(w, 'east', mems, escortSkill)]);
     }
     for (const m of this.bots) {
       const ship = w.ships.find((s) => s.id === m.shipId);
       if (!ship?.alive) continue;
       recordTrack(m, ship, w.time);
       const skill = this.skillOf(ship);
+      // Own escorts' hard turns (knuckles): a VETERAN sonar team doesn't take them for a boat
+      if (skill === 'schwer' && !CLASSES[ship.cls].submarine) noteTurn(w, ship);
       const k = SKILL[skill];
       this.readEvents(w, m, skill);
       // A slower crew reacts to the torpedo alert late; a veteran's second decoy goes as the torpedo comes through the first
