@@ -26,6 +26,10 @@ Abschnitt dieser Datei und das Docker-Image `ghcr.io/db9979/tiefenkontakt:X.Y.Z`
 - 3D-Küste wurde mit jedem Lagebild neu gebaut (bis zu 70 % Rechenzeit in Sehrohr und Brücke): jetzt volle
   Bildrate in allen Grafikstufen.
 - Beim ersten Besuch lud die Seite einmal neu und löschte die halb eingegebene Anmeldung.
+- KI-Geleit (alle Stufen): Ein Sicherungsposten, der auf Land oder im Flachwasser lag, wird jetzt ins tiefe Wasser
+  verlegt; im Hafenangriff lag ein Geleitschiff vorher die ganze Partie still. Kontakte, die einmal per Funkpeilung
+  gehalten wurden, zählen wieder als Datum, sobald ein Echo sie bestätigt. Zum Ausgleich starten die U-Boote im
+  Hafenangriff 250 m näher (Bot-Partien NORMAL gesamt 47 % für das Geleit, vorher 48 %).
 
 ## [1.1.0] – 2026-11-26
 

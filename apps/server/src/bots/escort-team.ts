@@ -2,6 +2,7 @@ import {
   activeOrders,
   bearing,
   CLASSES,
+  depthAt,
   distance,
   executeOrder,
   gridRef,
@@ -90,8 +91,8 @@ function candidates(w: World, s: Ship, m: BotMemory | undefined, vet = false): {
   const out: { p: Vec2; t: number; q: number }[] = [];
   const now = w.time;
   for (const t of w.books.get(s.id)?.tracks() ?? []) {
-    // A track the ESM once held is a radar bearing, unless (VETERAN) it echoes now
-    const esmOnly = t.sensors.includes('esm') && !(vet && t.history.some((h) => h.sensor === 'active' && h.r !== undefined && now - h.t < 120));
+    // A track the ESM once held is a radar bearing, unless it echoes now
+    const esmOnly = t.sensors.includes('esm') && !t.history.some((h) => h.sensor === 'active' && h.r !== undefined && now - h.t < 120);
     if (now - t.lastSeen > 120 || esmOnly || isFriendly(w, s, t, m)) continue;
     // An aircraft that paints a snorkel or periscope has seen a boat: a datum about 1 km off
     const air = [...t.history].reverse().find((h) => airFix(h) && now - h.t < 120);
@@ -209,6 +210,34 @@ export function screenStations(center: Vec2, axis: number, ships: Ship[], outerS
   return out;
 }
 
+/** Least water for a screen station (m): a station in the shallows or on land strands the ship. */
+const STATION_DEPTH_M = 40;
+
+/**
+ * Move every screen station that lies on land or in the shallows to the nearest deep water at
+ * the same distance from the center (swinging up to 120° either way), else closer in.
+ */
+export function seaStations(w: World, center: Vec2, st: Map<string, Vec2>): Map<string, Vec2> {
+  const deep = (p: Vec2) => depthAt(w.env.seabed, p.x, p.y) >= STATION_DEPTH_M;
+  for (const [id, p] of st) {
+    if (deep(p)) continue;
+    const r0 = distance(center, p);
+    const b0 = bearing(center, p);
+    let found: Vec2 | undefined;
+    for (let f = 1; f >= 0.4 && !found; f -= 0.15) {
+      for (let a = 0; a <= 120 && !found; a += 10) {
+        for (const sgn of a ? [1, -1] : [1]) {
+          const v = headingVec(b0 + sgn * a);
+          const q = { x: center.x + v.x * r0 * f, y: center.y + v.y * r0 * f };
+          if (deep(q)) { found = q; break; }
+        }
+      }
+    }
+    if (found) st.set(id, found);
+  }
+  return st;
+}
+
 /**
  * Plan one side. Returns the task of each AI escort; ships without an entry act alone.
  * `lastLead` is the freshest lead (ESM, transient) any AI escort holds, for the threat axis.
@@ -303,7 +332,7 @@ export function planSide(w: World, team: 'west' | 'east', mems: Map<string, BotM
     const threat = d && now - d.t < DATUM_MAX_AGE ? bearing(center, d) : undefined;
     // VETERAN at an anchorage: a pinging barrier across the approach, outside the boats' reach of the berths
     const barrier = vet && !w.convoy;
-    const st = barrier ? barrierStations(w, center, screens) : screenStations(center, threat ?? ahead, screens, !!w.convoy);
+    const st = barrier ? barrierStations(w, center, screens) : seaStations(w, center, screenStations(center, threat ?? ahead, screens, !!w.convoy));
     // In mine water one screen sweeps the track close ahead with its mine-avoidance sonar (the
     // barrage-laying boat is ahead on the track too)
     const sweep = sweepStation(w, center);

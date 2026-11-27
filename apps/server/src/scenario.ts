@@ -218,7 +218,9 @@ const SHORT_GEOMETRY: Partial<Record<MissionId, { subFrac?: number; spread?: num
   // 3/17/42 × 24); 10.3 km 40:32, 10.2 km 41:55, 10 km 25:47, 9.5 km 28:44. 10.25 km: 46:50 (seeds
   // 3/17/42/77 × 24). The line is steep: one more salvo before the time runs out decides.
   // After realism round 5: 10.25 km 24:48 (seeds 3/17/42 × 24), 10.5 km 24:48, 10.75 km 33:39
-  hafen: { harbourSubY: 10_750 },
+  // Screen stations off the land (escorts no longer strand): 10.75 km 24:8, 10.5 km 32:16,
+  // 10.25 km 13:19 (harbour only, seeds 3/17/42/77(/5/9) × 8)
+  hafen: { harbourSubY: 10_500 },
   meerenge: { straitStartY: 4800, straitExitY: 11_500 },
 };
 
